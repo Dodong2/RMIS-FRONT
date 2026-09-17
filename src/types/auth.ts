@@ -8,10 +8,9 @@ export interface User {
   pk: number;
   username: string;
   email: string;
-  first_name: string;
-  last_name: string;
   role: Role | null;
   is_pending_role: boolean;
+  is_active: boolean;
 }
 
 export interface AuthTokens {
@@ -25,14 +24,24 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
-  username: string;
   email: string;
-  password1: string;
+  password: string;
   password2: string;
+  requested_role: number | null;
 }
 
-export interface GoogleExchangeResponse {
-  access: string;
-  refresh: string;
-  is_pending_role: boolean;
+export interface PendingUser {
+  id: number;
+  email: string;
+  registration_method: "email" | "google";
+  requested_role: Role | null;
+  date_joined: string;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  role: Role | null;
+  is_active: boolean;
+  date_joined: string;
 }

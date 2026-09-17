@@ -4,6 +4,7 @@ import type { User, LoginPayload, RegisterPayload } from "../types/auth";
 import { authApi } from "../lib/authApi";
 import { getAccessToken, setTokens, clearTokens } from "../lib/tokenStorage";
 import { supabase } from "../lib/supabaseClient";
+import { getLandingPath } from "../lib/roleLanding";
 
 interface AuthContextValue {
   user: User | null;
@@ -12,7 +13,8 @@ interface AuthContextValue {
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: (intent: "login" | "register") => Promise<void>;
+  completeGoogleLogin: (supabaseAccessToken: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -48,15 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (payload: LoginPayload) => {
     const tokens = await authApi.login(payload);
     setTokens(tokens.access, tokens.refresh);
-    await refreshUser();
-    navigate("/dashboard");
+    const currentUser = await authApi.getCurrentUser();
+    setUser(currentUser);
+    navigate(getLandingPath(currentUser.role?.code));
   };
 
   const register = async (payload: RegisterPayload) => {
-    const tokens = await authApi.register(payload);
-    setTokens(tokens.access, tokens.refresh);
-    await refreshUser();
-    navigate("/dashboard");
+    await authApi.register(payload);
+    navigate("/registration-pending");
   };
 
   const logout = async () => {
@@ -68,13 +69,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate("/login");
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (intent: "login" | "register") => {
+    sessionStorage.setItem("google_intent", intent);
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
+  };
+
+  const completeGoogleLogin = async (supabaseAccessToken: string) => {
+    try {
+      const tokens = await authApi.googleExchange(supabaseAccessToken);
+      setTokens(tokens.access, tokens.refresh);
+      const currentUser = await authApi.getCurrentUser();
+      setUser(currentUser);
+      navigate(getLandingPath(currentUser.role?.code));
+    } catch {
+      navigate("/registration-pending");
+    }
   };
 
   return (
@@ -87,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         loginWithGoogle,
+        completeGoogleLogin,
         refreshUser,
       }}
     >

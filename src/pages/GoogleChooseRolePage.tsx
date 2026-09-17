@@ -1,15 +1,12 @@
 import { useState, useEffect, type SyntheticEvent } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { authApi } from "../lib/authApi";
+import { supabase } from "../lib/supabaseClient";
 import type { Role } from "../types/auth";
 
-export default function RegisterPage() {
-  const { register, loginWithGoogle } = useAuth();
+export default function GoogleChooseRolePage() {
+  const navigate = useNavigate();
   const [roles, setRoles] = useState<Role[]>([]);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [password2, setPassword2] = useState("");
   const [requestedRole, setRequestedRole] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,16 +18,23 @@ export default function RegisterPage() {
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
     setError("");
+    const token = sessionStorage.getItem("pending_google_token");
+    if (!token) {
+      navigate("/register", { replace: true });
+      return;
+    }
+    if (!requestedRole) {
+      setError("Please choose a role.");
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await register({
-        email,
-        password,
-        password2,
-        requested_role: requestedRole ? Number(requestedRole) : null,
-      });
+      await authApi.googleRequestRole(token, Number(requestedRole));
+      sessionStorage.removeItem("pending_google_token");
+      await supabase.auth.signOut();
+      navigate("/registration-pending");
     } catch {
-      setError("Registration failed. Check your details and try again.");
+      setError("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -39,9 +43,6 @@ export default function RegisterPage() {
   return (
     <div>
       <form onSubmit={handleSubmit}>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Gmail" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
-        <input type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} placeholder="Confirm Password" required />
         <select value={requestedRole} onChange={(e) => setRequestedRole(e.target.value)} required>
           <option value="">Choose role to request</option>
           {roles.map((role) => (
@@ -53,8 +54,6 @@ export default function RegisterPage() {
           {isSubmitting ? "Submitting..." : "Submit"}
         </button>
       </form>
-      <button onClick={() => loginWithGoogle("register")}>Sign-in with Google</button>
-      <Link to="/login">Already have an account? Log in</Link>
     </div>
   );
 }

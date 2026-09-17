@@ -16,7 +16,7 @@ export default function LoginPage() {
     try {
       await login({ email, password });
     } catch {
-      setError("Invalid email or password.");
+      setError("Invalid email or password, or your account is not yet confirmed.");
     } finally {
       setIsSubmitting(false);
     }
@@ -25,26 +25,14 @@ export default function LoginPage() {
   return (
     <div>
       <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          required
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          required
-        />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
         {error && <p>{error}</p>}
         <button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Logging in..." : "Log In"}
         </button>
       </form>
-      <button onClick={loginWithGoogle}>Continue with Google</button>
+      <button onClick={() => loginWithGoogle("login")}>Continue with Google</button>
       <Link to="/register">Create an account</Link>
     </div>
   );
