@@ -25,6 +25,7 @@ export default function LoginPage() {
   return (
     <div>
       <form onSubmit={handleSubmit}>
+        <h1 className="text-3xl font-bold underline">Login</h1>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
         {error && <p>{error}</p>}
