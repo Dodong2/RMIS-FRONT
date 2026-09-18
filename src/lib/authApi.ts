@@ -43,4 +43,11 @@ export const authApi = {
   assignRole: async (userId: number, roleId: number): Promise<void> => {
     await apiClient.patch(`/api/admin/pending-users/${userId}/assign-role/`, { role_id: roleId });
   },
+  updateUserRole: async (userId: number, roleId: number): Promise<void> => {
+    await apiClient.patch(`/api/admin/users/${userId}/update-role/`, { role_id: roleId });
+  },
+  toggleUserActive: async (userId: number): Promise<{ is_active: boolean }> => {
+    const { data } = await apiClient.patch(`/api/admin/users/${userId}/toggle-active/`);
+    return data;
+  },
 };
