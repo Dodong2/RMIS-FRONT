@@ -7,6 +7,8 @@ import AuthCallbackPage from "./pages/AuthCallbackPage";
 import DashboardPage from "./pages/DashboardPage";
 import PendingUsersPage from "./pages/admin/PendingUsersPage";
 import UsersListPage from "./pages/admin/UsersListPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
 
@@ -19,6 +21,8 @@ export default function App() {
       <Route path="/register/choose-role" element={<GoogleChooseRolePage />} />
       <Route path="/registration-pending" element={<RegistrationPendingPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/projects" element={<ProjectsPage />} />
+      <Route path="/projects/:id" element={<ProjectDetailPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route
         path="/admin/pending-users"

@@ -77,7 +77,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/projects",
         icon: "folder",
         tiers: ALL_RESEARCH,
-        ready: false,
+        ready: true,
       },
       {
         label: "Work plan",
