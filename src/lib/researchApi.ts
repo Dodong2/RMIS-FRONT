@@ -38,6 +38,17 @@ export const researchApi = {
     start_date?: string;
     target_end_date?: string;
     rei_thrust?: string;
+    sdgs: number[];
+    sector: string;
+    sector_other?: string;
+    is_continuing?: boolean;
+    research_type?: string;
+    research_priority_area?: string;
+    research_typology?: string[];
+    campus?: string;
+    implementing_unit?: string;
+    cooperating_agencies?: string;
+    total_cost?: string;
   }): Promise<Project> => {
     const { data } = await apiClient.post("/api/projects/", payload);
     return data;

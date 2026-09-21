@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ClipboardList, Plus, Trash2 } from "lucide-react";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
+import { errorMessage } from "../lib/errorMessage";
 import type { Task, TaskStatus } from "../types/personnel";
 import type { Project, Study } from "../types/research";
 import type { AdminUser } from "../types/auth";
@@ -49,14 +50,6 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
 };
 
 const ALL = "all";
-
-function errorMessage(err: any, fallback: string): string {
-  const data = err?.response?.data;
-  if (!data) return fallback;
-  if (typeof data.detail === "string") return data.detail;
-  const first = Object.values(data).flat()[0];
-  return typeof first === "string" ? first : fallback;
-}
 
 function TasksContent() {
   const { user } = useAuth();

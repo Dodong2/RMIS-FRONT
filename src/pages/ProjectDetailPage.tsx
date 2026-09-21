@@ -9,6 +9,13 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { FormAlert } from "../components/common/FormAlert";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
+import {
+  PRIORITY_AREA_LABELS,
+  RESEARCH_TYPE_LABELS,
+  SDG_LABELS,
+  SECTOR_LABELS,
+  TYPOLOGY_LABELS,
+} from "../lib/projectOptions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -169,6 +176,78 @@ function ProjectDetailContent() {
 
       <FormAlert tone="error" message={error} className="mb-4" />
       <FormAlert tone="success" message={success} className="mb-4" />
+
+      {project && (
+        <Card className="mb-6 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-navy">Proposal Details</h3>
+          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <dt className="text-xs text-muted-foreground">Sector</dt>
+              <dd>
+                {project.sector === "others"
+                  ? project.sector_other
+                  : project.sector
+                    ? SECTOR_LABELS[project.sector]
+                    : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Proposal Type</dt>
+              <dd>{project.is_continuing ? "Continuing" : "New Proposal"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Research Category</dt>
+              <dd>{project.research_type ? RESEARCH_TYPE_LABELS[project.research_type] : "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Priority Area</dt>
+              <dd>
+                {project.research_priority_area
+                  ? PRIORITY_AREA_LABELS[project.research_priority_area]
+                  : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Typology</dt>
+              <dd>
+                {project.research_typology.length
+                  ? project.research_typology.map((t) => TYPOLOGY_LABELS[t]).join(", ")
+                  : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Total Cost</dt>
+              <dd>{project.total_cost ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Campus</dt>
+              <dd>{project.campus || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Implementing Unit</dt>
+              <dd>{project.implementing_unit || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Cooperating Agencies</dt>
+              <dd>{project.cooperating_agencies || "—"}</dd>
+            </div>
+          </dl>
+          <div className="mt-3">
+            <p className="mb-1 text-xs text-muted-foreground">Sustainable Development Goals</p>
+            <div className="flex flex-wrap gap-1.5">
+              {project.sdgs.length === 0 ? (
+                <span className="text-sm">—</span>
+              ) : (
+                project.sdgs.map((n) => (
+                  <Badge key={n} variant="outline">
+                    SDG {n} — {SDG_LABELS[n]}
+                  </Badge>
+                ))
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {canRegister && (
         <Card className="mb-6 p-4">

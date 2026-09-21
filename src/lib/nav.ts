@@ -94,6 +94,27 @@ export const NAV_SECTIONS: NavSection[] = [
         ready: true,
       },
       {
+        label: "Staff and assignments",
+        to: "/staff",
+        icon: "users",
+        tiers: [...OVERSIGHT, "project_management", "study_management"],
+        ready: true,
+      },
+      {
+        label: "Leader load",
+        to: "/leader-load",
+        icon: "activity",
+        tiers: [...OVERSIGHT, "project_management"],
+        ready: true,
+      },
+      {
+        label: "Personnel changes",
+        to: "/personnel-changes",
+        icon: "userCog",
+        tiers: [...OVERSIGHT, "procurement"],
+        ready: true,
+      },
+      {
         label: "Ethics and compliance",
         to: "/compliance",
         icon: "shield",

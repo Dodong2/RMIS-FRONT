@@ -9,6 +9,14 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { FormAlert } from "../components/common/FormAlert";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
+import { MultiSelect } from "../components/common/MultiSelect";
+import {
+  PRIORITY_AREA_LABELS,
+  RESEARCH_TYPE_LABELS,
+  SDG_OPTIONS,
+  SECTOR_LABELS,
+  TYPOLOGY_OPTIONS,
+} from "../lib/projectOptions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -73,6 +81,17 @@ function ProjectsContent() {
     start_date: "",
     target_end_date: "",
     rei_thrust: "",
+    sdgs: [] as string[],
+    sector: "",
+    sector_other: "",
+    is_continuing: "false",
+    research_type: "",
+    research_priority_area: "",
+    research_typology: [] as string[],
+    campus: "",
+    implementing_unit: "",
+    cooperating_agencies: "",
+    total_cost: "",
   });
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
@@ -144,6 +163,18 @@ function ProjectsContent() {
       setError("Project title, project code, funding type, and lead are required.");
       return;
     }
+    if (projectForm.sdgs.length === 0) {
+      setError("Select at least one Sustainable Development Goal.");
+      return;
+    }
+    if (!projectForm.sector) {
+      setError("Sector is required.");
+      return;
+    }
+    if (projectForm.sector === "others" && !projectForm.sector_other.trim()) {
+      setError("Specify the sector when 'Others' is selected.");
+      return;
+    }
     setIsCreatingProject(true);
     try {
       await researchApi.createProject({
@@ -159,6 +190,17 @@ function ProjectsContent() {
         start_date: projectForm.start_date || undefined,
         target_end_date: projectForm.target_end_date || undefined,
         rei_thrust: projectForm.rei_thrust || undefined,
+        sdgs: projectForm.sdgs.map(Number),
+        sector: projectForm.sector,
+        sector_other: projectForm.sector === "others" ? projectForm.sector_other : undefined,
+        is_continuing: projectForm.is_continuing === "true",
+        research_type: projectForm.research_type || undefined,
+        research_priority_area: projectForm.research_priority_area || undefined,
+        research_typology: projectForm.research_typology,
+        campus: projectForm.campus || undefined,
+        implementing_unit: projectForm.implementing_unit || undefined,
+        cooperating_agencies: projectForm.cooperating_agencies || undefined,
+        total_cost: projectForm.total_cost || undefined,
       });
       setSuccess("Project registered.");
       setProjectForm({
@@ -174,12 +216,27 @@ function ProjectsContent() {
         start_date: "",
         target_end_date: "",
         rei_thrust: "",
+        sdgs: [],
+        sector: "",
+        sector_other: "",
+        is_continuing: "false",
+        research_type: "",
+        research_priority_area: "",
+        research_typology: [],
+        campus: "",
+        implementing_unit: "",
+        cooperating_agencies: "",
+        total_cost: "",
       });
       await load();
     } catch (err: any) {
+      const data = err?.response?.data;
       setError(
-        err?.response?.data?.detail ??
-          err?.response?.data?.non_field_errors?.[0] ??
+        data?.detail ??
+          data?.non_field_errors?.[0] ??
+          data?.sdgs?.[0] ??
+          data?.sector?.[0] ??
+          data?.sector_other?.[0] ??
           "Could not register the project.",
       );
     } finally {
@@ -430,6 +487,132 @@ function ProjectsContent() {
                 value={projectForm.rei_thrust}
                 onChange={(e) => setProjectForm((p) => ({ ...p, rei_thrust: e.target.value }))}
                 placeholder="e.g. Sustainable Agriculture"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Sustainable Development Goals</Label>
+              <MultiSelect
+                options={SDG_OPTIONS}
+                value={projectForm.sdgs}
+                onChange={(next) => setProjectForm((p) => ({ ...p, sdgs: next }))}
+                placeholder="Select SDGs"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Sector</Label>
+              <Select value={projectForm.sector} onValueChange={(v) => setProjectForm((p) => ({ ...p, sector: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sector" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SECTOR_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {projectForm.sector === "others" && (
+              <div>
+                <Label className="mb-1 block text-xs">Specify Sector</Label>
+                <Input
+                  value={projectForm.sector_other}
+                  onChange={(e) => setProjectForm((p) => ({ ...p, sector_other: e.target.value }))}
+                  placeholder="Other sector"
+                />
+              </div>
+            )}
+            <div>
+              <Label className="mb-1 block text-xs">Proposal Type</Label>
+              <Select
+                value={projectForm.is_continuing}
+                onValueChange={(v) => setProjectForm((p) => ({ ...p, is_continuing: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="false">New Proposal</SelectItem>
+                  <SelectItem value="true">Continuing</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Research Category (optional)</Label>
+              <Select
+                value={projectForm.research_type}
+                onValueChange={(v) => setProjectForm((p) => ({ ...p, research_type: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Basic or applied" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(RESEARCH_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Research Priority Area (optional)</Label>
+              <Select
+                value={projectForm.research_priority_area}
+                onValueChange={(v) => setProjectForm((p) => ({ ...p, research_priority_area: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select priority area" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PRIORITY_AREA_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Research Typology (optional)</Label>
+              <MultiSelect
+                options={TYPOLOGY_OPTIONS}
+                value={projectForm.research_typology}
+                onChange={(next) => setProjectForm((p) => ({ ...p, research_typology: next }))}
+                placeholder="Select typology"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Campus (optional)</Label>
+              <Input
+                value={projectForm.campus}
+                onChange={(e) => setProjectForm((p) => ({ ...p, campus: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Implementing Unit (optional)</Label>
+              <Input
+                value={projectForm.implementing_unit}
+                onChange={(e) => setProjectForm((p) => ({ ...p, implementing_unit: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Cooperating Agencies (optional)</Label>
+              <Input
+                value={projectForm.cooperating_agencies}
+                onChange={(e) => setProjectForm((p) => ({ ...p, cooperating_agencies: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Total Cost (optional)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={projectForm.total_cost}
+                onChange={(e) => setProjectForm((p) => ({ ...p, total_cost: e.target.value }))}
+                placeholder="0.00"
               />
             </div>
           </div>
