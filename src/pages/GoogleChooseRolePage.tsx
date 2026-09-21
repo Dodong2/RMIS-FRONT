@@ -5,7 +5,6 @@ import { authApi } from "../lib/authApi";
 import { supabase } from "../lib/supabaseClient";
 import type { Role } from "../types/auth";
 import { AuthShell } from "../components/auth/AuthShell";
-import { FormAlert } from "../components/common/FormAlert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,13 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { notify } from "../lib/notify";
 
 export default function GoogleChooseRolePage() {
   const navigate = useNavigate();
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [requestedRole, setRequestedRole] = useState("");
-  const [error, setError] = useState("");
+  const [attempted, setAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function GoogleChooseRolePage() {
       .catch(() => {
         if (!active) return;
         setRoles([]);
-        setError("The role list could not be loaded. Reload the page to try again.");
+        notify.error("The role list could not be loaded. Reload the page to try again.");
       })
       .finally(() => active && setRolesLoading(false));
     return () => {
@@ -43,15 +43,15 @@ export default function GoogleChooseRolePage() {
 
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
-    setError("");
 
     const token = sessionStorage.getItem("pending_google_token");
     if (!token) {
       navigate("/register", { replace: true });
       return;
     }
+    setAttempted(true);
     if (!requestedRole) {
-      setError("Choose the role you are requesting before you submit.");
+      notify.error("Choose the role you are requesting before you submit.");
       return;
     }
 
@@ -62,7 +62,7 @@ export default function GoogleChooseRolePage() {
       await supabase.auth.signOut();
       navigate("/registration-pending");
     } catch {
-      setError("The request could not be submitted. Try again in a moment.");
+      notify.error("The request could not be submitted. Try again in a moment.");
     } finally {
       setIsSubmitting(false);
     }
@@ -74,10 +74,9 @@ export default function GoogleChooseRolePage() {
       subtitle="Tell us which role you need so an administrator can review it"
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <FormAlert message={error} />
 
         <div className="space-y-1.5">
-          <Label htmlFor="role">Role you are requesting</Label>
+          <Label htmlFor="role">Role you are requesting<span className="text-destructive" aria-hidden="true"> *</span></Label>
           {rolesLoading ? (
             <Skeleton className="h-9 w-full rounded-md" />
           ) : (
@@ -86,7 +85,7 @@ export default function GoogleChooseRolePage() {
               onValueChange={setRequestedRole}
               disabled={roles.length === 0}
             >
-              <SelectTrigger id="role" className="w-full">
+              <SelectTrigger id="role" className="w-full" aria-invalid={attempted && !requestedRole}>
                 <SelectValue
                   placeholder={roles.length === 0 ? "No roles available" : "Choose a role"}
                 />

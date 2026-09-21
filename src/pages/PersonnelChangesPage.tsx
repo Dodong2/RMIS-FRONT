@@ -14,7 +14,8 @@ import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { FormAlert } from "../components/common/FormAlert";
+import { EmptyOption } from "../components/common/EmptyOption";
+import { FieldLabel } from "../components/common/FieldLabel";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { notify } from "../lib/notify";
 
 const MANAGE_CODES = ["system_admin", "crc_chair", "drd", "riuh"];
 const CLEARANCE_CODES = [...MANAGE_CODES, "procurement_officer_lib"];
@@ -78,8 +80,7 @@ function PersonnelChangesContent() {
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
   const [candidates, setCandidates] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [attempted, setAttempted] = useState(false);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
@@ -87,6 +88,7 @@ function PersonnelChangesContent() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [clearanceForm, setClearanceForm] = useState({ items: "", par_number: "", remarks: "" });
   const [isSaving, setIsSaving] = useState(false);
+  const [attemptedSignOff, setAttemptedSignOff] = useState(false);
 
   const selected = changes.find((c) => c.id === selectedId) ?? null;
 
@@ -112,9 +114,8 @@ function PersonnelChangesContent() {
       setChanges(changeList);
       setPrograms(programList);
       setProjects(projectList);
-      setError("");
     } catch {
-      setError("Could not load personnel changes. Check your connection and refresh.");
+      notify.error("Could not load personnel changes. Check your connection and refresh.");
     } finally {
       setIsLoading(false);
     }
@@ -167,10 +168,9 @@ function PersonnelChangesContent() {
   };
 
   const handleCreate = async () => {
-    setError("");
-    setSuccess("");
+    setAttempted(true);
     if (!form.incoming || !form.reason.trim()) {
-      setError("Incoming person and reason are required.");
+      notify.error("Incoming person and reason are required.");
       return;
     }
 
@@ -178,13 +178,13 @@ function PersonnelChangesContent() {
     if (form.change_type === "staff") {
       outgoing = assignments.find((a) => String(a.id) === form.assignment)?.user;
       if (!form.assignment || !outgoing) {
-        setError("Select the assignment to change.");
+        notify.error("Select the assignment to change.");
         return;
       }
     } else {
       outgoing = currentLead();
       if (!outgoing) {
-        setError("Select the program, project, or study to change the leader of.");
+        notify.error("Select the program, project, or study to change the leader of.");
         return;
       }
     }
@@ -201,12 +201,13 @@ function PersonnelChangesContent() {
         incoming: Number(form.incoming),
         reason: form.reason,
       });
-      setSuccess("Personnel change initiated. Property clearance is now required.");
+      setAttempted(false);
+      notify.success("Personnel change initiated. Property clearance is now required.");
       setForm(EMPTY_FORM);
       setStudies([]);
       await load();
     } catch (err) {
-      setError(errorMessage(err, "Could not initiate the personnel change."));
+      notify.error(errorMessage(err, "Could not initiate the personnel change."));
     } finally {
       setIsCreating(false);
     }
@@ -214,13 +215,12 @@ function PersonnelChangesContent() {
 
   const handleSelect = (c: PersonnelChange) => {
     setSelectedId(c.id);
+    setAttemptedSignOff(false);
     setClearanceForm({
       items: c.clearance.items,
       par_number: c.clearance.par_number,
       remarks: c.clearance.remarks,
     });
-    setError("");
-    setSuccess("");
   };
 
   const replaceChange = (updated: PersonnelChange) =>
@@ -228,10 +228,9 @@ function PersonnelChangesContent() {
 
   const handleClearance = async (acknowledge: boolean) => {
     if (!selected) return;
-    setError("");
-    setSuccess("");
+    setAttemptedSignOff(acknowledge);
     if (acknowledge && !clearanceForm.par_number.trim()) {
-      setError("PAR number is required to sign off the clearance.");
+      notify.error("PAR number is required to sign off the clearance.");
       return;
     }
     setIsSaving(true);
@@ -241,9 +240,9 @@ function PersonnelChangesContent() {
         acknowledge,
       });
       replaceChange(updated);
-      setSuccess(acknowledge ? "Clearance signed off." : "Clearance details saved.");
+      notify.success(acknowledge ? "Clearance signed off." : "Clearance details saved.");
     } catch (err) {
-      setError(errorMessage(err, "Could not update the clearance."));
+      notify.error(errorMessage(err, "Could not update the clearance."));
     } finally {
       setIsSaving(false);
     }
@@ -251,16 +250,14 @@ function PersonnelChangesContent() {
 
   const handleComplete = async () => {
     if (!selected) return;
-    setError("");
-    setSuccess("");
     setIsSaving(true);
     try {
       const updated = await personnelApi.completeChange(selected.id);
       replaceChange(updated);
-      setSuccess("Personnel change completed.");
+      notify.success("Personnel change completed.");
       await load();
     } catch (err) {
-      setError(errorMessage(err, "Could not complete the personnel change."));
+      notify.error(errorMessage(err, "Could not complete the personnel change."));
     } finally {
       setIsSaving(false);
     }
@@ -274,9 +271,6 @@ function PersonnelChangesContent() {
         title="Personnel changes"
         description="Replace a leader or project staff. Property clearance must be signed off before the change takes effect."
       />
-
-      <FormAlert tone="error" message={error} className="mb-4" />
-      <FormAlert tone="success" message={success} className="mb-4" />
 
       {canManage && (
         <Card className="mb-6 p-4">
@@ -320,12 +314,13 @@ function PersonnelChangesContent() {
                 </div>
                 {form.record_type === "program" ? (
                   <div>
-                    <Label className="mb-1 block text-xs">Program</Label>
+                    <FieldLabel required>Program</FieldLabel>
                     <Select value={form.program} onValueChange={(v) => setForm((f) => ({ ...f, program: v }))}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-invalid={attempted && (!form.program)}>
                         <SelectValue placeholder="Select program" />
                       </SelectTrigger>
                       <SelectContent>
+                        {programs.length === 0 && <EmptyOption message="No programs registered yet" />}
                         {programs.map((p) => (
                           <SelectItem key={p.id} value={String(p.id)}>
                             {p.title} — {p.lead_detail.email}
@@ -336,12 +331,13 @@ function PersonnelChangesContent() {
                   </div>
                 ) : (
                   <div>
-                    <Label className="mb-1 block text-xs">Project</Label>
+                    <FieldLabel required>Project</FieldLabel>
                     <Select value={form.project} onValueChange={handleProjectPick}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-invalid={attempted && (!form.project)}>
                         <SelectValue placeholder="Select project" />
                       </SelectTrigger>
                       <SelectContent>
+                        {projects.length === 0 && <EmptyOption message="No projects registered yet" />}
                         {projects.map((p) => (
                           <SelectItem key={p.id} value={String(p.id)}>
                             {p.project_code} — {p.lead_detail.email}
@@ -353,16 +349,17 @@ function PersonnelChangesContent() {
                 )}
                 {form.record_type === "study" && (
                   <div>
-                    <Label className="mb-1 block text-xs">Study</Label>
+                    <FieldLabel required>Study</FieldLabel>
                     <Select
                       value={form.study}
                       onValueChange={(v) => setForm((f) => ({ ...f, study: v }))}
                       disabled={studies.length === 0}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-invalid={attempted && (!form.study)}>
                         <SelectValue placeholder="Select study" />
                       </SelectTrigger>
                       <SelectContent>
+                        {studies.length === 0 && <EmptyOption message="No studies for this project" />}
                         {studies.map((s) => (
                           <SelectItem key={s.id} value={String(s.id)}>
                             {s.title} — {s.lead_detail.email}
@@ -375,9 +372,9 @@ function PersonnelChangesContent() {
               </>
             ) : (
               <div>
-                <Label className="mb-1 block text-xs">Active Assignment</Label>
+                <FieldLabel required>Active Assignment</FieldLabel>
                 <Select value={form.assignment} onValueChange={(v) => setForm((f) => ({ ...f, assignment: v }))}>
-                  <SelectTrigger>
+                  <SelectTrigger aria-invalid={attempted && (!form.assignment)}>
                     <SelectValue placeholder="Select assignment" />
                   </SelectTrigger>
                   <SelectContent>
@@ -392,12 +389,13 @@ function PersonnelChangesContent() {
             )}
 
             <div>
-              <Label className="mb-1 block text-xs">Incoming</Label>
+              <FieldLabel required>Incoming</FieldLabel>
               <Select value={form.incoming} onValueChange={(v) => setForm((f) => ({ ...f, incoming: v }))}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attempted && (!form.incoming)}>
                   <SelectValue placeholder="Select replacement" />
                 </SelectTrigger>
                 <SelectContent>
+                  {candidates.length === 0 && <EmptyOption message="No eligible users available" />}
                   {candidates.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.email}
@@ -407,8 +405,8 @@ function PersonnelChangesContent() {
               </Select>
             </div>
             <div className="sm:col-span-2">
-              <Label className="mb-1 block text-xs">Reason</Label>
-              <Input
+              <FieldLabel required>Reason</FieldLabel>
+              <Input aria-invalid={attempted && (!form.reason.trim())}
                 value={form.reason}
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                 placeholder="Why is this change needed?"
@@ -489,8 +487,8 @@ function PersonnelChangesContent() {
           </h4>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <Label className="mb-1 block text-xs">PAR Number</Label>
-              <Input
+              <FieldLabel required>PAR Number</FieldLabel>
+              <Input aria-invalid={attemptedSignOff && !clearanceForm.par_number.trim()}
                 value={clearanceForm.par_number}
                 onChange={(e) => setClearanceForm((f) => ({ ...f, par_number: e.target.value }))}
                 disabled={!canClear || clearanceLocked}

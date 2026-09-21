@@ -9,7 +9,8 @@ import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { FormAlert } from "../components/common/FormAlert";
+import { EmptyOption } from "../components/common/EmptyOption";
+import { FieldLabel } from "../components/common/FieldLabel";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { notify } from "../lib/notify";
 
 const MANAGE_CODES = ["system_admin", "crc_chair", "drd", "riuh"];
 
@@ -48,8 +50,8 @@ function StaffContent() {
   const [studies, setStudies] = useState<Study[]>([]);
   const [staffUsers, setStaffUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [attemptedAssign, setAttemptedAssign] = useState(false);
+  const [attemptedProfile, setAttemptedProfile] = useState(false);
   const [activeOnly, setActiveOnly] = useState(true);
 
   const [profileForm, setProfileForm] = useState({ user: "", staff_level: "" });
@@ -81,9 +83,8 @@ function StaffContent() {
       setProfiles(profileList);
       setAssignments(assignmentList);
       setProjects(projectList);
-      setError("");
     } catch {
-      setError("Could not load staff records. Check your connection and refresh.");
+      notify.error("Could not load staff records. Check your connection and refresh.");
     } finally {
       setIsLoading(false);
     }
@@ -103,10 +104,9 @@ function StaffContent() {
   }, [canManage]);
 
   const handleAddProfile = async () => {
-    setError("");
-    setSuccess("");
+    setAttemptedProfile(true);
     if (!profileForm.user || !profileForm.staff_level) {
-      setError("Select a staff member and a level.");
+      notify.error("Select a staff member and a level.");
       return;
     }
     setIsSavingProfile(true);
@@ -115,24 +115,23 @@ function StaffContent() {
         user: Number(profileForm.user),
         staff_level: Number(profileForm.staff_level),
       });
-      setSuccess("Staff level saved.");
+      setAttemptedProfile(false);
+      notify.success("Staff level saved.");
       setProfileForm({ user: "", staff_level: "" });
       await load();
     } catch (err) {
-      setError(errorMessage(err, "Could not save the staff level."));
+      notify.error(errorMessage(err, "Could not save the staff level."));
     } finally {
       setIsSavingProfile(false);
     }
   };
 
   const handleLevelChange = async (profile: StaffProfile, level: string) => {
-    setError("");
-    setSuccess("");
     try {
       const updated = await personnelApi.updateStaffProfile(profile.id, Number(level));
       setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     } catch (err) {
-      setError(errorMessage(err, "Could not update the staff level."));
+      notify.error(errorMessage(err, "Could not update the staff level."));
     }
   };
 
@@ -146,11 +145,10 @@ function StaffContent() {
   };
 
   const handleAssign = async () => {
-    setError("");
-    setSuccess("");
+    setAttemptedAssign(true);
     const targetId = assignForm.target === "project" ? assignForm.project : assignForm.study;
     if (!assignForm.user || !targetId || !assignForm.start_date) {
-      setError("Staff member, project or study, and start date are required.");
+      notify.error("Staff member, project or study, and start date are required.");
       return;
     }
     setIsAssigning(true);
@@ -162,7 +160,8 @@ function StaffContent() {
         role_label: assignForm.role_label || undefined,
         start_date: assignForm.start_date,
       });
-      setSuccess("Staff assigned.");
+      setAttemptedAssign(false);
+      notify.success("Staff assigned.");
       setAssignForm({
         user: "",
         target: "project",
@@ -174,21 +173,19 @@ function StaffContent() {
       setStudies([]);
       await load();
     } catch (err) {
-      setError(errorMessage(err, "Could not create the assignment."));
+      notify.error(errorMessage(err, "Could not create the assignment."));
     } finally {
       setIsAssigning(false);
     }
   };
 
   const handleEnd = async (assignment: ProjectAssignment) => {
-    setError("");
-    setSuccess("");
     try {
       const updated = await personnelApi.updateAssignment(assignment.id, { end_date: today() });
       setAssignments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-      setSuccess("Assignment ended.");
+      notify.success("Assignment ended.");
     } catch (err) {
-      setError(errorMessage(err, "Could not end the assignment."));
+      notify.error(errorMessage(err, "Could not end the assignment."));
     }
   };
 
@@ -201,20 +198,18 @@ function StaffContent() {
         description="Project staff levels and who is assigned to which project or study."
       />
 
-      <FormAlert tone="error" message={error} className="mb-4" />
-      <FormAlert tone="success" message={success} className="mb-4" />
-
       {canManage && (
         <Card className="mb-6 p-4">
           <h3 className="mb-3 text-sm font-semibold text-navy">Set a Staff Level</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <Label className="mb-1 block text-xs">Project Staff</Label>
+              <FieldLabel required>Project Staff</FieldLabel>
               <Select value={profileForm.user} onValueChange={(v) => setProfileForm((f) => ({ ...f, user: v }))}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedProfile && (!profileForm.user)}>
                   <SelectValue placeholder="Select staff without a level" />
                 </SelectTrigger>
                 <SelectContent>
+                  {unprofiled.length === 0 && <EmptyOption message="All project staff already have a level" />}
                   {unprofiled.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.email}
@@ -224,12 +219,12 @@ function StaffContent() {
               </Select>
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Level</Label>
+              <FieldLabel required>Level</FieldLabel>
               <Select
                 value={profileForm.staff_level}
                 onValueChange={(v) => setProfileForm((f) => ({ ...f, staff_level: v }))}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedProfile && (!profileForm.staff_level)}>
                   <SelectValue placeholder="Select level" />
                 </SelectTrigger>
                 <SelectContent>
@@ -314,12 +309,13 @@ function StaffContent() {
           <h3 className="mb-3 text-sm font-semibold text-navy">Assign Staff</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <Label className="mb-1 block text-xs">Project Staff</Label>
+              <FieldLabel required>Project Staff</FieldLabel>
               <Select value={assignForm.user} onValueChange={(v) => setAssignForm((f) => ({ ...f, user: v }))}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedAssign && (!assignForm.user)}>
                   <SelectValue placeholder="Select staff" />
                 </SelectTrigger>
                 <SelectContent>
+                  {staffUsers.length === 0 && <EmptyOption message="No active project staff yet" />}
                   {staffUsers.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.email}
@@ -344,12 +340,13 @@ function StaffContent() {
               </Select>
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Project</Label>
+              <FieldLabel required>Project</FieldLabel>
               <Select value={assignForm.project} onValueChange={handleTargetProject}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedAssign && (!assignForm.project)}>
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
+                  {projects.length === 0 && <EmptyOption message="No projects registered yet" />}
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
                       {p.project_code} — {p.title}
@@ -360,16 +357,17 @@ function StaffContent() {
             </div>
             {assignForm.target === "study" && (
               <div>
-                <Label className="mb-1 block text-xs">Study</Label>
+                <FieldLabel required>Study</FieldLabel>
                 <Select
                   value={assignForm.study}
                   onValueChange={(v) => setAssignForm((f) => ({ ...f, study: v }))}
                   disabled={studies.length === 0}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-invalid={attemptedAssign && (!assignForm.study)}>
                     <SelectValue placeholder="Select study" />
                   </SelectTrigger>
                   <SelectContent>
+                    {studies.length === 0 && <EmptyOption message="No studies for this project" />}
                     {studies.map((s) => (
                       <SelectItem key={s.id} value={String(s.id)}>
                         {s.title}
@@ -388,8 +386,8 @@ function StaffContent() {
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Start Date</Label>
-              <Input
+              <FieldLabel required>Start Date</FieldLabel>
+              <Input aria-invalid={attemptedAssign && (!assignForm.start_date)}
                 type="date"
                 value={assignForm.start_date}
                 onChange={(e) => setAssignForm((f) => ({ ...f, start_date: e.target.value }))}

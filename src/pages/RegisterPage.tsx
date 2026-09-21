@@ -6,7 +6,6 @@ import { authApi } from "../lib/authApi";
 import type { Role } from "../types/auth";
 import { AuthShell } from "../components/auth/AuthShell";
 import { GoogleButton } from "../components/auth/GoogleButton";
-import { FormAlert } from "../components/common/FormAlert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,18 +18,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { notify } from "../lib/notify";
 
 export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuth();
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
-  const [rolesError, setRolesError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [requestedRole, setRequestedRole] = useState("");
-  const [error, setError] = useState("");
+  const [attempted, setAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGooglePending, setIsGooglePending] = useState(false);
 
@@ -42,12 +41,11 @@ export default function RegisterPage() {
       .then((data) => {
         if (!active) return;
         setRoles(data);
-        setRolesError("");
       })
       .catch(() => {
         if (!active) return;
         setRoles([]);
-        setRolesError("The role list could not be loaded. Reload the page to try again.");
+        notify.info("The role list could not be loaded. Reload the page to try again.");
       })
       .finally(() => {
         if (active) setRolesLoading(false);
@@ -61,10 +59,15 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
-    setError("");
+    setAttempted(true);
+
+    if (!email.trim() || !password || !password2 || !requestedRole) {
+      notify.error("Fill in all required fields: email, password, confirm password, and role.");
+      return;
+    }
 
     if (!passwordsMatch) {
-      setError("The two passwords do not match. Retype them and submit again.");
+      notify.error("The two passwords do not match. Retype them and submit again.");
       return;
     }
 
@@ -77,7 +80,7 @@ export default function RegisterPage() {
         requested_role: requestedRole ? Number(requestedRole) : null,
       });
     } catch {
-      setError(
+      notify.error(
         "The account could not be created. The email may already be registered, or the password may be too short.",
       );
     } finally {
@@ -86,13 +89,12 @@ export default function RegisterPage() {
   };
 
   const handleGoogle = async () => {
-    setError("");
     setIsGooglePending(true);
     try {
       await loginWithGoogle("register");
     } catch {
       setIsGooglePending(false);
-      setError("Google sign-up could not start. Check your connection and try again.");
+      notify.error("Google sign-up could not start. Check your connection and try again.");
     }
   };
 
@@ -113,11 +115,9 @@ export default function RegisterPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <FormAlert message={error} />
-        <FormAlert tone="info" message={rolesError} />
 
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Email<span className="text-destructive" aria-hidden="true"> *</span></Label>
           <Input
             id="email"
             type="email"
@@ -126,11 +126,12 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@lspu.edu.ph"
             required
+            aria-invalid={attempted && !email.trim()}
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Password<span className="text-destructive" aria-hidden="true"> *</span></Label>
           <div className="relative">
             <Input
               id="password"
@@ -141,6 +142,7 @@ export default function RegisterPage() {
               placeholder="At least 8 characters"
               required
               className="pr-10"
+              aria-invalid={attempted && !password}
             />
             <button
               type="button"
@@ -154,7 +156,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="password2">Confirm password</Label>
+          <Label htmlFor="password2">Confirm password<span className="text-destructive" aria-hidden="true"> *</span></Label>
           <Input
             id="password2"
             type={showPassword ? "text" : "password"}
@@ -163,7 +165,7 @@ export default function RegisterPage() {
             onChange={(e) => setPassword2(e.target.value)}
             placeholder="Retype your password"
             required
-            aria-invalid={password2.length > 0 && !passwordsMatch}
+            aria-invalid={(password2.length > 0 && !passwordsMatch) || (attempted && !password2)}
           />
           {password2.length > 0 && !passwordsMatch && (
             <p className="text-xs text-destructive">The passwords do not match yet.</p>
@@ -171,7 +173,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="role">Role you are requesting</Label>
+          <Label htmlFor="role">Role you are requesting<span className="text-destructive" aria-hidden="true"> *</span></Label>
           {rolesLoading ? (
             <Skeleton className="h-9 w-full rounded-md" />
           ) : (
@@ -180,7 +182,7 @@ export default function RegisterPage() {
               onValueChange={setRequestedRole}
               disabled={roles.length === 0}
             >
-              <SelectTrigger id="role" className="w-full">
+              <SelectTrigger id="role" className="w-full" aria-invalid={attempted && !requestedRole}>
                 <SelectValue
                   placeholder={
                     roles.length === 0 ? "No roles available" : "Choose a role"

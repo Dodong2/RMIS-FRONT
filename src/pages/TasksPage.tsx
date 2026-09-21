@@ -9,7 +9,8 @@ import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { FormAlert } from "../components/common/FormAlert";
+import { EmptyOption } from "../components/common/EmptyOption";
+import { FieldLabel } from "../components/common/FieldLabel";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { notify } from "../lib/notify";
 
 const TASK_ASSIGNER_CODES = [
   "system_admin",
@@ -60,8 +62,7 @@ function TasksContent() {
   const [staff, setStaff] = useState<AdminUser[]>([]);
   const [studies, setStudies] = useState<Study[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [attempted, setAttempted] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
 
   const [form, setForm] = useState({
@@ -85,9 +86,8 @@ function TasksContent() {
       ]);
       setTasks(taskList);
       setProjects(projectList);
-      setError("");
     } catch {
-      setError("Could not load tasks. Check your connection and refresh.");
+      notify.error("Could not load tasks. Check your connection and refresh.");
     } finally {
       setIsLoading(false);
     }
@@ -116,10 +116,9 @@ function TasksContent() {
   };
 
   const handleCreate = async () => {
-    setError("");
-    setSuccess("");
+    setAttempted(true);
     if (!form.project || !form.title || !form.assignee) {
-      setError("Project, title, and assignee are required.");
+      notify.error("Project, title, and assignee are required.");
       return;
     }
     setIsCreating(true);
@@ -132,37 +131,34 @@ function TasksContent() {
         due_date: form.due_date || undefined,
         assignee: Number(form.assignee),
       });
-      setSuccess("Task assigned.");
+      setAttempted(false);
+      notify.success("Task assigned.");
       setForm({ project: "", study: "", title: "", description: "", due_date: "", assignee: "" });
       setStudies([]);
       await load();
     } catch (err: any) {
-      setError(errorMessage(err, "Could not assign the task."));
+      notify.error(errorMessage(err, "Could not assign the task."));
     } finally {
       setIsCreating(false);
     }
   };
 
   const handleStatusChange = async (task: Task, status: TaskStatus) => {
-    setError("");
-    setSuccess("");
     try {
       const updated = await personnelApi.updateTaskStatus(task.id, status);
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
     } catch (err: any) {
-      setError(errorMessage(err, "Could not update the task status."));
+      notify.error(errorMessage(err, "Could not update the task status."));
     }
   };
 
   const handleDelete = async (task: Task) => {
-    setError("");
-    setSuccess("");
     try {
       await personnelApi.deleteTask(task.id);
       setTasks((prev) => prev.filter((t) => t.id !== task.id));
-      setSuccess("Task deleted.");
+      notify.success("Task deleted.");
     } catch (err: any) {
-      setError(errorMessage(err, "Could not delete the task."));
+      notify.error(errorMessage(err, "Could not delete the task."));
     }
   };
 
@@ -180,20 +176,18 @@ function TasksContent() {
         }
       />
 
-      <FormAlert tone="error" message={error} className="mb-4" />
-      <FormAlert tone="success" message={success} className="mb-4" />
-
       {canAssign && (
         <Card className="mb-6 p-4">
           <h3 className="mb-3 text-sm font-semibold text-navy">Assign a Task</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <Label className="mb-1 block text-xs">Project</Label>
+              <FieldLabel required>Project</FieldLabel>
               <Select value={form.project} onValueChange={handleProjectChange}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attempted && (!form.project)}>
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
+                  {projects.length === 0 && <EmptyOption message="No projects registered yet" />}
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
                       {p.project_code} — {p.title}
@@ -213,6 +207,7 @@ function TasksContent() {
                   <SelectValue placeholder="No specific study" />
                 </SelectTrigger>
                 <SelectContent>
+                  {studies.length === 0 && <EmptyOption message="No studies for this project" />}
                   {studies.map((s) => (
                     <SelectItem key={s.id} value={String(s.id)}>
                       {s.title}
@@ -222,12 +217,13 @@ function TasksContent() {
               </Select>
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Assignee</Label>
+              <FieldLabel required>Assignee</FieldLabel>
               <Select value={form.assignee} onValueChange={(v) => setForm((f) => ({ ...f, assignee: v }))}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attempted && (!form.assignee)}>
                   <SelectValue placeholder="Select project staff" />
                 </SelectTrigger>
                 <SelectContent>
+                  {staff.length === 0 && <EmptyOption message="No active project staff yet" />}
                   {staff.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.email}
@@ -237,8 +233,8 @@ function TasksContent() {
               </Select>
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Title</Label>
-              <Input
+              <FieldLabel required>Title</FieldLabel>
+              <Input aria-invalid={attempted && (!form.title.trim())}
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 placeholder="Task title"

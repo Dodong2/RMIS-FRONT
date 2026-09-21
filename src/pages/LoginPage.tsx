@@ -4,7 +4,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { AuthShell } from "../components/auth/AuthShell";
 import { GoogleButton } from "../components/auth/GoogleButton";
-import { FormAlert } from "../components/common/FormAlert";
+import { notify } from "../lib/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,19 +16,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [attempted, setAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGooglePending, setIsGooglePending] = useState(false);
 
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
     setError("");
+    setAttempted(true);
+    if (!email.trim() || !password) {
+      notify.error("Enter your email and password to sign in.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       await login({ email, password });
     } catch {
-      setError(
-        "That email and password did not match, or the account is still waiting for admin confirmation.",
-      );
+      const message =
+        "That email and password did not match, or the account is still waiting for admin confirmation.";
+      setError(message);
+      notify.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -41,7 +48,9 @@ export default function LoginPage() {
       await loginWithGoogle("login");
     } catch {
       setIsGooglePending(false);
-      setError("Google sign-in could not start. Check your connection and try again.");
+      const message = "Google sign-in could not start. Check your connection and try again.";
+      setError(message);
+      notify.error(message);
     }
   };
 
@@ -62,10 +71,9 @@ export default function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <FormAlert message={error} />
 
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Email<span className="text-destructive" aria-hidden="true"> *</span></Label>
           <Input
             id="email"
             type="email"
@@ -74,12 +82,12 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@lspu.edu.ph"
             required
-            aria-invalid={!!error}
+            aria-invalid={!!error || (attempted && !email.trim())}
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Password<span className="text-destructive" aria-hidden="true"> *</span></Label>
           <div className="relative">
             <Input
               id="password"
@@ -90,7 +98,7 @@ export default function LoginPage() {
               placeholder="Your password"
               required
               className="pr-10"
-              aria-invalid={!!error}
+              aria-invalid={!!error || (attempted && !password)}
             />
             <button
               type="button"

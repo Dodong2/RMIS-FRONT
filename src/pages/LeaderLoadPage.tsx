@@ -5,7 +5,6 @@ import { ROLE_META } from "../lib/roles";
 import type { LeaderLoad } from "../types/personnel";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
-import { FormAlert } from "../components/common/FormAlert";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -17,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { notify } from "../lib/notify";
 
 function CountBadge({ count, cap }: { count: number; cap: number }) {
   return (
@@ -29,7 +29,6 @@ function CountBadge({ count, cap }: { count: number; cap: number }) {
 function LeaderLoadContent() {
   const [leaders, setLeaders] = useState<LeaderLoad[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     personnelApi
@@ -42,7 +41,7 @@ function LeaderLoadContent() {
           ),
         );
       })
-      .catch(() => setError("Could not load leader workload. Check your connection and refresh."))
+      .catch(() => notify.error("Could not load leader workload. Check your connection and refresh."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -52,8 +51,6 @@ function LeaderLoadContent() {
         title="Leader load"
         description="Active programs and projects each leader currently handles, against the concurrency limits."
       />
-
-      <FormAlert tone="error" message={error} className="mb-4" />
 
       <p className="mb-4 max-w-prose text-xs text-muted-foreground">
         A leader may lead up to 2 active programs and 3 active projects. Institutional-funded

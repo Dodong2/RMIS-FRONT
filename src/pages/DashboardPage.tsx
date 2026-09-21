@@ -6,7 +6,6 @@ import { RoleGate } from "../components/RoleGate";
 import { useAuth } from "../context/AuthContext";
 import { authApi } from "../lib/authApi";
 import { AppShell } from "../components/layout/AppShell";
-import { FormAlert } from "../components/common/FormAlert";
 import { PageHeader } from "../components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { visibleSections } from "../lib/nav";
 import { resolveTier, roleLabel } from "../lib/roles";
+import { notify } from "../lib/notify";
 
 function DashboardContent() {
   const { user } = useAuth();
@@ -70,7 +70,6 @@ function DashboardContent() {
 function AdminOverview() {
   const [counts, setCounts] = useState<{ users: number; pending: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -78,11 +77,10 @@ function AdminOverview() {
       .then(([users, pending]) => {
         if (!active) return;
         setCounts({ users: users.length, pending: pending.length });
-        setError("");
       })
       .catch(() => {
         if (!active) return;
-        setError("Account figures could not be loaded. Reload the page to try again.");
+        notify.error("Account figures could not be loaded. Reload the page to try again.");
       })
       .finally(() => active && setIsLoading(false));
     return () => {
@@ -93,7 +91,6 @@ function AdminOverview() {
   return (
     <section>
       <h3 className="mb-3 text-sm font-semibold text-navy">Accounts</h3>
-      <FormAlert message={error} className="mb-3" />
       <div className="grid gap-4 sm:grid-cols-2">
         <StatCard
           icon={<Users className="size-5" />}

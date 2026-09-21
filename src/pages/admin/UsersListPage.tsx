@@ -4,7 +4,6 @@ import { authApi } from "../../lib/authApi";
 import type { AdminUser, Role } from "../../types/auth";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { AppShell } from "../../components/layout/AppShell";
-import { FormAlert } from "../../components/common/FormAlert";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../..//components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,12 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { notify } from "../../lib/notify";
 
 function UsersListContent() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [pendingRole, setPendingRole] = useState<Record<number, string>>({});
   const [savingRole, setSavingRole] = useState<number | null>(null);
@@ -42,9 +41,8 @@ function UsersListContent() {
       const [userList, roleList] = await Promise.all([authApi.getUsers(), authApi.getRoles()]);
       setUsers(userList);
       setRoles(roleList);
-      setError("");
     } catch {
-      setError("The user list could not be loaded. Check your connection and refresh.");
+      notify.error("The user list could not be loaded. Check your connection and refresh.");
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +68,6 @@ function UsersListContent() {
     setSavingRole(userId);
     try {
       await authApi.updateUserRole(userId, Number(roleId));
-      setError("");
       await load();
       setPendingRole((prev) => {
         const next = { ...prev };
@@ -78,7 +75,7 @@ function UsersListContent() {
         return next;
       });
     } catch {
-      setError("Could not update the role. Try again.");
+      notify.error("Could not update the role. Try again.");
     } finally {
       setSavingRole(null);
     }
@@ -88,10 +85,9 @@ function UsersListContent() {
     setTogglingActive(userId);
     try {
       await authApi.toggleUserActive(userId);
-      setError("");
       await load();
     } catch {
-      setError("Could not update the account status. Try again.");
+      notify.error("Could not update the account status. Try again.");
     } finally {
       setTogglingActive(null);
     }
@@ -109,8 +105,6 @@ function UsersListContent() {
           </Button>
         }
       />
-
-      <FormAlert message={error} className="mb-4" />
 
       <div className="relative mb-4 max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

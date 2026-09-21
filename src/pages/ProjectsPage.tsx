@@ -7,7 +7,8 @@ import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { FormAlert } from "../components/common/FormAlert";
+import { EmptyOption } from "../components/common/EmptyOption";
+import { FieldLabel } from "../components/common/FieldLabel";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
 import { MultiSelect } from "../components/common/MultiSelect";
 import {
@@ -37,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { notify } from "../lib/notify";
 
 const FUNDING_LABELS: Record<FundingType, string> = {
   institutional: "Institutional (LSPU-Funded)",
@@ -56,8 +58,8 @@ function ProjectsContent() {
   const [programLeaders, setProgramLeaders] = useState<AdminUser[]>([]);
   const [projectLeaders, setProjectLeaders] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [attemptedProject, setAttemptedProject] = useState(false);
+  const [attemptedProgram, setAttemptedProgram] = useState(false);
 
   const [programForm, setProgramForm] = useState({
     title: "",
@@ -113,9 +115,8 @@ function ProjectsContent() {
         setProgramLeaders(pls);
         setProjectLeaders(prls);
       }
-      setError("");
     } catch {
-      setError("Could not load projects. Check your connection and refresh.");
+      notify.error("Could not load projects. Check your connection and refresh.");
     } finally {
       setIsLoading(false);
     }
@@ -127,10 +128,9 @@ function ProjectsContent() {
   }, [canRegister]);
 
   const handleCreateProgram = async () => {
-    setError("");
-    setSuccess("");
+    setAttemptedProgram(true);
     if (!programForm.title || !programForm.funding_type || !programForm.lead) {
-      setError("Program title, funding type, and lead are required.");
+      notify.error("Program title, funding type, and lead are required.");
       return;
     }
     setIsCreatingProgram(true);
@@ -142,11 +142,12 @@ function ProjectsContent() {
         rei_thrust: programForm.rei_thrust || undefined,
         start_date: programForm.start_date || undefined,
       });
-      setSuccess("Program registered.");
+      setAttemptedProgram(false);
+      notify.success("Program registered.");
       setProgramForm({ title: "", funding_type: "", lead: "", rei_thrust: "", start_date: "" });
       await load();
     } catch (err: any) {
-      setError(
+      notify.error(
         err?.response?.data?.detail ??
           err?.response?.data?.non_field_errors?.[0] ??
           "Could not register the program.",
@@ -157,22 +158,21 @@ function ProjectsContent() {
   };
 
   const handleCreateProject = async () => {
-    setError("");
-    setSuccess("");
+    setAttemptedProject(true);
     if (!projectForm.title || !projectForm.project_code || !projectForm.funding_type || !projectForm.lead) {
-      setError("Project title, project code, funding type, and lead are required.");
+      notify.error("Project title, project code, funding type, and lead are required.");
       return;
     }
     if (projectForm.sdgs.length === 0) {
-      setError("Select at least one Sustainable Development Goal.");
+      notify.error("Select at least one Sustainable Development Goal.");
       return;
     }
     if (!projectForm.sector) {
-      setError("Sector is required.");
+      notify.error("Sector is required.");
       return;
     }
     if (projectForm.sector === "others" && !projectForm.sector_other.trim()) {
-      setError("Specify the sector when 'Others' is selected.");
+      notify.error("Specify the sector when 'Others' is selected.");
       return;
     }
     setIsCreatingProject(true);
@@ -202,7 +202,8 @@ function ProjectsContent() {
         cooperating_agencies: projectForm.cooperating_agencies || undefined,
         total_cost: projectForm.total_cost || undefined,
       });
-      setSuccess("Project registered.");
+      setAttemptedProject(false);
+      notify.success("Project registered.");
       setProjectForm({
         title: "",
         project_code: "",
@@ -231,7 +232,7 @@ function ProjectsContent() {
       await load();
     } catch (err: any) {
       const data = err?.response?.data;
-      setError(
+      notify.error(
         data?.detail ??
           data?.non_field_errors?.[0] ??
           data?.sdgs?.[0] ??
@@ -248,28 +249,25 @@ function ProjectsContent() {
     <div>
       <PageHeader title="Projects" description="Programs, projects, and their registration details." />
 
-      <FormAlert tone="error" message={error} className="mb-4" />
-      <FormAlert tone="success" message={success} className="mb-4" />
-
       {canRegister && (
         <Card className="mb-6 p-4">
           <h3 className="mb-3 text-sm font-semibold text-navy">Register a Program</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <Label className="mb-1 block text-xs">Title</Label>
-              <Input
+              <FieldLabel required>Title</FieldLabel>
+              <Input aria-invalid={attemptedProgram && (!programForm.title.trim())}
                 value={programForm.title}
                 onChange={(e) => setProgramForm((p) => ({ ...p, title: e.target.value }))}
                 placeholder="Program title"
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Funding Type</Label>
+              <FieldLabel required>Funding Type</FieldLabel>
               <Select
                 value={programForm.funding_type}
                 onValueChange={(v) => setProgramForm((p) => ({ ...p, funding_type: v }))}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedProgram && (!programForm.funding_type)}>
                   <SelectValue placeholder="Select funding type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -282,12 +280,13 @@ function ProjectsContent() {
               </Select>
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Program Leader</Label>
+              <FieldLabel required>Program Leader</FieldLabel>
               <Select value={programForm.lead} onValueChange={(v) => setProgramForm((p) => ({ ...p, lead: v }))}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedProgram && (!programForm.lead)}>
                   <SelectValue placeholder="Select leader" />
                 </SelectTrigger>
                 <SelectContent>
+                  {programLeaders.length === 0 && <EmptyOption message="No active program leaders yet" />}
                   {programLeaders.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.email}
@@ -363,28 +362,28 @@ function ProjectsContent() {
           <h3 className="mb-3 text-sm font-semibold text-navy">Register a Project</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <Label className="mb-1 block text-xs">Title</Label>
-              <Input
+              <FieldLabel required>Title</FieldLabel>
+              <Input aria-invalid={attemptedProject && (!projectForm.title.trim())}
                 value={projectForm.title}
                 onChange={(e) => setProjectForm((p) => ({ ...p, title: e.target.value }))}
                 placeholder="Project title"
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Project Code (LSPU Faculty Research Number)</Label>
-              <Input
+              <FieldLabel required>Project Code (LSPU Faculty Research Number)</FieldLabel>
+              <Input aria-invalid={attemptedProject && (!projectForm.project_code.trim())}
                 value={projectForm.project_code}
                 onChange={(e) => setProjectForm((p) => ({ ...p, project_code: e.target.value }))}
                 placeholder="e.g. FRN-2026-001"
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Funding Type</Label>
+              <FieldLabel required>Funding Type</FieldLabel>
               <Select
                 value={projectForm.funding_type}
                 onValueChange={(v) => setProjectForm((p) => ({ ...p, funding_type: v }))}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedProject && (!projectForm.funding_type)}>
                   <SelectValue placeholder="Select funding type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -403,6 +402,7 @@ function ProjectsContent() {
                   <SelectValue placeholder="No parent program" />
                 </SelectTrigger>
                 <SelectContent>
+                  {programs.length === 0 && <EmptyOption message="No programs registered yet" />}
                   {programs.map((prog) => (
                     <SelectItem key={prog.id} value={String(prog.id)}>
                       {prog.title}
@@ -412,12 +412,13 @@ function ProjectsContent() {
               </Select>
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Project Leader</Label>
+              <FieldLabel required>Project Leader</FieldLabel>
               <Select value={projectForm.lead} onValueChange={(v) => setProjectForm((p) => ({ ...p, lead: v }))}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedProject && (!projectForm.lead)}>
                   <SelectValue placeholder="Select leader" />
                 </SelectTrigger>
                 <SelectContent>
+                  {projectLeaders.length === 0 && <EmptyOption message="No active project leaders yet" />}
                   {projectLeaders.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.email}
@@ -490,8 +491,8 @@ function ProjectsContent() {
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Sustainable Development Goals</Label>
-              <MultiSelect
+              <FieldLabel required>Sustainable Development Goals</FieldLabel>
+              <MultiSelect invalid={attemptedProject && (projectForm.sdgs.length === 0)}
                 options={SDG_OPTIONS}
                 value={projectForm.sdgs}
                 onChange={(next) => setProjectForm((p) => ({ ...p, sdgs: next }))}
@@ -499,9 +500,9 @@ function ProjectsContent() {
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Sector</Label>
+              <FieldLabel required>Sector</FieldLabel>
               <Select value={projectForm.sector} onValueChange={(v) => setProjectForm((p) => ({ ...p, sector: v }))}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedProject && (!projectForm.sector)}>
                   <SelectValue placeholder="Select sector" />
                 </SelectTrigger>
                 <SelectContent>
@@ -515,8 +516,8 @@ function ProjectsContent() {
             </div>
             {projectForm.sector === "others" && (
               <div>
-                <Label className="mb-1 block text-xs">Specify Sector</Label>
-                <Input
+                <FieldLabel required>Specify Sector</FieldLabel>
+                <Input aria-invalid={attemptedProject && (!projectForm.sector_other.trim())}
                   value={projectForm.sector_other}
                   onChange={(e) => setProjectForm((p) => ({ ...p, sector_other: e.target.value }))}
                   placeholder="Other sector"

@@ -7,7 +7,8 @@ import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { FormAlert } from "../components/common/FormAlert";
+import { EmptyOption } from "../components/common/EmptyOption";
+import { FieldLabel } from "../components/common/FieldLabel";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
 import {
   PRIORITY_AREA_LABELS,
@@ -20,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { notify } from "../lib/notify";
 
 const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
   pending: "Pending",
@@ -58,8 +59,8 @@ function ProjectDetailContent() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [studyLeaders, setStudyLeaders] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [attemptedMilestone, setAttemptedMilestone] = useState(false);
+  const [attemptedStudy, setAttemptedStudy] = useState(false);
 
   const [studyForm, setStudyForm] = useState({ title: "", lead: "" });
   const [isCreatingStudy, setIsCreatingStudy] = useState(false);
@@ -84,9 +85,8 @@ function ProjectDetailContent() {
         const leaders = await researchApi.getUsersByRole("study_leader");
         setStudyLeaders(leaders);
       }
-      setError("");
     } catch {
-      setError("Could not load this project. Check your connection and refresh.");
+      notify.error("Could not load this project. Check your connection and refresh.");
     } finally {
       setIsLoading(false);
     }
@@ -98,10 +98,9 @@ function ProjectDetailContent() {
   }, [projectId, canRegister]);
 
   const handleCreateStudy = async () => {
-    setError("");
-    setSuccess("");
+    setAttemptedStudy(true);
     if (!studyForm.title || !studyForm.lead) {
-      setError("Study title and lead are required.");
+      notify.error("Study title and lead are required.");
       return;
     }
     setIsCreatingStudy(true);
@@ -111,11 +110,12 @@ function ProjectDetailContent() {
         title: studyForm.title,
         lead: Number(studyForm.lead),
       });
-      setSuccess("Study added.");
+      setAttemptedStudy(false);
+      notify.success("Study added.");
       setStudyForm({ title: "", lead: "" });
       await load();
     } catch (err: any) {
-      setError(
+      notify.error(
         err?.response?.data?.detail ??
           err?.response?.data?.non_field_errors?.[0] ??
           "Could not add the study.",
@@ -126,10 +126,9 @@ function ProjectDetailContent() {
   };
 
   const handleCreateMilestone = async () => {
-    setError("");
-    setSuccess("");
+    setAttemptedMilestone(true);
     if (!milestoneForm.title || !milestoneForm.target_date) {
-      setError("Milestone title and target date are required.");
+      notify.error("Milestone title and target date are required.");
       return;
     }
     setIsCreatingMilestone(true);
@@ -140,11 +139,12 @@ function ProjectDetailContent() {
         target_date: milestoneForm.target_date,
         remarks: milestoneForm.remarks || undefined,
       });
-      setSuccess("Milestone added.");
+      setAttemptedMilestone(false);
+      notify.success("Milestone added.");
       setMilestoneForm({ title: "", target_date: "", remarks: "" });
       await load();
     } catch {
-      setError("Could not add the milestone.");
+      notify.error("Could not add the milestone.");
     } finally {
       setIsCreatingMilestone(false);
     }
@@ -156,7 +156,7 @@ function ProjectDetailContent() {
       await researchApi.updateMilestoneStatus(milestoneId, status);
       await load();
     } catch {
-      setError("Could not update the milestone status.");
+      notify.error("Could not update the milestone status.");
     } finally {
       setUpdatingMilestone(null);
     }
@@ -173,9 +173,6 @@ function ProjectDetailContent() {
         title={project?.title ?? (isLoading ? "Loading..." : "Project not found")}
         description={project ? `${project.project_code} · ${project.lead_detail.email}` : undefined}
       />
-
-      <FormAlert tone="error" message={error} className="mb-4" />
-      <FormAlert tone="success" message={success} className="mb-4" />
 
       {project && (
         <Card className="mb-6 p-4">
@@ -254,20 +251,21 @@ function ProjectDetailContent() {
           <h3 className="mb-3 text-sm font-semibold text-navy">Add a Study</h3>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <Label className="mb-1 block text-xs">Title</Label>
-              <Input
+              <FieldLabel required>Title</FieldLabel>
+              <Input aria-invalid={attemptedStudy && (!studyForm.title.trim())}
                 value={studyForm.title}
                 onChange={(e) => setStudyForm((s) => ({ ...s, title: e.target.value }))}
                 placeholder="Study title"
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Study Leader</Label>
+              <FieldLabel required>Study Leader</FieldLabel>
               <Select value={studyForm.lead} onValueChange={(v) => setStudyForm((s) => ({ ...s, lead: v }))}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={attemptedStudy && (!studyForm.lead)}>
                   <SelectValue placeholder="Select leader" />
                 </SelectTrigger>
                 <SelectContent>
+                  {studyLeaders.length === 0 && <EmptyOption message="No active study leaders yet" />}
                   {studyLeaders.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>
                       {u.email}
@@ -333,16 +331,16 @@ function ProjectDetailContent() {
           <h3 className="mb-3 text-sm font-semibold text-navy">Add a Work Plan Milestone</h3>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <Label className="mb-1 block text-xs">Title</Label>
-              <Input
+              <FieldLabel required>Title</FieldLabel>
+              <Input aria-invalid={attemptedMilestone && (!milestoneForm.title.trim())}
                 value={milestoneForm.title}
                 onChange={(e) => setMilestoneForm((m) => ({ ...m, title: e.target.value }))}
                 placeholder="Milestone title"
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs">Target Date</Label>
-              <Input
+              <FieldLabel required>Target Date</FieldLabel>
+              <Input aria-invalid={attemptedMilestone && (!milestoneForm.target_date)}
                 type="date"
                 value={milestoneForm.target_date}
                 onChange={(e) => setMilestoneForm((m) => ({ ...m, target_date: e.target.value }))}

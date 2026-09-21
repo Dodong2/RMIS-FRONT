@@ -4,7 +4,6 @@ import { authApi } from "../../lib/authApi";
 import type { PendingUser, Role } from "../../types/auth";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { AppShell } from "../../components/layout/AppShell";
-import { FormAlert } from "../../components/common/FormAlert";
 import { EmptyState, PageHeader, TableSkeletonRows } from "../../components/common/Page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { notify } from "../../lib/notify";
 
 function PendingUsersContent() {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
@@ -31,8 +31,6 @@ function PendingUsersContent() {
   const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({});
   const [assigningId, setAssigningId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
 
   const load = async () => {
     setIsLoading(true);
@@ -43,9 +41,8 @@ function PendingUsersContent() {
       ]);
       setPendingUsers(pending);
       setRoles(roleList);
-      setError("");
     } catch {
-      setError(
+      notify.error(
         "Pending registrations could not be loaded. Check your connection and refresh.",
       );
     } finally {
@@ -60,20 +57,17 @@ function PendingUsersContent() {
   const handleAssign = async (userId: number, email: string) => {
     const roleId = selectedRoles[userId];
     if (!roleId) {
-      setMessage("");
-      setError("Choose a role for that account before assigning it.");
+      notify.error("Choose a role for that account before assigning it.");
       return;
     }
 
-    setError("");
-    setMessage("");
     setAssigningId(userId);
     try {
       await authApi.assignRole(userId, Number(roleId));
-      setMessage(`Role assigned. A confirmation email was sent to ${email}.`);
+      notify.success(`Role assigned. A confirmation email was sent to ${email}.`);
       await load();
     } catch {
-      setError(`The role could not be assigned to ${email}. Try again in a moment.`);
+      notify.error(`The role could not be assigned to ${email}. Try again in a moment.`);
     } finally {
       setAssigningId(null);
     }
@@ -91,9 +85,6 @@ function PendingUsersContent() {
           </Button>
         }
       />
-
-      <FormAlert message={error} className="mb-4" />
-      <FormAlert tone="success" message={message} className="mb-4" />
 
       <Card className="overflow-hidden p-0">
         <Table>
