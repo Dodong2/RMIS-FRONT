@@ -91,7 +91,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/tasks",
         icon: "users",
         tiers: ALL_RESEARCH,
-        ready: false,
+        ready: true,
       },
       {
         label: "Ethics and compliance",
