@@ -14,6 +14,8 @@ import PersonnelChangesPage from "./pages/PersonnelChangesPage";
 import StaffPage from "./pages/StaffPage";
 import LeaderLoadPage from "./pages/LeaderLoadPage";
 import BudgetPage from "./pages/BudgetPage";
+import DisbursementsPage from "./pages/DisbursementsPage";
+import CompliancePage from "./pages/CompliancePage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
 
@@ -108,6 +110,50 @@ export default function App() {
               ]}
             >
               <BudgetPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/disbursements"
+        element={
+          <ProtectedRoute>
+            <RoleGate
+              allow={[
+                "system_admin",
+                "vprei",
+                "university_admin",
+                "drd",
+                "crc_chair",
+                "riuh",
+                "finance_budget",
+                "program_leader",
+                "project_leader",
+              ]}
+            >
+              <DisbursementsPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/compliance"
+        element={
+          <ProtectedRoute>
+            <RoleGate
+              allow={[
+                "system_admin",
+                "vprei",
+                "university_admin",
+                "drd",
+                "crc_chair",
+                "riuh",
+                "program_leader",
+                "project_leader",
+                "study_leader",
+              ]}
+            >
+              <CompliancePage />
             </RoleGate>
           </ProtectedRoute>
         }

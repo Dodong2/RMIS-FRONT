@@ -119,7 +119,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/compliance",
         icon: "shield",
         tiers: [...OVERSIGHT, "project_management", "study_management"],
-        ready: false,
+        ready: true,
       },
       {
         label: "Documents",
@@ -173,7 +173,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/disbursements",
         icon: "receipt",
         tiers: [...OVERSIGHT, "finance", "project_management"],
-        ready: false,
+        ready: true,
       },
       {
         label: "Procurement",

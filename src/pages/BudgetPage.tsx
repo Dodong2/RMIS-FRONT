@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Plus, ShieldCheck, Wallet } from "lucide-react";
 import { budgetApi } from "../lib/budgetApi";
+import { financialApi } from "../lib/financialApi";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import type { LineItemBudget, LineItemCategory } from "../types/budget";
+import type { BudgetSummary } from "../types/financial";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
@@ -50,6 +52,7 @@ function BudgetContent() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState("");
   const [budget, setBudget] = useState<LineItemBudget | null>(null);
+  const [summary, setSummary] = useState<BudgetSummary | null>(null);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isLoadingBudget, setIsLoadingBudget] = useState(false);
   const [isCreatingBudget, setIsCreatingBudget] = useState(false);
@@ -78,7 +81,13 @@ function BudgetContent() {
     setIsLoadingBudget(true);
     try {
       const budgets = await budgetApi.getBudgets(projectId);
-      setBudget(budgets.find((b) => b.is_current) ?? null);
+      const current = budgets.find((b) => b.is_current) ?? null;
+      setBudget(current);
+      if (current?.status === "certified") {
+        setSummary(await financialApi.getBudgetSummary(current.id));
+      } else {
+        setSummary(null);
+      }
     } catch {
       notify.error("Could not load the budget for this project.");
     } finally {
@@ -149,6 +158,7 @@ function BudgetContent() {
     try {
       const certified = await budgetApi.certifyBudget(budget.id);
       setBudget(certified);
+      setSummary(await financialApi.getBudgetSummary(certified.id));
       notify.success("Budget certified.");
     } catch (err) {
       notify.error(errorMessage(err, "Could not certify this budget."));
@@ -349,6 +359,46 @@ function BudgetContent() {
               </TableBody>
             </Table>
           </Card>
+
+          {summary && (
+            <Card className="mt-6 overflow-hidden p-0">
+              <div className="border-b border-border p-4">
+                <h3 className="text-sm font-semibold text-navy">Budget Summary</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Approved (original) · Adjusted (after realignments) · Actual (disbursed) · Available
+                </p>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-secondary/60 hover:bg-secondary/60">
+                    <TableHead>Description</TableHead>
+                    <TableHead>Approved</TableHead>
+                    <TableHead>Adjusted</TableHead>
+                    <TableHead>Actual</TableHead>
+                    <TableHead>Available</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {summary.line_items.map((row) => (
+                    <TableRow key={row.line_item}>
+                      <TableCell className="font-medium">{row.description}</TableCell>
+                      <TableCell>{peso(row.approved)}</TableCell>
+                      <TableCell>{peso(row.adjusted)}</TableCell>
+                      <TableCell>{peso(row.actual)}</TableCell>
+                      <TableCell>{peso(row.available)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-secondary/40 font-semibold hover:bg-secondary/40">
+                    <TableCell>Total</TableCell>
+                    <TableCell>{peso(summary.totals.approved)}</TableCell>
+                    <TableCell>{peso(summary.totals.adjusted)}</TableCell>
+                    <TableCell>{peso(summary.totals.actual)}</TableCell>
+                    <TableCell>{peso(summary.totals.available)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </Card>
+          )}
         </>
       )}
     </div>
