@@ -132,7 +132,7 @@ function StatCard({
   highlight?: boolean;
 }) {
   return (
-    <Card className={highlight ? "border-gold/50" : undefined}>
+    <Card className={highlight ? "border-cyan/50" : undefined}>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div>
@@ -147,7 +147,7 @@ function StatCard({
           </div>
           <span
             className={`grid size-10 place-items-center rounded-lg ${
-              highlight ? "bg-gold/15 text-gold" : "bg-secondary text-navy"
+              highlight ? "bg-cyan/15 text-cyan" : "bg-secondary text-navy"
             }`}
           >
             {icon}

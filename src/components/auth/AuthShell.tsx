@@ -11,7 +11,7 @@ interface AuthShellProps {
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
   return (
     <div className="flex min-h-screen bg-navy-deep">
-      {/* Left panel — the one bold moment on these pages. Gold rule, navy field. */}
+      {/* Left panel — the one bold moment on these pages. Cyan rule, navy field. */}
       <section className="relative hidden flex-col justify-between overflow-hidden p-12 lg:flex lg:w-[52%] bg-[linear-gradient(155deg,#081a3d_0%,#0d2a5e_55%,#1a3f7a_100%)]">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.05]"
@@ -34,7 +34,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
             </div>
           </div>
 
-          <div className="border-l-[3px] border-gold pl-6">
+          <div className="border-l-[3px] border-cyan pl-6">
             <h2 className="text-4xl font-extrabold leading-[1.1] text-white xl:text-5xl">
               Research Management
               <br />
@@ -60,7 +60,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
           </div>
 
           <div className="overflow-hidden rounded-xl bg-card shadow-2xl">
-            <div className="border-b-[3px] border-gold bg-[linear-gradient(135deg,#0d2a5e_0%,#1a3f7a_100%)] px-7 py-6">
+            <div className="border-b-[3px] border-cyan bg-[linear-gradient(135deg,#0d2a5e_0%,#1a3f7a_100%)] px-7 py-6">
               <h1 className="text-2xl font-extrabold leading-tight text-white">
                 {title}
               </h1>

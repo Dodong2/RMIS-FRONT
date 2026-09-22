@@ -1,7 +1,36 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 8: Research Output and IP Tracking
+Module 8: Research Output and IP Tracking (functionally complete). Current
+work: aligning the UI to the approved design reference.
+
+## Design reference
+`../University Research Operations Website` (sibling dir to this repo) is a
+Figma Make prototype (mock data, no real backend) that was the original
+design intent for this app's look. It uses navy + **cyan** as its palette;
+our app previously used navy + gold (a branding call made in an earlier
+session, since reverted 2026-09-22 per client instruction to match the
+reference instead). Two cyan shades matter and are NOT interchangeable:
+`#0891b2` (rich/dark) for accents on light backgrounds, `#67e8f9`
+(bright/light) specifically for text/borders that sit on the navy sidebar —
+the reference itself uses both shades for exactly this reason, so a blind
+single-color rename would have broken contrast in a few spots (the
+AuthCallbackPage spinner, sidebar active-nav text). See `--lspu-cyan` /
+`--lspu-cyan-light` in `src/index.css`.
+
+The reference's "Compliance" module models something different from our
+actual backend (a generic requirement-tracker with define/assign/evidence/
+review workflow, vs. our real Module 6's Ethics Reviews/Similarity Checks/AI
+Declarations/COI/Misconduct logs) — client confirmed: keep our real data,
+don't chase the reference's Compliance content, only its visual language.
+
+Scope agreed with client 2026-09-22: **design-system pass only** — shared
+tokens/components (colors, sidebar, topbar, card/badge style), not a
+per-page rebuild to match the reference's bespoke KPI-strip/stat-tile
+layouts. Since every page here is built on the same shared shadcn
+components and CSS custom properties (unlike the reference's per-page
+inline-styled JSX), a token-level change already propagates everywhere
+automatically — most pages needed zero code changes for this pass.
 
 ## Frontend status (this repo)
 - Module 1 (Auth/RBAC pages): done, stable.
@@ -134,11 +163,16 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Added src/types/outputs.ts, src/lib/outputsApi.ts, src/pages/OutputsPage.tsx,
-wired /outputs route in App.tsx, flipped nav.ts "Research outputs" to
-ready: true. Browser-tested the incentive computation display end-to-end
-(₱60,000 ISI journal case, ₱75,000 SENSE-publisher book case, IP eligibility
-state machine, creative work registration toggle) — no bugs found.
+Design-system pass to match the reference mockup: renamed --lspu-gold/
+--lspu-gold-light to --lspu-cyan (#0891b2) / --lspu-cyan-light (#67e8f9) in
+src/index.css, updated --accent/--ring/--chart-3/--sidebar-primary/
+--sidebar-ring to the matching shade, and swapped the ~8 `text-gold`/
+`border-gold`/`bg-gold` Tailwind classes across 5 files (LoginPage,
+RegisterPage, AuthCallbackPage, DashboardPage, AuthShell) — using
+`cyan-light` specifically wherever the original was legible-on-navy gold, to
+preserve contrast. Browser-tested: login page, sidebar active-nav state,
+avatar badge, and dashboard all render correctly with proper contrast in
+both light and navy-background contexts.
 
 ## Next thing to do in this repo
 Same browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —

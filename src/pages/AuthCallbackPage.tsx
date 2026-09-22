@@ -66,7 +66,7 @@ export default function AuthCallbackPage() {
           </>
         ) : (
           <>
-            <Loader2 className="size-6 animate-spin text-gold" />
+            <Loader2 className="size-6 animate-spin text-cyan-light" />
             <p className="mt-4 text-sm font-medium text-white">Signing you in</p>
             <p className="mt-1 text-xs text-white/50">
               Verifying your Google account with LSPU RMIS

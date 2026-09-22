@@ -63,7 +63,7 @@ export default function LoginPage() {
           No account yet?{" "}
           <Link
             to="/register"
-            className="font-semibold text-gold-light underline-offset-4 hover:underline"
+            className="font-semibold text-cyan-light underline-offset-4 hover:underline"
           >
             Request access
           </Link>

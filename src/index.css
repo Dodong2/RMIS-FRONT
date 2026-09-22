@@ -5,8 +5,11 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ───────────────────────────────────────────────────────────────
-   LSPU brand palette — sampled from the university seal.
-   Navy = chrome and authority. Gold = the active/selected state.
+   LSPU brand palette — navy + cyan, matching the approved design
+   reference (University Research Operations Website mockup).
+   Navy = chrome and authority. Cyan = the active/selected state.
+   Two cyan shades: the darker one for accents on light backgrounds,
+   the lighter one specifically for text/borders on the navy sidebar.
    Green = approved / active / on-track.
    ─────────────────────────────────────────────────────────────── */
 :root {
@@ -14,8 +17,8 @@
   --lspu-navy-deep: #081a3d;
   --lspu-navy-mid: #1a3f7a;
   --lspu-navy-sidebar: #0a2050;
-  --lspu-gold: #d4a017;
-  --lspu-gold-light: #f0c75e;
+  --lspu-cyan: #0891b2;
+  --lspu-cyan-light: #67e8f9;
   --lspu-green: #107c41;
   --lspu-green-light: #d1f0de;
 
@@ -38,8 +41,8 @@
   --muted: #eef2f7;
   --muted-foreground: #5c6b80;
 
-  --accent: #d4a017;
-  --accent-foreground: #3a2a00;
+  --accent: #0891b2;
+  --accent-foreground: #ffffff;
 
   --destructive: #c62828;
   --destructive-foreground: #ffffff;
@@ -51,23 +54,24 @@
 
   --border: #dde4ee;
   --input: #dde4ee;
-  --ring: #d4a017;
+  --ring: #0891b2;
 
   --chart-1: #0d2a5e;
   --chart-2: #107c41;
-  --chart-3: #d4a017;
+  --chart-3: #0891b2;
   --chart-4: #1a3f7a;
   --chart-5: #5c6b80;
 
-  /* sidebar owns its own scale so it stays navy regardless of theme */
+  /* sidebar owns its own scale so it stays navy regardless of theme.
+     Uses the lighter cyan shade — text/borders need to read against navy. */
   --sidebar: #0a2050;
   --sidebar-foreground: #b9cbe6;
-  --sidebar-primary: #d4a017;
+  --sidebar-primary: #67e8f9;
   --sidebar-primary-foreground: #081a3d;
   --sidebar-accent: rgba(255, 255, 255, 0.07);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(255, 255, 255, 0.09);
-  --sidebar-ring: #d4a017;
+  --sidebar-ring: #67e8f9;
 }
 
 .dark {
@@ -83,15 +87,15 @@
   --secondary-foreground: #e6ecf5;
   --muted: #1b2a42;
   --muted-foreground: #92a3ba;
-  --accent: #d4a017;
-  --accent-foreground: #3a2a00;
+  --accent: #0891b2;
+  --accent-foreground: #ffffff;
   --destructive: #ef5350;
   --destructive-foreground: #ffffff;
   --success: #35a866;
   --warning: #d98324;
   --border: rgba(255, 255, 255, 0.11);
   --input: rgba(255, 255, 255, 0.14);
-  --ring: #d4a017;
+  --ring: #0891b2;
 }
 
 @theme inline {
@@ -137,8 +141,8 @@
   --color-navy: var(--lspu-navy);
   --color-navy-deep: var(--lspu-navy-deep);
   --color-navy-mid: var(--lspu-navy-mid);
-  --color-gold: var(--lspu-gold);
-  --color-gold-light: var(--lspu-gold-light);
+  --color-cyan: var(--lspu-cyan);
+  --color-cyan-light: var(--lspu-cyan-light);
   --color-lspu-green: var(--lspu-green);
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -167,9 +171,9 @@
     font-feature-settings: "cv11", "ss01";
   }
 
-  /* keyboard focus stays visible everywhere — gold ring on navy and on white */
+  /* keyboard focus stays visible everywhere — cyan ring on navy and on white */
   :focus-visible {
-    outline: 2px solid var(--lspu-gold);
+    outline: 2px solid var(--lspu-cyan);
     outline-offset: 2px;
   }
 
