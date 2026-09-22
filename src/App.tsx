@@ -13,6 +13,7 @@ import TasksPage from "./pages/TasksPage";
 import PersonnelChangesPage from "./pages/PersonnelChangesPage";
 import StaffPage from "./pages/StaffPage";
 import LeaderLoadPage from "./pages/LeaderLoadPage";
+import BudgetPage from "./pages/BudgetPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
 
@@ -85,6 +86,28 @@ export default function App() {
               ]}
             >
               <LeaderLoadPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/budget"
+        element={
+          <ProtectedRoute>
+            <RoleGate
+              allow={[
+                "system_admin",
+                "vprei",
+                "university_admin",
+                "drd",
+                "crc_chair",
+                "riuh",
+                "finance_budget",
+                "program_leader",
+                "project_leader",
+              ]}
+            >
+              <BudgetPage />
             </RoleGate>
           </ProtectedRoute>
         }

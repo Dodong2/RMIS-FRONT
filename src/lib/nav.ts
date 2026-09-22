@@ -159,7 +159,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/budget",
         icon: "wallet",
         tiers: [...OVERSIGHT, "finance", "project_management"],
-        ready: false,
+        ready: true,
       },
       {
         label: "Budget forecast",

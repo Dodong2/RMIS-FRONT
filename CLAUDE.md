@@ -24,3 +24,6 @@ Backend API base URL comes from `VITE_API_URL` in `.env.local` (Vite env vars ne
 ## Known gaps (don't be surprised, ask before "fixing")
 - Milestone status updates are currently restricted to `system_admin`/`crc_chair` only (matches backend permission). Project/Study leads can't yet update their own milestones — this is a known, not-yet-prioritized gap.
 - `AdminUser` (has `id`) and `User` (has `pk`) are deliberately different types — the former matches `/api/admin/*` responses, the latter matches dj-rest-auth's `/api/auth/user/`. Don't merge them.
+
+## Session start
+Before trusting HANDOVER.md or your own memory as current, run `git log -8 --oneline` and `git status`. If there are commits or uncommitted changes you don't recognize (likely made manually, outside a Claude session), read the diff (`git show <hash>` or `git diff`) to catch up before doing anything else. Don't assume the last thing you remember is still the latest state.
