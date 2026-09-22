@@ -1,7 +1,7 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 7: Document and Records Management
+Module 8: Research Output and IP Tracking
 
 ## Frontend status (this repo)
 - Module 1 (Auth/RBAC pages): done, stable.
@@ -50,6 +50,26 @@ Module 7: Document and Records Management
   check added ahead of upload to match the backend's cap and avoid a wasted
   round trip. Test document + storage object + test account all cleaned up
   after.
+- Module 8 (Research Output and IP Tracking): OutputsPage built against the
+  outputs app — project selector + a pill tab switcher across Publications,
+  IP Records, Creative Works, and SENSE-Ranked Publishers (a global lookup
+  table, not project-scoped — its tab works without a project selected).
+  `estimated_incentive` (Publications) and `incentive_eligible` (IP Records)
+  are server-computed per the Manual's Article V incentive tables — the
+  frontend only renders them, never recomputes. Simplification: `lead_author`
+  (Publications), `creator` (IP Records, Creative Works) are set to the
+  current user automatically, no picker — matches the self-service pattern
+  used for AI Declarations/COI Disclosures in Module 6; `co_creators` stays
+  free-text like the model already provides. Write roles mirror the backend
+  exactly: system_admin/riuh/project_leader/study_leader for Publications and
+  IP Records, plus project_staff for Creative Works, system_admin/riuh only
+  for the SENSE Publisher list. Browser-tested 2026-09-22 end-to-end: a
+  journal article (ISI, impact factor 2.5) correctly computed ₱60,000, a book
+  with a SENSE-ranked publisher correctly computed ₱75,000, an IP record's
+  eligibility badge correctly flipped disclosed→registered (eligible)→claimed
+  (not eligible again, per the "once per patent" rule), and the Creative Work
+  registration toggle worked. No bugs found. All test data and the test
+  account cleaned up after.
 
 ## Backend endpoints available to consume right now
 budget_lib (Module 4):
@@ -82,6 +102,15 @@ document_management (Module 7):
 - GET /api/documents/documents/<id>/ — includes a fresh signed `download_url` (1hr expiry)
 - POST /api/documents/documents/<id>/archive/ — riuh/system_admin only, no hard delete anywhere
 
+outputs (Module 8):
+- GET/POST /api/outputs/publications/?project=<id>&study=<id> (system_admin/riuh/
+  project_leader/study_leader to POST; estimated_incentive is server-computed)
+- GET /api/outputs/sense-publishers/ (any authenticated user), POST (system_admin/riuh only)
+- GET/POST/PATCH /api/outputs/ip-records/?project=<id>&study=<id> (same write roles as
+  publications; incentive_eligible is server-computed, incentive_claimed is a manual
+  RIUH/report-role flag to prevent double-counting)
+- GET/POST/PATCH /api/outputs/creative-works/?project=<id> (write roles above + project_staff)
+
 ## Design pattern to follow
 Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
 + EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
@@ -95,14 +124,14 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Added src/types/document.ts, src/lib/documentApi.ts, src/pages/DocumentsPage.tsx,
-wired /documents route in App.tsx (no RoleGate — matches backend's
-IsAuthenticated-only access), flipped nav.ts "Documents" to ready: true.
-Browser-tested upload → signed download → archive end-to-end against real
-Supabase Storage; no bugs found.
+Added src/types/outputs.ts, src/lib/outputsApi.ts, src/pages/OutputsPage.tsx,
+wired /outputs route in App.tsx, flipped nav.ts "Research outputs" to
+ready: true. Browser-tested the incentive computation display end-to-end
+(₱60,000 ISI journal case, ₱75,000 SENSE-publisher book case, IP eligibility
+state machine, creative work registration toggle) — no bugs found.
 
 ## Next thing to do in this repo
 Same browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
-only Modules 6 and 7 have been click-tested so far. Certify a budget → record a
-disbursement → request/review a minor/major/BOR realignment, and confirm role
-gating matches what's live on rmis-backend.
+only Modules 6, 7, and 8 have been click-tested so far. Certify a budget →
+record a disbursement → request/review a minor/major/BOR realignment, and
+confirm role gating matches what's live on rmis-backend.

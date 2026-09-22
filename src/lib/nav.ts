@@ -133,7 +133,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/outputs",
         icon: "book",
         tiers: ALL_RESEARCH,
-        ready: false,
+        ready: true,
       },
       {
         label: "Monitoring",
