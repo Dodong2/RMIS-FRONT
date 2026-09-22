@@ -126,7 +126,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/documents",
         icon: "file",
         tiers: ALL_RESEARCH,
-        ready: false,
+        ready: true,
       },
       {
         label: "Research outputs",
