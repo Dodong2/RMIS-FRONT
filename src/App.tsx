@@ -9,6 +9,8 @@ import PendingUsersPage from "./pages/admin/PendingUsersPage";
 import UsersListPage from "./pages/admin/UsersListPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
+import RegisterProgramPage from "./pages/RegisterProgramPage";
+import RegisterProjectPage from "./pages/RegisterProjectPage";
 import TasksPage from "./pages/TasksPage";
 import PersonnelChangesPage from "./pages/PersonnelChangesPage";
 import StaffPage from "./pages/StaffPage";
@@ -31,7 +33,27 @@ export default function App() {
       <Route path="/registration-pending" element={<RegistrationPendingPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/projects" element={<ProjectsPage />} />
+      <Route
+        path="/projects/new"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin", "crc_chair"]}>
+              <RegisterProjectPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
+      <Route
+        path="/programs/new"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin", "crc_chair"]}>
+              <RegisterProgramPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
       <Route path="/tasks" element={<TasksPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/outputs" element={<OutputsPage />} />

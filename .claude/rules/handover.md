@@ -5,7 +5,17 @@ Module 8: Research Output and IP Tracking
 
 ## Frontend status (this repo)
 - Module 1 (Auth/RBAC pages): done, stable.
-- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable.
+- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. UI
+  reworked 2026-09-22 per client request: ProjectsPage's two inline "Register
+  a Program"/"Register a Project" forms (the project one had 20+ fields) were
+  pulled out into dedicated pages (RegisterProgramPage at /programs/new,
+  RegisterProjectPage at /projects/new) — chose full pages over a modal
+  because the project form is too long for a comfortable dialog. Buttons now
+  live in each table's card header instead of inline forms cluttering the
+  list. Same canRegister (system_admin/crc_chair) gating, now enforced via
+  RoleGate at the route level like /staff, /budget, etc. Browser-tested:
+  navigation, both forms rendering correctly, and Program registration
+  end-to-end (create → redirect → appears in table) all confirmed working.
 - Module 3 (Personnel/Roles/Task Coordination pages): done, stable.
 - Module 4 (Budget pages): BudgetPage built against budget_lib — project selector,
   line items, add-item form, certify, plus a Budget Summary section (Approved/
