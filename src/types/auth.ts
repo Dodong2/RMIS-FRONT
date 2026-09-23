@@ -45,3 +45,14 @@ export interface AdminUser {
   is_active: boolean;
   date_joined: string;
 }
+
+export interface AuditLog {
+  id: number;
+  actor: number | null;
+  actor_email: string | null;
+  method: "POST" | "PUT" | "PATCH" | "DELETE";
+  path: string;
+  status_code: number;
+  ip_address: string | null;
+  created_at: string;
+}

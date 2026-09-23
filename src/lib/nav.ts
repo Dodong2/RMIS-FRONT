@@ -158,7 +158,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Budget",
         to: "/budget",
         icon: "wallet",
-        tiers: [...OVERSIGHT, "finance", "project_management"],
+        tiers: [...OVERSIGHT, "finance", "procurement", "project_management"],
         ready: true,
       },
       {
@@ -180,7 +180,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/procurement",
         icon: "cart",
         tiers: ["system_admin", "institution_oversight", "procurement", "finance"],
-        ready: false,
+        ready: true,
       },
     ],
   },
@@ -232,7 +232,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/admin/audit",
         icon: "activity",
         tiers: ["system_admin"],
-        ready: false,
+        ready: true,
       },
       {
         label: "Settings",

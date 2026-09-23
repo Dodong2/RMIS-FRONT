@@ -7,6 +7,7 @@ import AuthCallbackPage from "./pages/AuthCallbackPage";
 import DashboardPage from "./pages/DashboardPage";
 import PendingUsersPage from "./pages/admin/PendingUsersPage";
 import UsersListPage from "./pages/admin/UsersListPage";
+import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import RegisterProgramPage from "./pages/RegisterProgramPage";
@@ -26,6 +27,7 @@ import BudgetForecastPage from "./pages/BudgetForecastPage";
 import DecisionSupportPage from "./pages/DecisionSupportPage";
 import RisksPage from "./pages/RisksPage";
 import ReportsPage from "./pages/ReportsPage";
+import ProcurementPage from "./pages/ProcurementPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
 
@@ -219,6 +221,7 @@ export default function App() {
                 "crc_chair",
                 "riuh",
                 "finance_budget",
+                "procurement_officer_lib",
                 "program_leader",
                 "project_leader",
               ]}
@@ -289,6 +292,26 @@ export default function App() {
           <ProtectedRoute>
             <RoleGate allow={["system_admin"]}>
               <UsersListPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/audit"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin"]}>
+              <AuditLogsPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/procurement"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin", "vprei", "university_admin", "drd", "procurement_officer_lib", "finance_budget"]}>
+              <ProcurementPage />
             </RoleGate>
           </ProtectedRoute>
         }

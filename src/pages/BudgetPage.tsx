@@ -34,7 +34,8 @@ import {
 } from "@/components/ui/table";
 import { notify } from "../lib/notify";
 
-const MANAGE_ROLE_CODES = ["system_admin", "finance_budget"];
+const MANAGE_ROLE_CODES = ["system_admin", "finance_budget", "procurement_officer_lib"];
+const CERTIFY_ROLE_CODES = ["system_admin", "finance_budget"];
 
 const CATEGORY_LABELS: Record<LineItemCategory, string> = {
   ps: "Personal Services",
@@ -48,6 +49,7 @@ const peso = (amount: string) =>
 function BudgetContent() {
   const { user } = useAuth();
   const canManage = !!user?.role && MANAGE_ROLE_CODES.includes(user.role.code);
+  const canCertify = !!user?.role && CERTIFY_ROLE_CODES.includes(user.role.code);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState("");
@@ -246,7 +248,7 @@ function BudgetContent() {
                 </p>
               )}
             </div>
-            {canManage && isDraft && (
+            {canCertify && isDraft && (
               <Button size="sm" onClick={handleCertify} disabled={isCertifying}>
                 <ShieldCheck className="size-4" />
                 {isCertifying ? "Certifying..." : "Certify Budget"}

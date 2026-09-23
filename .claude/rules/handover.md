@@ -1,12 +1,11 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 14: Reports — the last module in the docx spec, now committed and
-client browser-tested (2026-09-23). Appendix E/F/G + custom project-list
-exports in CSV/XLSX/PDF/DOCX, all confirmed working end-to-end. All 14
-modules from the docx spec are now wired up frontend-side; remaining work
-is browser-testing/polish on earlier modules, not new modules. See "Next
-thing to do" below for what's still unverified.
+All 14 docx-spec modules are wired up and Module 14 (Reports) is committed
+and client browser-tested (2026-09-23). Current work is a cross-cutting fix
+on top of that (not a new module) — see "Audit Logs / Procurement fix
+(2026-09-23)" below, API-smoke-tested by Claude only, not yet
+browser-tested. See "Next thing to do" for what's still unverified overall.
 
 ## Design reference
 `../University Research Operations Website` (sibling dir to this repo) is a
@@ -350,6 +349,76 @@ automatically — most pages needed zero code changes for this pass.
   endpoint exists — by design, it's an audit trail). Client then manually
   browser-tested end-to-end 2026-09-23 — all tabs and formats confirmed
   working.
+- Audit Logs / Procurement fix (2026-09-23, not a docx module — a
+  cross-cutting fix on `accounts` and `budget_lib` after the client asked
+  where "Workplan/Procurement/Audit Logs/Settings" map in the module
+  structure): three things landed together in one backend commit
+  (`922f7d3`), two of which needed real frontend work:
+  1. **Audit Logs** — `accounts` gained an `AuditLog` model + middleware
+     that logs every authenticated mutating (`POST`/`PUT`/`PATCH`/`DELETE`)
+     `/api/` call, plus `GET /api/admin/audit-logs/` (system_admin-only,
+     `?actor=`/`?method=` filters). This was listed in the MIT proposal as
+     a Module 1 feature but never existed until now. Built
+     `src/pages/admin/AuditLogsPage.tsx` against the pre-existing (since
+     forever) `ready: false` nav.ts placeholder at `/admin/audit` — flipped
+     to ready, no other nav change needed. Actor filter is populated from
+     `authApi.getUsers()`; method filter is a fixed 4-option list (GET is
+     never logged, so it's not offered as a filter option). Read-only page,
+     no write actions, matches the log's own "audit trail, not an app
+     table" nature (no DELETE endpoint, by design).
+  2. **Procurement role wired into budget_lib** — `procurement_officer_lib`
+     had been seeded as a role since Module 1 but had zero permissions
+     wired into any budget_lib view (it was only used for Module 3's
+     property clearance elsewhere). `MANAGE_ROLES` in budget_lib now
+     includes it, so Procurement can create/edit/delete `LineItem`s the
+     same as Finance/system_admin — certification (`CERTIFY_ROLES`) stays
+     Budget Officer-only, deliberately not extended. This meant
+     `BudgetPage.tsx`'s single `canManage` flag (previously
+     `["system_admin", "finance_budget"]`, used for both line-item actions
+     *and* the Certify button) needed to become two separate checks —
+     `MANAGE_ROLE_CODES` (now includes `procurement_officer_lib`, gates
+     Create Budget/Add Line Item/Remove Line Item) and a new
+     `CERTIFY_ROLE_CODES` (unchanged, gates only the Certify button) — so a
+     Procurement user never sees a Certify button that would 403 if
+     clicked. Also had to add `procurement_officer_lib` to the `/budget`
+     RoleGate in App.tsx (it wasn't there at all — Procurement literally
+     couldn't open the page before this) and to the "Budget" nav.ts item's
+     tiers (added the `"procurement"` tier alongside the existing ones).
+  3. New `?project=`/`?is_app_flagged=` filters on
+     `GET /api/budget/line-items/`, added specifically "for an
+     institution-wide APP-item worklist" per the commit message — built
+     `src/pages/ProcurementPage.tsx` against the pre-existing (since
+     forever) `ready: false` nav.ts placeholder at `/procurement`: an
+     institution-wide, read-only table of every line item over the
+     ₱50,000 APP-flag threshold across every project/budget, with an
+     optional project filter. `LineItem`/`LineItemBudget` responses don't
+     nest project details, so the page cross-references `budgetApi.
+     getBudgets()` (all, unfiltered) and `researchApi.getProjects()`
+     client-side to resolve `budget_id → project title`. Updated
+     `budgetApi.getLineItems()`'s signature from a single optional
+     `budget?: number` param to a `{ budget?, project?, is_app_flagged? }`
+     params object (it had exactly zero existing call sites, so this was a
+     safe signature change). `/procurement` RoleGate mirrors the nav.ts
+     tiers exactly (system_admin/vprei/university_admin/drd/
+     procurement_officer_lib/finance_budget — no crc_chair/riuh, since
+     nav.ts's tier list for this item is `institution_oversight`
+     specifically, not full `OVERSIGHT`).
+  4. `seed_roles.py` had a dead `tier` kwarg left over from a
+     since-reverted migration (`0003_remove_role_tier`) that would have
+     crashed the command on any re-run — backend-only fix, confirmed
+     working (`python manage.py seed_roles` now runs clean), no frontend
+     action needed.
+  `tsc --noEmit` and `eslint` both clean. Claude smoke-tested all of it
+  against the real dev DB: triggered a real mutating call and confirmed it
+  appeared correctly in the audit log (actor email, method, path, status
+  code all correct), created a throwaway `procurement_officer_lib` test
+  user and confirmed they could create a line item but got a 403 trying to
+  certify, created a throwaway APP-flagged line item and confirmed both the
+  institution-wide and per-project worklist filters returned it correctly.
+  All throwaway data (the test line item, a test AHP criterion used to
+  produce a POST for the audit-log check, the resulting audit log rows, and
+  the test procurement user) deleted afterward via Django shell. Not yet
+  browser-tested by the client, and not yet committed on the frontend side.
 
 ## Backend endpoints available to consume right now
 budget_lib (Module 4):
@@ -496,6 +565,18 @@ reports (Module 14 — last module in the docx spec):
 - GET /api/reports/logs/ — system_admin/riuh/drd/vprei only; ordinary JSON
   list (not a file), audit trail only, no DELETE
 
+accounts / budget_lib (Audit Logs + Procurement fix, 2026-09-23, not a
+docx module):
+- GET /api/admin/audit-logs/?actor=<user_id>&method=<POST|PUT|PATCH|DELETE>
+  — system_admin only; every mutating `/api/` call, newest first, no DELETE
+- GET/POST /api/budget/line-items/?budget=<id>&project=<id>&is_app_flagged=<bool>
+  — POST now also allowed for procurement_officer_lib (was system_admin/
+  finance_budget only); the project/is_app_flagged filters are new, for an
+  institution-wide worklist independent of any single budget
+- POST /api/budget/budgets/<id>/certify/ — unchanged, still
+  system_admin/finance_budget only (procurement_officer_lib deliberately
+  excluded)
+
 ## Design pattern to follow
 Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
 + EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
@@ -509,44 +590,54 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Wired up Module 14 (Reports — the last module in the docx spec): added
-src/types/reports.ts, src/lib/reportsApi.ts, src/pages/ReportsPage.tsx, a
-brand-new role-gated `/reports` route in App.tsx (no pre-existing nav.ts
-placeholder for this one, unlike Modules 11-13 — added a fresh "Reports"
-entry under Insights). See the Module 14 bullet above for the
-`file_format`-not-`format` and blob-error-handling gotchas worth
-remembering. `tsc --noEmit` and `eslint` both clean. Claude smoke-tested
-all 4 export formats (CSV/XLSX/PDF/DOCX) against the real dev DB with curl,
-verified the downloaded bytes with `file` (real XLSX/PDF/DOCX magic bytes,
-not just a 200 status), confirmed Appendix F now has real terminal-report
-data to export, confirmed the unsupported-format error path, and confirmed
-the Generation Log endpoint — then deleted all 5 throwaway
-`GeneratedReportLog` rows created during testing via Django shell (no
-DELETE endpoint exists by design). Client then manually browser-tested
-end-to-end 2026-09-23 — all tabs and formats confirmed working.
+Wired up the Audit Logs / Procurement cross-cutting fix (not a docx
+module — see that bullet above for full detail): added
+src/pages/admin/AuditLogsPage.tsx (+ AuditLog type in types/auth.ts,
+getAuditLogs in authApi.ts) and src/pages/ProcurementPage.tsx (updated
+budgetApi.getLineItems to a params-object signature), flipped both
+pre-existing nav.ts placeholders (`/admin/audit`, `/procurement`) to ready,
+and split BudgetPage.tsx's single `canManage` flag into `MANAGE_ROLE_CODES`
+(now includes procurement_officer_lib) and `CERTIFY_ROLE_CODES` (unchanged)
+so Procurement never sees a Certify button that would 403. Also added
+procurement_officer_lib to the `/budget` RoleGate (it couldn't open the
+page at all before) and to the "Budget" nav.ts tiers. `tsc --noEmit` and
+`eslint` both clean. Claude smoke-tested all of it against the real dev
+DB — confirmed a mutating call shows up correctly in the audit log,
+confirmed a throwaway procurement_officer_lib test user can create a line
+item but gets 403 certifying, confirmed the institution-wide and
+per-project `is_app_flagged` worklist filters both return the right rows —
+then deleted all throwaway data (test line item, test AHP criterion, the
+resulting audit log rows, the test user) via Django shell. Not yet
+browser-tested by the client, and not yet committed.
 
-All 14 modules from the docx spec are now wired up frontend-side. Remaining
-work from here is browser-testing/polish on earlier modules, not new modules.
+All 14 modules from the docx spec are wired up frontend-side and committed;
+Module 14 is also client browser-tested. Remaining work is browser-testing/
+polish on earlier modules plus this cross-cutting fix, not new modules.
 
 ## Next thing to do in this repo
-1. Browser-test Module 13 end-to-end — both tabs, and ideally with at least
+1. Browser-test the Audit Logs / Procurement fix — as system_admin, check
+   `/admin/audit` shows real entries and the actor/method filters work; as
+   a procurement_officer_lib account, confirm `/budget` is now reachable,
+   the Add Line Item form and Remove action show but Certify Budget does
+   not, and `/procurement` shows the institution-wide APP-flagged worklist.
+2. Browser-test Module 13 end-to-end — both tabs, and ideally with at least
    one real flag active (the dev DB's one project is currently clean/low
    risk on all 5 flags) to see the medium/high styling for real.
-2. Browser-test Module 12 end-to-end — define a couple of real criteria,
+3. Browser-test Module 12 end-to-end — define a couple of real criteria,
    run a full AHP weighting + funding recommendation cycle, and sanity
    check whether the default criteria set (output volume, compliance,
    budget utilization, monitoring health, renewal eligibility, forecast
    overrun-risk) is actually what the client wants scored, since it's a
    reasonable default rather than something client-confirmed.
-3. Browser-test Module 11 end-to-end once there's real disbursement history
+4. Browser-test Module 11 end-to-end once there's real disbursement history
    to forecast from (or ask Claude to seed temporary throwaway data again
    for a live look at the chart/success path).
-4. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
+5. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
    target, and confirm the comparison chart's status coloring reads right
    once there's non-zero data to look at (the dev DB is currently sparse:
    1 project, no budgets/compliance/outputs recorded, so most charts will
    show their empty state rather than real bars).
-5. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
+6. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
    only Modules 6, 7, 8, and 9 have been click-tested so far. Certify a
    budget → record a disbursement → request/review a minor/major/BOR
    realignment, and confirm role gating matches what's live on rmis-backend.

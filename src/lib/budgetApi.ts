@@ -21,10 +21,10 @@ export const budgetApi = {
     return data;
   },
 
-  getLineItems: async (budget?: number): Promise<LineItem[]> => {
-    const { data } = await apiClient.get("/api/budget/line-items/", {
-      params: budget ? { budget } : {},
-    });
+  getLineItems: async (
+    params: { budget?: number; project?: number; is_app_flagged?: boolean } = {},
+  ): Promise<LineItem[]> => {
+    const { data } = await apiClient.get("/api/budget/line-items/", { params });
     return data;
   },
   createLineItem: async (payload: {

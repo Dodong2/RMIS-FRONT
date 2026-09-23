@@ -1,5 +1,14 @@
 import { apiClient } from "./apiClient";
-import type { AuthTokens, LoginPayload, RegisterPayload, User, Role, PendingUser, AdminUser } from "../types/auth";
+import type {
+  AuthTokens,
+  LoginPayload,
+  RegisterPayload,
+  User,
+  Role,
+  PendingUser,
+  AdminUser,
+  AuditLog,
+} from "../types/auth";
 
 export const authApi = {
   login: async (payload: LoginPayload): Promise<AuthTokens> => {
@@ -48,6 +57,10 @@ export const authApi = {
   },
   toggleUserActive: async (userId: number): Promise<{ is_active: boolean }> => {
     const { data } = await apiClient.patch(`/api/admin/users/${userId}/toggle-active/`);
+    return data;
+  },
+  getAuditLogs: async (params: { actor?: number; method?: string } = {}): Promise<AuditLog[]> => {
+    const { data } = await apiClient.get("/api/admin/audit-logs/", { params });
     return data;
   },
 };
