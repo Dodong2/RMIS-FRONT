@@ -199,7 +199,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/decision-support",
         icon: "compass",
         tiers: ["system_admin", "institution_oversight", "finance"],
-        ready: false,
+        ready: true,
       },
     ],
   },

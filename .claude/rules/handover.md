@@ -1,11 +1,10 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 11: Budget Forecasting (functionally complete, wired up 2026-09-23).
-API-smoke-tested by Claude only — not yet browser-tested (dev DB's real
-project has zero disbursement history right now, so the client's first
-click-through will show the Insufficient Data path, not a live chart, until
-real disbursements exist). See the Module 11 bullet below for what's built.
+Module 12: Decision Support System (functionally complete, wired up
+2026-09-23) — AHP pairwise weighting + WSM scoring for funding
+recommendations. API-smoke-tested by Claude only — not yet browser-tested.
+See the Module 12 bullet below for what's built.
 
 ## Design reference
 `../University Research Operations Website` (sibling dir to this repo) is a
@@ -213,6 +212,57 @@ automatically — most pages needed zero code changes for this pass.
   yet browser-tested by the client — the real project currently has no
   disbursement history, so a first click-through will hit the
   insufficient-data path, not the chart, until real disbursements exist.
+- Module 12 (Decision Support System): DecisionSupportPage built against the
+  decision_support app — 3 pill tabs: Criteria, AHP Weighting, and Funding
+  Recommendations. This module has no Manual precedent (docx-spec only), so
+  the default criteria set (output volume, compliance completeness, budget
+  utilization, monitoring health, renewal eligibility, forecast overrun-risk
+  inverse) is a reasonable choice drawn from data RMIS already tracks, not
+  something client-confirmed — flagged as such in the model docstring and
+  worth a sanity check with the client before a real funding cycle uses it.
+  AHP tab: create a run against a chosen criteria subset, fill in pairwise
+  comparisons via a Saaty 1–9 scale dropdown per pair (labeled by meaning,
+  not raw numbers, e.g. "3 — Row moderately more important"), then one
+  "Finalize Weights" action submits all pairs and finalizes in sequence
+  (the backend supports incremental submission across multiple calls before
+  finalizing, but the UI collapses that into one step since there's no
+  reason here to leave a run in a submitted-but-not-finalized state).
+  Finalize computes weights + consistency ratio (CR) via eigenvector
+  approximation; CR > 0.10 finalizes anyway (matches backend) but is flagged
+  as inconsistent and excluded from the recommendation trigger's AHP-run
+  picker. Funding Recommendations tab: trigger a WSM scoring pass (optional
+  funding_type/campus filters, no project picker — omitting `project_ids`
+  scores every project matching the filters, matching the backend's
+  default), ranked table with a per-criterion normalized-score column
+  (traceability, not a chart — a ranked table with visible per-criterion
+  breakdown reads better than a bar chart when the actual ask is judging
+  exact composite scores against each other for a funding decision) plus a
+  live sensitivity-analysis panel (bump one criterion's weight, see the
+  re-ranked table, rank changes badged directly rather than color-only).
+  Only 3 finalized-run statuses gate anything: draft AHP runs can't be used
+  to trigger a recommendation, and neither can an inconsistent one (CR >
+  0.10) — both enforced server-side, mirrored in what the UI's picker
+  offers. Write roles mirror the backend exactly: system_admin/drd/vprei
+  only for creating criteria, creating/finalizing AHP runs, and triggering
+  recommendation runs; reads (criteria list, AHP run list/detail,
+  recommendation run list/detail, sensitivity) are `IsAuthenticated`-only on
+  the backend, same institution-wide-reporting product scoping as Analytics/
+  Budget Forecast applied at the route level (system_admin/vprei/
+  university_admin/drd/finance_budget can view; only the DSS write-roles
+  subset can operate it). Route `/decision-support` reuses a nav.ts entry
+  that already existed ("Funding recommendations") — just flipped `ready`
+  to true, no other nav change needed. `tsc --noEmit` and `eslint` both
+  clean. Claude smoke-tested the full pipeline against the real dev DB:
+  created 3 throwaway criteria, an AHP run, submitted comparisons, finalized
+  (CR 0.0032, consistent), created a second throwaway project so there were
+  2 WSM candidates, triggered a recommendation run, ran sensitivity
+  analysis — every response shape matched the new TS types exactly (all
+  numeric fields here are plain JSON numbers via FloatField/JSONField, not
+  Decimal-as-string like forecasting.ts), including confirming the
+  min-max-normalize tie-handling path when both candidates scored
+  identically. All throwaway criteria/AHP run/recommendation run/project
+  deleted afterward via Django shell (no DELETE endpoint exists on any of
+  these). Not yet browser-tested by the client.
 
 ## Backend endpoints available to consume right now
 budget_lib (Module 4):
@@ -312,6 +362,32 @@ forecasting (Module 11):
   computes overrun risk; needs 6+ months of history or returns
   `status: "insufficient_data"` instead of erroring. No DELETE endpoint.
 
+decision_support (Module 12):
+- GET/POST /api/decision-support/criteria/ (POST: system_admin/drd/vprei
+  only). No PATCH/DELETE — criteria are create-once, like Planning Targets.
+- GET/POST /api/decision-support/ahp-runs/ (POST: same roles) — `criteria`
+  is a list of criterion ids on create; `weights`/`consistency_ratio`/
+  `is_consistent` are null until finalized
+- GET /api/decision-support/ahp-runs/<id>/ — includes nested `comparisons`
+- POST /api/decision-support/ahp-runs/<id>/comparisons/ body
+  `{"comparisons": [{"criterion_row": id, "criterion_col": id, "value": n}]}`
+  — same roles; only valid on a draft run; the backend normalizes
+  row/col ordering and reciprocal values itself, so the caller doesn't need
+  to pre-sort pairs
+- POST /api/decision-support/ahp-runs/<id>/finalize/ — same roles; 400s if
+  fewer than n*(n-1)/2 comparisons exist; computes weights + CR via
+  eigenvector approximation and sets status to finalized either way (CR >
+  0.10 just flags `is_consistent: false`, doesn't block finalizing)
+- GET/POST /api/decision-support/recommendation-runs/ (any authenticated
+  user to GET; trigger below is how you POST) — nested `scores` per project
+- POST /api/decision-support/recommendation-runs/trigger/ body
+  `{"ahp_run": id, "label"?, "funding_type"?, "campus"?, "project_ids"?}` —
+  system_admin/drd/vprei only; requires a finalized + consistent ahp_run;
+  needs 2+ candidate projects after filtering or 400s
+- GET /api/decision-support/recommendation-runs/<id>/ — single run detail
+- GET /api/decision-support/recommendation-runs/<id>/sensitivity/?criterion=<id>&delta=<f>
+  — any authenticated user; live-computed re-ranking, not persisted
+
 ## Design pattern to follow
 Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
 + EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
@@ -325,29 +401,34 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Wired up Module 11 (Budget Forecasting): added src/types/forecasting.ts,
-src/lib/forecastingApi.ts, src/pages/BudgetForecastPage.tsx, the role-gated
-`/budget/forecast` route in App.tsx, and flipped its nav.ts entry to ready
-(see Module 11 bullet above for the ARIMA/forecast-chart and Decimal-as-
-string details worth remembering). `tsc --noEmit` and `eslint` both clean.
-Claude smoke-tested the full pipeline against the real dev DB — seeded 8
-months of throwaway disbursements to force a real ARIMA fit, confirmed both
-the success path (forecast chart, backtest metrics, overrun-risk flag) and
-the insufficient-data path, then deleted all seeded data afterward via
-Django shell. Not yet browser-tested by the client — their real project
-currently has zero disbursement history, so a first click-through will show
-Insufficient Data rather than a chart until real disbursements are recorded.
+Wired up Module 12 (Decision Support System): added
+src/types/decisionSupport.ts, src/lib/decisionSupportApi.ts,
+src/pages/DecisionSupportPage.tsx, the role-gated `/decision-support` route
+in App.tsx, and flipped its (pre-existing) nav.ts entry to ready (see Module
+12 bullet above for the AHP/WSM/sensitivity-analysis details worth
+remembering). `tsc --noEmit` and `eslint` both clean. Claude smoke-tested
+the full pipeline against the real dev DB — criteria → AHP run → pairwise
+comparisons → finalize → WSM recommendation → sensitivity analysis, with a
+throwaway second project created so there were 2 WSM candidates — all
+response shapes matched the new TS types exactly, all throwaway data
+deleted afterward via Django shell. Not yet browser-tested by the client.
 
 ## Next thing to do in this repo
-1. Browser-test Module 11 end-to-end once there's real disbursement history
+1. Browser-test Module 12 end-to-end — define a couple of real criteria,
+   run a full AHP weighting + funding recommendation cycle, and sanity
+   check whether the default criteria set (output volume, compliance,
+   budget utilization, monitoring health, renewal eligibility, forecast
+   overrun-risk) is actually what the client wants scored, since it's a
+   reasonable default rather than something client-confirmed.
+2. Browser-test Module 11 end-to-end once there's real disbursement history
    to forecast from (or ask Claude to seed temporary throwaway data again
    for a live look at the chart/success path).
-2. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
+3. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
    target, and confirm the comparison chart's status coloring reads right
    once there's non-zero data to look at (the dev DB is currently sparse:
    1 project, no budgets/compliance/outputs recorded, so most charts will
    show their empty state rather than real bars).
-3. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
+4. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
    only Modules 6, 7, 8, and 9 have been click-tested so far. Certify a
    budget → record a disbursement → request/review a minor/major/BOR
    realignment, and confirm role gating matches what's live on rmis-backend.
