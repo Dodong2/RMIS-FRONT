@@ -1,10 +1,10 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 12: Decision Support System (functionally complete, wired up
-2026-09-23) — AHP pairwise weighting + WSM scoring for funding
-recommendations. API-smoke-tested by Claude only — not yet browser-tested.
-See the Module 12 bullet below for what's built.
+Module 13: Risk Indicators (functionally complete, wired up 2026-09-23) —
+five live early-warning flags per active project. API-smoke-tested by
+Claude only — not yet browser-tested. See the Module 13 bullet below for
+what's built.
 
 ## Design reference
 `../University Research Operations Website` (sibling dir to this repo) is a
@@ -263,6 +263,44 @@ automatically — most pages needed zero code changes for this pass.
   identically. All throwaway criteria/AHP run/recommendation run/project
   deleted afterward via Django shell (no DELETE endpoint exists on any of
   these). Not yet browser-tested by the client.
+- Module 13 (Risk Indicators): RisksPage built against the risk_indicators
+  app — a pure read-only reporting module, no models/writes at all (both
+  endpoints are computed on read, same no-Celery/cron live-compute
+  convention as Module 9's escalation status, reusing several of its
+  compute functions directly). Two tabs: Institution Overview (dashboard —
+  optional campus/funding_type filters, stat tiles for total/low/medium/
+  high active-project counts, and a table of only the projects that have at
+  least one flag, each flag rendered as a destructive badge with a tooltip
+  detail) and Project Risk Status (project selector + the same 5-flag
+  breakdown for one project regardless of whether it's currently flagged,
+  via the separate per-project status endpoint). The 5 flags: non-submission
+  warning (reuses Module 9's `compute_escalation_status`), budget
+  underutilization (<70% used, reuses Module 9's `compute_budget_used_pct`),
+  deliverable slippage (any overdue, non-done milestone), personnel change
+  frequency (2+ changes in a trailing 12-month window), and forecast overrun
+  (reuses the latest successful `ForecastRun.is_overrun_risk` from Module
+  11 — `null`/`has_forecast: false` if none exists yet, not treated as a
+  flag either way). `risk_level` (low/medium/high) is a simple flagged-count
+  threshold (0 / 1-2 / 3+) computed alongside the flags, not stored.
+  Dashboard only lists projects with `status: "active"` and only returns
+  projects with `flagged_count > 0` in `flagged_projects` — a "low risk,
+  zero flags" project only shows up in the `by_risk_level.low` tally, not as
+  a row, which is why the Project Risk Status tab's per-project endpoint
+  exists separately (it works for any project, flagged or not). No write
+  roles anywhere in this module (both endpoints are `IsAuthenticated`-only
+  GETs) — the frontend has no canManage concept here, unlike every other
+  module so far. Route `/risks` reuses a nav.ts entry that already existed
+  — just flipped `ready` to true, tiers unchanged
+  (`[...OVERSIGHT, "project_management"]`, mapped 1:1 to role codes on the
+  RoleGate). All numeric fields here are plain floats/ints (no Decimal
+  fields anywhere in this module), confirmed by curl before typing
+  `risk.ts`. `tsc --noEmit` and `eslint` both clean. Claude smoke-tested
+  both the clean path (project 11 as-is: low risk, all 5 flags clear) and a
+  forced flagged path (created one throwaway overdue `WorkPlanMilestone` via
+  Django shell to trip deliverable_slippage, confirmed it correctly bumped
+  risk_level to medium and appeared in the dashboard's flagged_projects,
+  then deleted it and reconfirmed the dashboard was back to its clean
+  all-low state). Not yet browser-tested by the client.
 
 ## Backend endpoints available to consume right now
 budget_lib (Module 4):
@@ -388,6 +426,14 @@ decision_support (Module 12):
 - GET /api/decision-support/recommendation-runs/<id>/sensitivity/?criterion=<id>&delta=<f>
   — any authenticated user; live-computed re-ranking, not persisted
 
+risk_indicators (Module 13):
+- GET /api/risk/dashboard/?campus=<c>&funding_type=<t> — any authenticated
+  user; scoped to active projects only; `flagged_projects` only includes
+  projects with `flagged_count > 0`
+- GET /api/risk/status/<project_id>/ — any authenticated user; works for
+  any project regardless of status or flag count. No write endpoints exist
+  in this module.
+
 ## Design pattern to follow
 Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
 + EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
@@ -401,34 +447,37 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Wired up Module 12 (Decision Support System): added
-src/types/decisionSupport.ts, src/lib/decisionSupportApi.ts,
-src/pages/DecisionSupportPage.tsx, the role-gated `/decision-support` route
-in App.tsx, and flipped its (pre-existing) nav.ts entry to ready (see Module
-12 bullet above for the AHP/WSM/sensitivity-analysis details worth
-remembering). `tsc --noEmit` and `eslint` both clean. Claude smoke-tested
-the full pipeline against the real dev DB — criteria → AHP run → pairwise
-comparisons → finalize → WSM recommendation → sensitivity analysis, with a
-throwaway second project created so there were 2 WSM candidates — all
-response shapes matched the new TS types exactly, all throwaway data
-deleted afterward via Django shell. Not yet browser-tested by the client.
+Wired up Module 13 (Risk Indicators): added src/types/risk.ts,
+src/lib/riskApi.ts, src/pages/RisksPage.tsx, the role-gated `/risks` route
+in App.tsx, and flipped its (pre-existing) nav.ts entry to ready (see
+Module 13 bullet above for the flag-detail and dashboard-scoping details
+worth remembering). `tsc --noEmit` and `eslint` both clean. Claude
+smoke-tested both the clean path (project 11 as-is) and a forced flagged
+path (a throwaway overdue milestone created via Django shell to trip
+deliverable_slippage, confirmed medium risk_level and the dashboard's
+flagged_projects both updated correctly), then deleted the throwaway
+milestone and reconfirmed the dashboard was back to clean. Not yet
+browser-tested by the client.
 
 ## Next thing to do in this repo
-1. Browser-test Module 12 end-to-end — define a couple of real criteria,
+1. Browser-test Module 13 end-to-end — both tabs, and ideally with at least
+   one real flag active (the dev DB's one project is currently clean/low
+   risk on all 5 flags) to see the medium/high styling for real.
+2. Browser-test Module 12 end-to-end — define a couple of real criteria,
    run a full AHP weighting + funding recommendation cycle, and sanity
    check whether the default criteria set (output volume, compliance,
    budget utilization, monitoring health, renewal eligibility, forecast
    overrun-risk) is actually what the client wants scored, since it's a
    reasonable default rather than something client-confirmed.
-2. Browser-test Module 11 end-to-end once there's real disbursement history
+3. Browser-test Module 11 end-to-end once there's real disbursement history
    to forecast from (or ask Claude to seed temporary throwaway data again
    for a live look at the chart/success path).
-3. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
+4. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
    target, and confirm the comparison chart's status coloring reads right
    once there's non-zero data to look at (the dev DB is currently sparse:
    1 project, no budgets/compliance/outputs recorded, so most charts will
    show their empty state rather than real bars).
-4. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
+5. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
    only Modules 6, 7, 8, and 9 have been click-tested so far. Certify a
    budget → record a disbursement → request/review a minor/major/BOR
    realignment, and confirm role gating matches what's live on rmis-backend.

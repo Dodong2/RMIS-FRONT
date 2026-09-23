@@ -147,7 +147,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/risks",
         icon: "alert",
         tiers: [...OVERSIGHT, "project_management"],
-        ready: false,
+        ready: true,
       },
     ],
   },
