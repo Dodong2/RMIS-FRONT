@@ -20,6 +20,7 @@ import DisbursementsPage from "./pages/DisbursementsPage";
 import CompliancePage from "./pages/CompliancePage";
 import DocumentsPage from "./pages/DocumentsPage";
 import OutputsPage from "./pages/OutputsPage";
+import MonitoringPage from "./pages/MonitoringPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
 
@@ -57,6 +58,7 @@ export default function App() {
       <Route path="/tasks" element={<TasksPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/outputs" element={<OutputsPage />} />
+      <Route path="/monitoring" element={<MonitoringPage />} />
       <Route
         path="/personnel-changes"
         element={

@@ -139,8 +139,8 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Monitoring",
         to: "/monitoring",
         icon: "activity",
-        tiers: OVERSIGHT,
-        ready: false,
+        tiers: ALL_RESEARCH,
+        ready: true,
       },
       {
         label: "Risks",

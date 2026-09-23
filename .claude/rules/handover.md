@@ -1,8 +1,10 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 8: Research Output and IP Tracking (functionally complete). Current
-work: aligning the UI to the approved design reference.
+Module 9: Project Monitoring and Reporting (functionally complete, done
+2026-09-23). API-smoke-tested by Claude, then manually browser-tested end-to-
+end by the client (no Chrome automation tool was available that session) —
+confirmed working across all six tabs.
 
 ## Design reference
 `../University Research Operations Website` (sibling dir to this repo) is a
@@ -109,6 +111,36 @@ automatically — most pages needed zero code changes for this pass.
   (not eligible again, per the "once per patent" rule), and the Creative Work
   registration toggle worked. No bugs found. All test data and the test
   account cleaned up after.
+- Module 9 (Project Monitoring and Reporting): MonitoringPage built against
+  the monitoring app — project selector + a pill tab switcher across Status,
+  Monthly Reports, Midterm Reports (Appendix E), Terminal Report (Appendix
+  F, one per project), Evaluations, and Renewal Applications. `document` on
+  each report is an optional FK picked from a Select of that project's
+  already-uploaded documents (via document_management's list endpoint) —
+  no new upload UI, reuses Module 7. `escalation_status`,
+  `budget_used_pct`/`deliverables_pct`, and `renewal_eligible` are all
+  server-computed live (no Celery/cron on the backend) — the frontend only
+  renders them, same pattern as `estimated_incentive` in Module 8. Terminal
+  report certify and renewal-application decide are separate action
+  endpoints (POST .../certify/, POST .../decide/), same shape as
+  budget certify (Module 4) and realignment review (Module 5). Write roles
+  mirror the backend exactly: system_admin/riuh/project_leader/study_leader/
+  project_staff can submit monthly/midterm/terminal reports and renewal
+  applications; system_admin/riuh only can certify a terminal report;
+  system_admin/vprei/drd/crc_chair (the evaluation panel) can schedule
+  evaluations and record outcomes; system_admin/riuh/drd/vprei can decide
+  renewal applications. Nav entry at `/monitoring` was previously
+  `ready: false` and scoped to oversight tiers only — flipped to `ready:
+  true` and widened to all research tiers (`ALL_RESEARCH`) since reads are
+  `IsAuthenticated`-only on the backend and project/study leads and staff
+  can submit reports too, same as Documents/Outputs. Claude smoke-tested
+  every endpoint directly against the real dev DB with a JWT minted for the
+  system_admin test account (all 5 list/create endpoints plus certify,
+  decide, and the evaluation PATCH), response shapes checked against the
+  frontend types field-by-field, then all test rows deleted (no Chrome
+  extension was available in that session for a real click-through).
+  Client then manually browser-tested end-to-end 2026-09-23 against project
+  Test-100 (RFA-3456-333) — all six tabs confirmed working.
 
 ## Backend endpoints available to consume right now
 budget_lib (Module 4):
@@ -150,6 +182,27 @@ outputs (Module 8):
   RIUH/report-role flag to prevent double-counting)
 - GET/POST/PATCH /api/outputs/creative-works/?project=<id> (write roles above + project_staff)
 
+monitoring (Module 9):
+- GET /api/monitoring/status/<project_id>/ — live snapshot (escalation_status,
+  months_since_last_report, budget_used_pct, deliverables_pct,
+  midterm_submitted_years, terminal_submitted); any authenticated user
+- GET/POST /api/monitoring/monthly-reports/?project=<id> (system_admin/riuh/
+  project_leader/study_leader/project_staff to POST; unique per project+period,
+  `period` gets normalized to the 1st of the month server-side)
+- GET/POST /api/monitoring/midterm-reports/?project=<id> (same write roles;
+  unique per project+project_year)
+- GET/POST /api/monitoring/terminal-reports/?project=<id> (same write roles;
+  OneToOne per project — POST a second time 400s)
+- POST /api/monitoring/terminal-reports/<id>/certify/ — system_admin/riuh only
+- GET/POST /api/monitoring/evaluations/?project=<id> (POST: system_admin/vprei/
+  drd/crc_chair), PATCH /api/monitoring/evaluations/<id>/ (same roles;
+  evaluated_by/evaluated_at auto-set server-side the moment outcome leaves "pending")
+- GET/POST /api/monitoring/renewal-applications/?project=<id> (POST: same roles
+  as monthly/midterm/terminal reports; renewal_eligible/budget_used_pct/
+  deliverables_pct are computed, not stored)
+- POST /api/monitoring/renewal-applications/<id>/decide/ — system_admin/riuh/
+  drd/vprei only, body `{"status": "approved"|"denied"}`
+
 ## Design pattern to follow
 Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
 + EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
@@ -163,19 +216,18 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Design-system pass to match the reference mockup: renamed --lspu-gold/
---lspu-gold-light to --lspu-cyan (#0891b2) / --lspu-cyan-light (#67e8f9) in
-src/index.css, updated --accent/--ring/--chart-3/--sidebar-primary/
---sidebar-ring to the matching shade, and swapped the ~8 `text-gold`/
-`border-gold`/`bg-gold` Tailwind classes across 5 files (LoginPage,
-RegisterPage, AuthCallbackPage, DashboardPage, AuthShell) — using
-`cyan-light` specifically wherever the original was legible-on-navy gold, to
-preserve contrast. Browser-tested: login page, sidebar active-nav state,
-avatar badge, and dashboard all render correctly with proper contrast in
-both light and navy-background contexts.
+Wired up Module 9 (Project Monitoring and Reporting): added
+src/types/monitoring.ts, src/lib/monitoringApi.ts, src/pages/MonitoringPage.tsx,
+the `/monitoring` route in App.tsx, and flipped its nav.ts entry to
+ready/ALL_RESEARCH (see Module 9 bullet above for details). `npm run build`
+and `eslint` both clean. Claude smoke-tested every endpoint directly via curl
+with a minted JWT against the real dev DB (project 11, "Test-100") — all
+response shapes matched the new TS types exactly, test rows deleted after.
+Client then manually browser-tested all six tabs end-to-end and confirmed
+everything works — no bugs found.
 
 ## Next thing to do in this repo
-Same browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
-only Modules 6, 7, and 8 have been click-tested so far. Certify a budget →
+Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) — only
+Modules 6, 7, 8, and 9 have been click-tested so far. Certify a budget →
 record a disbursement → request/review a minor/major/BOR realignment, and
 confirm role gating matches what's live on rmis-backend.
