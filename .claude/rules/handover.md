@@ -1,11 +1,11 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 10: Analytics and Institutional Reporting (functionally complete,
-just wired up 2026-09-23). API-smoke-tested by Claude only — not yet
-browser-tested (no Chrome automation tool was available that session; dev
-servers were left running for the client to click through). See the Module
-10 bullet below for what's built.
+Module 11: Budget Forecasting (functionally complete, wired up 2026-09-23).
+API-smoke-tested by Claude only — not yet browser-tested (dev DB's real
+project has zero disbursement history right now, so the client's first
+click-through will show the Insufficient Data path, not a live chart, until
+real disbursements exist). See the Module 11 bullet below for what's built.
 
 ## Design reference
 `../University Research Operations Website` (sibling dir to this repo) is a
@@ -182,6 +182,37 @@ automatically — most pages needed zero code changes for this pass.
   shapes matched the new TS types exactly, one throwaway planning target
   deleted after (no DELETE endpoint exists, so it was removed via Django
   shell). Not yet browser-tested — dev servers left running for the client.
+- Module 11 (Budget Forecasting): BudgetForecastPage built against the
+  forecasting app — project selector limited to institutional/externally-
+  funded projects (Core-Funded is out of this module's scope), role-gated
+  "Run New Forecast" button (system_admin/drd/vprei/finance_budget), a
+  clickable run-history table, and a detail card with an ARIMA forecast
+  chart (shadcn `chart` + recharts `ComposedChart`: a range-`Area` confidence
+  band plus a `Line`, single accent color since it's one series with the
+  endpoint value labeled directly rather than every point) plus backtest
+  stats (MAE/RMSE/MAPE, "Not backtested" fallback when history is too short
+  to hold out a backtest window) and a destructive-badge overrun-risk flag
+  (projected total at the 3-month horizon vs. approved budget). A run needs
+  at least 6 months of disbursement history to fit an ARIMA model — fewer
+  than that returns `status: "insufficient_data"` with an explanatory
+  message rather than erroring, and the UI just shows that message instead
+  of a chart. `/budget/forecast` route is role-gated (system_admin/vprei/
+  university_admin/drd/finance_budget), matching nav.ts's tiers
+  (system_admin/institution_oversight/finance) — same oversight/finance-only
+  pattern as Budget, Compliance, and Analytics. Field-type note: unlike
+  dashboard's raw-dict endpoints, `ForecastRun`/`MonthlyForecast` go through
+  a ModelSerializer, so `predicted_amount`/`lower_bound`/`upper_bound`/`mae`/
+  `rmse`/`mape`/budget totals all come back as **strings**, not numbers —
+  confirmed by curl before typing `forecasting.ts`. Claude smoke-tested the
+  full pipeline against the real dev DB: seeded 8 months of throwaway
+  disbursements to force a real ARIMA fit and confirmed the success path
+  (forecast points, confidence bounds, backtest metrics, overrun-risk flag
+  all present and correctly typed), then confirmed the insufficient-data
+  path with fewer months, then deleted all seeded disbursements and forecast
+  runs afterward via Django shell (no DELETE endpoint exists on either). Not
+  yet browser-tested by the client — the real project currently has no
+  disbursement history, so a first click-through will hit the
+  insufficient-data path, not the chart, until real disbursements exist.
 
 ## Backend endpoints available to consume right now
 budget_lib (Module 4):
@@ -270,6 +301,17 @@ dashboard (Module 10):
   the frontend's `/analytics` route is still role-gated as a product choice
   (see Module 10 bullet above)
 
+forecasting (Module 11):
+- GET /api/forecasting/runs/?project=<id> — list past forecast runs for a
+  project, each with nested `forecasts` (monthly predicted/lower/upper);
+  any authenticated user
+- GET /api/forecasting/runs/<id>/ — single run detail (same shape)
+- POST /api/forecasting/runs/trigger/ body `{"project": <id>}` —
+  system_admin/drd/vprei/finance_budget only; fits ARIMA on disbursement
+  history, backtests if there's enough history to hold out a window,
+  computes overrun risk; needs 6+ months of history or returns
+  `status: "insufficient_data"` instead of erroring. No DELETE endpoint.
+
 ## Design pattern to follow
 Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
 + EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
@@ -283,24 +325,29 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Wired up Module 10 (Analytics and Institutional Reporting): added
-src/types/dashboard.ts, src/lib/dashboardApi.ts, src/pages/AnalyticsPage.tsx,
-added shadcn's `chart` component (@/components/ui/chart.tsx, pulls in
-`recharts`), the role-gated `/analytics` route in App.tsx, and flipped its
-nav.ts entry to ready (see Module 10 bullet above for the chart-color and
-Decimal-serialization details worth remembering). `npm run build` and
-`eslint` both clean. Claude smoke-tested every endpoint directly via curl
-with a minted JWT against the real dev DB — all response shapes matched the
-new TS types exactly, the one throwaway planning target cleaned up after.
-Not yet browser-tested (no Chrome extension available that session).
+Wired up Module 11 (Budget Forecasting): added src/types/forecasting.ts,
+src/lib/forecastingApi.ts, src/pages/BudgetForecastPage.tsx, the role-gated
+`/budget/forecast` route in App.tsx, and flipped its nav.ts entry to ready
+(see Module 11 bullet above for the ARIMA/forecast-chart and Decimal-as-
+string details worth remembering). `tsc --noEmit` and `eslint` both clean.
+Claude smoke-tested the full pipeline against the real dev DB — seeded 8
+months of throwaway disbursements to force a real ARIMA fit, confirmed both
+the success path (forecast chart, backtest metrics, overrun-risk flag) and
+the insufficient-data path, then deleted all seeded data afterward via
+Django shell. Not yet browser-tested by the client — their real project
+currently has zero disbursement history, so a first click-through will show
+Insufficient Data rather than a chart until real disbursements are recorded.
 
 ## Next thing to do in this repo
-1. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
+1. Browser-test Module 11 end-to-end once there's real disbursement history
+   to forecast from (or ask Claude to seed temporary throwaway data again
+   for a live look at the chart/success path).
+2. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
    target, and confirm the comparison chart's status coloring reads right
    once there's non-zero data to look at (the dev DB is currently sparse:
    1 project, no budgets/compliance/outputs recorded, so most charts will
    show their empty state rather than real bars).
-2. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
+3. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
    only Modules 6, 7, 8, and 9 have been click-tested so far. Certify a
    budget → record a disbursement → request/review a minor/major/BOR
    realignment, and confirm role gating matches what's live on rmis-backend.

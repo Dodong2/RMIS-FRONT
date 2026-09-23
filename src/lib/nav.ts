@@ -166,7 +166,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/budget/forecast",
         icon: "trending",
         tiers: ["system_admin", "institution_oversight", "finance"],
-        ready: false,
+        ready: true,
       },
       {
         label: "Disbursements",
