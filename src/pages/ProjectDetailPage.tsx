@@ -20,6 +20,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -62,9 +69,11 @@ function ProjectDetailContent() {
   const [attemptedMilestone, setAttemptedMilestone] = useState(false);
   const [attemptedStudy, setAttemptedStudy] = useState(false);
 
+  const [studyDialogOpen, setStudyDialogOpen] = useState(false);
   const [studyForm, setStudyForm] = useState({ title: "", lead: "" });
   const [isCreatingStudy, setIsCreatingStudy] = useState(false);
 
+  const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
   const [milestoneForm, setMilestoneForm] = useState({ title: "", target_date: "", remarks: "" });
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
   const [updatingMilestone, setUpdatingMilestone] = useState<number | null>(null);
@@ -113,6 +122,7 @@ function ProjectDetailContent() {
       setAttemptedStudy(false);
       notify.success("Study added.");
       setStudyForm({ title: "", lead: "" });
+      setStudyDialogOpen(false);
       await load();
     } catch (err: any) {
       notify.error(
@@ -142,6 +152,7 @@ function ProjectDetailContent() {
       setAttemptedMilestone(false);
       notify.success("Milestone added.");
       setMilestoneForm({ title: "", target_date: "", remarks: "" });
+      setMilestoneDialogOpen(false);
       await load();
     } catch {
       notify.error("Could not add the milestone.");
@@ -246,47 +257,15 @@ function ProjectDetailContent() {
         </Card>
       )}
 
-      {canRegister && (
-        <Card className="mb-6 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-navy">Add a Study</h3>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <FieldLabel required>Title</FieldLabel>
-              <Input aria-invalid={attemptedStudy && (!studyForm.title.trim())}
-                value={studyForm.title}
-                onChange={(e) => setStudyForm((s) => ({ ...s, title: e.target.value }))}
-                placeholder="Study title"
-              />
-            </div>
-            <div>
-              <FieldLabel required>Study Leader</FieldLabel>
-              <Select value={studyForm.lead} onValueChange={(v) => setStudyForm((s) => ({ ...s, lead: v }))}>
-                <SelectTrigger aria-invalid={attemptedStudy && (!studyForm.lead)}>
-                  <SelectValue placeholder="Select leader" />
-                </SelectTrigger>
-                <SelectContent>
-                  {studyLeaders.length === 0 && <EmptyOption message="No active study leaders yet" />}
-                  {studyLeaders.map((u) => (
-                    <SelectItem key={u.id} value={String(u.id)}>
-                      {u.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button size="sm" onClick={handleCreateStudy} disabled={isCreatingStudy} className="w-full">
-                <Plus className="size-4" />
-                {isCreatingStudy ? "Adding..." : "Add Study"}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
       <Card className="mb-6 overflow-hidden p-0">
-        <div className="border-b border-border p-4">
+        <div className="flex items-center justify-between gap-3 border-b border-border p-4">
           <h3 className="text-sm font-semibold text-navy">Studies</h3>
+          {canRegister && (
+            <Button size="sm" onClick={() => setStudyDialogOpen(true)}>
+              <Plus className="size-4" />
+              Add Study
+            </Button>
+          )}
         </div>
         <Table>
           <TableHeader>
@@ -326,39 +305,15 @@ function ProjectDetailContent() {
         </Table>
       </Card>
 
-      {canRegister && (
-        <Card className="mb-6 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-navy">Add a Work Plan Milestone</h3>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <FieldLabel required>Title</FieldLabel>
-              <Input aria-invalid={attemptedMilestone && (!milestoneForm.title.trim())}
-                value={milestoneForm.title}
-                onChange={(e) => setMilestoneForm((m) => ({ ...m, title: e.target.value }))}
-                placeholder="Milestone title"
-              />
-            </div>
-            <div>
-              <FieldLabel required>Target Date</FieldLabel>
-              <Input aria-invalid={attemptedMilestone && (!milestoneForm.target_date)}
-                type="date"
-                value={milestoneForm.target_date}
-                onChange={(e) => setMilestoneForm((m) => ({ ...m, target_date: e.target.value }))}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button size="sm" onClick={handleCreateMilestone} disabled={isCreatingMilestone} className="w-full">
-                <Plus className="size-4" />
-                {isCreatingMilestone ? "Adding..." : "Add Milestone"}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-border p-4">
+        <div className="flex items-center justify-between gap-3 border-b border-border p-4">
           <h3 className="text-sm font-semibold text-navy">Work Plan</h3>
+          {canRegister && (
+            <Button size="sm" onClick={() => setMilestoneDialogOpen(true)}>
+              <Plus className="size-4" />
+              Add Milestone
+            </Button>
+          )}
         </div>
         <Table>
           <TableHeader>
@@ -416,6 +371,81 @@ function ProjectDetailContent() {
           </TableBody>
         </Table>
       </Card>
+
+      <Dialog open={studyDialogOpen} onOpenChange={setStudyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add a Study</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div>
+              <FieldLabel required>Title</FieldLabel>
+              <Input
+                aria-invalid={attemptedStudy && !studyForm.title.trim()}
+                value={studyForm.title}
+                onChange={(e) => setStudyForm((s) => ({ ...s, title: e.target.value }))}
+                placeholder="Study title"
+              />
+            </div>
+            <div>
+              <FieldLabel required>Study Leader</FieldLabel>
+              <Select value={studyForm.lead} onValueChange={(v) => setStudyForm((s) => ({ ...s, lead: v }))}>
+                <SelectTrigger aria-invalid={attemptedStudy && !studyForm.lead}>
+                  <SelectValue placeholder="Select leader" />
+                </SelectTrigger>
+                <SelectContent>
+                  {studyLeaders.length === 0 && <EmptyOption message="No active study leaders yet" />}
+                  {studyLeaders.map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreateStudy} disabled={isCreatingStudy}>
+              <Plus className="size-4" />
+              {isCreatingStudy ? "Adding..." : "Add Study"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={milestoneDialogOpen} onOpenChange={setMilestoneDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add a Work Plan Milestone</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div>
+              <FieldLabel required>Title</FieldLabel>
+              <Input
+                aria-invalid={attemptedMilestone && !milestoneForm.title.trim()}
+                value={milestoneForm.title}
+                onChange={(e) => setMilestoneForm((m) => ({ ...m, title: e.target.value }))}
+                placeholder="Milestone title"
+              />
+            </div>
+            <div>
+              <FieldLabel required>Target Date</FieldLabel>
+              <Input
+                aria-invalid={attemptedMilestone && !milestoneForm.target_date}
+                type="date"
+                value={milestoneForm.target_date}
+                onChange={(e) => setMilestoneForm((m) => ({ ...m, target_date: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreateMilestone} disabled={isCreatingMilestone}>
+              <Plus className="size-4" />
+              {isCreatingMilestone ? "Adding..." : "Add Milestone"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

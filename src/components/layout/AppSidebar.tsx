@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,11 @@ interface AppSidebarProps {
 export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebarProps) {
   const tier = resolveTier(user?.role);
   const sections = visibleSections(tier);
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
+  }, []);
 
   return (
     <div className="flex h-full w-64 flex-col bg-sidebar text-sidebar-foreground">
@@ -37,7 +43,7 @@ export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebar
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Main">
+      <nav ref={navRef} className="flex-1 overflow-y-auto px-2 py-3" aria-label="Main">
         {isLoading ? (
           <SidebarNavSkeleton />
         ) : sections.length === 0 ? (
