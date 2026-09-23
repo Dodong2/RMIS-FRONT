@@ -1,10 +1,12 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 13: Risk Indicators (functionally complete, wired up 2026-09-23) —
-five live early-warning flags per active project. API-smoke-tested by
-Claude only — not yet browser-tested. See the Module 13 bullet below for
-what's built.
+Module 14: Reports — the last module in the docx spec, now committed and
+client browser-tested (2026-09-23). Appendix E/F/G + custom project-list
+exports in CSV/XLSX/PDF/DOCX, all confirmed working end-to-end. All 14
+modules from the docx spec are now wired up frontend-side; remaining work
+is browser-testing/polish on earlier modules, not new modules. See "Next
+thing to do" below for what's still unverified.
 
 ## Design reference
 `../University Research Operations Website` (sibling dir to this repo) is a
@@ -301,6 +303,53 @@ automatically — most pages needed zero code changes for this pass.
   risk_level to medium and appeared in the dashboard's flagged_projects,
   then deleted it and reconfirmed the dashboard was back to its clean
   all-low state). Not yet browser-tested by the client.
+- Module 14 (Reports — last module in the docx spec): ReportsPage built
+  against the reports app — 5 pill tabs: Appendix E, Appendix F, Appendix G,
+  Project List, and Generation Log. This module is a pure file-download
+  center, not a JSON API: every export endpoint returns an actual
+  `HttpResponse` file (CSV/XLSX/PDF/DOCX) with `Content-Disposition:
+  attachment`, reusing Module 10's `dashboard_services.appendix_e_export` /
+  `appendix_f_export` / `appendix_g_export` for the first three and a new
+  `services.project_list_report` (a fixed-field filtered project list —
+  campus/funding_type/status/rei_thrust/start-year filters — not a generic
+  report builder, out of scope for a capstone) for the fourth. Frontend
+  gotcha worth remembering: the format query param is named **`file_format`**,
+  not `format` — the backend docstrings this explicitly because DRF reserves
+  `format` for its own content negotiation and 404s before the view even
+  runs if you pass one it doesn't recognize (e.g. `pdf`). `reportsApi.ts`
+  requests every download with axios `responseType: "blob"`, reads the
+  filename back out of the `Content-Disposition` response header, and
+  triggers the browser download via an object URL + a synthetic anchor
+  click. Second gotcha: when the backend errors (bad format, or a 404 on
+  Appendix F with no terminal report yet), it still returns a JSON body,
+  but because the *request* used `responseType: "blob"`, axios hands that
+  error body back as a `Blob`, not a parsed object — `errorMessage()` (used
+  everywhere else) can't read it, so this module has its own
+  `reportErrorMessage()` that reads the blob as text and JSON-parses it.
+  `GeneratedReportLog` is metadata-only (report_type/format/filters/who/
+  when) — the actual file is generated on-demand and never stored, so
+  there's no download-history/re-download feature, only an audit trail.
+  The Generation Log tab is gated in the UI to
+  system_admin/riuh/drd/vprei, matching the backend's `HasRole` check on
+  that one endpoint exactly — every export endpoint itself is
+  `IsAuthenticated`-only, same broad-read pattern as Modules 10-13. No
+  pre-existing nav.ts placeholder existed for this module (unlike Modules
+  11-13) — added a brand-new "Reports" entry under the Insights section,
+  reusing the "file" icon already used by Documents (no NavIcon.tsx change
+  needed) and the same oversight+finance tiers as Analytics
+  (`[...OVERSIGHT, "finance"]`). `tsc --noEmit` and `eslint` both clean.
+  Claude smoke-tested all 4 formats end-to-end against the real dev DB with
+  curl (not just JSON assertions — actually inspected the downloaded bytes
+  with `file`: confirmed real XLSX/PDF/DOCX magic bytes, not just a
+  200 status), confirmed Appendix F actually has real terminal-report data
+  to export now (a terminal report exists for project 11 from earlier
+  manual testing), confirmed the unsupported-format error path returns the
+  expected JSON `detail` message, and confirmed the Generation Log endpoint
+  matches the TS type exactly. All 5 throwaway `GeneratedReportLog` rows
+  created during testing deleted afterward via Django shell (no DELETE
+  endpoint exists — by design, it's an audit trail). Client then manually
+  browser-tested end-to-end 2026-09-23 — all tabs and formats confirmed
+  working.
 
 ## Backend endpoints available to consume right now
 budget_lib (Module 4):
@@ -434,6 +483,19 @@ risk_indicators (Module 13):
   any project regardless of status or flag count. No write endpoints exist
   in this module.
 
+reports (Module 14 — last module in the docx spec):
+- GET /api/reports/appendix-e/<project_id>/?file_format=<csv|xlsx|pdf|docx>
+  — any authenticated user; streams a file, not JSON
+- GET /api/reports/appendix-f/<project_id>/?file_format=<f> — same; 404
+  `{"detail": "..."}` (as a JSON body, but still under `responseType: "blob"`
+  on the client — see the Module 14 bullet above) if no terminal report
+  exists yet
+- GET /api/reports/appendix-g/?campus=<c>&year=<y>&file_format=<f> — same
+- GET /api/reports/projects/?campus=<c>&funding_type=<t>&status=<s>&rei_thrust=<r>&year=<y>&file_format=<f>
+  — same; all filters optional, fixed field set (not a generic report builder)
+- GET /api/reports/logs/ — system_admin/riuh/drd/vprei only; ordinary JSON
+  list (not a file), audit trail only, no DELETE
+
 ## Design pattern to follow
 Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
 + EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
@@ -447,17 +509,24 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Wired up Module 13 (Risk Indicators): added src/types/risk.ts,
-src/lib/riskApi.ts, src/pages/RisksPage.tsx, the role-gated `/risks` route
-in App.tsx, and flipped its (pre-existing) nav.ts entry to ready (see
-Module 13 bullet above for the flag-detail and dashboard-scoping details
-worth remembering). `tsc --noEmit` and `eslint` both clean. Claude
-smoke-tested both the clean path (project 11 as-is) and a forced flagged
-path (a throwaway overdue milestone created via Django shell to trip
-deliverable_slippage, confirmed medium risk_level and the dashboard's
-flagged_projects both updated correctly), then deleted the throwaway
-milestone and reconfirmed the dashboard was back to clean. Not yet
-browser-tested by the client.
+Wired up Module 14 (Reports — the last module in the docx spec): added
+src/types/reports.ts, src/lib/reportsApi.ts, src/pages/ReportsPage.tsx, a
+brand-new role-gated `/reports` route in App.tsx (no pre-existing nav.ts
+placeholder for this one, unlike Modules 11-13 — added a fresh "Reports"
+entry under Insights). See the Module 14 bullet above for the
+`file_format`-not-`format` and blob-error-handling gotchas worth
+remembering. `tsc --noEmit` and `eslint` both clean. Claude smoke-tested
+all 4 export formats (CSV/XLSX/PDF/DOCX) against the real dev DB with curl,
+verified the downloaded bytes with `file` (real XLSX/PDF/DOCX magic bytes,
+not just a 200 status), confirmed Appendix F now has real terminal-report
+data to export, confirmed the unsupported-format error path, and confirmed
+the Generation Log endpoint — then deleted all 5 throwaway
+`GeneratedReportLog` rows created during testing via Django shell (no
+DELETE endpoint exists by design). Client then manually browser-tested
+end-to-end 2026-09-23 — all tabs and formats confirmed working.
+
+All 14 modules from the docx spec are now wired up frontend-side. Remaining
+work from here is browser-testing/polish on earlier modules, not new modules.
 
 ## Next thing to do in this repo
 1. Browser-test Module 13 end-to-end — both tabs, and ideally with at least

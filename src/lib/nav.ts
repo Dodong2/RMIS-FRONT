@@ -201,6 +201,13 @@ export const NAV_SECTIONS: NavSection[] = [
         tiers: ["system_admin", "institution_oversight", "finance"],
         ready: true,
       },
+      {
+        label: "Reports",
+        to: "/reports",
+        icon: "file",
+        tiers: [...OVERSIGHT, "finance"],
+        ready: true,
+      },
     ],
   },
   {

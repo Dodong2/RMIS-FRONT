@@ -25,6 +25,7 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import BudgetForecastPage from "./pages/BudgetForecastPage";
 import DecisionSupportPage from "./pages/DecisionSupportPage";
 import RisksPage from "./pages/RisksPage";
+import ReportsPage from "./pages/ReportsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
 
@@ -120,6 +121,26 @@ export default function App() {
               ]}
             >
               <RisksPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            <RoleGate
+              allow={[
+                "system_admin",
+                "vprei",
+                "university_admin",
+                "drd",
+                "crc_chair",
+                "riuh",
+                "finance_budget",
+              ]}
+            >
+              <ReportsPage />
             </RoleGate>
           </ProtectedRoute>
         }
