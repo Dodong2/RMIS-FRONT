@@ -192,7 +192,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/analytics",
         icon: "chart",
         tiers: [...OVERSIGHT, "finance"],
-        ready: false,
+        ready: true,
       },
       {
         label: "Funding recommendations",

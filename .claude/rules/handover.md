@@ -1,10 +1,11 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-Module 9: Project Monitoring and Reporting (functionally complete, done
-2026-09-23). API-smoke-tested by Claude, then manually browser-tested end-to-
-end by the client (no Chrome automation tool was available that session) —
-confirmed working across all six tabs.
+Module 10: Analytics and Institutional Reporting (functionally complete,
+just wired up 2026-09-23). API-smoke-tested by Claude only — not yet
+browser-tested (no Chrome automation tool was available that session; dev
+servers were left running for the client to click through). See the Module
+10 bullet below for what's built.
 
 ## Design reference
 `../University Research Operations Website` (sibling dir to this repo) is a
@@ -141,6 +142,46 @@ automatically — most pages needed zero code changes for this pass.
   extension was available in that session for a real click-through).
   Client then manually browser-tested end-to-end 2026-09-23 against project
   Test-100 (RFA-3456-333) — all six tabs confirmed working.
+- Module 10 (Analytics and Institutional Reporting): AnalyticsPage built
+  against the dashboard app — 7 tabs: Projects, Budget, Compliance, Outputs,
+  REI Thrust Alignment, Planning Targets, and Data Exports. First use of
+  shadcn's `chart` component in this repo (`npx shadcn add chart`, pulled in
+  `recharts` — see `@/components/ui/chart.tsx`); every breakdown (by status/
+  funding type/campus/type) renders as a single-color horizontal bar chart
+  via `CountBarChart`, since color isn't carrying series identity here (one
+  measure, axis labels carry category identity) — this sidesteps a real
+  finding: the brand's navy/slate chart tokens (`--chart-1`, `--chart-5` in
+  index.css) fail the dataviz skill's colorblind-safety validator as bare
+  categorical swatches (too dark/desaturated to read as color, though still
+  clearly distinguishable — CVD separation passes fine). Kept the brand
+  colors rather than introducing off-brand ones since every chart here is
+  single-series; flagged to the client, not silently overridden. Planning
+  Target comparison is the one place color *is* status (good/warning/
+  critical vs. `pct_of_target`, using `--success`/`--warning`/`--destructive`
+  — reserved status colors, not decorative) and every bar is direct-labeled
+  so color is never the only signal. Field-type gotcha worth remembering:
+  `dashboard/services.py` builds its Response dicts by hand instead of going
+  through a ModelSerializer, so Decimal aggregates (`total_approved`,
+  `total_actual`, `total_estimated_publication_incentive`,
+  `PlanningTargetComparison.target_value`/`actual_value`/`pct_of_target`)
+  serialize as plain JSON numbers — unlike every other Decimal field in this
+  app (e.g. `LineItem.amount`), which goes through a ModelSerializer's
+  DecimalField and comes back as a **string**. Confirmed both ways by curl
+  before typing `dashboard.ts`; don't assume string just because it's money.
+  Planning Targets have no PATCH/DELETE on the backend (ListCreateAPIView
+  only) — the UI reflects that: create + list only, no edit/delete affordance.
+  `/analytics` route is role-gated (system_admin/vprei/university_admin/drd/
+  crc_chair/riuh/finance_budget) even though every dashboard GET is
+  `IsAuthenticated`-only on the backend — deliberate product scoping (this is
+  institution-wide aggregate reporting, not a module individual project
+  leads/staff need), same pattern already used for `/budget` and
+  `/compliance`, unlike Outputs/Documents/Monitoring which stayed open to
+  all research tiers. `npm run build`/`eslint` clean. Claude smoke-tested
+  every endpoint (5 dashboards, planning-target create + list + comparison,
+  appendix-e/f/g exports) directly via curl with a minted JWT — response
+  shapes matched the new TS types exactly, one throwaway planning target
+  deleted after (no DELETE endpoint exists, so it was removed via Django
+  shell). Not yet browser-tested — dev servers left running for the client.
 
 ## Backend endpoints available to consume right now
 budget_lib (Module 4):
@@ -203,6 +244,32 @@ monitoring (Module 9):
 - POST /api/monitoring/renewal-applications/<id>/decide/ — system_admin/riuh/
   drd/vprei only, body `{"status": "approved"|"denied"}`
 
+dashboard (Module 10):
+- GET /api/dashboard/projects/?campus=<c>&funding_type=<t> — total_projects,
+  by_status/by_funding_type/by_campus counts; any authenticated user
+- GET /api/dashboard/budget/?campus=<c> — project_count, total_approved,
+  total_actual, utilization_pct (null if no certified budgets in scope)
+- GET /api/dashboard/compliance/ — no filters; ethics/COI/misconduct counts
+  by status, similarity-check within/over-threshold counts, AI declaration count
+- GET /api/dashboard/outputs/?year=<y> — publications_by_type, ip_records_by_status,
+  creative_works_count, total_estimated_publication_incentive, ip_incentive_eligible_count
+- GET /api/dashboard/rei-thrust-alignment/ — no filters, no campus/funding_type param
+- GET/POST /api/dashboard/planning-targets/ (POST: system_admin/riuh/drd/vprei
+  only; no PATCH/DELETE route exists — targets are create-once). `target_value`
+  is a **string** here (ModelSerializer DecimalField)
+- GET /api/dashboard/planning-targets/comparison/?year=<y> — actual vs. target
+  per row, computed live; `target_value`/`actual_value`/`pct_of_target` are
+  plain **numbers** here (raw dict, not a serializer — different from the line above)
+- GET /api/dashboard/exports/appendix-e/<project_id>/ — array, one entry per
+  midterm report year
+- GET /api/dashboard/exports/appendix-f/<project_id>/ — single object, or 404
+  `{"detail": "..."}` if no terminal report exists yet
+- GET /api/dashboard/exports/appendix-g/?campus=<c>&year=<y> — single
+  institution-wide (or campus-scoped) summary object
+- All dashboard/export GETs are `IsAuthenticated`-only (no role restriction);
+  the frontend's `/analytics` route is still role-gated as a product choice
+  (see Module 10 bullet above)
+
 ## Design pattern to follow
 Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
 + EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
@@ -216,18 +283,24 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-Wired up Module 9 (Project Monitoring and Reporting): added
-src/types/monitoring.ts, src/lib/monitoringApi.ts, src/pages/MonitoringPage.tsx,
-the `/monitoring` route in App.tsx, and flipped its nav.ts entry to
-ready/ALL_RESEARCH (see Module 9 bullet above for details). `npm run build`
-and `eslint` both clean. Claude smoke-tested every endpoint directly via curl
-with a minted JWT against the real dev DB (project 11, "Test-100") — all
-response shapes matched the new TS types exactly, test rows deleted after.
-Client then manually browser-tested all six tabs end-to-end and confirmed
-everything works — no bugs found.
+Wired up Module 10 (Analytics and Institutional Reporting): added
+src/types/dashboard.ts, src/lib/dashboardApi.ts, src/pages/AnalyticsPage.tsx,
+added shadcn's `chart` component (@/components/ui/chart.tsx, pulls in
+`recharts`), the role-gated `/analytics` route in App.tsx, and flipped its
+nav.ts entry to ready (see Module 10 bullet above for the chart-color and
+Decimal-serialization details worth remembering). `npm run build` and
+`eslint` both clean. Claude smoke-tested every endpoint directly via curl
+with a minted JWT against the real dev DB — all response shapes matched the
+new TS types exactly, the one throwaway planning target cleaned up after.
+Not yet browser-tested (no Chrome extension available that session).
 
 ## Next thing to do in this repo
-Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) — only
-Modules 6, 7, 8, and 9 have been click-tested so far. Certify a budget →
-record a disbursement → request/review a minor/major/BOR realignment, and
-confirm role gating matches what's live on rmis-backend.
+1. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
+   target, and confirm the comparison chart's status coloring reads right
+   once there's non-zero data to look at (the dev DB is currently sparse:
+   1 project, no budgets/compliance/outputs recorded, so most charts will
+   show their empty state rather than real bars).
+2. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
+   only Modules 6, 7, 8, and 9 have been click-tested so far. Certify a
+   budget → record a disbursement → request/review a minor/major/BOR
+   realignment, and confirm role gating matches what's live on rmis-backend.

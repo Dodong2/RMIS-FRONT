@@ -21,6 +21,7 @@ import CompliancePage from "./pages/CompliancePage";
 import DocumentsPage from "./pages/DocumentsPage";
 import OutputsPage from "./pages/OutputsPage";
 import MonitoringPage from "./pages/MonitoringPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
 
@@ -59,6 +60,26 @@ export default function App() {
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/outputs" element={<OutputsPage />} />
       <Route path="/monitoring" element={<MonitoringPage />} />
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute>
+            <RoleGate
+              allow={[
+                "system_admin",
+                "vprei",
+                "university_admin",
+                "drd",
+                "crc_chair",
+                "riuh",
+                "finance_budget",
+              ]}
+            >
+              <AnalyticsPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/personnel-changes"
         element={
