@@ -638,6 +638,28 @@ Module 14 is also client browser-tested. Remaining work is browser-testing/
 polish on earlier modules plus this cross-cutting fix, not new modules.
 
 ## Next thing to do in this repo
+**Current work (decided 2026-09-24, resume here): Prototype UI clone.**
+Read `tasks/plan.md` (decisions, page mapping, resolved Q1-Q4) and
+`tasks/todo.md` (T1-T29 with acceptance criteria) first. Nothing implemented
+yet, start at **T1** (tsconfig `baseUrl` fix so `tsc -b` really checks,
+prototype global CSS, jspdf/jspdf-autotable/xlsx, `src/mocks/` + REGISTRY.md,
+NoActualData, protoRole helper, ignore prototype folder in eslint +
+.gitignore, CLAUDE.md styling/mock rules). Summary of what was agreed with
+Carl:
+- Copy the look of `University Research Operations Website/src/components`
+  (21 components + Layout) onto our pages, literally (Tailwind + inline
+  styles). shadcn only for Dialog/Select/Tooltip/toast. Supersedes the
+  2026-09-22 "design-system pass only" scope below.
+- Data: API with rows → real; API empty → "No actual data"; no API → prototype
+  mock in `src/mocks/`, no visible badge, tracked in `src/mocks/REGISTRY.md`.
+- Real flow, prototype look (e.g. Login keeps email + Google, no demo picker).
+- Roles/RoleGate/nav tiers stay ours; nav labels/grouping from prototype.
+- No backend changes, nothing existing removed.
+- Trigger phrase: "read mo yung changes sa rmis-backend" → diff backend since
+  `80cf678`, sync `src/types`, swap mocks that now have an endpoint, update the
+  plan's mapping table.
+
+Older list (browser-testing backlog, still valid but lower priority):
 1. Browser-test the Audit Logs / Procurement fix — as system_admin, check
    `/admin/audit` shows real entries and the actor/method filters work; as
    a procurement_officer_lib account, confirm `/budget` is now reachable,
