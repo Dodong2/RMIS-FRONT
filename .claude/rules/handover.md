@@ -2,10 +2,11 @@
 
 ## Module we're on
 All 14 docx-spec modules are wired up and Module 14 (Reports) is committed
-and client browser-tested (2026-09-23). Current work is a cross-cutting fix
-on top of that (not a new module) — see "Audit Logs / Procurement fix
-(2026-09-23)" below, API-smoke-tested by Claude only, not yet
-browser-tested. See "Next thing to do" for what's still unverified overall.
+and client browser-tested (2026-09-23). Two things landed on top of that
+(not new modules): the Audit Logs / Procurement cross-cutting fix (commit
+`4c8650b`, API-smoke-tested by Claude only, not yet browser-tested) and a
+UI polish pass (commit `0e490eb`) — see their bullets below. See "Next
+thing to do" for what's still unverified overall.
 
 ## Design reference
 `../University Research Operations Website` (sibling dir to this repo) is a
@@ -52,6 +53,10 @@ automatically — most pages needed zero code changes for this pass.
 - Module 4 (Budget pages): BudgetPage built against budget_lib — project selector,
   line items, add-item form, certify, plus a Budget Summary section (Approved/
   Adjusted/Actual/Available) that lights up once a budget is certified.
+  2026-09-24: removed the "capped at ₱100,000" note for institutional dry
+  research, matching rmis-backend `ba9c9e4` which dropped the cap check
+  (real LIB data like sheet P77, ₱120k, was getting 400'd). Deliberate
+  deviation from the Manual — re-add both sides if the client/panel asks.
 - Module 5 (Disbursements/Realignments): DisbursementsPage built against
   financial_monitoring — record disbursements against a certified budget's line
   items, request fund realignments (existing item or new BOR-tier item), and

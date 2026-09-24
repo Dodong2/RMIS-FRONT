@@ -64,8 +64,6 @@ function BudgetContent() {
   const [attemptedItem, setAttemptedItem] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
 
-  const project = projects.find((p) => p.id === Number(selectedProject)) ?? null;
-
   useEffect(() => {
     (async () => {
       setIsLoadingProjects(true);
@@ -170,7 +168,6 @@ function BudgetContent() {
   };
 
   const isDraft = budget?.status === "draft";
-  const isCappedProject = !!project && project.funding_type === "institutional" && project.is_dry_research;
 
   return (
     <div>
@@ -194,11 +191,6 @@ function BudgetContent() {
             ))}
           </SelectContent>
         </Select>
-        {isCappedProject && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Institutionally-funded dry research — total line items are capped at ₱100,000.
-          </p>
-        )}
       </Card>
 
       {!selectedProject ? (
