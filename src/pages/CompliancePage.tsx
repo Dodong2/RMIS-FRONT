@@ -48,8 +48,8 @@ const MANAGE_ROLE_CODES = ["system_admin", "riuh"];
 
 const REVIEW_BODY_LABELS: Record<EthicsReviewBody, string> = {
   trc: "Technical Review Committee",
-  ethics_review_board: "Ethics Review Board",
-  iacuc: "IACUC",
+  integrity_review: "Research Integrity Review",
+  external_review: "External Review Body",
 };
 
 const ETHICS_STATUS_LABELS: Record<EthicsReviewStatus, string> = {
@@ -382,7 +382,7 @@ function ComplianceContent() {
     <div>
       <PageHeader
         title="Ethics, Integrity, and Compliance"
-        description="Logs outcomes of external ethics/integrity processes (TRC, Ethics Review Board, IACUC) — RMIS records status, it does not conduct the review."
+        description="Logs outcomes of external ethics/integrity processes (TRC, research integrity review, external review bodies) — RMIS records status, it does not conduct the review."
       />
 
       <Card className="mb-6 p-4">

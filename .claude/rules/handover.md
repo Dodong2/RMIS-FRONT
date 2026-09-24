@@ -595,6 +595,24 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
+2026-09-24 (latest): read rmis-backend `dea9255` (DPMIS alignment round). Synced
+every changed/new serializer into `src/types/` (auth, budget, compliance,
+dashboard, decisionSupport, document, financial, monitoring, outputs,
+personnel, research, reports, risk, new `budgetSync.ts`) and fixed the pages
+that broke: RisksPage (5x5 scoring, `critical` level, 2 new flags, score +
+recommended action), CompliancePage (review bodies are now
+`trc`/`integrity_review`/`external_review`), UsersListPage (toggle-active now
+means Suspend/Reactivate), plus label maps in DecisionSupportPage/ReportsPage.
+`BudgetSummary` figures corrected to numbers (raw dict → DRF float, was
+wrongly typed as string). **Found: `npx tsc -b` never type-checked** — TS 6
+raises TS5101 on tsconfig's deprecated `baseUrl` and stops; earlier "tsc
+clean" notes were not real checks. Verify with `npx tsc --noEmit -p
+tsconfig.app.json --ignoreDeprecations 6.0` (clean now). No API functions or
+UI for the new endpoints yet — those belong to the prototype UI clone plan
+(`tasks/plan.md`, `tasks/todo.md`), which supersedes the 2026-09-22
+"design-system pass only" scope. Not committed.
+
+Previous entry:
 Wired up the Audit Logs / Procurement cross-cutting fix (not a docx
 module — see that bullet above for full detail): added
 src/pages/admin/AuditLogsPage.tsx (+ AuditLog type in types/auth.ts,

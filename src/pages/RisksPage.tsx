@@ -46,19 +46,23 @@ const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
   low: "Low",
   medium: "Medium",
   high: "High",
+  critical: "Critical",
 };
 
 const RISK_LEVEL_CLASS: Record<RiskLevel, string> = {
   low: "text-success",
   medium: "text-warning",
   high: "text-destructive",
+  critical: "text-destructive",
 };
 
 const FLAG_LABELS: Record<keyof ProjectRiskFlags, string> = {
   non_submission_warning: "Non-Submission Warning",
   budget_underutilization: "Budget Underutilization",
+  deliverable_shortfall: "Deliverable Shortfall",
   deliverable_slippage: "Deliverable Slippage",
   personnel_change_frequency: "Personnel Change Frequency",
+  procurement_delay: "Procurement Delay",
   forecast_overrun: "Forecast Overrun Risk",
 };
 
@@ -79,15 +83,23 @@ function flagDetail(key: keyof ProjectRiskFlags, flags: ProjectRiskFlags): strin
     }
     case "budget_underutilization": {
       const f = flags.budget_underutilization;
-      return f.budget_used_pct === null ? "No certified budget yet" : `${f.budget_used_pct}% of budget used`;
+      return f.budget_used_pct === null ? "No certified budget yet" : `${f.budget_used_pct}% of budget used${f.near_renewal ? " · near renewal" : ""}`;
+    }
+    case "deliverable_shortfall": {
+      const f = flags.deliverable_shortfall;
+      return f.deliverables_pct === null ? "No milestones yet" : `${f.deliverables_pct}% of deliverables done${f.near_renewal ? " · near renewal" : ""}`;
     }
     case "deliverable_slippage": {
       const f = flags.deliverable_slippage;
-      return `${f.overdue_count} overdue milestone${f.overdue_count === 1 ? "" : "s"}${f.deliverables_pct !== null ? ` · ${f.deliverables_pct}% complete` : ""}`;
+      return `${f.overdue_count} overdue milestone${f.overdue_count === 1 ? "" : "s"}`;
     }
     case "personnel_change_frequency": {
       const f = flags.personnel_change_frequency;
       return `${f.changes_in_window} change${f.changes_in_window === 1 ? "" : "s"} in the last ${f.window_months} months`;
+    }
+    case "procurement_delay": {
+      const f = flags.procurement_delay;
+      return `${f.delayed_requests} request${f.delayed_requests === 1 ? "" : "s"} pending over ${f.delay_days} days`;
     }
     case "forecast_overrun": {
       const f = flags.forecast_overrun;
@@ -99,7 +111,10 @@ function flagDetail(key: keyof ProjectRiskFlags, flags: ProjectRiskFlags): strin
 
 function RiskLevelBadge({ level }: { level: RiskLevel }) {
   return (
-    <Badge variant={level === "high" ? "destructive" : "outline"} className={level !== "high" ? RISK_LEVEL_CLASS[level] : undefined}>
+    <Badge
+      variant={level === "high" || level === "critical" ? "destructive" : "outline"}
+      className={level === "low" || level === "medium" ? RISK_LEVEL_CLASS[level] : level === "critical" ? "font-bold" : undefined}
+    >
       {RISK_LEVEL_LABELS[level]}
     </Badge>
   );
@@ -194,11 +209,12 @@ function OverviewTab() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-5">
             <StatTile label="Active Projects in Scope" value={dashboard.total_projects} />
             <StatTile label="Low Risk" value={dashboard.by_risk_level.low} className="text-success" />
             <StatTile label="Medium Risk" value={dashboard.by_risk_level.medium} className="text-warning" />
             <StatTile label="High Risk" value={dashboard.by_risk_level.high} className="text-destructive" />
+            <StatTile label="Critical Risk" value={dashboard.by_risk_level.critical} className="text-destructive" />
           </div>
 
           {dashboard.flagged_projects.length === 0 ? (
@@ -295,7 +311,7 @@ function ProjectTab() {
         <EmptyState
           icon={<AlertTriangle className="size-7" />}
           title="Select a project"
-          description="Choose a project above to view its five early-warning risk flags."
+          description="Choose a project above to view its early-warning risk flags."
         />
       ) : isLoadingStatus || !status ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -303,8 +319,15 @@ function ProjectTab() {
         <Card className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-navy">{status.project_code}</h3>
-            <RiskLevelBadge level={status.risk_level} />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Score {status.risk_score}/25</span>
+              <RiskLevelBadge level={status.risk_level} />
+            </div>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Recommended action: {status.recommended_action}
+            {status.open_register_risks > 0 && ` · ${status.open_register_risks} open register risk${status.open_register_risks === 1 ? "" : "s"}`}
+          </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {FLAG_ORDER.map((key) => (
               <div key={key} className="rounded-md border border-border p-3">
@@ -331,7 +354,7 @@ function RisksContent() {
     <div>
       <PageHeader
         title="Risks"
-        description="Five live early-warning flags per active project — non-submission, budget underutilization, deliverable slippage, personnel churn, and forecast overrun risk. Computed on read, not stored."
+        description="Live early-warning flags per active project, each scored likelihood × impact on a 5×5 scale — non-submission, budget underutilization, deliverable shortfall and slippage, personnel churn, procurement delay, and forecast overrun risk. Computed on read, not stored."
       />
 
       <div className="mb-6 flex flex-wrap gap-2">

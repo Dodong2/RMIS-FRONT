@@ -11,6 +11,8 @@ export interface User {
   role: Role | null;
   is_pending_role: boolean;
   is_active: boolean;
+  office: string;
+  position: string;
 }
 
 export interface AuthTokens {
@@ -38,11 +40,16 @@ export interface PendingUser {
   date_joined: string;
 }
 
+export type AccountStatus = "active" | "suspended" | "deactivated";
+
 export interface AdminUser {
   id: number;
   email: string;
   role: Role | null;
+  office: string;
+  position: string;
   is_active: boolean;
+  account_status: AccountStatus;
   date_joined: string;
 }
 

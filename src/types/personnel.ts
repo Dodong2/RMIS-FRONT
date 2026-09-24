@@ -19,6 +19,7 @@ export interface ProjectAssignment {
   project: number | null;
   study: number | null;
   role_label: string;
+  department: string;
   start_date: string;
   end_date: string | null;
   is_active: boolean;
@@ -37,6 +38,33 @@ export interface Task {
   assignee_detail: Lead;
   assigned_by: number;
   created_at: string;
+}
+
+export interface TaskUpdate {
+  id: number;
+  task: number;
+  author: number;
+  author_email: string;
+  note: string;
+  new_status: TaskStatus | "";
+  created_at: string;
+}
+
+export interface WorkloadRow {
+  assignee: number;
+  email: string;
+  open: number;
+  overdue: number;
+  done: number;
+}
+
+export interface CollaborationRow {
+  project: number;
+  project_code: string;
+  title: string;
+  departments: string[];
+  department_count: number;
+  is_cross_departmental: boolean;
 }
 
 export interface PropertyClearance {

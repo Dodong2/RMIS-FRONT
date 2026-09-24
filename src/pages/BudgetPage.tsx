@@ -43,7 +43,7 @@ const CATEGORY_LABELS: Record<LineItemCategory, string> = {
   co: "Capital Outlay",
 };
 
-const peso = (amount: string) =>
+const peso = (amount: string | number) =>
   `₱${Number(amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
 function BudgetContent() {

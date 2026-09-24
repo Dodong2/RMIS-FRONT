@@ -73,7 +73,27 @@ export interface Project {
   implementing_unit: string;
   cooperating_agencies: string;
   total_cost: string | null;
+  description: string;
+  objectives: string;
+  beneficiaries: string;
+  expected_outcomes: string;
+  expected_impacts: string;
+  proposal_submitted_on: string | null;
+  proposal_reviewed_on: string | null;
+  proposal_approved_on: string | null;
+  reviewing_body: string;
   created_at: string;
+}
+
+export interface ProjectStatusHistory {
+  id: number;
+  project: number;
+  from_status: RecordStatus;
+  to_status: RecordStatus;
+  remarks: string;
+  changed_by: number;
+  changed_by_email: string;
+  changed_at: string;
 }
 
 export interface Study {
@@ -90,8 +110,13 @@ export interface Milestone {
   id: number;
   project: number;
   title: string;
+  start_date: string | null;
   target_date: string;
   status: MilestoneStatus;
+  objective: string;
+  deliverable: string;
+  responsible: number | null;
+  responsible_detail: Lead | null;
   remarks: string;
   created_at: string;
 }

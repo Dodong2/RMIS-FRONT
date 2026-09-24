@@ -1,4 +1,4 @@
-export type EthicsReviewBody = "trc" | "ethics_review_board" | "iacuc";
+export type EthicsReviewBody = "trc" | "integrity_review" | "external_review";
 export type EthicsReviewStatus = "pending" | "approved" | "conditional" | "revision_required" | "rejected";
 
 export interface EthicsReviewReference {
@@ -12,6 +12,8 @@ export interface EthicsReviewReference {
   remarks: string;
   recorded_by: number;
   created_at: string;
+  verified_by: number | null;
+  verified_at: string | null;
 }
 
 export type SimilarityDocumentType = "published_article" | "thesis_dissertation" | "other";
@@ -28,6 +30,8 @@ export interface SimilarityCheckRecord {
   checked_on: string;
   recorded_by: number;
   created_at: string;
+  verified_by: number | null;
+  verified_at: string | null;
 }
 
 export interface AIUseDeclaration {
@@ -40,6 +44,8 @@ export interface AIUseDeclaration {
   extent: string;
   declared_on: string;
   created_at: string;
+  verified_by: number | null;
+  verified_at: string | null;
 }
 
 export type COIStatus = "disclosed" | "under_review" | "resolved";
@@ -54,6 +60,8 @@ export interface ConflictOfInterestDisclosure {
   disclosed_on: string;
   recorded_by: number;
   created_at: string;
+  verified_by: number | null;
+  verified_at: string | null;
 }
 
 export type MisconductCaseType = "plagiarism" | "fabrication" | "falsification" | "other";
@@ -71,5 +79,25 @@ export interface MisconductCaseReference {
   reported_by: number;
   reported_on: string;
   resolved_on: string | null;
+  created_at: string;
+}
+
+export type ComplianceRequirementStatus = "pending" | "submitted" | "compliant" | "returned" | "non_compliant";
+
+export interface ComplianceRequirement {
+  id: number;
+  project: number;
+  title: string;
+  description: string;
+  responsible: number;
+  deadline: string;
+  status: ComplianceRequirementStatus;
+  is_overdue: boolean;
+  document: number | null;
+  submitted_at: string | null;
+  review_remarks: string;
+  reviewed_by: number | null;
+  reviewed_at: string | null;
+  created_by: number;
   created_at: string;
 }

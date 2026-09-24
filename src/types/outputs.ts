@@ -73,3 +73,41 @@ export interface CreativeWorkRecord {
   recorded_by: number;
   created_at: string;
 }
+
+export type SixPCategory =
+  | "publications"
+  | "patents"
+  | "products"
+  | "people_services"
+  | "places_partnerships"
+  | "policies";
+
+export interface ExpectedOutput {
+  id: number;
+  project: number;
+  category: SixPCategory;
+  description: string;
+  target_count: number;
+  manual_actual_count: number;
+  actual_count: number;
+  created_at: string;
+}
+
+export interface ExpectedVsActual {
+  project: number;
+  by_category: { category: SixPCategory; label: string; target: number; actual: number; met: boolean }[];
+  expected_outputs: ExpectedOutput[];
+}
+
+export type OutcomeKind = "outcome" | "impact";
+
+export interface ProjectOutcome {
+  id: number;
+  project: number;
+  kind: OutcomeKind;
+  description: string;
+  observed_on: string | null;
+  evidence: string;
+  recorded_by: number;
+  created_at: string;
+}

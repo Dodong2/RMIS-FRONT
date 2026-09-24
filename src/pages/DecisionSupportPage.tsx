@@ -47,6 +47,7 @@ const METRIC_LABELS: Record<CriterionMetricKey, string> = {
   monitoring_health: "Monitoring/Reporting Health",
   renewal_eligible: "Renewal Eligibility",
   overrun_risk_inverse: "Forecast Overrun-Risk (inverse)",
+  risk_score_inverse: "Project Risk Score (inverse)",
 };
 
 const METRIC_OPTIONS = Object.entries(METRIC_LABELS) as [CriterionMetricKey, string][];

@@ -191,7 +191,7 @@ function UsersListContent() {
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-muted-foreground">
-                          Deactivated
+                          {u.account_status === "deactivated" ? "Deactivated" : "Suspended"}
                         </Badge>
                       )}
                     </TableCell>
@@ -200,10 +200,10 @@ function UsersListContent() {
                         size="sm"
                         variant={u.is_active ? "outline" : "secondary"}
                         onClick={() => handleToggleActive(u.id)}
-                        disabled={togglingActive === u.id}
+                        disabled={togglingActive === u.id || u.account_status === "deactivated"}
                       >
                         {u.is_active ? <Ban className="size-4" /> : <RotateCcw className="size-4" />}
-                        {togglingActive === u.id ? "Working..." : u.is_active ? "Deactivate" : "Activate"}
+                        {togglingActive === u.id ? "Working..." : u.is_active ? "Suspend" : "Reactivate"}
                       </Button>
                     </TableCell>
                   </TableRow>

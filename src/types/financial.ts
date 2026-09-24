@@ -15,6 +15,9 @@ export interface Disbursement {
   amount: string;
   reference_number: string;
   description: string;
+  payee: string;
+  supporting_document: number | null;
+  funding_source: string;
   disbursed_on: string;
   recorded_by: number;
   created_at: string;
@@ -37,24 +40,48 @@ export interface BudgetRealignment {
   created_at: string;
 }
 
-export interface LineItemBalance {
+export interface BalanceFigures {
+  approved: number;
+  adjusted: number;
+  actual: number;
+  available: number;
+  utilization_pct: number | null;
+}
+
+export interface LineItemBalance extends BalanceFigures {
   line_item: number;
   category: LineItemCategory;
   description: string;
-  approved: string;
-  adjusted: string;
-  actual: string;
-  available: string;
+  fiscal_year: number | null;
+  funding_source: string;
+  is_counterpart: boolean;
 }
 
 export interface BudgetSummary {
   budget: number;
   project: number;
   line_items: LineItemBalance[];
-  totals: {
-    approved: string;
-    adjusted: string;
-    actual: string;
-    available: string;
-  };
+  by_category: (BalanceFigures & { category: LineItemCategory })[];
+  by_funding_source: (BalanceFigures & { funding_source: string })[];
+  totals: BalanceFigures;
+}
+
+export type ProcurementStatus = "requested" | "processing" | "released" | "cancelled";
+
+export interface ProcurementRequest {
+  id: number;
+  project: number;
+  line_item: number;
+  description: string;
+  amount: string;
+  fiscal_year: number;
+  quarter: 1 | 2 | 3 | 4;
+  routed_to: string;
+  status: ProcurementStatus;
+  remarks: string;
+  requested_by: number;
+  requested_at: string;
+  processing_at: string | null;
+  released_at: string | null;
+  updated_by: number | null;
 }

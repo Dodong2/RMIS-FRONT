@@ -4,7 +4,8 @@ export type CriterionMetricKey =
   | "budget_utilization_pct"
   | "monitoring_health"
   | "renewal_eligible"
-  | "overrun_risk_inverse";
+  | "overrun_risk_inverse"
+  | "risk_score_inverse";
 
 export interface DecisionCriterion {
   id: number;
@@ -74,4 +75,18 @@ export interface SensitivityAnalysisResult {
   new_weight: number;
   adjusted_weights: Record<string, number>;
   results: SensitivityResultRow[];
+}
+
+export type FundingDecision = "fund" | "defer" | "decline";
+
+export interface DecisionRecord {
+  id: number;
+  run: number;
+  project: number;
+  decision: FundingDecision;
+  indicative_amount: string | null;
+  rationale: string;
+  reference_number: string;
+  decided_by: number;
+  decided_at: string;
 }

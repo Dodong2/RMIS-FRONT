@@ -89,3 +89,49 @@ export interface AppendixGExport {
   creative_works: number;
   monthly_reports_submitted: number;
 }
+
+export interface ForecastingDashboard {
+  projects_in_scope: number;
+  projects_forecasted: number;
+  overrun_risk_count: number;
+  accuracy: { avg_mae: number | null; avg_rmse: number | null; avg_mape: number | null };
+  projects: {
+    project: number;
+    project_code: string;
+    run: number;
+    run_at: string;
+    approved_budget_total: number;
+    actual_to_date: number;
+    projected_total_at_horizon: number | null;
+    is_overrun_risk: boolean | null;
+    mae: number | null;
+    rmse: number | null;
+    mape: number | null;
+  }[];
+}
+
+export interface FundingAllocationDashboard {
+  run: number;
+  label: string;
+  created_at: string;
+  ahp_run: number;
+  ranking: {
+    rank: number;
+    project: number;
+    project_code: string;
+    title: string;
+    composite_score: number;
+    decision: "fund" | "defer" | "decline" | null;
+    indicative_amount: number | null;
+  }[];
+  decision_summary: { fund: number; defer: number; decline: number; undecided: number };
+  total_indicative_amount: number;
+}
+
+export interface TaskDashboardRow {
+  project: number;
+  project_code: string;
+  open: number;
+  overdue: number;
+  done: number;
+}

@@ -13,14 +13,22 @@ export type DocumentType =
 
 export type DocumentStage = "inception" | "midterm" | "terminal" | "post_completion" | "";
 
+export type DocumentSensitivity = "project_team" | "financial" | "restricted";
+export type DocumentReviewStatus = "pending" | "approved" | "returned";
+
 export interface ProjectDocument {
   id: number;
   project: number;
   study: number | null;
   document_type: DocumentType;
   stage: DocumentStage;
+  sensitivity: DocumentSensitivity;
   version_number: number;
   is_current: boolean;
+  review_status: DocumentReviewStatus;
+  review_remarks: string;
+  reviewed_by: number | null;
+  reviewed_at: string | null;
   file_name: string;
   file_size: number;
   content_type: string;

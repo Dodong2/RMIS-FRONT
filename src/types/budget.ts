@@ -7,6 +7,9 @@ export interface LineItem {
   category: LineItemCategory;
   description: string;
   amount: string;
+  fiscal_year: number | null;
+  funding_source: string;
+  is_counterpart: boolean;
   is_app_flagged: boolean;
   created_at: string;
 }
@@ -22,4 +25,5 @@ export interface LineItemBudget {
   created_at: string;
   line_items: LineItem[];
   total_amount: string;
+  exceeds_dry_cap: boolean;
 }

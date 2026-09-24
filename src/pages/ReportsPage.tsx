@@ -57,6 +57,10 @@ const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   appendix_f: "Appendix F — Terminal Report",
   appendix_g: "Appendix G — R&D Accomplishment Report",
   project_list: "Custom Filtered Project List",
+  financial: "Financial / Procurement Report",
+  compliance: "Compliance Report",
+  personnel: "Personnel and Task Report",
+  outputs: "Research Outputs (6Ps) Report",
 };
 
 const SECTIONS = [
