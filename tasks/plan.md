@@ -46,7 +46,7 @@ endpoint now exists, swap them to real API calls, delete the row.
   Outputs, Monitoring, Forecast, DSS, Risk, Reports), the page gets the
   prototype's tabs/sections (real where an equivalent endpoint exists, mock
   otherwise) **plus** our existing real features as additional tabs styled
-  the same way. Nothing existing is removed. *(Open question 1 — confirm.)*
+  the same way. Nothing existing is removed. *(Confirmed — resolved Q1.)*
 - **No shared "design system" layer up front.** Prototype files are
   self-contained; copying them that way is the most accurate. Extract a
   shared piece only after it shows up in 3+ pages (e.g. `NoActualData`,
@@ -65,9 +65,9 @@ the API functions in `src/lib/<domain>Api.ts` get added inside each page task.
 | Layout | `AppShell`, `AppSidebar`, `Topbar`, `nav.ts` | auth user (+ `office`, `position`) | notifications |
 | Login | `LoginPage` (+ Register, GoogleChooseRole, RegistrationPending, AuthCallback restyled) | auth | — |
 | Dashboard | `DashboardPage` | projects/budget/compliance/outputs + **forecasting, funding-allocation, tasks** dashboards, risk dashboard | college/project drill-down levels |
-| Projects | `ProjectsPage`, `ProjectDetailPage`, `RegisterProjectPage`, `RegisterProgramPage` | projects + **description/objectives/beneficiaries/outcomes/impacts, proposal reference fields (dates, reviewing body), status history** | approval reference no. (use document upload), closure fields |
+| Projects | `ProjectsPage`, `ProjectDetailPage`, `RegisterProjectPage`, `RegisterProgramPage` | projects + **description/objectives/beneficiaries/outcomes/impacts, approval info (`ntp_number`, `proposal_approved_on`, `reviewing_body`), status history**; approval docs via Documents | — |
 | WorkPlan | **new** `WorkPlanPage` (`/work-plan`) | milestones + **start date, objective, deliverable, responsible, `?delayed=true`** | dependencies, planned-vs-actual %, version history |
-| PersonnelTasks | `TasksPage` | tasks + **`?overdue=true`, task updates, workload** | priority, hours, kanban "review" column |
+| PersonnelTasks | `TasksPage` | tasks + **`?overdue=true`, task updates, workload** | priority, hours, kanban "For Review" column (not in backend) |
 | Personnel | `StaffPage` (+ `LeaderLoadPage`, `PersonnelChangesPage` restyled) | assignments + **department, collaboration (cross-dept)** | expertise tags |
 | Budget | `BudgetPage` | budgets/line items + **fiscal year, funding source, counterpart, `exceeds_dry_cap`, summary by category/funding source** | LIB review workflow, version-change notes |
 | Disbursement | `DisbursementsPage` | disbursements + **payee, supporting document**, realignments (= Budget Adjustments) | txn flags, reversal |
@@ -84,7 +84,7 @@ the API functions in `src/lib/<domain>Api.ts` get added inside each page task.
 | UserManagement | `UsersListPage`, `PendingUsersPage` | users + **office/position, account status (suspend/reactivate/deactivate)** | profile editing beyond role |
 | AuditLogs | `AuditLogsPage` | audit logs | — |
 | Settings | **new** `SettingsPage` (`/admin/settings`) | none | everything |
-| (none) | **new** `BudgetSyncPage` — Module 15 Budget Office sync | **imports (.xlsx), records + manual link, reconciliation** | — |
+| (none) | Budget Office Sync view inside `BudgetPage` (Module 15) | **imports (.xlsx), records + manual link, reconciliation** | — |
 
 ## Dependency graph
 ```
@@ -132,7 +132,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 - [ ] T15 Disbursements
 - [ ] T16 Budget Forecast
 - [ ] T17 Procurement — restyle + procurement requests
-- [ ] T17b Budget Office Sync (new page, Module 15)
+- [ ] T17b Budget Office Sync view in Budget Management (Module 15)
 ### Checkpoint D
 
 ### Phase 3: Research
@@ -168,16 +168,21 @@ No test suite exists in this repo (no `test` script). Each task is verified by:
 |---|---|---|
 | `npx tsc -b` never actually type-checked: tsconfig's deprecated `baseUrl` (TS 6) raises TS5101 and stops before checking. Real errors surfaced on 2026-09-24 once silenced | High | T1 fixes the tsconfig; until then verify with `npx tsc --noEmit -p tsconfig.app.json --ignoreDeprecations 6.0` |
 | Budget/financial endpoints are now row-level scoped: project_staff get empty lists, leaders only see their own | Med | Empty list → "No actual data", not an error |
-| `eslint .` and `**/*.{ts,tsx}` currently also lint the prototype folder (it sits inside the repo root now) | Med | T1 adds it to `globalIgnores`; decide gitignore vs. move (Open question 3) |
+| `eslint .` and `**/*.{ts,tsx}` currently also lint the prototype folder (it sits inside the repo root now) | Med | T1 adds it to `globalIgnores`; and `.gitignore` (resolved Q3) |
 | Prototype files are huge (Budget 1.4k, WorkPlan 1.5k lines); literal copies bloat pages | Med | Split big pages into 2 tasks; move mock arrays to `src/mocks/`, keeping page files mostly markup |
 | Mock data looks real to the panel and diverges from real records created elsewhere | Med | Registry makes it traceable; swap to real as backend lands. Accepted per interview |
-| Form fields in prototype with no backend field (e.g. Approval Info, beneficiaries) | High | Open question 2 — don't silently drop user input |
+| Form fields in prototype with no backend field (e.g. Approval Info, beneficiaries) | High | Resolved Q2 — mapped to existing backend fields; only task priority/hours stay disabled |
 | Losing an existing real feature while replacing markup | High | "Our extras kept" rule; each task's acceptance lists the existing API calls that must still work |
 | Prototype hand-rolled mobile drawer vs our Sheet | Low | Use prototype's overlay drawer (no behavior worth shadcn) |
 | Inline styles bypass dark-mode/theme tokens | Low | App has no dark mode today; accepted |
 
-## Open Questions
-1. **Conflicting modules** — OK ba ang rule na "prototype tabs muna (real kung may katumbas na API, mock kung wala) + existing real features natin as extra tabs"? *Mas maliit na ito after `dea9255`:* Compliance tracker at Risk register ay real na; ang natitirang conflict ay Forecast (ARIMA vs prototype methods/scenarios) at DSS (AHP/WSM vs prototype weighted models).
-2. **Form fields na walang backend field** — mas konti na (beneficiaries, objectives, outcomes, proposal dates meron na). Natitira: approval reference number/approving office sa wizard, closure fields, task priority/hours. Recommendation: ipakita pero naka-disabled.
-3. **Prototype folder sa loob ng repo** — i-`.gitignore` at i-ignore sa eslint (recommended), o ibalik bilang sibling dir gaya ng dati?
-4. **Budget Office Sync (Module 15)** — walang prototype component. Bagong page sa Financial group, naka-style sa prototype design language (recommended), o isama bilang tab sa Budget page?
+## Resolved Questions (2026-09-24)
+1. **Conflicting modules** — prototype tabs first (real where an equivalent endpoint exists, mock otherwise) + our existing real features as extra tabs in the same style. Now only really matters for Forecast (ARIMA vs prototype methods/scenarios) and DSS (AHP/WSM vs prototype weighted models).
+2. **Form fields without a backend field** — checked rmis-backend (`dea9255`/`80cf678`). Already implemented, map to existing fields:
+   - Approval Reference Number → `ntp_number`; Approval Date → `proposal_approved_on` (+ `ntp_date`); Approving Office/Authority → `reviewing_body`; proposal submitted/reviewed dates → `proposal_submitted_on`/`proposal_reviewed_on`
+   - Approval Document / supporting documents → uploaded through Documents after the project is created (`toe` or `other` type); the wizard's upload step posts to `documents/` once the project id exists
+   - Closure → project `status` change to completed/archived (recorded in `status-history/` with remarks) + terminal report certify
+   - Project status: backend stays `active/completed/archived`; the prototype's Registered/Ongoing/Completed/Closed pills are display labels mapped from those (no data-model change)
+   - **Not implemented anywhere:** task `priority`, `estimated_hours`/`logged_hours`, and the "For Review" kanban column (task statuses are pending/in_progress/done/blocked). These render disabled/mocked and get a REGISTRY row.
+3. **Prototype folder** — add to `.gitignore` and eslint `globalIgnores` (T1).
+4. **Budget Office Sync (Module 15)** — the prototype has no screen for it. Its closest home in the prototype is **Budget Management** (`Budget.tsx`), whose landing view is the institution-wide LIB register (KPI strip + table of every project's LIB). Sync reconciles exactly those LIB totals against the Budget Office workbook, so it goes there as a second view toggle ("LIB Register | Budget Office Sync") using the same KPI-strip + table styling, not a new sidebar item.

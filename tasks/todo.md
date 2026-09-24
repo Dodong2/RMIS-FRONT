@@ -20,7 +20,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] `src/index.css` has the prototype's `@theme` colors, fonts (Inter + Source Sans 3 + JetBrains Mono), body bg `#f0f4f8`, scrollbar, `.mono`, `.label-field`, `animate-fade-in`, `animate-slide-in`, without breaking existing shadcn tokens
 - [ ] `jspdf`, `jspdf-autotable`, `xlsx` installed; `src/mocks/REGISTRY.md` exists; `NoActualData` component and `src/lib/protoRole.ts` (RoleTier → prototype role, cosmetic only) exist
-- [ ] Prototype folder ignored by eslint (and git, per open question 3); CLAUDE.md styling/mock rules and handover scope note updated
+- [ ] Prototype folder ignored by eslint and git (resolved Q3); CLAUDE.md styling/mock rules and handover scope note updated
 - [ ] tsconfig `baseUrl` deprecation fixed so `npx tsc -b` really type-checks; fix whatever it surfaces
 **Verification:** `npm run build` passes; existing pages still render.
 **Dependencies:** None
@@ -88,7 +88,7 @@ Standard verification for every task (not repeated below):
 ### - [ ] T7: Project detail
 **Description:** Clone detail tabs (Overview, Registration Info, Team, Work Plan, Impact, History, Closure) onto `ProjectDetailPage`, keeping the existing dialogs (commit `0e490eb`).
 **Acceptance criteria:**
-- [ ] Overview/Registration (incl. description, objectives, beneficiaries, proposal reference fields)/Team/Work Plan/Impact (expected outcomes/impacts + outcomes endpoint)/History (`status-history/`) real; Closure mocked
+- [ ] All tabs real: Registration (incl. approval info fields), Team, Work Plan, Impact (expected outcomes/impacts + outcomes endpoint), History (`status-history/`), Closure (status change to completed/archived with remarks + terminal report status)
 - [ ] Milestone status update still restricted to system_admin/crc_chair (known gap, unchanged)
 **Dependencies:** T6
 **Files:** `src/pages/ProjectDetailPage.tsx`, `src/mocks/projects.ts`
@@ -98,7 +98,8 @@ Standard verification for every task (not repeated below):
 **Description:** Clone the 8-step wizard (Basic Info → Validate & Register) onto `RegisterProjectPage`, submitting to the existing create-project endpoint.
 **Acceptance criteria:**
 - [ ] All fields the backend accepts are in the right step and still submit; success redirects as today
-- [ ] Research Information + Approval Information steps map to the new project fields (description, objectives, beneficiaries, expected_outcomes, expected_impacts, proposal_*_on, reviewing_body); remaining no-field inputs per open question 2
+- [ ] Research Information step → description, objectives, beneficiaries, expected_outcomes, expected_impacts; Approval Information step → `ntp_number` (Approval Ref No.), `proposal_approved_on`/`ntp_date`, `reviewing_body`, proposal submitted/reviewed dates
+- [ ] Approval document + supporting docs uploaded to `documents/` right after the project is created
 - [ ] Wording says "Register Approved Project"; no ethics-committee approval anywhere (panel recommendation)
 - [ ] Completeness check panel (step 8) reflects actual filled fields
 **Dependencies:** T6
@@ -131,7 +132,8 @@ Standard verification for every task (not repeated below):
 **Description:** Clone `PersonnelTasks.tsx` (Task Board kanban, Task List, Workload, Personnel) onto `TasksPage`.
 **Acceptance criteria:**
 - [ ] Real tasks in kanban/list; existing create/update-status actions still work
-- [ ] Comments = real task updates; Workload tab = `personnel/workload/`; overdue via `?overdue=true`; only priority/hours mocked
+- [ ] Comments = real task updates; Workload tab = `personnel/workload/`; overdue via `?overdue=true`
+- [ ] Kanban columns follow real statuses (pending/in_progress/blocked/done); priority/hours shown disabled + registry row (not in backend)
 **Dependencies:** T2
 **Files:** `src/pages/TasksPage.tsx`, `src/mocks/tasks.ts`
 **Scope:** M
@@ -196,13 +198,13 @@ Standard verification for every task (not repeated below):
 **Files:** `src/pages/ProcurementPage.tsx`, `src/lib/financialApi.ts`
 **Scope:** M
 
-### - [ ] T17b: Budget Office Sync (new page, Module 15)
-**Description:** New page for the Budget Office XLSX import + reconciliation, in the prototype's design language (no prototype counterpart). Placement per open question 4.
+### - [ ] T17b: Budget Office Sync view in Budget Management (Module 15)
+**Description:** Add a "LIB Register | Budget Office Sync" toggle to the Budget Management landing view (the prototype's institution-wide LIB register), with the XLSX import + reconciliation in the same KPI-strip + table style. No new sidebar item.
 **Acceptance criteria:**
 - [ ] Upload .xlsx (system_admin/finance_budget), list imports and records, manually link/unlink a record to a project
 - [ ] Reconciliation table with matched/discrepancy/no_rmis_budget/unlinked summary
-**Dependencies:** T2
-**Files:** `src/pages/BudgetSyncPage.tsx`, `src/lib/budgetSyncApi.ts`, `src/App.tsx`, `src/lib/nav.ts`
+**Dependencies:** T13
+**Files:** `src/pages/BudgetPage.tsx`, `src/lib/budgetSyncApi.ts`
 **Scope:** M
 
 ## Checkpoint D: Financial
@@ -213,12 +215,12 @@ Standard verification for every task (not repeated below):
 ## Phase 3: Research
 
 ### - [ ] T18: Compliance
-**Description:** Clone `Compliance.tsx` onto `CompliancePage` per open question 1.
+**Description:** Clone `Compliance.tsx` onto `CompliancePage` per resolved Q1.
 **Acceptance criteria:**
 - [ ] All 5 existing logs still work; leaders can now encode; RIUH "Verify" action on each record
 - [ ] Prototype requirement tracker wired to `compliance/requirements/` (create, submit with document, review → compliant/returned/non_compliant, overdue)
 - [ ] No "Ethics Committee approval" wording (panel recommendation)
-**Dependencies:** T2, open question 1
+**Dependencies:** T2
 **Files:** `src/pages/CompliancePage.tsx`, `src/mocks/compliance.ts`
 **Scope:** M
 
@@ -236,7 +238,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Publications + IP real (server-computed incentive shown); Creative Works + SENSE publishers kept as extra tabs
 - [ ] Outcomes & Impacts real (`outputs/outcomes/`); 6Ps expected outputs + expected-vs-actual real; Technologies/Partnerships detail forms mocked
-**Dependencies:** T2, open question 1
+**Dependencies:** T2
 **Files:** `src/pages/OutputsPage.tsx`, `src/mocks/outputs.ts`
 **Scope:** M
 
@@ -245,7 +247,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Evaluations tab real; Status, Monthly/Midterm/Terminal, Renewal kept as extra tabs, all actions working
 - [ ] Indicators = status `indicators` block; evaluation criteria rubric + scores + weighted score real; extension requests (submit/endorse/approve) real; indicator baseline/target series mocked
-**Dependencies:** T2, open question 1
+**Dependencies:** T2
 **Files:** `src/pages/MonitoringPage.tsx`, `src/mocks/monitoring.ts`
 **Scope:** M
 
@@ -254,7 +256,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Risk register real (`risk/register/` + updates): 5×5 matrix, owner, mitigation, status
 - [ ] Computed 5×5 flags + `recommended_action` kept real (Institution Overview + Project Risk Status)
-**Dependencies:** T2, open question 1
+**Dependencies:** T2
 **Files:** `src/pages/RisksPage.tsx`, `src/mocks/risks.ts`
 **Scope:** M
 
@@ -288,7 +290,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Criteria, AHP weighting/finalize, recommendation trigger, sensitivity all still work
 - [ ] Decision records real (`recommendation-runs/<id>/decisions/`, University President can decide); prototype DSS "models" view mocked if kept
-**Dependencies:** T2, open question 1
+**Dependencies:** T2
 **Files:** `src/pages/DecisionSupportPage.tsx`, `src/mocks/decisionSupport.ts`
 **Scope:** M
 
