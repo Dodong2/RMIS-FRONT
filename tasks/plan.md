@@ -209,7 +209,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Checkpoint D
 
 ### Phase 3: Research
-- [ ] T18 Compliance
+- [x] T18 Compliance
 - [ ] T19 Documents
 - [ ] T20 Research Outputs
 - [ ] T21 Monitoring & Evaluation

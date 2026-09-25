@@ -1,6 +1,8 @@
 import { apiClient } from "./apiClient";
 import type {
   AIUseDeclaration,
+  ComplianceRequirement,
+  ComplianceRequirementStatus,
   ConflictOfInterestDisclosure,
   EthicsReviewReference,
   MisconductCaseReference,
@@ -60,6 +62,7 @@ export const complianceApi = {
     tool_name: string;
     purpose: string;
     extent: string;
+    ai_content_pct?: string | null;
     declared_on: string;
   }): Promise<AIUseDeclaration> => {
     const { data } = await apiClient.post("/api/compliance/ai-declarations/", payload);
@@ -109,6 +112,46 @@ export const complianceApi = {
     payload: Partial<{ status: string; remarks: string; resolved_on: string | null }>,
   ): Promise<MisconductCaseReference> => {
     const { data } = await apiClient.patch(`/api/compliance/misconduct-cases/${id}/`, payload);
+    return data;
+  },
+
+  verifyRecord: async (
+    kind: "ethics-reviews" | "similarity-checks" | "ai-declarations" | "coi-disclosures",
+    id: number,
+  ): Promise<{ id: number; verified_by: number | null; verified_at: string | null }> => {
+    const { data } = await apiClient.post(`/api/compliance/${kind}/${id}/verify/`);
+    return data;
+  },
+
+  getRequirements: async (
+    params: { project?: number; status?: ComplianceRequirementStatus; responsible?: number; overdue?: boolean } = {},
+  ): Promise<ComplianceRequirement[]> => {
+    const { overdue, ...rest } = params;
+    const { data } = await apiClient.get("/api/compliance/requirements/", {
+      params: { ...rest, ...(overdue ? { overdue: "true" } : {}) },
+    });
+    return data;
+  },
+  createRequirement: async (payload: {
+    project: number;
+    title: string;
+    description?: string;
+    responsible: number;
+    deadline: string;
+  }): Promise<ComplianceRequirement> => {
+    const { data } = await apiClient.post("/api/compliance/requirements/", payload);
+    return data;
+  },
+  submitRequirement: async (id: number, document: number | null): Promise<ComplianceRequirement> => {
+    const { data } = await apiClient.post(`/api/compliance/requirements/${id}/submit/`, { document });
+    return data;
+  },
+  reviewRequirement: async (
+    id: number,
+    status: "compliant" | "returned" | "non_compliant",
+    review_remarks: string,
+  ): Promise<ComplianceRequirement> => {
+    const { data } = await apiClient.post(`/api/compliance/requirements/${id}/review/`, { status, review_remarks });
     return data;
   },
 };

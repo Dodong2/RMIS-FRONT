@@ -378,16 +378,30 @@ Standard verification for every task (not repeated below):
 
 ## Phase 3: Research
 
-### - [ ] T18: Compliance
+### - [x] T18: Compliance
 **Description:** Clone `Compliance.tsx` onto `CompliancePage` per resolved Q1.
 **Acceptance criteria:**
-- [ ] All 5 existing logs still work; leaders can now encode; RIUH "Verify" action on each record
-- [ ] AI declaration form has an optional `ai_content_pct` (0–100) input; an "Over 20% AI" badge shows from `exceeds_ai_threshold` (server-computed, never recomputed client-side)
-- [ ] Prototype requirement tracker wired to `compliance/requirements/` (create, submit with document, review → compliant/returned/non_compliant, overdue)
-- [ ] No "Ethics Committee approval" wording (panel recommendation)
+- [x] All 5 existing logs still work; leaders can now encode; RIUH "Verify" action on each record
+- [x] AI declaration form has an optional `ai_content_pct` (0–100) input; an "Over 20% AI" badge shows from `exceeds_ai_threshold` (server-computed, never recomputed client-side)
+- [x] Prototype requirement tracker wired to `compliance/requirements/` (create, submit with document, review → compliant/returned/non_compliant, overdue)
+- [x] No "Ethics Committee approval" wording (panel recommendation)
 **Dependencies:** T2
 **Files:** `src/pages/CompliancePage.tsx`, `src/mocks/compliance.ts`
 **Scope:** M
+**Result (2026-09-25):** `CompliancePage` has two tabs.
+- **Requirements Tracker** is the prototype layout on real `compliance/requirements/`: 6 KPIs, the compliance-rate meter, an Attention list, search/status/project filters, and the table. The Define modal assigns to the project leader or an active team member. The Detail modal has Details, Evidence (the attached project document with a signed View link), and History (built from the real created/submitted/reviewed timestamps). There are Submit (optional current project document) and Review (compliant / returned / non-compliant; remarks required for the last two) modals.
+- Overdue comes from the server's `is_overdue`. "Due Soon" (≤7 days) is a client-side display hint only.
+- Dropped from the prototype: category, external reference, and waive, because the backend has no such fields or statuses.
+- **Integrity Records** (`src/components/compliance/IntegrityRecords.tsx`) holds the 5 logs with add modals. Review References and Similarity Checks are encode roles (leaders now included). Misconduct and COI status are riuh/system_admin. The RIUH Verify button covers 4 logs. The AI form has an optional `ai_content_pct`, and the "Over 20% AI" badge comes from `exceeds_ai_threshold`.
+- "Ethics Reviews" was relabeled "Review References". The page title is "Compliance Tracking".
+- A shared `ProtoModal` (portal) was added to `proto.tsx`. No mock was needed, so `src/mocks/compliance.ts` wasn't created.
+
+Rolled-back smoke test:
+- The leader defines (overdue → listed by `?overdue=true`) and submits. A leader review gets 403. The admin returns it, the leader resubmits, and it ends compliant.
+- AI 25% → exceeds=true; 150 → 400.
+- Leader verify → 403; admin verify → 200. A leader status edit clears the verification.
+- Leader misconduct → 403; leader review reference → 201.
+- 0 leaked. Headless-checked with throwaway rows (deleted after).
 
 ### - [ ] T19: Documents
 **Description:** Clone `Documents.tsx` onto `DocumentsPage`.
