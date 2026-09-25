@@ -60,6 +60,7 @@ export interface ProjectRiskStatus {
   flagged_count: number;
   open_register_risks: number;
   flags: ProjectRiskFlags;
+  register?: ProjectRisk[];
 }
 
 export interface RiskDashboard {

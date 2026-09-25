@@ -470,12 +470,21 @@ Rolled-back API test:
 - 0 leaked, and the project end date was restored.
 - Headless-checked on real P77 data (8 months without a monthly report → termination recommended; LIB not certified → 0% utilization).
 
-### - [ ] T22: Risk Management
+### - [x] T22: Risk Management
 **Description:** Clone `RiskManagement.tsx` onto `RisksPage`.
 **Acceptance criteria:**
-- [ ] Risk register real (`risk/register/` + updates): 5×5 matrix, owner, mitigation, status
-- [ ] Computed 5×5 flags + `recommended_action` kept real (Institution Overview + Project Risk Status)
-- [ ] Role-banded alert inbox (Q7) mocked + REGISTRY row (backend P15 `risk/alerts/` not built)
+- [x] Risk register real (`risk/register/` + updates): 5×5 matrix, owner, mitigation, status
+- [x] Computed 5×5 flags + `recommended_action` kept real (Institution Overview + Project Risk Status)
+- [x] Role-banded alert inbox (Q7): computed from real data instead of mocked (see Result)
+**Result:** Tabs Risk Register (cards + table, 4 filters) / Heat Map (open risks, category tiles) / Mitigation Plan /
+Early-Warning Flags (dashboard + per-project status) / Alert Inbox. Identify (POST) and Update (PATCH L/I/mitigation +
+POST update note with optional `new_status`; a re-assessment is appended to the note since `RiskUpdate` has no L/I fields).
+Alert inbox is built live from `risk/dashboard` flagged projects + open register risks at medium+ and routed by Q7 bands
+(medium → PL, high → RIUH+CRC, critical → VP/DRD), so no mock and no REGISTRY row; there is no read/ack state until
+backend P15 `risk/alerts/`. Dropped from the prototype (no backend field): risk title (description is the title),
+contingency plan, mitigation status. Smoke-tested (rolled back, 0 leaked): leader create 201 (4×4 = 16 high),
+likelihood 6 → 400, PATCH 5×4 → 20 critical, update with `new_status` moves status, note-only keeps it, status endpoint
+counts the open risk. Screenshots taken on 3 temporary risks on P77 (deleted after).
 **Dependencies:** T2
 **Files:** `src/pages/RisksPage.tsx`, `src/mocks/risks.ts`
 **Scope:** M
