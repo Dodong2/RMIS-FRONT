@@ -359,15 +359,16 @@ Standard verification for every task (not repeated below):
 **Scope:** M
 **Result (2026-09-25):** Two tabs: Procurement Requests (pipeline dots, routing label, delayed flag, inline status actions for update roles) and APP Worklist (> ₱50,000). There are 6 KPIs; Delayed comes from `?overdue=true`. The New Request modal only lists projects with a certified current LIB and shows a routing preview. Rolled-back APIClient smoke test: leader file → 201 (routed to university_president); leader status move → 403; requested→released skip → 400; processing → released → 200; 0 leaked rows. Headless-checked as project_leader. The dev DB has no certified LIB, so the modal shows its empty state.
 
-### - [ ] T17b: Budget Office Sync page (Module 15)
+### - [x] T17b: Budget Office Sync page (Module 15)
 **Description:** New Module 15 page for the XLSX import + reconciliation, styled with the Budget page's KPI strip + table. It gets its own sidebar item (decision revised 2026-09-25).
 **Acceptance criteria:**
-- [ ] New `BudgetSyncPage` at `/budget-sync`: own nav item in the Financial group (Alignment doc lists Module 15 separately). RoleGate = finance_budget/system_admin write + oversight/finance read, mirroring the backend
-- [ ] Upload .xlsx (system_admin/finance_budget), list imports and records, manually link/unlink a record to a project
-- [ ] Reconciliation table with matched/discrepancy/no_rmis_budget/unlinked summary
+- [x] New `BudgetSyncPage` at `/budget-sync`: own nav item in the Financial group (Alignment doc lists Module 15 separately). RoleGate = finance_budget/system_admin write + oversight/finance read, mirroring the backend
+- [x] Upload .xlsx (system_admin/finance_budget), list imports and records, manually link/unlink a record to a project
+- [x] Reconciliation table with matched/discrepancy/no_rmis_budget/unlinked summary
 **Dependencies:** T13
 **Files:** `src/pages/BudgetSyncPage.tsx`, `src/lib/budgetSyncApi.ts`, `src/App.tsx`, `src/lib/nav.ts`
 **Scope:** M
+**Result (2026-09-25):** New `BudgetSyncPage` at `/budget-sync` (RoleGate: system_admin/vprei/university_admin/drd/finance_budget; nav item is now ready). It has an import picker, a "+ Import Workbook (.xlsx)" button (system_admin/finance_budget), 5 KPIs from the reconciliation summary, a Reconciliation table (status pill, Budget Office vs RMIS LIB totals with the difference, inline Link/Unlink for managers), a status filter, and an Import History tab. The records endpoint only adds the leader and implementing unit under each title. Rolled-back smoke test with the real consolidated workbook: leader upload → 403; .csv → 400; admin upload → 201 (49 sheets, P77 auto-matched); link → manual; unlink → ''; leader PATCH → 403; 0 leaked. Headless-checked with a throwaway import (deleted after). The dev DB has no imports, so the page shows its empty state until finance uploads one.
 
 ## Checkpoint D: Financial
 - [ ] Build + lint clean; certify → disburse → realign walk-through; human review

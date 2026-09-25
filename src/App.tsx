@@ -29,6 +29,7 @@ import DecisionSupportPage from "./pages/DecisionSupportPage";
 import RisksPage from "./pages/RisksPage";
 import ReportsPage from "./pages/ReportsPage";
 import ProcurementPage from "./pages/ProcurementPage";
+import BudgetSyncPage from "./pages/BudgetSyncPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
 
@@ -83,6 +84,16 @@ export default function App() {
               ]}
             >
               <AnalyticsPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/budget-sync"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin", "vprei", "university_admin", "drd", "finance_budget"]}>
+              <BudgetSyncPage />
             </RoleGate>
           </ProtectedRoute>
         }

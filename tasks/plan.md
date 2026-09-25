@@ -205,7 +205,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 - [x] T15 Disbursements
 - [x] T16 Budget Forecast
 - [x] T17 Procurement — restyle + procurement requests
-- [ ] T17b Budget Office Sync page (Module 15, own nav item)
+- [x] T17b Budget Office Sync page (Module 15, own nav item)
 ### Checkpoint D
 
 ### Phase 3: Research

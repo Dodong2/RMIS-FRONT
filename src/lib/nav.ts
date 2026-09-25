@@ -103,7 +103,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/budget-sync",
         icon: "sync",
         tiers: ["system_admin", "institution_oversight", "finance"],
-        ready: false,
+        ready: true,
       },
     ],
   },
