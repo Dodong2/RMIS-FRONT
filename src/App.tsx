@@ -13,6 +13,7 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import RegisterProgramPage from "./pages/RegisterProgramPage";
 import RegisterProjectPage from "./pages/RegisterProjectPage";
 import TasksPage from "./pages/TasksPage";
+import WorkPlanPage from "./pages/WorkPlanPage";
 import PersonnelChangesPage from "./pages/PersonnelChangesPage";
 import StaffPage from "./pages/StaffPage";
 import LeaderLoadPage from "./pages/LeaderLoadPage";
@@ -163,6 +164,28 @@ export default function App() {
               ]}
             >
               <PersonnelChangesPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/work-plan"
+        element={
+          <ProtectedRoute>
+            <RoleGate
+              allow={[
+                "system_admin",
+                "vprei",
+                "university_admin",
+                "drd",
+                "crc_chair",
+                "riuh",
+                "program_leader",
+                "project_leader",
+                "study_leader",
+              ]}
+            >
+              <WorkPlanPage />
             </RoleGate>
           </ProtectedRoute>
         }

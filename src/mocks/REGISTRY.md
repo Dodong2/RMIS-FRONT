@@ -9,3 +9,4 @@ else uses it, and delete the row. The trigger phrase is "read mo yung changes sa
 | Page | Section | Mock file / export | Waiting for endpoint |
 |---|---|---|---|
 | All pages (Topbar) | Notification bell dropdown | `src/mocks/notifications.ts` / `NOTIFICATIONS` | `GET /api/risk/alerts/` (rmis-backend P15, role-banded alert inbox, Q7) |
+| Work Plan (`/work-plan`) | Version History tab (only shown once a project has activities) | `src/mocks/workPlan.ts` / `WORK_PLAN_VERSIONS` | Work-plan versioning (none in rmis-backend; milestones have no revision history) |

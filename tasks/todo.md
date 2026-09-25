@@ -183,15 +183,29 @@ Standard verification for every task (not repeated below):
 - [ ] Register a project end-to-end through the new wizard
 - [ ] Human review
 
-### - [ ] T10: Work Plan (new page)
+### - [x] T10: Work Plan (new page)
 **Description:** New `/work-plan` page cloned from `WorkPlan.tsx` (Gantt, Activities, Deliverables, Version History).
 **Acceptance criteria:**
-- [ ] Project selector real; Gantt rows from milestones (`start_date` → `target_date`), activities table shows objective/deliverable/responsible, delayed filter uses `?delayed=true`; dependencies/versions mocked
-- [ ] Route wrapped in ProtectedRoute + RoleGate matching nav tiers; nav item `ready: true`
-- [ ] Add/edit milestone gated to `projects.manage_milestones` roles (admin, crc_chair, program/project/study leaders)
+- [x] Project selector real; Gantt rows from milestones (`start_date` → `target_date`), activities table shows objective/deliverable/responsible, delayed filter uses `?delayed=true`; dependencies/versions mocked
+- [x] Route wrapped in ProtectedRoute + RoleGate matching nav tiers; nav item `ready: true`
+- [x] Add/edit milestone gated to `projects.manage_milestones` roles (admin, crc_chair, program/project/study leaders)
 **Dependencies:** T2
 **Files:** `src/pages/WorkPlanPage.tsx`, `src/App.tsx`, `src/lib/nav.ts`, `src/mocks/workPlan.ts`
 **Scope:** M
+**Result (2026-09-25):**
+- New `/work-plan` page cloned from `WorkPlan.tsx`: a project list, then detail via `?project=<id>`. Activities are milestones.
+- The prototype's per-activity planned/actual % has no backend field, so it's replaced by real numbers:
+  - planned % = milestones whose target date has passed
+  - actual % = milestones done
+  - variance = days late
+- Tabs:
+  - **Gantt** (start→target, today line).
+  - **Activities:** expandable rows, inline status select, Edit/Add dialog with start/target/responsible (project lead + active assignees)/objective/deliverable via the new `researchApi.updateMilestone`, and a "Show delayed only" toggle backed by `?delayed=true`.
+  - **Deliverables** register.
+  - **Version History:** mocked (`src/mocks/workPlan.ts`, REGISTRY row), hidden until the project has activities.
+- **Dependencies are not shown at all** (neither mocked nor faked). Mock links between real milestones would read as real scheduling data.
+- Route RoleGate matches the nav tiers; the nav item is now `ready: true`. Writes are gated to `MILESTONE_ROLE_CODES`.
+- Verified with a rolled-back APIClient run as project_leader: create with responsible → 201, PATCH title/start/responsible → 200, `?delayed=true` returns the overdue row, 0 leaked. Headless screenshots OK.
 
 ### - [ ] T11: Tasks (Personnel & Tasks)
 **Description:** Clone `PersonnelTasks.tsx` (Task Board kanban, Task List, Workload, Personnel) onto `TasksPage`.

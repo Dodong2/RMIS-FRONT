@@ -70,8 +70,10 @@ export const researchApi = {
     const { data } = await apiClient.post("/api/studies/", payload);
     return data;
   },
-  getMilestones: async (projectId?: number): Promise<Milestone[]> => {
-    const { data } = await apiClient.get("/api/milestones/", { params: projectId ? { project: projectId } : {} });
+  getMilestones: async (projectId?: number, opts: { delayed?: boolean } = {}): Promise<Milestone[]> => {
+    const { data } = await apiClient.get("/api/milestones/", {
+      params: { ...(projectId ? { project: projectId } : {}), ...(opts.delayed ? { delayed: "true" } : {}) },
+    });
     return data;
   },
   createMilestone: async (payload: {
@@ -81,9 +83,25 @@ export const researchApi = {
     start_date?: string;
     objective?: string;
     deliverable?: string;
+    responsible?: number | null;
     remarks?: string;
   }): Promise<Milestone> => {
     const { data } = await apiClient.post("/api/milestones/", payload);
+    return data;
+  },
+  updateMilestone: async (
+    id: number,
+    payload: Partial<{
+      title: string;
+      start_date: string | null;
+      target_date: string;
+      objective: string;
+      deliverable: string;
+      responsible: number | null;
+      status: string;
+    }>,
+  ): Promise<Milestone> => {
+    const { data } = await apiClient.patch(`/api/milestones/${id}/`, payload);
     return data;
   },
   updateMilestoneStatus: async (id: number, status: string): Promise<Milestone> => {

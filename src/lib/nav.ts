@@ -76,7 +76,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/work-plan",
         icon: "calendar",
         tiers: [...OVERSIGHT, "project_management", "study_management"],
-        ready: false,
+        ready: true,
       },
       { label: "Personnel & Tasks", to: "/tasks", icon: "users", tiers: ALL_RESEARCH, ready: true },
     ],
