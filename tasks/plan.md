@@ -196,7 +196,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Checkpoint B
 - [x] T10 Work Plan (new page)
 - [x] T11 Tasks (Personnel & Tasks)
-- [ ] T12 Staff / Leader load / Personnel changes
+- [x] T12 Staff / Leader load / Personnel changes
 ### Checkpoint C
 
 ### Phase 2: Financial

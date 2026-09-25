@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { ArrowRightLeft, Plus } from "lucide-react";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
@@ -14,29 +13,18 @@ import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { EmptyOption } from "../components/common/EmptyOption";
-import { FieldLabel } from "../components/common/FieldLabel";
-import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { NoActualData } from "../components/common/NoActualData";
+import { Field, KpiCard, Pill, SectionCard, SkeletonRows, TableHead } from "../components/common/proto";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  BTN_GHOST_STYLE,
+  BTN_PRIMARY,
+  BTN_PRIMARY_STYLE,
+  BTN_SOFT,
+  BTN_SOFT_STYLE,
+  INPUT_CLS,
+  INPUT_STYLE,
+  invalidStyle,
+} from "../lib/protoStyles";
 import { notify } from "../lib/notify";
 
 const MANAGE_CODES = ["system_admin", "crc_chair", "drd", "riuh"];
@@ -103,36 +91,30 @@ function PersonnelChangesContent() {
     return `Assignment #${c.assignment}`;
   };
 
-  const load = async () => {
-    setIsLoading(true);
-    try {
-      const [changeList, programList, projectList] = await Promise.all([
-        personnelApi.getChanges(),
-        researchApi.getPrograms(),
-        researchApi.getProjects(),
-      ]);
-      setChanges(changeList);
-      setPrograms(programList);
-      setProjects(projectList);
-    } catch {
-      notify.error("Could not load personnel changes. Check your connection and refresh.");
-    } finally {
-      setIsLoading(false);
-    }
-
-    if (canManage) {
-      try {
-        setAssignments(await personnelApi.getAssignments({ active: true }));
-      } catch {
-        setAssignments([]);
-      }
-    }
-  };
+  const [reloadKey, setReloadKey] = useState(0);
+  const load = () => setReloadKey((k) => k + 1);
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canManage]);
+    let active = true;
+    Promise.all([personnelApi.getChanges(), researchApi.getPrograms(), researchApi.getProjects()])
+      .then(([changeList, programList, projectList]) => {
+        if (!active) return;
+        setChanges(changeList);
+        setPrograms(programList);
+        setProjects(projectList);
+      })
+      .catch(() => active && notify.error("Could not load personnel changes. Check your connection and refresh."))
+      .finally(() => active && setIsLoading(false));
+    if (canManage) {
+      personnelApi
+        .getAssignments({ active: true })
+        .then((a) => active && setAssignments(a))
+        .catch(() => active && setAssignments([]));
+    }
+    return () => {
+      active = false;
+    };
+  }, [canManage, reloadKey]);
 
   useEffect(() => {
     if (!canManage) return;
@@ -205,7 +187,7 @@ function PersonnelChangesContent() {
       notify.success("Personnel change initiated. Property clearance is now required.");
       setForm(EMPTY_FORM);
       setStudies([]);
-      await load();
+      load();
     } catch (err) {
       notify.error(errorMessage(err, "Could not initiate the personnel change."));
     } finally {
@@ -255,7 +237,7 @@ function PersonnelChangesContent() {
       const updated = await personnelApi.completeChange(selected.id);
       replaceChange(updated);
       notify.success("Personnel change completed.");
-      await load();
+      load();
     } catch (err) {
       notify.error(errorMessage(err, "Could not complete the personnel change."));
     } finally {
@@ -265,277 +247,209 @@ function PersonnelChangesContent() {
 
   const clearanceLocked = selected?.status === "cleared" || selected?.status === "completed";
 
+  const statusPill = (s: ChangeStatus) => {
+    const m: Record<ChangeStatus, [string, string]> = {
+      initiated: ["#e0f2fe", "#0369a1"],
+      clearance_pending: ["#fef3c7", "#92400e"],
+      cleared: ["#faf5ff", "#6b21a8"],
+      completed: ["#d1fae5", "#166534"],
+    };
+    return <Pill bg={m[s][0]} color={m[s][1]}>{STATUS_LABELS[s]}</Pill>;
+  };
+
   return (
-    <div>
-      <PageHeader
-        title="Personnel changes"
-        description="Replace a leader or project staff. Property clearance must be signed off before the change takes effect."
-      />
+    <div className="space-y-5 animate-fade-in">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard label="Total Changes" value={isLoading ? "…" : changes.length} />
+        <KpiCard label="Clearance Pending" value={isLoading ? "…" : changes.filter((c) => c.status === "initiated" || c.status === "clearance_pending").length} color="#92400e" />
+        <KpiCard label="Cleared" value={isLoading ? "…" : changes.filter((c) => c.status === "cleared").length} color="#6b21a8" />
+        <KpiCard label="Completed" value={isLoading ? "…" : changes.filter((c) => c.status === "completed").length} color="#166534" />
+      </div>
+
+      <div className="rounded-xl p-3 text-xs" style={{ background: "#f0f9ff", border: "1px solid #bae6fd", color: "#0369a1" }}>
+        Replace a leader or project staff. The outgoing person's property clearance (PAR) must be signed off before the change takes effect.
+      </div>
 
       {canManage && (
-        <Card className="mb-6 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-navy">Initiate a Change</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <Label className="mb-1 block text-xs">Change Type</Label>
-              <Select
-                value={form.change_type}
-                onValueChange={(v) => setForm({ ...EMPTY_FORM, change_type: v as ChangeType })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="leader">Leader</SelectItem>
-                  <SelectItem value="staff">Project Staff</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <SectionCard title="Initiate a Change">
+          <div className="p-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Field label="Change Type">
+              <select className={INPUT_CLS} style={INPUT_STYLE} value={form.change_type} onChange={(e) => setForm({ ...EMPTY_FORM, change_type: e.target.value as ChangeType })}>
+                <option value="leader">Leader</option>
+                <option value="staff">Project Staff</option>
+              </select>
+            </Field>
 
             {form.change_type === "leader" ? (
               <>
-                <div>
-                  <Label className="mb-1 block text-xs">Applies To</Label>
-                  <Select
+                <Field label="Applies To">
+                  <select
+                    className={INPUT_CLS}
+                    style={INPUT_STYLE}
                     value={form.record_type}
-                    onValueChange={(v) =>
-                      setForm((f) => ({ ...f, record_type: v as RecordType, program: "", project: "", study: "", incoming: "" }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, record_type: e.target.value as RecordType, program: "", project: "", study: "", incoming: "" }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="program">Program</SelectItem>
-                      <SelectItem value="project">Project</SelectItem>
-                      <SelectItem value="study">Study</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <option value="program">Program</option>
+                    <option value="project">Project</option>
+                    <option value="study">Study</option>
+                  </select>
+                </Field>
                 {form.record_type === "program" ? (
-                  <div>
-                    <FieldLabel required>Program</FieldLabel>
-                    <Select value={form.program} onValueChange={(v) => setForm((f) => ({ ...f, program: v }))}>
-                      <SelectTrigger aria-invalid={attempted && (!form.program)}>
-                        <SelectValue placeholder="Select program" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {programs.length === 0 && <EmptyOption message="No programs registered yet" />}
-                        {programs.map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.title} — {p.lead_detail.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Field label="Program" required>
+                    <select className={INPUT_CLS} style={invalidStyle(attempted && !form.program)} value={form.program} onChange={(e) => setForm((f) => ({ ...f, program: e.target.value }))}>
+                      <option value="">{programs.length ? "Select program" : "No programs registered yet"}</option>
+                      {programs.map((p) => (
+                        <option key={p.id} value={p.id}>{p.title} — {p.lead_detail.email}</option>
+                      ))}
+                    </select>
+                  </Field>
                 ) : (
-                  <div>
-                    <FieldLabel required>Project</FieldLabel>
-                    <Select value={form.project} onValueChange={handleProjectPick}>
-                      <SelectTrigger aria-invalid={attempted && (!form.project)}>
-                        <SelectValue placeholder="Select project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projects.length === 0 && <EmptyOption message="No projects registered yet" />}
-                        {projects.map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.project_code} — {p.lead_detail.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Field label="Project" required>
+                    <select className={INPUT_CLS} style={invalidStyle(attempted && !form.project)} value={form.project} onChange={(e) => handleProjectPick(e.target.value)}>
+                      <option value="">{projects.length ? "Select project" : "No projects registered yet"}</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>{p.project_code} — {p.lead_detail.email}</option>
+                      ))}
+                    </select>
+                  </Field>
                 )}
                 {form.record_type === "study" && (
-                  <div>
-                    <FieldLabel required>Study</FieldLabel>
-                    <Select
+                  <Field label="Study" required>
+                    <select
+                      className={INPUT_CLS}
+                      style={invalidStyle(attempted && !form.study)}
                       value={form.study}
-                      onValueChange={(v) => setForm((f) => ({ ...f, study: v }))}
                       disabled={studies.length === 0}
+                      onChange={(e) => setForm((f) => ({ ...f, study: e.target.value }))}
                     >
-                      <SelectTrigger aria-invalid={attempted && (!form.study)}>
-                        <SelectValue placeholder="Select study" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {studies.length === 0 && <EmptyOption message="No studies for this project" />}
-                        {studies.map((s) => (
-                          <SelectItem key={s.id} value={String(s.id)}>
-                            {s.title} — {s.lead_detail.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <option value="">{studies.length ? "Select study" : "No studies for this project"}</option>
+                      {studies.map((s) => (
+                        <option key={s.id} value={s.id}>{s.title} — {s.lead_detail.email}</option>
+                      ))}
+                    </select>
+                  </Field>
                 )}
               </>
             ) : (
-              <div>
-                <FieldLabel required>Active Assignment</FieldLabel>
-                <Select value={form.assignment} onValueChange={(v) => setForm((f) => ({ ...f, assignment: v }))}>
-                  <SelectTrigger aria-invalid={attempted && (!form.assignment)}>
-                    <SelectValue placeholder="Select assignment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignments.map((a) => (
-                      <SelectItem key={a.id} value={String(a.id)}>
-                        {a.user_detail.email} — {a.project ? projectTitle(a.project) : `Study #${a.study}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Field label="Active Assignment" required>
+                <select className={INPUT_CLS} style={invalidStyle(attempted && !form.assignment)} value={form.assignment} onChange={(e) => setForm((f) => ({ ...f, assignment: e.target.value }))}>
+                  <option value="">Select assignment</option>
+                  {assignments.map((a) => (
+                    <option key={a.id} value={a.id}>{a.user_detail.email} — {a.project ? projectTitle(a.project) : `Study #${a.study}`}</option>
+                  ))}
+                </select>
+              </Field>
             )}
 
-            <div>
-              <FieldLabel required>Incoming</FieldLabel>
-              <Select value={form.incoming} onValueChange={(v) => setForm((f) => ({ ...f, incoming: v }))}>
-                <SelectTrigger aria-invalid={attempted && (!form.incoming)}>
-                  <SelectValue placeholder="Select replacement" />
-                </SelectTrigger>
-                <SelectContent>
-                  {candidates.length === 0 && <EmptyOption message="No eligible users available" />}
-                  {candidates.map((u) => (
-                    <SelectItem key={u.id} value={String(u.id)}>
-                      {u.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="sm:col-span-2">
-              <FieldLabel required>Reason</FieldLabel>
-              <Input aria-invalid={attempted && (!form.reason.trim())}
+            <Field label="Incoming" required>
+              <select className={INPUT_CLS} style={invalidStyle(attempted && !form.incoming)} value={form.incoming} onChange={(e) => setForm((f) => ({ ...f, incoming: e.target.value }))}>
+                <option value="">{candidates.length ? "Select replacement" : "No eligible users available"}</option>
+                {candidates.map((u) => (
+                  <option key={u.id} value={u.id}>{u.email}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Reason" required className="sm:col-span-2">
+              <input
+                className={INPUT_CLS}
+                style={invalidStyle(attempted && !form.reason.trim())}
                 value={form.reason}
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                 placeholder="Why is this change needed?"
               />
-            </div>
+            </Field>
           </div>
-          <div className="mt-3 flex justify-end">
-            <Button size="sm" onClick={handleCreate} disabled={isCreating}>
-              <Plus className="size-4" />
-              {isCreating ? "Initiating..." : "Initiate Change"}
-            </Button>
+          <div className="px-5 pb-5 flex justify-end">
+            <button onClick={handleCreate} disabled={isCreating} className={BTN_PRIMARY} style={BTN_PRIMARY_STYLE}>
+              {isCreating ? "Initiating…" : "+ Initiate Change"}
+            </button>
           </div>
-        </Card>
+        </SectionCard>
       )}
 
-      <Card className="mb-6 overflow-hidden p-0">
-        <div className="border-b border-border p-4">
-          <h3 className="text-sm font-semibold text-navy">All Changes</h3>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-secondary/60 hover:bg-secondary/60">
-              <TableHead>Type</TableHead>
-              <TableHead>Applies To</TableHead>
-              <TableHead>Outgoing</TableHead>
-              <TableHead>Incoming</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableSkeletonRows rows={3} columns={6} />
-            ) : changes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="p-0">
-                  <EmptyState
-                    icon={<ArrowRightLeft className="size-7" />}
-                    title="No personnel changes"
-                    description="Leader and staff replacements will appear here."
-                  />
-                </TableCell>
-              </TableRow>
-            ) : (
-              changes.map((c) => (
-                <TableRow key={c.id} data-state={c.id === selectedId ? "selected" : undefined}>
-                  <TableCell className="capitalize">{c.change_type}</TableCell>
-                  <TableCell>{targetLabel(c)}</TableCell>
-                  <TableCell>{c.outgoing_detail.email}</TableCell>
-                  <TableCell>{c.incoming_detail.email}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{STATUS_LABELS[c.status]}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => handleSelect(c)}>
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      <SectionCard title="All Changes">
+        {isLoading ? (
+          <SkeletonRows />
+        ) : changes.length === 0 ? (
+          <div className="p-4"><NoActualData hint="Leader and staff replacements will appear here." /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <TableHead cols={["Type", "Applies To", "Outgoing", "Incoming", "Status", ""]} />
+              <tbody>
+                {changes.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-t hover:bg-slate-50 cursor-pointer"
+                    style={{ borderColor: "#f1f5f9", background: c.id === selectedId ? "#f0f9ff" : undefined }}
+                    onClick={() => handleSelect(c)}
+                  >
+                    <td className="px-4 py-2.5 capitalize font-semibold" style={{ color: "#0d2a5e" }}>{c.change_type}</td>
+                    <td className="px-4 py-2.5" style={{ color: "#334155" }}>{targetLabel(c)}</td>
+                    <td className="px-4 py-2.5" style={{ color: "#475569" }}>{c.outgoing_detail.email}</td>
+                    <td className="px-4 py-2.5" style={{ color: "#475569" }}>{c.incoming_detail.email}</td>
+                    <td className="px-4 py-2.5">{statusPill(c.status)}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <button className={BTN_SOFT} style={BTN_SOFT_STYLE}>View</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
 
       {selected && (
-        <Card className="p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-navy">
-              Change #{selected.id} — {targetLabel(selected)}
-            </h3>
-            <Badge variant="outline">{STATUS_LABELS[selected.status]}</Badge>
-          </div>
-          <p className="mb-4 text-sm text-muted-foreground">{selected.reason}</p>
-
-          <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-            Property Clearance (PAR)
-          </h4>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <FieldLabel required>PAR Number</FieldLabel>
-              <Input aria-invalid={attemptedSignOff && !clearanceForm.par_number.trim()}
-                value={clearanceForm.par_number}
-                onChange={(e) => setClearanceForm((f) => ({ ...f, par_number: e.target.value }))}
-                disabled={!canClear || clearanceLocked}
-              />
+        <SectionCard title={`Change #${selected.id} — ${targetLabel(selected)}`} aside={statusPill(selected.status)}>
+          <div className="p-5 space-y-4">
+            <p className="text-sm" style={{ color: "#475569" }}>{selected.reason}</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Property Clearance (PAR)</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="PAR Number" required>
+                <input
+                  className={INPUT_CLS}
+                  style={invalidStyle(attemptedSignOff && !clearanceForm.par_number.trim())}
+                  value={clearanceForm.par_number}
+                  onChange={(e) => setClearanceForm((f) => ({ ...f, par_number: e.target.value }))}
+                  disabled={!canClear || clearanceLocked}
+                />
+              </Field>
+              <Field label="Property Items to Return">
+                <input
+                  className={INPUT_CLS}
+                  style={INPUT_STYLE}
+                  value={clearanceForm.items}
+                  onChange={(e) => setClearanceForm((f) => ({ ...f, items: e.target.value }))}
+                  disabled={!canClear || clearanceLocked}
+                />
+              </Field>
+              <Field label="Remarks">
+                <input
+                  className={INPUT_CLS}
+                  style={INPUT_STYLE}
+                  value={clearanceForm.remarks}
+                  onChange={(e) => setClearanceForm((f) => ({ ...f, remarks: e.target.value }))}
+                  disabled={!canClear || clearanceLocked}
+                />
+              </Field>
             </div>
-            <div>
-              <Label className="mb-1 block text-xs">Property Items to Return</Label>
-              <Input
-                value={clearanceForm.items}
-                onChange={(e) => setClearanceForm((f) => ({ ...f, items: e.target.value }))}
-                disabled={!canClear || clearanceLocked}
-              />
-            </div>
-            <div>
-              <Label className="mb-1 block text-xs">Remarks</Label>
-              <Input
-                value={clearanceForm.remarks}
-                onChange={(e) => setClearanceForm((f) => ({ ...f, remarks: e.target.value }))}
-                disabled={!canClear || clearanceLocked}
-              />
-            </div>
-          </div>
-
-          {selected.clearance.acknowledged_at && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Signed off {new Date(selected.clearance.acknowledged_at).toLocaleString()}
-            </p>
-          )}
-
-          <div className="mt-3 flex flex-wrap justify-end gap-2">
-            {canClear && !clearanceLocked && (
-              <>
-                <Button size="sm" variant="outline" onClick={() => handleClearance(false)} disabled={isSaving}>
-                  Save Details
-                </Button>
-                <Button size="sm" onClick={() => handleClearance(true)} disabled={isSaving}>
-                  Sign Off Clearance
-                </Button>
-              </>
+            {selected.clearance.acknowledged_at && (
+              <p className="text-xs" style={{ color: "#059669" }}>Signed off {new Date(selected.clearance.acknowledged_at).toLocaleString()}</p>
             )}
-            {canManage && selected.status === "cleared" && (
-              <Button size="sm" onClick={handleComplete} disabled={isSaving}>
-                Complete Change
-              </Button>
-            )}
+            <div className="flex flex-wrap justify-end gap-2">
+              {canClear && !clearanceLocked && (
+                <>
+                  <button onClick={() => handleClearance(false)} disabled={isSaving} className={BTN_SOFT} style={BTN_GHOST_STYLE}>Save Details</button>
+                  <button onClick={() => handleClearance(true)} disabled={isSaving} className={BTN_PRIMARY} style={BTN_PRIMARY_STYLE}>Sign Off Clearance</button>
+                </>
+              )}
+              {canManage && selected.status === "cleared" && (
+                <button onClick={handleComplete} disabled={isSaving} className={BTN_PRIMARY} style={{ background: "#059669" }}>Complete Change</button>
+              )}
+            </div>
           </div>
-        </Card>
+        </SectionCard>
       )}
     </div>
   );
@@ -544,7 +458,7 @@ function PersonnelChangesContent() {
 export default function PersonnelChangesPage() {
   return (
     <ProtectedRoute>
-      <AppShell title="Personnel changes">
+      <AppShell title="Personnel Changes">
         <PersonnelChangesContent />
       </AppShell>
     </ProtectedRoute>

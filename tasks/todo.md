@@ -240,14 +240,26 @@ Standard verification for every task (not repeated below):
 - API additions: `personnelApi` updateTask/reviewTask/getTaskUpdates/postTaskUpdate/add|set|deleteTaskDeliverable, and getTasks gains priority/tag/overdue.
 - Verified with a rolled-back APIClient run as project_leader (create with priority/hours/tags → deliverable → tick → update 2.5h → for_review → approve → done, logged 2.5 → workload → overdue filter → delete; 0 leaked). The assignee-only path was not live-tested because the dev DB has no project_staff user. Headless screenshots OK.
 
-### - [ ] T12: Staff / Leader load / Personnel changes
+### - [x] T12: Staff / Leader load / Personnel changes
 **Description:** Clone `Personnel.tsx` onto `StaffPage`; restyle `LeaderLoadPage` and `PersonnelChangesPage` to match.
 **Acceptance criteria:**
-- [ ] All existing staff assignment, leader-load, and personnel-change actions still work
-- [ ] Assignment `department` shown/editable; cross-departmental collaboration view from `personnel/collaboration/`
+- [x] All existing staff assignment, leader-load, and personnel-change actions still work
+- [x] Assignment `department` shown/editable; cross-departmental collaboration view from `personnel/collaboration/`
 **Dependencies:** T2
 **Files:** `src/pages/StaffPage.tsx`, `LeaderLoadPage.tsx`, `PersonnelChangesPage.tsx`
 **Scope:** M
+**Result (2026-09-25):**
+- **StaffPage (Personnel Coordination):** cloned from `Personnel.tsx`.
+  - KPIs, search, and a personnel card grid built from staff profiles + assignments.
+  - Person detail: level switcher, assignments with End.
+  - "Set Staff Level" and "Assign to Project" modals (portaled); department added to the assign form.
+  - Tabs: Personnel / Assignments (department editable inline via assignment PATCH) / Cross-Department Collaboration (`personnel/collaboration/`, cross-only toggle).
+  - The prototype's expertise tags were **left out, not mocked**: there's no data for them, and mocked chips on real people would read as real.
+- **LeaderLoadPage:** KPI strip + leader cards with count/cap bars.
+- **PersonnelChangesPage:** restyled (KPIs, native selects, SectionCards). The logic is unchanged apart from the reload-key effect, which clears an old lint error.
+- Shared prototype pieces were extracted now that 3+ pages repeat them: `src/components/common/proto.tsx` (SectionCard, KpiCard, Field, TableHead, Pill, SkeletonRows) and `src/lib/protoStyles.ts` (input/button constants).
+- Known limitation (pre-existing): staff pickers use `users/by-role`, which only system_admin/crc_chair can read, so drd/riuh managers see no staff to assign.
+- Verified with rolled-back APIClient runs (temp project_staff user created inside the rollback): assignment create with department → 201, department PATCH → 200, shows in collaboration, staff level → 201, 0 leaked. Headless screenshots OK.
 
 ## Checkpoint C: Core complete
 - [ ] Build + lint clean; human review

@@ -1,5 +1,6 @@
 import { apiClient } from "./apiClient";
 import type {
+  CollaborationRow,
   LeaderLoad,
   PersonnelChange,
   ProjectAssignment,
@@ -124,6 +125,7 @@ export const personnelApi = {
     project?: number | null;
     study?: number | null;
     role_label?: string;
+    department?: string;
     start_date: string;
   }): Promise<ProjectAssignment> => {
     const { data } = await apiClient.post("/api/personnel/assignments/", payload);
@@ -131,7 +133,7 @@ export const personnelApi = {
   },
   updateAssignment: async (
     id: number,
-    payload: { role_label?: string; end_date?: string | null },
+    payload: { role_label?: string; department?: string; end_date?: string | null },
   ): Promise<ProjectAssignment> => {
     const { data } = await apiClient.patch(`/api/personnel/assignments/${id}/`, payload);
     return data;
@@ -150,6 +152,10 @@ export const personnelApi = {
     return data;
   },
 
+  getCollaboration: async (params: { cross_only?: boolean } = {}): Promise<CollaborationRow[]> => {
+    const { data } = await apiClient.get("/api/personnel/collaboration/", { params: params.cross_only ? { cross_only: "true" } : {} });
+    return data;
+  },
   getChanges: async (): Promise<PersonnelChange[]> => {
     const { data } = await apiClient.get("/api/personnel/changes/");
     return data;
