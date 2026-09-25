@@ -5,7 +5,12 @@ import type {
   ProjectAssignment,
   StaffProfile,
   Task,
+  TaskDeliverable,
+  TaskPriority,
+  TaskReviewAction,
   TaskStatus,
+  TaskUpdate,
+  TaskUpdateKind,
   WorkloadRow,
 } from "../types/personnel";
 
@@ -15,9 +20,18 @@ export const personnelApi = {
     return data;
   },
   getTasks: async (
-    params: { project?: number; study?: number; assignee?: number; status?: TaskStatus } = {},
+    params: {
+      project?: number;
+      study?: number;
+      assignee?: number;
+      status?: TaskStatus;
+      priority?: TaskPriority;
+      tag?: string;
+      overdue?: boolean;
+    } = {},
   ): Promise<Task[]> => {
-    const { data } = await apiClient.get("/api/personnel/tasks/", { params });
+    const { overdue, ...rest } = params;
+    const { data } = await apiClient.get("/api/personnel/tasks/", { params: { ...rest, ...(overdue ? { overdue: "true" } : {}) } });
     return data;
   },
   createTask: async (payload: {
@@ -27,6 +41,9 @@ export const personnelApi = {
     description?: string;
     due_date?: string;
     assignee: number;
+    priority?: TaskPriority;
+    estimated_hours?: string;
+    tags?: string[];
   }): Promise<Task> => {
     const { data } = await apiClient.post("/api/personnel/tasks/", payload);
     return data;
@@ -35,8 +52,49 @@ export const personnelApi = {
     const { data } = await apiClient.patch(`/api/personnel/tasks/${id}/`, { status });
     return data;
   },
+  updateTask: async (
+    id: number,
+    payload: Partial<{
+      title: string;
+      description: string;
+      due_date: string | null;
+      priority: TaskPriority;
+      estimated_hours: string | null;
+      tags: string[];
+      status: TaskStatus;
+    }>,
+  ): Promise<Task> => {
+    const { data } = await apiClient.patch(`/api/personnel/tasks/${id}/`, payload);
+    return data;
+  },
   deleteTask: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/personnel/tasks/${id}/`);
+  },
+  reviewTask: async (id: number, action: TaskReviewAction, remarks: string): Promise<Task> => {
+    const { data } = await apiClient.post(`/api/personnel/tasks/${id}/review/`, { action, remarks });
+    return data;
+  },
+  getTaskUpdates: async (id: number): Promise<TaskUpdate[]> => {
+    const { data } = await apiClient.get(`/api/personnel/tasks/${id}/updates/`);
+    return data;
+  },
+  postTaskUpdate: async (
+    id: number,
+    payload: { note: string; kind: TaskUpdateKind; hours?: string; new_status?: TaskStatus | "" },
+  ): Promise<TaskUpdate> => {
+    const { data } = await apiClient.post(`/api/personnel/tasks/${id}/updates/`, payload);
+    return data;
+  },
+  addTaskDeliverable: async (taskId: number, text: string): Promise<TaskDeliverable> => {
+    const { data } = await apiClient.post(`/api/personnel/tasks/${taskId}/deliverables/`, { text });
+    return data;
+  },
+  setTaskDeliverableDone: async (id: number, done: boolean): Promise<TaskDeliverable> => {
+    const { data } = await apiClient.patch(`/api/personnel/task-deliverables/${id}/`, { done });
+    return data;
+  },
+  deleteTaskDeliverable: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/personnel/task-deliverables/${id}/`);
   },
 
   getStaffProfiles: async (): Promise<StaffProfile[]> => {

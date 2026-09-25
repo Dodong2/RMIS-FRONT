@@ -207,17 +207,38 @@ Standard verification for every task (not repeated below):
 - Route RoleGate matches the nav tiers; the nav item is now `ready: true`. Writes are gated to `MILESTONE_ROLE_CODES`.
 - Verified with a rolled-back APIClient run as project_leader: create with responsible → 201, PATCH title/start/responsible → 200, `?delayed=true` returns the overdue row, 0 leaked. Headless screenshots OK.
 
-### - [ ] T11: Tasks (Personnel & Tasks)
+### - [x] T11: Tasks (Personnel & Tasks)
 **Description:** Clone `PersonnelTasks.tsx` (Task Board kanban, Task List, Workload, Personnel) onto `TasksPage`.
 **Acceptance criteria:**
-- [ ] Real tasks in kanban/list; existing create/update-status actions still work
-- [ ] Comments = real task updates; Workload tab = `personnel/workload/`; overdue via `?overdue=true`
-- [ ] Kanban columns = real statuses incl. **For Review** (`for_review`, rmis-backend `209dac2`). An assignee can move a task only to in_progress/blocked/for_review; "done" comes only from a leader/assigner via `tasks/<id>/review/` (`approve` → done, `return` → in_progress, with remarks)
-- [ ] Real priority (`?priority=`), estimated/logged hours, tags (`?tag=`), started/completed dates, update kinds (update/comment/blocker/completion) + hours per update, deliverables checklist (`tasks/<id>/deliverables/`, `task-deliverables/<id>/`). Nothing on this page stays mocked
-- [ ] Workload tab shows estimated/logged hours
+- [x] Real tasks in kanban/list; existing create/update-status actions still work
+- [x] Comments = real task updates; Workload tab = `personnel/workload/`; overdue via `?overdue=true`
+- [x] Kanban columns = real statuses incl. **For Review** (`for_review`, rmis-backend `209dac2`). An assignee can move a task only to in_progress/blocked/for_review; "done" comes only from a leader/assigner via `tasks/<id>/review/` (`approve` → done, `return` → in_progress, with remarks)
+- [x] Real priority (`?priority=`), estimated/logged hours, tags (`?tag=`), started/completed dates, update kinds (update/comment/blocker/completion) + hours per update, deliverables checklist (`tasks/<id>/deliverables/`, `task-deliverables/<id>/`). Nothing on this page stays mocked
+- [x] Workload tab shows estimated/logged hours
 **Dependencies:** T2
 **Files:** `src/pages/TasksPage.tsx`, `src/mocks/tasks.ts`
 **Scope:** M
+**Result (2026-09-25):** `TasksPage` rebuilt from `PersonnelTasks.tsx`. Nothing is mocked.
+- Layout: KPI strip → project list (staff only see projects with tasks assigned to them) → board at `?project=<id>`.
+- Tabs:
+  - **Task Board:** 5 real columns, To Do/In Progress/For Review/Blocked/Completed.
+  - **Task List**
+  - **Workload:** `personnel/workload/?project=`, assigners only because the backend 403s others.
+  - **Personnel:** leader + active assignments, with per-person task counts.
+- Filters: search/tag, priority, member, and "overdue only" via `?overdue=true`.
+- Task detail modal:
+  - deliverables checklist (tick = assignee/assigner, add/delete = assigner)
+  - tags
+  - real updates feed + post (kind + hours)
+  - hours bar (estimated vs logged)
+  - status buttons: assignee limited to in_progress/blocked/for_review; assigner gets all
+  - Approve/Return with remarks when For Review (`tasks/<id>/review/`)
+  - Edit and Delete for assigners
+- Create modal: assignee, study, priority, due, est. hours, tags, deliverables (posted after create).
+- **Bug fixed:** the old form filled assignees from `users/by-role`, which is system_admin/crc_chair only, so leaders got an empty list. It now uses the project's active assignments + leader.
+- **Also fixed globally:** hand-rolled overlays now portal to `document.body` (Tasks + Dashboard report modal); they were clipped to the content area by the page's `animate-fade-in` transform. The fade-in keyframes also end at `transform: none`.
+- API additions: `personnelApi` updateTask/reviewTask/getTaskUpdates/postTaskUpdate/add|set|deleteTaskDeliverable, and getTasks gains priority/tag/overdue.
+- Verified with a rolled-back APIClient run as project_leader (create with priority/hours/tags → deliverable → tick → update 2.5h → for_review → approve → done, logged 2.5 → workload → overdue filter → delete; 0 leaked). The assignee-only path was not live-tested because the dev DB has no project_staff user. Headless screenshots OK.
 
 ### - [ ] T12: Staff / Leader load / Personnel changes
 **Description:** Clone `Personnel.tsx` onto `StaffPage`; restyle `LeaderLoadPage` and `PersonnelChangesPage` to match.

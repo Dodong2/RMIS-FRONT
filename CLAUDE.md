@@ -22,6 +22,7 @@ Backend API base URL comes from `VITE_API_URL` in `.env.local` (Vite env vars ne
 - Data rule per section: the API returns rows → real data. The API returns nothing → `<NoActualData />` (`src/components/common/NoActualData.tsx`). There's no endpoint → a mock from `src/mocks/` with no visible badge, plus a REGISTRY row.
 - Real flow, prototype look: when the prototype's flow contradicts the backend (demo logins, fake workflows), keep the real flow.
 - Access control stays on our role codes (`RoleGate`, `*_ROLE_CODES`, nav tiers). `src/lib/protoRole.ts` maps a role to the prototype's 9 roles for cosmetic branching only. Never use it for access.
+- Custom `fixed inset-0` overlays (the prototype's hand-rolled modals) must render through `createPortal(..., document.body)`. Page wrappers use `animate-fade-in`, and an element with a transform animation becomes the containing block for `fixed` children, so the overlay would only cover the content area. shadcn `Dialog` already portals.
 - The prototype folder is gitignored and eslint-ignored. It's a read-only reference, never import from it.
 - Type-check with `npx tsc -b` (fixed 2026-09-25; it used to stop at TS5101 without checking).
 

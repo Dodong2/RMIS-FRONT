@@ -195,7 +195,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 - [x] T9 Register Program restyle
 ### Checkpoint B
 - [x] T10 Work Plan (new page)
-- [ ] T11 Tasks (Personnel & Tasks)
+- [x] T11 Tasks (Personnel & Tasks)
 - [ ] T12 Staff / Leader load / Personnel changes
 ### Checkpoint C
 
