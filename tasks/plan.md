@@ -191,7 +191,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 - [x] T5 Dashboard — drill-down + export
 - [x] T6 Projects list
 - [x] T7 Project detail
-- [ ] T8 Register Approved Project wizard
+- [x] T8 Register Approved Project wizard
 - [ ] T9 Register Program restyle
 ### Checkpoint B
 - [ ] T10 Work Plan (new page)

@@ -146,17 +146,28 @@ Standard verification for every task (not repeated below):
 - There are no mocks, so `src/mocks/projects.ts` wasn't needed.
 - Headless check as system_admin and project_leader: OK. Writes (add milestone, status change) were not exercised live, to avoid touching the dev DB.
 
-### - [ ] T8: Register Approved Project wizard
+### - [x] T8: Register Approved Project wizard
 **Description:** Clone the 8-step wizard (Basic Info → Validate & Register) onto `RegisterProjectPage`, submitting to the existing create-project endpoint.
 **Acceptance criteria:**
-- [ ] All fields the backend accepts are in the right step and still submit; success redirects as today
-- [ ] Research Information step → description, objectives, beneficiaries, expected_outcomes, expected_impacts; Approval Information step → `ntp_number` (Approval Ref No.), `proposal_approved_on`/`ntp_date`, `reviewing_body`, proposal submitted/reviewed dates
-- [ ] Approval document + supporting docs uploaded to `documents/` right after the project is created
-- [ ] Wording says "Register Approved Project"; no ethics-committee approval anywhere (panel recommendation)
-- [ ] Completeness check panel (step 8) reflects actual filled fields
+- [x] All fields the backend accepts are in the right step and still submit; success redirects as today
+- [x] Research Information step → description, objectives, beneficiaries, expected_outcomes, expected_impacts; Approval Information step → `ntp_number` (Approval Ref No.), `proposal_approved_on`/`ntp_date`, `reviewing_body`, proposal submitted/reviewed dates
+- [x] Approval document + supporting docs uploaded to `documents/` right after the project is created
+- [x] Wording says "Register Approved Project"; no ethics-committee approval anywhere (panel recommendation)
+- [x] Completeness check panel (step 8) reflects actual filled fields
 **Dependencies:** T6
 **Files:** `src/pages/RegisterProjectPage.tsx`, `src/mocks/projects.ts`
 **Scope:** M
+**Result (2026-09-25):**
+- It's a full page, not the prototype's modal. The form is too long for a dialog, and that decision was made 2026-09-22.
+- 7 steps instead of 8: Basic Info / Description / Objectives & Impact / Beneficiaries & Classification / Org. Scope & Proponent / Approval Info / Validate & Register.
+- Dropped from the prototype:
+  - The "Project Team" step, because assignments happen in Personnel Coordination after registration.
+  - Textareas with no backend field (Introduction, RRL, Sustainability, Risks, Ethical Considerations, References). They'd look saved but be thrown away.
+  - The auto-generated `LSPU-RD-…` code, because the official code is manual per Q4.
+- The objectives list is joined into the `objectives` text as a numbered list.
+- Approval + supporting files are uploaded to `documents/` (type `other`, stage `inception`) after create, with a 25MB client check. A failed upload doesn't undo the project; the toast says to add the file from Documents.
+- The completeness panel is computed from real form state (required vs recommended); clicking an item jumps to its step. Register is blocked until the required items + certification are done.
+- Verified with a rolled-back APIClient run (0 leaked rows): create with the new fields → 201, status PATCH → history row, project_leader milestone on own project → 201. The concurrency-limit 400 surfaced correctly on the first try. Headless screenshots of the steps look fine.
 
 ### - [ ] T9: Register Program restyle
 **Description:** Restyle `RegisterProgramPage` in the wizard's visual language (no prototype counterpart).

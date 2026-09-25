@@ -49,6 +49,15 @@ export const researchApi = {
     implementing_unit?: string;
     cooperating_agencies?: string;
     total_cost?: string;
+    description?: string;
+    objectives?: string;
+    beneficiaries?: string;
+    expected_outcomes?: string;
+    expected_impacts?: string;
+    proposal_submitted_on?: string;
+    proposal_reviewed_on?: string;
+    proposal_approved_on?: string;
+    reviewing_body?: string;
   }): Promise<Project> => {
     const { data } = await apiClient.post("/api/projects/", payload);
     return data;
