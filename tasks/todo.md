@@ -447,14 +447,28 @@ Rolled-back API test: leader sees team docs but not `restricted`; `current_only`
 
 Rolled-back API test: leader publication (ISI, IF 2.5) → ₱60,000; IP create → disclosed/not eligible, PATCH registered → 200; expected output create/patch (actual 0→2)/delete 204; expected-vs-actual categories correct (publications counted from records); outcome 201; crc_chair outcome → 403. 0 leaked. Headless-checked with throwaway rows (deleted after).
 
-### - [ ] T21: Monitoring & Evaluation
+### - [x] T21: Monitoring & Evaluation
 **Description:** Clone `Monitoring.tsx` onto `MonitoringPage`.
 **Acceptance criteria:**
-- [ ] Evaluations tab real; Status, Monthly/Midterm/Terminal, Renewal kept as extra tabs, all actions working
-- [ ] Indicators = status `indicators` block; evaluation criteria rubric + scores + weighted score real; extension requests (submit/endorse/approve) real; indicator baseline/target series mocked
+- [x] Evaluations tab real; Status, Monthly/Midterm/Terminal, Renewal kept as extra tabs, all actions working
+- [x] Indicators = status `indicators` block; evaluation criteria rubric + scores + weighted score real; extension requests (submit/endorse/approve) real; indicator baseline/target series mocked
 **Dependencies:** T2
 **Files:** `src/pages/MonitoringPage.tsx`, `src/mocks/monitoring.ts`
 **Scope:** M
+**Result (2026-09-25):** `MonitoringPage` is the prototype's per-project M&E board with a project selector (one board at a time, because the status endpoint is per-project and the remote DB is slow). There's also a "Evaluation Rubric" view.
+- **Indicators / Performance Map:** 12+ real indicators built from the status `indicators` block + `outputs/expected-vs-actual/` (one per 6P category with a target). Statuses use the prototype's ratio thresholds.
+- **Evaluations** (`src/components/monitoring/Evaluations.tsx`): schedule, and a detail modal with the real rubric scores (0–100 per active criterion, weight shown, panel-only input) + server `weighted_score` + outcome/findings.
+- **Rubric** tab: criteria CRUD (add, reweight, activate/deactivate) with a live 100% check.
+- **Progress Reports** (monthly/midterm/terminal + certify), **Extensions** (request → endorse → approve/deny, role-gated per step), and **Renewal** (apply, eligibility, decide) live in `src/components/monitoring/Reports.tsx`.
+- **Deviation:** the indicator baseline/target time series was *not* mocked (no backend; same choice as T19/T20). Indicators have no detail/"record accomplishment" modal.
+- Added API: criteria list/create/update, scores list/save, extension requests list/create/action.
+
+Rolled-back API test:
+- Status + indicator keys match the types. Leader creating a criterion → 403.
+- Scoring with a 90% rubric → 400 (fix the rubric); 3 criteria at 60/30/10 scored 80/90/70 → weighted 82.0. Outcome passed → `evaluated_at` set.
+- Leader extension → pending with `current_end_date` auto-set; a duplicate request → 400; leader endorse → 403; approve before endorse → 400; endorse → approve moves `target_end_date`.
+- 0 leaked, and the project end date was restored.
+- Headless-checked on real P77 data (8 months without a monthly report → termination recommended; LIB not certified → 0% utilization).
 
 ### - [ ] T22: Risk Management
 **Description:** Clone `RiskManagement.tsx` onto `RisksPage`.

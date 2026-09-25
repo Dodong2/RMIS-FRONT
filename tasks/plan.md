@@ -212,7 +212,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 - [x] T18 Compliance
 - [x] T19 Documents
 - [x] T20 Research Outputs
-- [ ] T21 Monitoring & Evaluation
+- [x] T21 Monitoring & Evaluation
 - [ ] T22 Risk Management
 ### Checkpoint E
 

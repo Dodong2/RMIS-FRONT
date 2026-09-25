@@ -1,6 +1,9 @@
 import { apiClient } from "./apiClient";
 import type {
+  EvaluationCriterion,
   EvaluationOutcome,
+  EvaluationScore,
+  ExtensionRequest,
   MidtermReport,
   MonthlyProgressReport,
   ProjectEvaluation,
@@ -97,6 +100,40 @@ export const monitoringApi = {
   },
   decideRenewalApplication: async (id: number, status: RenewalStatus): Promise<RenewalApplication> => {
     const { data } = await apiClient.post(`/api/monitoring/renewal-applications/${id}/decide/`, { status });
+    return data;
+  },
+
+  getCriteria: async (): Promise<EvaluationCriterion[]> => {
+    const { data } = await apiClient.get("/api/monitoring/evaluation-criteria/");
+    return data;
+  },
+  createCriterion: async (payload: { name: string; description?: string; weight: number; is_active?: boolean }): Promise<EvaluationCriterion> => {
+    const { data } = await apiClient.post("/api/monitoring/evaluation-criteria/", payload);
+    return data;
+  },
+  updateCriterion: async (id: number, payload: Partial<{ name: string; description: string; weight: number; is_active: boolean }>): Promise<EvaluationCriterion> => {
+    const { data } = await apiClient.patch(`/api/monitoring/evaluation-criteria/${id}/`, payload);
+    return data;
+  },
+  getScores: async (evaluationId: number): Promise<EvaluationScore[]> => {
+    const { data } = await apiClient.get(`/api/monitoring/evaluations/${evaluationId}/scores/`);
+    return data;
+  },
+  saveScore: async (evaluationId: number, payload: { criterion: number; score: string; remarks?: string }): Promise<EvaluationScore> => {
+    const { data } = await apiClient.post(`/api/monitoring/evaluations/${evaluationId}/scores/`, payload);
+    return data;
+  },
+
+  getExtensionRequests: async (params: { project?: number } = {}): Promise<ExtensionRequest[]> => {
+    const { data } = await apiClient.get("/api/monitoring/extension-requests/", { params });
+    return data;
+  },
+  createExtensionRequest: async (payload: { project: number; requested_end_date: string; justification: string }): Promise<ExtensionRequest> => {
+    const { data } = await apiClient.post("/api/monitoring/extension-requests/", payload);
+    return data;
+  },
+  actOnExtensionRequest: async (id: number, action: "endorse" | "approve" | "deny", remarks?: string): Promise<ExtensionRequest> => {
+    const { data } = await apiClient.post(`/api/monitoring/extension-requests/${id}/action/`, { action, remarks });
     return data;
   },
 };

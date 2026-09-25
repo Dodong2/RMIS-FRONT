@@ -1,973 +1,510 @@
-import { useEffect, useState } from "react";
-import type { ComponentProps } from "react";
-import { Activity, CalendarClock, ClipboardCheck, FileCheck2, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { monitoringApi } from "../lib/monitoringApi";
+import { outputsApi } from "../lib/outputsApi";
+import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
-import { documentApi } from "../lib/documentApi";
-import { errorMessage } from "../lib/errorMessage";
-import type {
-  EvaluationOutcome,
-  MidtermReport,
-  MonthlyProgressReport,
-  ProjectEvaluation,
-  ProjectMonitoringStatus,
-  RenewalApplication,
-  RenewalStatus,
-  TerminalReport,
-} from "../types/monitoring";
+import { notify } from "../lib/notify";
+import type { EscalationStatus, ProjectEvaluation, ProjectMonitoringStatus } from "../types/monitoring";
+import type { ExpectedVsActual } from "../types/outputs";
 import type { Project } from "../types/research";
-import type { ProjectDocument } from "../types/document";
 import { ProtectedRoute } from "../components/ProtectedRoute";
+import { NoActualData } from "../components/common/NoActualData";
+import { SkeletonRows } from "../components/common/proto";
+import { EvaluationsPanel, RubricPanel } from "../components/monitoring/Evaluations";
+import { ExtensionsPanel, ProgressReportsPanel, RenewalPanel } from "../components/monitoring/Reports";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { EmptyOption } from "../components/common/EmptyOption";
-import { FieldLabel } from "../components/common/FieldLabel";
-import { EmptyState, PageHeader, TableSkeletonRows } from "../components/common/Page";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { notify } from "../lib/notify";
 
 const REPORT_ROLE_CODES = ["system_admin", "riuh", "project_leader", "study_leader", "project_staff"];
-const TERMINAL_CERTIFY_ROLE_CODES = ["system_admin", "riuh"];
-const EVALUATION_PANEL_ROLE_CODES = ["system_admin", "vprei", "drd", "crc_chair"];
-const RENEWAL_DECISION_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
+const CERTIFY_ROLE_CODES = ["system_admin", "riuh"];
+const EVALUATE_ROLE_CODES = ["system_admin", "vprei", "drd", "crc_chair"];
+const RENEWAL_DECIDE_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
+const EXT_REQUEST_ROLE_CODES = ["system_admin", "program_leader", "project_leader"];
+const EXT_ENDORSE_ROLE_CODES = ["system_admin", "drd", "crc_chair"];
+const EXT_APPROVE_ROLE_CODES = ["system_admin", "university_admin"];
 
-const ESCALATION_LABELS: Record<string, string> = {
-  unknown: "Unknown",
-  on_track: "On Track",
-  notify_dean_riuh: "Notify Dean/RIUH",
-  terminate_recommended: "Termination Recommended",
+type IndicatorType = "output" | "outcome" | "process";
+type IndicatorStatus = "on_track" | "at_risk" | "off_track" | "achieved" | "not_started";
+type BoardTab = "indicators" | "performance" | "evaluations" | "reports" | "extensions" | "renewal";
+
+type Indicator = {
+  key: string;
+  name: string;
+  type: IndicatorType;
+  status: IndicatorStatus;
+  value: string;
+  target: string;
+  pct: number | null;
+  note: string;
 };
 
-const OUTCOME_LABELS: Record<EvaluationOutcome, string> = {
-  pending: "Pending",
-  passed: "Passed",
-  conditional: "Conditional",
-  failed: "Failed",
+const IND_TYPE_META: Record<IndicatorType, { label: string; color: string; bg: string; icon: string }> = {
+  output: { label: "Output", color: "#0891b2", bg: "#e0f2fe", icon: "📤" },
+  outcome: { label: "Outcome", color: "#0d2a5e", bg: "#e0eaf7", icon: "📊" },
+  process: { label: "Process", color: "#92400e", bg: "#fef3c7", icon: "⚙️" },
 };
 
-const RENEWAL_STATUS_LABELS: Record<RenewalStatus, string> = {
-  pending: "Pending",
-  approved: "Approved",
-  denied: "Denied",
+const IND_STATUS_META: Record<IndicatorStatus, { label: string; bg: string; text: string; dot: string }> = {
+  on_track: { label: "On Track", bg: "#d1fae5", text: "#166534", dot: "#059669" },
+  at_risk: { label: "At Risk", bg: "#fef3c7", text: "#92400e", dot: "#f59e0b" },
+  off_track: { label: "Off Track", bg: "#fee2e2", text: "#991b1b", dot: "#ef4444" },
+  achieved: { label: "Achieved ✓", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
+  not_started: { label: "Not Started", bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" },
 };
 
-const SECTIONS = [
-  { key: "status", label: "Status" },
-  { key: "monthly", label: "Monthly Reports" },
-  { key: "midterm", label: "Midterm Reports" },
-  { key: "terminal", label: "Terminal Report" },
-  { key: "evaluations", label: "Evaluations" },
-  { key: "renewal", label: "Renewal Applications" },
-] as const;
+const ESCALATION_META: Record<EscalationStatus, { label: string; bg: string; color: string }> = {
+  unknown: { label: "No monthly report yet", bg: "#f1f5f9", color: "#475569" },
+  on_track: { label: "Reporting on track", bg: "#d1fae5", color: "#166534" },
+  notify_dean_riuh: { label: "Non-submission: notify Dean/RIUH", bg: "#fef3c7", color: "#92400e" },
+  terminate_recommended: { label: "Non-submission: termination recommended", bg: "#fee2e2", color: "#991b1b" },
+};
 
-type SectionKey = (typeof SECTIONS)[number]["key"];
+const ratioStatus = (ratio: number): IndicatorStatus => (ratio >= 1 ? "achieved" : ratio >= 0.7 ? "on_track" : ratio >= 0.4 ? "at_risk" : "off_track");
 
-const today = () => new Date().toLocaleDateString("en-CA");
-const pct = (value: number | null) => (value === null ? "—" : `${value}%`);
+function buildIndicators(s: ProjectMonitoringStatus, eva: ExpectedVsActual | null): Indicator[] {
+  const i = s.indicators;
+  const esc: Record<EscalationStatus, IndicatorStatus> = { unknown: "not_started", on_track: "on_track", notify_dean_riuh: "at_risk", terminate_recommended: "off_track" };
+  const pctInd = (key: string, name: string, type: IndicatorType, pct: number | null, note: string): Indicator => ({
+    key,
+    name,
+    type,
+    status: pct === null ? "not_started" : ratioStatus(pct / 70),
+    value: pct === null ? "—" : `${pct.toFixed(1)}%`,
+    target: "70%",
+    pct: pct === null ? null : Math.min(100, (pct / 70) * 100),
+    note,
+  });
+  const list: Indicator[] = [
+    {
+      key: "monthly",
+      name: "Monthly progress report submission",
+      type: "process",
+      status: esc[i.monthly_report.status],
+      value: i.monthly_report.months_since_last_report === null ? "none yet" : `${i.monthly_report.months_since_last_report} mo ago`,
+      target: "every month",
+      pct: null,
+      note: ESCALATION_META[i.monthly_report.status].label,
+    },
+    pctInd("budget", "Budget utilization", "process", i.budget_utilization_pct, "Actual disbursements vs. certified LIB (renewal needs ≥ 70%)"),
+    pctInd("deliverables", "Deliverables completion", "output", i.deliverables_pct, "Done milestones vs. all work-plan milestones (renewal needs ≥ 70%)"),
+    {
+      key: "midterm",
+      name: "Midterm reports (Appendix E)",
+      type: "output",
+      status: i.midterm_report_years.length ? "on_track" : "not_started",
+      value: String(i.midterm_report_years.length),
+      target: "1 per project year",
+      pct: null,
+      note: i.midterm_report_years.length ? `Submitted for year ${i.midterm_report_years.join(", ")}` : "No midterm report yet",
+    },
+    {
+      key: "terminal",
+      name: "Terminal report (Appendix F)",
+      type: "output",
+      status: i.terminal_report_submitted ? "achieved" : "not_started",
+      value: i.terminal_report_submitted ? "Submitted" : "Not yet",
+      target: "1",
+      pct: i.terminal_report_submitted ? 100 : 0,
+      note: "Due at project completion",
+    },
+    ...(eva?.by_category ?? [])
+      .filter((c) => c.target > 0)
+      .map<Indicator>((c) => ({
+        key: `6p-${c.category}`,
+        name: `6Ps — ${c.label}`,
+        type: "output",
+        status: c.actual === 0 ? "not_started" : ratioStatus(c.actual / c.target),
+        value: String(c.actual),
+        target: String(c.target),
+        pct: Math.min(100, (c.actual / c.target) * 100),
+        note: "Expected vs actual research outputs",
+      })),
+    {
+      key: "evaluation",
+      name: "Latest annual evaluation",
+      type: "outcome",
+      status: !i.latest_evaluation ? "not_started" : { pending: "on_track", passed: "achieved", conditional: "at_risk", failed: "off_track" }[i.latest_evaluation.outcome] as IndicatorStatus,
+      value: i.latest_evaluation ? i.latest_evaluation.outcome : "—",
+      target: "passed",
+      pct: null,
+      note: i.latest_evaluation ? `Scheduled ${i.latest_evaluation.scheduled_date}` : "No evaluation scheduled",
+    },
+    {
+      key: "similarity",
+      name: "Similarity checks within threshold",
+      type: "process",
+      status: i.similarity_checks.total === 0 ? "not_started" : i.similarity_checks.over_threshold > 0 ? "at_risk" : "achieved",
+      value: `${i.similarity_checks.total - i.similarity_checks.over_threshold}/${i.similarity_checks.total}`,
+      target: "all within",
+      pct: i.similarity_checks.total ? ((i.similarity_checks.total - i.similarity_checks.over_threshold) / i.similarity_checks.total) * 100 : null,
+      note: `${i.similarity_checks.over_threshold} over threshold`,
+    },
+    {
+      key: "ai",
+      name: "AI declarations under 20% AI content",
+      type: "process",
+      status: i.ai_declarations.total === 0 ? "not_started" : i.ai_declarations.over_threshold > 0 ? "at_risk" : "achieved",
+      value: `${i.ai_declarations.total - i.ai_declarations.over_threshold}/${i.ai_declarations.total}`,
+      target: "all under",
+      pct: i.ai_declarations.total ? ((i.ai_declarations.total - i.ai_declarations.over_threshold) / i.ai_declarations.total) * 100 : null,
+      note: `${i.ai_declarations.over_threshold} over 20%`,
+    },
+    {
+      key: "procurement",
+      name: "Procurement requests without delay",
+      type: "process",
+      status: i.procurement_delayed === 0 ? "on_track" : "at_risk",
+      value: `${i.procurement_delayed} delayed`,
+      target: "0 delayed",
+      pct: null,
+      note: "Open more than 30 days",
+    },
+    {
+      key: "realignment",
+      name: "Budget realignments this year",
+      type: "process",
+      status: i.realignments_this_year <= 1 ? "on_track" : "at_risk",
+      value: String(i.realignments_this_year),
+      target: "≤ 1 per year",
+      pct: null,
+      note: "Manual allows one realignment per calendar year",
+    },
+    {
+      key: "forecast",
+      name: "Forecast overrun risk",
+      type: "process",
+      status: i.forecast_overrun_risk === null ? "not_started" : i.forecast_overrun_risk ? "off_track" : "on_track",
+      value: i.forecast_overrun_risk === null ? "no forecast" : i.forecast_overrun_risk ? "overrun risk" : "within budget",
+      target: "within budget",
+      pct: null,
+      note: "Latest successful ARIMA forecast run",
+    },
+    {
+      key: "budget_office",
+      name: "Budget Office reconciliation",
+      type: "process",
+      status: { matched: "achieved", discrepancy: "off_track", no_rmis_budget: "at_risk", unlinked: "not_started" }[i.budget_office_status ?? "unlinked"] as IndicatorStatus,
+      value: i.budget_office_status ? i.budget_office_status.replace(/_/g, " ") : "no import",
+      target: "matched",
+      pct: null,
+      note: "Consolidated LIB workbook vs. RMIS LIB",
+    },
+  ];
+  return list;
+}
 
-function Textarea({
-  value,
-  onChange,
-  ...props
-}: { value: string; onChange: (value: string) => void } & Omit<
-  ComponentProps<"textarea">,
-  "value" | "onChange"
->) {
+function IndicatorStatusBadge({ s }: { s: IndicatorStatus }) {
+  const m = IND_STATUS_META[s];
   return (
-    <textarea
-      className="min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      {...props}
-    />
+    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: m.bg, color: m.text }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.dot }} />
+      {m.label}
+    </span>
   );
 }
 
-function DocumentPicker({
-  value,
-  onChange,
-  documents,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  documents: ProjectDocument[];
-}) {
+function TypeChip({ t }: { t: IndicatorType }) {
+  const m = IND_TYPE_META[t];
+  return <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: m.bg, color: m.color }}>{m.icon} {m.label}</span>;
+}
+
+function ProgressBar({ pct, status }: { pct: number; status: IndicatorStatus }) {
   return (
-    <div>
-      <FieldLabel>Supporting Document</FieldLabel>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
-          <SelectValue placeholder="None" />
-        </SelectTrigger>
-        <SelectContent>
-          {documents.length === 0 && <EmptyOption message="No documents uploaded for this project yet" />}
-          {documents.map((d) => (
-            <SelectItem key={d.id} value={String(d.id)}>
-              {d.file_name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="w-full rounded-full overflow-hidden" style={{ height: "6px", background: "#f1f5f9" }}>
+      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: IND_STATUS_META[status].dot }} />
     </div>
   );
 }
 
 function MonitoringContent() {
   const { user } = useAuth();
-  const canReport = !!user?.role && REPORT_ROLE_CODES.includes(user.role.code);
-  const canCertifyTerminal = !!user?.role && TERMINAL_CERTIFY_ROLE_CODES.includes(user.role.code);
-  const canPanelEvaluate = !!user?.role && EVALUATION_PANEL_ROLE_CODES.includes(user.role.code);
-  const canDecideRenewal = !!user?.role && RENEWAL_DECISION_ROLE_CODES.includes(user.role.code);
+  const code = user?.role?.code ?? "";
+  const can = (codes: string[]) => codes.includes(code);
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState("");
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
-  const [documents, setDocuments] = useState<ProjectDocument[]>([]);
-  const [section, setSection] = useState<SectionKey>("status");
-  const [isLoadingSection, setIsLoadingSection] = useState(false);
-
+  const [view, setView] = useState<"board" | "rubric">("board");
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [names, setNames] = useState<Map<number, string>>(new Map());
+  const [projectId, setProjectId] = useState<number | null>(null);
   const [status, setStatus] = useState<ProjectMonitoringStatus | null>(null);
-  const [monthlyReports, setMonthlyReports] = useState<MonthlyProgressReport[]>([]);
-  const [midtermReports, setMidtermReports] = useState<MidtermReport[]>([]);
-  const [terminalReport, setTerminalReport] = useState<TerminalReport | null>(null);
-  const [evaluations, setEvaluations] = useState<ProjectEvaluation[]>([]);
-  const [renewalApplications, setRenewalApplications] = useState<RenewalApplication[]>([]);
-
-  const emptyMonthlyForm = { period: today().slice(0, 7), narrative: "", document: "" };
-  const [monthlyForm, setMonthlyForm] = useState(emptyMonthlyForm);
-  const [attemptedMonthly, setAttemptedMonthly] = useState(false);
-  const [isSavingMonthly, setIsSavingMonthly] = useState(false);
-
-  const emptyMidtermForm = { project_year: "1", narrative: "", expenditure_summary: "", document: "" };
-  const [midtermForm, setMidtermForm] = useState(emptyMidtermForm);
-  const [attemptedMidterm, setAttemptedMidterm] = useState(false);
-  const [isSavingMidterm, setIsSavingMidterm] = useState(false);
-
-  const emptyTerminalForm = { narrative: "", document: "" };
-  const [terminalForm, setTerminalForm] = useState(emptyTerminalForm);
-  const [isSavingTerminal, setIsSavingTerminal] = useState(false);
-  const [isCertifying, setIsCertifying] = useState(false);
-
-  const emptyEvalForm = { project_year: "1", scheduled_date: today(), panel_members: "" };
-  const [evalForm, setEvalForm] = useState(emptyEvalForm);
-  const [attemptedEval, setAttemptedEval] = useState(false);
-  const [isSavingEval, setIsSavingEval] = useState(false);
-  const [evalDrafts, setEvalDrafts] = useState<Record<number, { outcome: EvaluationOutcome; remarks: string }>>({});
-  const [savingEvalId, setSavingEvalId] = useState<number | null>(null);
-
-  const emptyRenewalForm = { application_year: "1", underspend_justification: "" };
-  const [renewalForm, setRenewalForm] = useState(emptyRenewalForm);
-  const [isSavingRenewal, setIsSavingRenewal] = useState(false);
-  const [decidingId, setDecidingId] = useState<number | null>(null);
+  const [eva, setEva] = useState<ExpectedVsActual | null>(null);
+  const [evals, setEvals] = useState<ProjectEvaluation[]>([]);
+  const [tab, setTab] = useState<BoardTab>("indicators");
+  const [typeFilter, setTypeFilter] = useState<IndicatorType | "all">("all");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    (async () => {
-      setIsLoadingProjects(true);
-      try {
-        setProjects(await researchApi.getProjects());
-      } catch {
-        notify.error("Could not load projects. Check your connection and refresh.");
-      } finally {
-        setIsLoadingProjects(false);
-      }
-    })();
+    let alive = true;
+    researchApi
+      .getProjects()
+      .then((p) => {
+        if (!alive) return;
+        setProjects(p);
+        setProjectId((cur) => cur ?? p[0]?.id ?? null);
+        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, x.lead_detail.email] as [number, string])]));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setProjects([]);
+        notify.error("Could not load projects.");
+      });
+    personnelApi
+      .getAssignments({ active: true })
+      .then((a) => alive && setNames((m) => new Map([...m, ...a.map((x) => [x.user_detail.id, x.user_detail.email] as [number, string])])))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const loadSection = async (projectId: number, key: SectionKey) => {
-    setIsLoadingSection(true);
-    try {
-      if (key === "status") setStatus(await monitoringApi.getProjectStatus(projectId));
-      if (key === "monthly") setMonthlyReports(await monitoringApi.getMonthlyReports({ project: projectId }));
-      if (key === "midterm") setMidtermReports(await monitoringApi.getMidtermReports({ project: projectId }));
-      if (key === "terminal") {
-        const reports = await monitoringApi.getTerminalReports({ project: projectId });
-        setTerminalReport(reports[0] ?? null);
-      }
-      if (key === "evaluations") setEvaluations(await monitoringApi.getEvaluations({ project: projectId }));
-      if (key === "renewal") {
-        setRenewalApplications(await monitoringApi.getRenewalApplications({ project: projectId }));
-      }
-    } catch {
-      notify.error("Could not load records for this section.");
-    } finally {
-      setIsLoadingSection(false);
-    }
-  };
+  useEffect(() => {
+    let alive = true;
+    if (projectId === null) return;
+    monitoringApi
+      .getProjectStatus(projectId)
+      .then((s) => alive && setStatus(s))
+      .catch(() => alive && notify.error("Could not load the monitoring status."));
+    outputsApi
+      .getExpectedVsActual(projectId)
+      .then((e) => alive && setEva(e))
+      .catch(() => alive && setEva(null));
+    monitoringApi
+      .getEvaluations({ project: projectId })
+      .then((e) => alive && setEvals(e))
+      .catch(() => alive && setEvals([]));
+    return () => {
+      alive = false;
+    };
+  }, [projectId, reloadKey]);
 
-  const handleSelectProject = async (value: string) => {
-    setSelectedProject(value);
-    try {
-      setDocuments(await documentApi.getDocuments({ project: Number(value) }));
-    } catch {
-      setDocuments([]);
-    }
-    await loadSection(Number(value), section);
-  };
+  const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? user.email : names.get(id) ?? `User #${id}`);
+  const project = projects?.find((p) => p.id === projectId) ?? null;
+  const indicators = useMemo(() => (status && status.project === projectId ? buildIndicators(status, eva) : []), [status, eva, projectId]);
+  const loaded = !!status && status.project === projectId;
+  const count = (s: IndicatorStatus) => indicators.filter((i) => i.status === s).length;
+  const measured = indicators.filter((i) => i.status !== "not_started");
+  const overallPct = measured.length ? Math.round(((count("achieved") + count("on_track") * 0.7) / measured.length) * 100) : 0;
+  const shown = indicators.filter((i) => typeFilter === "all" || i.type === typeFilter);
+  const changed = () => setReloadKey((k) => k + 1);
 
-  const handleSelectSection = async (key: SectionKey) => {
-    setSection(key);
-    if (selectedProject) await loadSection(Number(selectedProject), key);
-  };
+  const kpi = (label: string, val: number | string, color: string) => (
+    <div key={label} className="rounded-2xl p-4" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>{label}</p>
+      <p className="text-3xl font-black mt-1" style={{ color }}>{loaded ? val : "—"}</p>
+    </div>
+  );
 
-  const handleAddMonthly = async () => {
-    setAttemptedMonthly(true);
-    if (!monthlyForm.period) {
-      notify.error("Period is required.");
-      return;
-    }
-    setIsSavingMonthly(true);
-    try {
-      await monitoringApi.createMonthlyReport({
-        project: Number(selectedProject),
-        period: `${monthlyForm.period}-01`,
-        narrative: monthlyForm.narrative || undefined,
-        document: monthlyForm.document ? Number(monthlyForm.document) : null,
-      });
-      setAttemptedMonthly(false);
-      notify.success("Monthly progress report submitted.");
-      setMonthlyForm(emptyMonthlyForm);
-      await loadSection(Number(selectedProject), "monthly");
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not submit this report."));
-    } finally {
-      setIsSavingMonthly(false);
-    }
-  };
-
-  const handleAddMidterm = async () => {
-    setAttemptedMidterm(true);
-    if (!midtermForm.project_year) {
-      notify.error("Project year is required.");
-      return;
-    }
-    setIsSavingMidterm(true);
-    try {
-      await monitoringApi.createMidtermReport({
-        project: Number(selectedProject),
-        project_year: Number(midtermForm.project_year),
-        narrative: midtermForm.narrative || undefined,
-        expenditure_summary: midtermForm.expenditure_summary || undefined,
-        document: midtermForm.document ? Number(midtermForm.document) : null,
-      });
-      setAttemptedMidterm(false);
-      notify.success("Midterm report submitted.");
-      setMidtermForm(emptyMidtermForm);
-      await loadSection(Number(selectedProject), "midterm");
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not submit this report."));
-    } finally {
-      setIsSavingMidterm(false);
-    }
-  };
-
-  const handleAddTerminal = async () => {
-    setIsSavingTerminal(true);
-    try {
-      const report = await monitoringApi.createTerminalReport({
-        project: Number(selectedProject),
-        narrative: terminalForm.narrative || undefined,
-        document: terminalForm.document ? Number(terminalForm.document) : null,
-      });
-      notify.success("Terminal report submitted.");
-      setTerminalForm(emptyTerminalForm);
-      setTerminalReport(report);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not submit the terminal report."));
-    } finally {
-      setIsSavingTerminal(false);
-    }
-  };
-
-  const handleCertifyTerminal = async () => {
-    if (!terminalReport) return;
-    setIsCertifying(true);
-    try {
-      setTerminalReport(await monitoringApi.certifyTerminalReport(terminalReport.id));
-      notify.success("Terminal report certified.");
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not certify this report."));
-    } finally {
-      setIsCertifying(false);
-    }
-  };
-
-  const handleAddEvaluation = async () => {
-    setAttemptedEval(true);
-    if (!evalForm.project_year || !evalForm.scheduled_date) {
-      notify.error("Project year and scheduled date are required.");
-      return;
-    }
-    setIsSavingEval(true);
-    try {
-      await monitoringApi.createEvaluation({
-        project: Number(selectedProject),
-        project_year: Number(evalForm.project_year),
-        scheduled_date: evalForm.scheduled_date,
-        panel_members: evalForm.panel_members || undefined,
-      });
-      setAttemptedEval(false);
-      notify.success("Evaluation scheduled.");
-      setEvalForm(emptyEvalForm);
-      await loadSection(Number(selectedProject), "evaluations");
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not schedule this evaluation."));
-    } finally {
-      setIsSavingEval(false);
-    }
-  };
-
-  const evalDraft = (evaluation: ProjectEvaluation) =>
-    evalDrafts[evaluation.id] ?? { outcome: evaluation.outcome, remarks: evaluation.remarks };
-
-  const handleSaveEvaluation = async (evaluation: ProjectEvaluation) => {
-    const draft = evalDraft(evaluation);
-    setSavingEvalId(evaluation.id);
-    try {
-      const updated = await monitoringApi.updateEvaluation(evaluation.id, {
-        outcome: draft.outcome,
-        remarks: draft.remarks,
-      });
-      setEvaluations((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-      setEvalDrafts((prev) => {
-        const next = { ...prev };
-        delete next[evaluation.id];
-        return next;
-      });
-      notify.success("Evaluation outcome recorded.");
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not record the outcome."));
-    } finally {
-      setSavingEvalId(null);
-    }
-  };
-
-  const handleAddRenewal = async () => {
-    if (!renewalForm.application_year) {
-      notify.error("Application year is required.");
-      return;
-    }
-    setIsSavingRenewal(true);
-    try {
-      await monitoringApi.createRenewalApplication({
-        project: Number(selectedProject),
-        application_year: Number(renewalForm.application_year),
-        underspend_justification: renewalForm.underspend_justification || undefined,
-      });
-      notify.success("Renewal application submitted.");
-      setRenewalForm(emptyRenewalForm);
-      await loadSection(Number(selectedProject), "renewal");
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not submit this renewal application."));
-    } finally {
-      setIsSavingRenewal(false);
-    }
-  };
-
-  const handleDecideRenewal = async (application: RenewalApplication, decision: RenewalStatus) => {
-    setDecidingId(application.id);
-    try {
-      const updated = await monitoringApi.decideRenewalApplication(application.id, decision);
-      setRenewalApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not record the decision."));
-    } finally {
-      setDecidingId(null);
-    }
-  };
-
-  const escalationBadgeClass =
-    status?.escalation_status === "notify_dean_riuh" ? "text-destructive" : "";
+  if (projects === null) return <SkeletonRows />;
 
   return (
-    <div>
-      <PageHeader
-        title="Project Monitoring and Reporting"
-        description="Monthly/midterm/terminal reports, annual evaluations, and renewal applications, with the renewal-year continuation rule under the Manual computed live."
-      />
-
-      <Card className="mb-6 p-4">
-        <FieldLabel required>Project</FieldLabel>
-        <Select value={selectedProject} onValueChange={handleSelectProject} disabled={isLoadingProjects}>
-          <SelectTrigger className="sm:w-96">
-            <SelectValue placeholder="Select a project" />
-          </SelectTrigger>
-          <SelectContent>
-            {projects.length === 0 && <EmptyOption message="No projects registered yet" />}
-            {projects.map((p) => (
-              <SelectItem key={p.id} value={String(p.id)}>
-                {p.project_code} — {p.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Card>
-
-      <div className="mb-6 flex flex-wrap gap-2">
-        {SECTIONS.map((s) => (
-          <Button
-            key={s.key}
-            size="sm"
-            variant={section === s.key ? "default" : "outline"}
-            onClick={() => handleSelectSection(s.key)}
+    <div className="space-y-5 animate-fade-in">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className={`flex items-center gap-2 ${view === "rubric" ? "invisible" : ""}`}>
+          <p className="text-xs font-bold" style={{ color: "#64748b" }}>Project:</p>
+          <select
+            value={projectId ?? ""}
+            onChange={(e) => {
+              setStatus(null);
+              setEva(null);
+              setProjectId(Number(e.target.value));
+            }}
+            disabled={projects.length === 0}
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold border outline-none max-w-[420px]"
+            style={{ borderColor: "#e2e8f0", background: "white", color: "#334155" }}
           >
-            {s.label}
-          </Button>
-        ))}
+            {projects.length === 0 && <option value="">No projects</option>}
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.project_code} — {p.title}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-1 p-1 rounded-xl" style={{ background: "#e2e8f0" }}>
+          {(
+            [
+              ["board", "📊 Project M&E"],
+              ["rubric", "⚖️ Evaluation Rubric"],
+            ] as const
+          ).map(([k, l]) => (
+            <button key={k} onClick={() => setView(k)} className="px-4 py-2 rounded-lg text-xs font-bold transition-all" style={view === k ? { background: "white", color: "#0d2a5e", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "#64748b" }}>
+              {l}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {!selectedProject ? (
-        <EmptyState
-          icon={<Activity className="size-7" />}
-          title="Select a project"
-          description="Choose a project above to view or record its monitoring records."
-        />
+      {view === "rubric" ? (
+        <RubricPanel canEvaluate={can(EVALUATE_ROLE_CODES)} />
+      ) : !project ? (
+        <NoActualData message="No projects yet" />
       ) : (
         <>
-          {section === "status" && (
-            <Card className="p-4">
-              {isLoadingSection || !status ? (
-                <p className="text-sm text-muted-foreground">Loading status…</p>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Escalation Status</p>
-                    <Badge
-                      variant={status.escalation_status === "terminate_recommended" ? "destructive" : "outline"}
-                      className={`mt-1 ${escalationBadgeClass}`}
-                    >
-                      {ESCALATION_LABELS[status.escalation_status]}
-                    </Badge>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {kpi("Total Indicators", indicators.length, "#0d2a5e")}
+            {kpi("Achieved", count("achieved"), "#059669")}
+            {kpi("On Track", count("on_track"), "#0891b2")}
+            {kpi("At Risk", count("at_risk"), "#f59e0b")}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {kpi("Off Track", count("off_track"), "#ef4444")}
+            {kpi("Not Yet Started", count("not_started"), "#94a3b8")}
+            {kpi("Completed Evals", evals.filter((e) => e.outcome !== "pending").length, "#166534")}
+            {kpi("Scheduled Evals", evals.filter((e) => e.outcome === "pending").length, "#0369a1")}
+          </div>
+
+          <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+            <div className="px-5 py-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+              <div className="min-w-0">
+                <p className="text-xs font-mono font-bold" style={{ color: "#94a3b8" }}>{project.project_code}</p>
+                <p className="font-black text-sm leading-snug mt-0.5" style={{ color: "#0d2a5e" }}>{project.title}</p>
+              </div>
+              {loaded && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0" style={{ background: ESCALATION_META[status!.escalation_status].bg, color: ESCALATION_META[status!.escalation_status].color }}>
+                  {ESCALATION_META[status!.escalation_status].label}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-4" style={{ borderBottom: "1px solid #e2e8f0" }}>
+              {(
+                [
+                  ["Achieved", count("achieved"), "#059669"],
+                  ["On Track", count("on_track"), "#0891b2"],
+                  ["At Risk", count("at_risk"), "#f59e0b"],
+                  ["Off Track", count("off_track"), "#ef4444"],
+                ] as const
+              ).map(([l, v, c]) => (
+                <div key={l} className="px-4 py-3 text-center">
+                  <p className="text-xl font-black" style={{ color: c }}>{loaded ? v : "—"}</p>
+                  <p className="text-xs font-semibold" style={{ color: c }}>{l}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex border-b overflow-x-auto" style={{ borderColor: "#e2e8f0" }}>
+              {(
+                [
+                  ["indicators", "Indicators"],
+                  ["performance", "Performance Map"],
+                  ["evaluations", "Evaluations"],
+                  ["reports", "Progress Reports"],
+                  ["extensions", "Extensions"],
+                  ["renewal", "Renewal"],
+                ] as [BoardTab, string][]
+              ).map(([k, l]) => (
+                <button key={k} onClick={() => setTab(k)} className="px-5 py-3 text-xs font-semibold border-b-2 transition-all whitespace-nowrap" style={{ borderBottomColor: tab === k ? "#0891b2" : "transparent", color: tab === k ? "#0891b2" : "#64748b" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-4">
+              {(tab === "indicators" || tab === "performance") && !loaded && <SkeletonRows />}
+
+              {tab === "indicators" && loaded && (
+                <div className="space-y-3">
+                  <div className="flex gap-2 flex-wrap mb-3">
+                    {(["all", "output", "outcome", "process"] as (IndicatorType | "all")[]).map((t) => (
+                      <button key={t} onClick={() => setTypeFilter(t)} className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all" style={{ background: typeFilter === t ? "#0d2a5e" : "#f1f5f9", color: typeFilter === t ? "white" : "#64748b" }}>
+                        {t === "all" ? "All Types" : IND_TYPE_META[t].icon + " " + IND_TYPE_META[t].label}
+                      </button>
+                    ))}
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Months Since Last Monthly Report</p>
-                    <p className="mt-1 text-sm font-medium text-navy">
-                      {status.months_since_last_report ?? "—"}
-                    </p>
+                  {shown.map((ind) => (
+                    <div key={ind.key} className="rounded-2xl p-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <TypeChip t={ind.type} />
+                            <IndicatorStatusBadge s={ind.status} />
+                          </div>
+                          <p className="text-xs font-bold leading-snug" style={{ color: "#0d2a5e" }}>{ind.name}</p>
+                          <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{ind.note}</p>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <p className="text-xl font-black" style={{ color: "#0d2a5e" }}>{ind.value}</p>
+                          <p className="text-xs" style={{ color: "#94a3b8" }}>target {ind.target}</p>
+                        </div>
+                      </div>
+                      {ind.pct !== null && (
+                        <div className="mt-2.5">
+                          <ProgressBar pct={ind.pct} status={ind.status} />
+                          <div className="flex justify-end mt-1">
+                            <span className="text-xs font-bold" style={{ color: "#0d2a5e" }}>{Math.round(ind.pct)}%</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {tab === "performance" && loaded && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, #0d2a5e, #1a3f7a)" }}>
+                    <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "rgba(168,196,232,0.5)" }}>Overall Performance Score</p>
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="text-5xl font-black text-white">{overallPct}%</p>
+                        <p className="text-xs mt-1" style={{ color: "rgba(168,196,232,0.5)" }}>
+                          {count("achieved") + count("on_track")} of {measured.length} measured indicators achieved or on track
+                        </p>
+                      </div>
+                      <div className="flex-1">
+                        <div className="w-full rounded-full overflow-hidden" style={{ height: "10px", background: "rgba(255,255,255,0.1)" }}>
+                          <div className="h-full rounded-full" style={{ width: `${overallPct}%`, background: overallPct >= 80 ? "#4ade80" : overallPct >= 60 ? "#fbbf24" : "#f87171" }} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Budget Used</p>
-                    <p className="mt-1 text-sm font-medium text-navy">{pct(status.budget_used_pct)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Deliverables Done</p>
-                    <p className="mt-1 text-sm font-medium text-navy">{pct(status.deliverables_pct)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Midterm Reports Submitted</p>
-                    <p className="mt-1 text-sm font-medium text-navy">
-                      {status.midterm_submitted_years.length > 0
-                        ? status.midterm_submitted_years.sort((a, b) => a - b).join(", ")
-                        : "None yet"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Terminal Report</p>
-                    <p className="mt-1 text-sm font-medium text-navy">
-                      {status.terminal_submitted ? "Submitted" : "Not submitted"}
-                    </p>
+                  <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid #e2e8f0" }}>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr style={{ background: "#f8fafc" }}>
+                          {["Indicator", "Type", "Target", "Actual", "Progress", "Status"].map((h, idx) => (
+                            <th key={h} className={`px-3 py-3 font-bold ${idx === 0 ? "text-left px-4" : idx < 4 ? "text-right" : "text-center"}`} style={{ color: "#64748b" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {indicators.map((ind) => (
+                          <tr key={ind.key} className="border-t" style={{ borderColor: "#f1f5f9" }}>
+                            <td className="px-4 py-3 font-semibold" style={{ color: "#0d2a5e", maxWidth: "260px" }}>
+                              <p className="truncate">{ind.name}</p>
+                              <p className="text-xs font-normal truncate mt-0.5" style={{ color: "#94a3b8" }}>{ind.note}</p>
+                            </td>
+                            <td className="px-3 py-3 text-right">
+                              <span className="inline-block text-xs font-semibold px-1.5 py-0.5 rounded" style={{ background: IND_TYPE_META[ind.type].bg, color: IND_TYPE_META[ind.type].color }}>{IND_TYPE_META[ind.type].icon}</span>
+                            </td>
+                            <td className="px-3 py-3 text-right font-bold" style={{ color: "#0d2a5e" }}>{ind.target}</td>
+                            <td className="px-3 py-3 text-right font-black" style={{ color: "#0891b2" }}>{ind.value}</td>
+                            <td className="px-3 py-3 w-36">
+                              {ind.pct !== null ? (
+                                <div className="flex items-center gap-1.5">
+                                  <div className="flex-1 rounded-full overflow-hidden" style={{ height: "5px", background: "#f1f5f9" }}>
+                                    <div className="h-full rounded-full" style={{ width: `${ind.pct}%`, background: IND_STATUS_META[ind.status].dot }} />
+                                  </div>
+                                  <span className="text-xs font-mono" style={{ color: "#64748b" }}>{Math.round(ind.pct)}%</span>
+                                </div>
+                              ) : (
+                                <p className="text-center" style={{ color: "#cbd5e1" }}>—</p>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-center"><IndicatorStatusBadge s={ind.status} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
-              <div className="mt-4 flex justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => loadSection(Number(selectedProject), "status")}
-                  disabled={isLoadingSection}
-                >
-                  <RefreshCw className="size-4" />
-                  Refresh
-                </Button>
-              </div>
-            </Card>
-          )}
 
-          {section === "monthly" && (
-            <>
-              {canReport && (
-                <Card className="mb-6 p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-navy">Submit a Monthly Progress Report</h3>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                      <FieldLabel required>Period</FieldLabel>
-                      <Input
-                        aria-invalid={attemptedMonthly && !monthlyForm.period}
-                        type="month"
-                        value={monthlyForm.period}
-                        onChange={(e) => setMonthlyForm((f) => ({ ...f, period: e.target.value }))}
-                      />
-                    </div>
-                    <DocumentPicker
-                      value={monthlyForm.document}
-                      onChange={(v) => setMonthlyForm((f) => ({ ...f, document: v }))}
-                      documents={documents}
-                    />
-                    <div className="sm:col-span-2 lg:col-span-3">
-                      <FieldLabel>Narrative</FieldLabel>
-                      <Textarea
-                        value={monthlyForm.narrative}
-                        onChange={(v) => setMonthlyForm((f) => ({ ...f, narrative: v }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <Button size="sm" onClick={handleAddMonthly} disabled={isSavingMonthly}>
-                      {isSavingMonthly ? "Submitting..." : "Submit Report"}
-                    </Button>
-                  </div>
-                </Card>
+              {tab === "evaluations" && <EvaluationsPanel project={project.id} canEvaluate={can(EVALUATE_ROLE_CODES)} reloadKey={reloadKey} onChanged={changed} />}
+              {tab === "reports" && <ProgressReportsPanel project={project.id} canReport={can(REPORT_ROLE_CODES)} canCertify={can(CERTIFY_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />}
+              {tab === "extensions" && (
+                <ExtensionsPanel project={project} canRequest={can(EXT_REQUEST_ROLE_CODES)} canEndorse={can(EXT_ENDORSE_ROLE_CODES)} canApprove={can(EXT_APPROVE_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />
               )}
-
-              <Card className="overflow-hidden p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-secondary/60 hover:bg-secondary/60">
-                      <TableHead>Period</TableHead>
-                      <TableHead>Narrative</TableHead>
-                      <TableHead>Document</TableHead>
-                      <TableHead>Submitted</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoadingSection ? (
-                      <TableSkeletonRows rows={3} columns={4} />
-                    ) : monthlyReports.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="p-0">
-                          <EmptyState icon={<CalendarClock className="size-7" />} title="No monthly reports yet" />
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      monthlyReports.map((r) => (
-                        <TableRow key={r.id}>
-                          <TableCell className="font-medium">{r.period.slice(0, 7)}</TableCell>
-                          <TableCell className="max-w-sm truncate">{r.narrative || "—"}</TableCell>
-                          <TableCell>
-                            {r.document ? documents.find((d) => d.id === r.document)?.file_name ?? `#${r.document}` : "—"}
-                          </TableCell>
-                          <TableCell>{new Date(r.submitted_at).toLocaleDateString()}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </>
-          )}
-
-          {section === "midterm" && (
-            <>
-              {canReport && (
-                <Card className="mb-6 p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-navy">Submit a Midterm Report (Appendix E)</h3>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                      <FieldLabel required>Project Year</FieldLabel>
-                      <Input
-                        aria-invalid={attemptedMidterm && !midtermForm.project_year}
-                        type="number"
-                        min="1"
-                        value={midtermForm.project_year}
-                        onChange={(e) => setMidtermForm((f) => ({ ...f, project_year: e.target.value }))}
-                      />
-                    </div>
-                    <DocumentPicker
-                      value={midtermForm.document}
-                      onChange={(v) => setMidtermForm((f) => ({ ...f, document: v }))}
-                      documents={documents}
-                    />
-                    <div className="sm:col-span-2 lg:col-span-3">
-                      <FieldLabel>Narrative</FieldLabel>
-                      <Textarea
-                        value={midtermForm.narrative}
-                        onChange={(v) => setMidtermForm((f) => ({ ...f, narrative: v }))}
-                      />
-                    </div>
-                    <div className="sm:col-span-2 lg:col-span-3">
-                      <FieldLabel>Expenditure Summary</FieldLabel>
-                      <Textarea
-                        value={midtermForm.expenditure_summary}
-                        onChange={(v) => setMidtermForm((f) => ({ ...f, expenditure_summary: v }))}
-                        placeholder="Summary of expenditures per quarter"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <Button size="sm" onClick={handleAddMidterm} disabled={isSavingMidterm}>
-                      {isSavingMidterm ? "Submitting..." : "Submit Report"}
-                    </Button>
-                  </div>
-                </Card>
-              )}
-
-              <Card className="overflow-hidden p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-secondary/60 hover:bg-secondary/60">
-                      <TableHead>Year</TableHead>
-                      <TableHead>Narrative</TableHead>
-                      <TableHead>Expenditure Summary</TableHead>
-                      <TableHead>Submitted</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoadingSection ? (
-                      <TableSkeletonRows rows={3} columns={4} />
-                    ) : midtermReports.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="p-0">
-                          <EmptyState icon={<ClipboardCheck className="size-7" />} title="No midterm reports yet" />
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      midtermReports.map((r) => (
-                        <TableRow key={r.id}>
-                          <TableCell className="font-medium">Y{r.project_year}</TableCell>
-                          <TableCell className="max-w-sm truncate">{r.narrative || "—"}</TableCell>
-                          <TableCell className="max-w-sm truncate">{r.expenditure_summary || "—"}</TableCell>
-                          <TableCell>{new Date(r.submitted_at).toLocaleDateString()}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </>
-          )}
-
-          {section === "terminal" && (
-            <>
-              {isLoadingSection ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              ) : terminalReport ? (
-                <Card className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-sm font-semibold text-navy">Terminal Report (Appendix F)</h3>
-                    <Badge variant={terminalReport.is_certified ? "outline" : "secondary"}>
-                      {terminalReport.is_certified ? "Certified" : "Awaiting Certification"}
-                    </Badge>
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Narrative</p>
-                      <p className="mt-1 text-sm">{terminalReport.narrative || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Document</p>
-                      <p className="mt-1 text-sm">
-                        {terminalReport.document
-                          ? documents.find((d) => d.id === terminalReport.document)?.file_name ??
-                            `#${terminalReport.document}`
-                          : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Submitted</p>
-                      <p className="mt-1 text-sm">{new Date(terminalReport.submitted_at).toLocaleDateString()}</p>
-                    </div>
-                    {terminalReport.is_certified && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Certified</p>
-                        <p className="mt-1 text-sm">
-                          {terminalReport.certified_at && new Date(terminalReport.certified_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {!terminalReport.is_certified && canCertifyTerminal && (
-                    <div className="mt-4 flex justify-end">
-                      <Button size="sm" onClick={handleCertifyTerminal} disabled={isCertifying}>
-                        <FileCheck2 className="size-4" />
-                        {isCertifying ? "Certifying..." : "Certify Terminal Report"}
-                      </Button>
-                    </div>
-                  )}
-                  {!terminalReport.is_certified && !canCertifyTerminal && (
-                    <p className="mt-3 text-right text-xs text-muted-foreground">Awaiting RIUH or System Admin certification</p>
-                  )}
-                </Card>
-              ) : canReport ? (
-                <Card className="p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-navy">Submit the Terminal Report (Appendix F)</h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <DocumentPicker
-                      value={terminalForm.document}
-                      onChange={(v) => setTerminalForm((f) => ({ ...f, document: v }))}
-                      documents={documents}
-                    />
-                    <div className="sm:col-span-2">
-                      <FieldLabel>Narrative</FieldLabel>
-                      <Textarea
-                        value={terminalForm.narrative}
-                        onChange={(v) => setTerminalForm((f) => ({ ...f, narrative: v }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <Button size="sm" onClick={handleAddTerminal} disabled={isSavingTerminal}>
-                      {isSavingTerminal ? "Submitting..." : "Submit Terminal Report"}
-                    </Button>
-                  </div>
-                </Card>
-              ) : (
-                <EmptyState icon={<FileCheck2 className="size-7" />} title="No terminal report submitted yet" />
-              )}
-            </>
-          )}
-
-          {section === "evaluations" && (
-            <>
-              {canPanelEvaluate && (
-                <Card className="mb-6 p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-navy">Schedule an Annual Evaluation</h3>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                      <FieldLabel required>Project Year</FieldLabel>
-                      <Input
-                        aria-invalid={attemptedEval && !evalForm.project_year}
-                        type="number"
-                        min="1"
-                        value={evalForm.project_year}
-                        onChange={(e) => setEvalForm((f) => ({ ...f, project_year: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel required>Scheduled Date</FieldLabel>
-                      <Input
-                        aria-invalid={attemptedEval && !evalForm.scheduled_date}
-                        type="date"
-                        value={evalForm.scheduled_date}
-                        onChange={(e) => setEvalForm((f) => ({ ...f, scheduled_date: e.target.value }))}
-                      />
-                    </div>
-                    <div className="sm:col-span-2 lg:col-span-3">
-                      <FieldLabel>Panel Members</FieldLabel>
-                      <Textarea
-                        value={evalForm.panel_members}
-                        onChange={(v) => setEvalForm((f) => ({ ...f, panel_members: v }))}
-                        placeholder="Names/roles of panel members, incl. any external member"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <Button size="sm" onClick={handleAddEvaluation} disabled={isSavingEval}>
-                      {isSavingEval ? "Scheduling..." : "Schedule Evaluation"}
-                    </Button>
-                  </div>
-                </Card>
-              )}
-
-              <Card className="overflow-hidden p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-secondary/60 hover:bg-secondary/60">
-                      <TableHead>Year</TableHead>
-                      <TableHead>Scheduled</TableHead>
-                      <TableHead>Panel Members</TableHead>
-                      <TableHead>Outcome</TableHead>
-                      <TableHead>Remarks</TableHead>
-                      {canPanelEvaluate && <TableHead className="text-right">Record</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoadingSection ? (
-                      <TableSkeletonRows rows={3} columns={canPanelEvaluate ? 6 : 5} />
-                    ) : evaluations.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={canPanelEvaluate ? 6 : 5} className="p-0">
-                          <EmptyState icon={<ClipboardCheck className="size-7" />} title="No evaluations scheduled yet" />
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      evaluations.map((e) => {
-                        const draft = evalDraft(e);
-                        return (
-                          <TableRow key={e.id}>
-                            <TableCell className="font-medium">Y{e.project_year}</TableCell>
-                            <TableCell>{e.scheduled_date}</TableCell>
-                            <TableCell className="max-w-xs truncate">{e.panel_members || "—"}</TableCell>
-                            <TableCell>
-                              {canPanelEvaluate ? (
-                                <Select
-                                  value={draft.outcome}
-                                  onValueChange={(v) =>
-                                    setEvalDrafts((prev) => ({
-                                      ...prev,
-                                      [e.id]: { ...draft, outcome: v as EvaluationOutcome },
-                                    }))
-                                  }
-                                >
-                                  <SelectTrigger className="h-8 w-36">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.entries(OUTCOME_LABELS).map(([value, label]) => (
-                                      <SelectItem key={value} value={value}>
-                                        {label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <Badge variant="outline">{OUTCOME_LABELS[e.outcome]}</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {canPanelEvaluate ? (
-                                <Input
-                                  className="h-8 w-48"
-                                  value={draft.remarks}
-                                  onChange={(ev) =>
-                                    setEvalDrafts((prev) => ({
-                                      ...prev,
-                                      [e.id]: { ...draft, remarks: ev.target.value },
-                                    }))
-                                  }
-                                />
-                              ) : (
-                                e.remarks || "—"
-                              )}
-                            </TableCell>
-                            {canPanelEvaluate && (
-                              <TableCell className="text-right">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleSaveEvaluation(e)}
-                                  disabled={savingEvalId === e.id}
-                                >
-                                  Save
-                                </Button>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </>
-          )}
-
-          {section === "renewal" && (
-            <>
-              {canReport && (
-                <Card className="mb-6 p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-navy">Apply for Renewal</h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <FieldLabel required>Application Year</FieldLabel>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={renewalForm.application_year}
-                        onChange={(e) => setRenewalForm((f) => ({ ...f, application_year: e.target.value }))}
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <FieldLabel>Underspend Justification</FieldLabel>
-                      <Textarea
-                        value={renewalForm.underspend_justification}
-                        onChange={(v) => setRenewalForm((f) => ({ ...f, underspend_justification: v }))}
-                        placeholder="Reasonable explanation for unspent funds, if budget usage is below 70%"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <Button size="sm" onClick={handleAddRenewal} disabled={isSavingRenewal}>
-                      {isSavingRenewal ? "Submitting..." : "Submit Application"}
-                    </Button>
-                  </div>
-                </Card>
-              )}
-
-              <Card className="overflow-hidden p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-secondary/60 hover:bg-secondary/60">
-                      <TableHead>Year</TableHead>
-                      <TableHead>Eligible</TableHead>
-                      <TableHead>Budget Used</TableHead>
-                      <TableHead>Deliverables</TableHead>
-                      <TableHead>Status</TableHead>
-                      {canDecideRenewal && <TableHead className="text-right">Review</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoadingSection ? (
-                      <TableSkeletonRows rows={3} columns={canDecideRenewal ? 6 : 5} />
-                    ) : renewalApplications.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={canDecideRenewal ? 6 : 5} className="p-0">
-                          <EmptyState icon={<RefreshCw className="size-7" />} title="No renewal applications yet" />
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      renewalApplications.map((a) => (
-                        <TableRow key={a.id}>
-                          <TableCell className="font-medium">Y{a.application_year}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={a.renewal_eligible ? "" : "text-muted-foreground"}>
-                              {a.renewal_eligible ? "Eligible" : "Not Eligible"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{pct(a.budget_used_pct)}</TableCell>
-                          <TableCell>{pct(a.deliverables_pct)}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{RENEWAL_STATUS_LABELS[a.status]}</Badge>
-                          </TableCell>
-                          {canDecideRenewal && (
-                            <TableCell className="text-right">
-                              {a.status === "pending" ? (
-                                <div className="flex justify-end gap-1.5">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleDecideRenewal(a, "approved")}
-                                    disabled={decidingId === a.id}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDecideRenewal(a, "denied")}
-                                    disabled={decidingId === a.id}
-                                  >
-                                    Deny
-                                  </Button>
-                                </div>
-                              ) : (
-                                "—"
-                              )}
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </Card>
-            </>
-          )}
+              {tab === "renewal" && <RenewalPanel project={project.id} canReport={can(REPORT_ROLE_CODES)} canDecide={can(RENEWAL_DECIDE_ROLE_CODES)} onChanged={changed} reloadKey={reloadKey} />}
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -977,7 +514,7 @@ function MonitoringContent() {
 export default function MonitoringPage() {
   return (
     <ProtectedRoute>
-      <AppShell title="Project Monitoring">
+      <AppShell title="Monitoring & Evaluation">
         <MonitoringContent />
       </AppShell>
     </ProtectedRoute>
