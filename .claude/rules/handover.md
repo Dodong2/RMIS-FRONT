@@ -1,15 +1,14 @@
 # RMIS Frontend — Current Status
 
 ## Module we're on
-All 14 docx-spec modules are wired up and Module 14 (Reports) is committed
-and client browser-tested (2026-09-23). Two things landed on top of that
-(not new modules): the Audit Logs / Procurement cross-cutting fix (commit
-`4c8650b`, API-smoke-tested by Claude only, not yet browser-tested) and a
-UI polish pass (commit `0e490eb`) — see their bullets below. See "Next
-thing to do" for what's still unverified overall.
+Prototype UI clone (`tasks/plan.md`, `tasks/todo.md`): T1–T29 are done and committed. What's left is human work: the
+browser reviews for Checkpoints D, E and F plus the "Complete" sign-off (see "Next thing to do").
+The per-module bullets under "Frontend status" describe the pre-clone pages. Where a clone changed a page, the
+"Prototype clone status" bullet and each task's **Result** note in `tasks/todo.md` win. Those older bullets also say
+"`tsc --noEmit` clean"; the real type-check is `npx tsc -b` (see CLAUDE.md).
 
 ## Design reference
-`../University Research Operations Website` (sibling dir to this repo) is a
+`University Research Operations Website/` (inside this repo, gitignored and eslint-ignored, read-only) is a
 Figma Make prototype (mock data, no real backend) that was the original
 design intent for this app's look. It uses navy + **cyan** as its palette;
 our app previously used navy + gold (a branding call made in an earlier
@@ -37,6 +36,24 @@ inline-styled JSX), a token-level change already propagates everywhere
 automatically — most pages needed zero code changes for this pass.
 
 ## Frontend status (this repo)
+- **Prototype clone status (2026-09-25):** every nav page wears the prototype look on real data. Per-task detail is in
+  each **Result** note in `tasks/todo.md`. Finished this session (T24–T29):
+  - T24 Analytics: Overview + Budget Forecast tabs, CSS charts replace recharts (only `BudgetForecastPage` still
+    uses recharts).
+  - T25 Decision Support: "DSS Models" = AHP runs (+ New, Set Weights = Saaty pairwise + finalize). Run DSS triggers
+    a recommendation. Rankings (composite × 100, cosmetic grade bands), sensitivity, and score-detail modal.
+    Decision records are real; `system_admin/drd/vprei/university_admin` can decide (Fund/Defer/Decline).
+  - T26 User & Access Management (`/admin/users`): accounts with `account-status/` actions and the hand-over-first
+    error, profiles, org assignments from real `scope` (editable), read-only permission matrix, access audit.
+    Pending Registrations restyled. Temporary replacement while suspended is mocked.
+  - T27 Audit Logs: activity list with derived module/action labels, KPIs, module filter, XLSX export.
+  - T28 System Settings (`/admin/settings`, new): System Information mocked. The access matrix (from
+    `admin/permissions/`) and the user list are real, a deliberate deviation from "fully mocked".
+  - T29 wrap-up: registry audit (6 mocks ↔ 6 rows ↔ 6 imports) and a headless walkthrough of every nav item as
+    system_admin, project_leader and finance_budget. All 47 page loads were clean.
+
+  Mocks are tracked in `src/mocks/REGISTRY.md`: topbar notifications, work-plan versions, document sharing, scheduled
+  reports, temporary replacement, system info.
 - Module 1 (Auth/RBAC pages): done, stable.
 - Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. UI
   reworked 2026-09-22 per client request: ProjectsPage's two inline "Register
@@ -583,9 +600,11 @@ docx module):
   excluded)
 
 ## Design pattern to follow
-Same as ProjectsPage/ProjectDetailPage: AppShell + ProtectedRoute + PageHeader
-+ EmptyState + TableSkeletonRows + notify toasts, gate write-forms behind a
-canManage-style role check computed from useAuth().
+Since the prototype clone, pages use the CLAUDE.md "Styling" rules: AppShell + ProtectedRoute, prototype markup, the
+shared pieces in `src/components/common/proto.tsx` (SectionCard, KpiCard, Field, TableHead, Pill, SkeletonRows,
+ProtoModal, which portals), `src/lib/protoStyles.ts`, `NoActualData`, and `notify` toasts. Write actions are gated
+behind a `*_ROLE_CODES` check on `useAuth().user.role.code`. The old PageHeader/EmptyState/TableSkeletonRows shadcn
+pattern is pre-clone.
 
 ## Known gaps / things to double check once backend is live
 - Realignment "once per calendar year per project" and "60 days before
@@ -595,95 +614,49 @@ canManage-style role check computed from useAuth().
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-2026-09-24 (latest): read rmis-backend `dea9255` (DPMIS alignment round). Synced
-every changed/new serializer into `src/types/` (auth, budget, compliance,
-dashboard, decisionSupport, document, financial, monitoring, outputs,
-personnel, research, reports, risk, new `budgetSync.ts`) and fixed the pages
-that broke: RisksPage (5x5 scoring, `critical` level, 2 new flags, score +
-recommended action), CompliancePage (review bodies are now
-`trc`/`integrity_review`/`external_review`), UsersListPage (toggle-active now
-means Suspend/Reactivate), plus label maps in DecisionSupportPage/ReportsPage.
-`BudgetSummary` figures corrected to numbers (raw dict → DRF float, was
-wrongly typed as string). **Found: `npx tsc -b` never type-checked** — TS 6
-raises TS5101 on tsconfig's deprecated `baseUrl` and stops; earlier "tsc
-clean" notes were not real checks. Verify with `npx tsc --noEmit -p
-tsconfig.app.json --ignoreDeprecations 6.0` (clean now). No API functions or
-UI for the new endpoints yet — those belong to the prototype UI clone plan
-(`tasks/plan.md`, `tasks/todo.md`), which supersedes the 2026-09-22
-"design-system pass only" scope. Not committed.
+2026-09-25 (second session): finished the prototype UI clone, T24–T29, each committed after Carl said yes:
+`5528a77` T24, `5452a3f` T25, `77523e7` T26, `beb2ffd` T27, `1fa0926` T28 (T29 = the handover/tasks commit).
 
-Previous entry:
-Wired up the Audit Logs / Procurement cross-cutting fix (not a docx
-module — see that bullet above for full detail): added
-src/pages/admin/AuditLogsPage.tsx (+ AuditLog type in types/auth.ts,
-getAuditLogs in authApi.ts) and src/pages/ProcurementPage.tsx (updated
-budgetApi.getLineItems to a params-object signature), flipped both
-pre-existing nav.ts placeholders (`/admin/audit`, `/procurement`) to ready,
-and split BudgetPage.tsx's single `canManage` flag into `MANAGE_ROLE_CODES`
-(now includes procurement_officer_lib) and `CERTIFY_ROLE_CODES` (unchanged)
-so Procurement never sees a Certify button that would 403. Also added
-procurement_officer_lib to the `/budget` RoleGate (it couldn't open the
-page at all before) and to the "Budget" nav.ts tiers. `tsc --noEmit` and
-`eslint` both clean. Claude smoke-tested all of it against the real dev
-DB — confirmed a mutating call shows up correctly in the audit log,
-confirmed a throwaway procurement_officer_lib test user can create a line
-item but gets 403 certifying, confirmed the institution-wide and
-per-project `is_app_flagged` worklist filters both return the right rows —
-then deleted all throwaway data (test line item, test AHP criterion, the
-resulting audit log rows, the test user) via Django shell. Not yet
-browser-tested by the client, and not yet committed.
+Verification per task:
+- rolled-back APIClient smoke tests via `manage.py shell`, run as `APIClient(HTTP_HOST="localhost")` (the default
+  `testserver` host is rejected by `ALLOWED_HOSTS`), with throwaway users created with `is_pending_role=False`
+- headless screenshots (`shot.mjs` in the session scratchpad)
+- `npx tsc -b` + build clean; eslint went from 7 to 5 pre-existing errors (T26 fixed the two admin pages)
 
-All 14 modules from the docx spec are wired up frontend-side and committed;
-Module 14 is also client browser-tested. Remaining work is browser-testing/
-polish on earlier modules plus this cross-cutting fix, not new modules.
+Temporary seed data (the T25 DSS seed with its 9 audit rows, and the walkthrough's finance user) was deleted. The dev
+DB has no DSS data, so `/api/dashboard/funding-allocation/` returns 404, which is expected and handled as "no data".
+
+Things worth knowing:
+- **Deactivate was not click-tested in the UI.** The first eligible row in the dev DB is a real account with no
+  responsibilities, so the click would really deactivate it permanently. The rolled-back test covered 200 and the
+  hand-over 400.
+- **`/api/auth/login/` shows up in the audit log** (as "Logged In"). The middleware logs it; left as is.
+- **Project leaders can't open `/reports`:** the RoleGate only allows oversight + finance. Unchanged.
+- **Downloaded report files get the fallback name** (e.g. `project_list.pdf`). The backend's `Content-Disposition`
+  apparently isn't exposed via CORS, so the frontend can't read it. Needs a backend change if wanted.
+- **Deliberate deviations (all flagged to Carl and accepted):**
+  - no mocked indicator time series
+  - compliance categories / waive dropped
+  - risk title / contingency / mitigation status dropped (no backend field)
+  - 5 report catalog entries with no data source dropped
+  - DSS decisions are Fund/Defer/Decline + indicative amount + reference no. (the backend's fields), with no
+    Approve/Terminate/Escalate or follow-up
+  - User management has no Create Account wizard (replaced by the Pending Registrations link), no Reset Password,
+    Edit Profile, employee ID or last login
+  - Settings is mostly real instead of fully mocked
 
 ## Next thing to do in this repo
-**Current work (decided 2026-09-24, resume here): Prototype UI clone.**
-Read `tasks/plan.md` (decisions, page mapping, resolved Q1-Q4) and
-`tasks/todo.md` (T1-T29 with acceptance criteria) first. Nothing implemented
-yet, start at **T1** (tsconfig `baseUrl` fix so `tsc -b` really checks,
-prototype global CSS, jspdf/jspdf-autotable/xlsx, `src/mocks/` + REGISTRY.md,
-NoActualData, protoRole helper, ignore prototype folder in eslint +
-.gitignore, CLAUDE.md styling/mock rules). Summary of what was agreed with
-Carl:
-- Copy the look of `University Research Operations Website/src/components`
-  (21 components + Layout) onto our pages, literally (Tailwind + inline
-  styles). shadcn only for Dialog/Select/Tooltip/toast. Supersedes the
-  2026-09-22 "design-system pass only" scope below.
-- Data: API with rows → real; API empty → "No actual data"; no API → prototype
-  mock in `src/mocks/`, no visible badge, tracked in `src/mocks/REGISTRY.md`.
-- Real flow, prototype look (e.g. Login keeps email + Google, no demo picker).
-- Roles/RoleGate/nav tiers stay ours; nav labels/grouping from prototype.
-- No backend changes, nothing existing removed.
-- Trigger phrase: "read mo yung changes sa rmis-backend" → diff backend since
-  `85b8e9c` (last synced 2026-09-25: backend P1–P10, see plan.md "Backend permission
-  codes → our role gates"), sync `src/types`, swap mocks that now have an endpoint,
-  update the plan's mapping table.
-
-Older list (browser-testing backlog, still valid but lower priority):
-1. Browser-test the Audit Logs / Procurement fix — as system_admin, check
-   `/admin/audit` shows real entries and the actor/method filters work; as
-   a procurement_officer_lib account, confirm `/budget` is now reachable,
-   the Add Line Item form and Remove action show but Certify Budget does
-   not, and `/procurement` shows the institution-wide APP-flagged worklist.
-2. Browser-test Module 13 end-to-end — both tabs, and ideally with at least
-   one real flag active (the dev DB's one project is currently clean/low
-   risk on all 5 flags) to see the medium/high styling for real.
-3. Browser-test Module 12 end-to-end — define a couple of real criteria,
-   run a full AHP weighting + funding recommendation cycle, and sanity
-   check whether the default criteria set (output volume, compliance,
-   budget utilization, monitoring health, renewal eligibility, forecast
-   overrun-risk) is actually what the client wants scored, since it's a
-   reasonable default rather than something client-confirmed.
-4. Browser-test Module 11 end-to-end once there's real disbursement history
-   to forecast from (or ask Claude to seed temporary throwaway data again
-   for a live look at the chart/success path).
-5. Browser-test Module 10 end-to-end — walk all 7 tabs, set a planning
-   target, and confirm the comparison chart's status coloring reads right
-   once there's non-zero data to look at (the dev DB is currently sparse:
-   1 project, no budgets/compliance/outputs recorded, so most charts will
-   show their empty state rather than real bars).
-6. Browser-test pass for Modules 4-5 (Budget, Disbursements/Realignments) —
-   only Modules 6, 7, 8, and 9 have been click-tested so far. Certify a
-   budget → record a disbursement → request/review a minor/major/BOR
-   realignment, and confirm role gating matches what's live on rmis-backend.
+1. **Human browser reviews** (Carl):
+   - Checkpoint D (Financial, T13–T17b)
+   - Checkpoint E (Research, T18–T22)
+   - Checkpoint F (Insights, T23–T25)
+   - "Complete" sign-off, including T26–T28 admin pages
+2. Any fixes that come out of those reviews.
+3. **Open questions for Carl (unanswered):**
+   - Is the DSS default criteria set OK for a real funding cycle? (It isn't client-confirmed.)
+   - Add "widen `view_users_by_role` to drd/riuh" to the backend todo?
+   - Certify P77's budget 18 in the dev DB for demo data? Don't do it without a go.
+4. **Working rules:**
+   - Never `pkill -f`/`pgrep -f`; kill dev servers by port PID (`ss -ltnp`).
+   - Django runs on :8001 from `../rmis-backend`, Vite on :5173.
+   - The trigger phrase "read mo yung changes sa rmis-backend" means: diff the backend since `85b8e9c` and sync.

@@ -614,16 +614,22 @@ Nothing on the page writes.
 **Files:** `src/pages/admin/SettingsPage.tsx`, `src/App.tsx`, `src/lib/nav.ts`, `src/mocks/settings.ts`
 **Scope:** S
 
-### - [ ] T29: Wrap-up
+### - [x] T29: Wrap-up
 **Description:** Audit registry vs code, update handover, full walkthrough.
 **Acceptance criteria:**
-- [ ] Every `src/mocks/*` import has a registry row and vice versa
-- [ ] Handover "Module we're on" / "Last thing done" / "Next thing to do" updated
+- [x] Every `src/mocks/*` import has a registry row and vice versa
+- [x] Handover "Module we're on" / "Last thing done" / "Next thing to do" updated
+**Result:** Registry audit: 6 mock files, 6 imports, 6 REGISTRY rows, all matching; backend still at `85b8e9c`, so no
+row is stale. Handover rewritten (status sections replaced, prototype path fixed, "Design pattern" updated to the proto
+components). Headless walkthrough of every sidebar link as system_admin (24), project_leader (14) and finance_budget (9,
+throwaway user, deleted after): all 47 loads landed on their route with no console errors and no access-denied text.
+The only failed API call was the expected 404 from `dashboard/funding-allocation/` (no recommendation run in the dev
+DB), which the dashboard handles as "no data".
 **Dependencies:** T1–T28
 **Files:** `src/mocks/REGISTRY.md`, `.claude/rules/handover.md`
 **Scope:** S
 
 ## Checkpoint: Complete
-- [ ] Build + lint clean
-- [ ] Every nav item visited as system_admin, a project_leader, and finance_budget
+- [x] Build + lint clean (tsc -b + build clean, eslint 5 pre-existing, none new)
+- [x] Every nav item visited as system_admin, a project_leader, and finance_budget (headless, T29)
 - [ ] Human sign-off

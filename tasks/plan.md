@@ -226,7 +226,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 - [x] T26 User & Access Management
 - [x] T27 Audit Logs
 - [x] T28 Settings (new page)
-- [ ] T29 Wrap-up: registry audit, handover, full walkthrough
+- [x] T29 Wrap-up: registry audit, handover, full walkthrough
 ### Checkpoint: Complete
 
 ## Verification approach
