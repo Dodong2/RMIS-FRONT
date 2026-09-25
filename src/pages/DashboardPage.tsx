@@ -169,7 +169,9 @@ function StatCard({
  * the sidebar uses, so the two can never disagree.
  */
 function ModuleStatus({ tier }: { tier: ReturnType<typeof resolveTier> }) {
-  const sections = visibleSections(tier).filter((s) => s.heading !== "Overview");
+  const sections = visibleSections(tier)
+    .map((s) => ({ ...s, items: s.items.filter((i) => i.to !== "/dashboard") }))
+    .filter((s) => s.items.length > 0);
   const total = sections.flatMap((s) => s.items).length;
   const ready = sections.flatMap((s) => s.items).filter((i) => i.ready).length;
 

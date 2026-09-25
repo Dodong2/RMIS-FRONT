@@ -1,14 +1,10 @@
 import { useEffect, useRef } from "react";
 import { NavLink } from "react-router-dom";
-import { LogOut } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NavIcon } from "./NavIcon";
-import { LspuMark } from "../common/LspuMark";
 import { visibleSections } from "../../lib/nav";
-import { initialsFrom, resolveTier, roleLabel, roleScopeLine } from "../../lib/roles";
+import { initialsFrom, resolveTier, roleLabel } from "../../lib/roles";
+import { protoRoleStyle } from "../../lib/protoRole";
 import type { User } from "../../types/auth";
 
 interface AppSidebarProps {
@@ -18,120 +14,127 @@ interface AppSidebarProps {
   onLogout: () => void;
 }
 
-/**
- * One sidebar for every role. Which items appear is decided entirely by the
- * user's role tier, so no role needs its own copy of this component.
- */
+const MUTED = "rgba(168,196,232,0.8)";
+
 export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebarProps) {
   const tier = resolveTier(user?.role);
   const sections = visibleSections(tier);
   const navRef = useRef<HTMLElement>(null);
+  const roleStyle = protoRoleStyle(user?.role);
 
   useEffect(() => {
     navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
   }, []);
 
   return (
-    <div className="flex h-full w-64 flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-4">
-        <LspuMark size={36} />
+    <div className="flex h-full flex-col" style={{ width: "256px", background: "#0a2050" }}>
+      <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0">
+          <span className="text-xs font-black" style={{ color: "#0d2a5e" }}>LSPU</span>
+        </div>
         <div className="min-w-0">
-          <p className="text-sm font-bold leading-tight text-white">LSPU RMIS</p>
-          <p className="truncate text-xs text-sidebar-foreground/60">
-            Research Management
-          </p>
+          <p className="text-white font-black text-sm leading-tight">LSPU–RMIS</p>
+          <p className="text-xs" style={{ color: "rgba(168,196,232,0.55)" }}>Research Mgmt. IS</p>
         </div>
       </div>
 
-      <nav ref={navRef} className="flex-1 overflow-y-auto px-2 py-3" aria-label="Main">
+      <nav ref={navRef} className="flex-1 overflow-y-auto py-3 px-2" aria-label="Main">
         {isLoading ? (
           <SidebarNavSkeleton />
         ) : sections.length === 0 ? (
-          <p className="px-3 py-6 text-xs leading-relaxed text-sidebar-foreground/60">
-            Your role has not been assigned yet. A system administrator needs to
-            approve your account before any module opens.
+          <p className="px-3 py-6 text-xs leading-relaxed" style={{ color: "rgba(168,196,232,0.55)" }}>
+            Your role has not been assigned yet. A system administrator needs to approve your account before any
+            module opens.
           </p>
         ) : (
           sections.map((section) => (
-            <div key={section.heading} className="mb-5">
-              <p className="px-3 pb-1.5 text-[11px] font-semibold text-sidebar-foreground/45">
+            <div key={section.heading} className="mb-4">
+              <p
+                className="px-3 mb-1 text-xs font-bold uppercase tracking-widest"
+                style={{ color: "rgba(168,196,232,0.35)", fontSize: "10px" }}
+              >
                 {section.heading}
               </p>
               <ul className="space-y-0.5">
-                {section.items.map((item) =>
-                  item.ready ? (
-                    <li key={item.to}>
+                {section.items.map((item) => (
+                  <li key={item.to}>
+                    {item.ready ? (
                       <NavLink
                         to={item.to}
+                        end={item.to === "/budget"}
                         onClick={onNavigate}
                         className={({ isActive }) =>
-                          cn(
-                            "flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2 text-[13px] font-medium transition-colors",
-                            isActive
-                              ? "border-sidebar-primary bg-sidebar-accent text-sidebar-primary"
-                              : "border-transparent text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                          )
+                          `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                            isActive ? "" : "hover:bg-white/[0.06] hover:text-white"
+                          }`
                         }
+                        style={({ isActive }) => ({
+                          background: isActive ? "rgba(8,145,178,0.2)" : undefined,
+                          color: isActive ? "#67e8f9" : MUTED,
+                          borderLeft: `3px solid ${isActive ? "#0891b2" : "transparent"}`,
+                        })}
                       >
-                        <NavIcon name={item.icon} className="size-[18px] shrink-0" />
-                        <span className="truncate">{item.label}</span>
+                        {({ isActive }) => (
+                          <>
+                            <span style={{ color: isActive ? "#67e8f9" : "rgba(168,196,232,0.5)", flexShrink: 0 }}>
+                              <NavIcon name={item.icon} />
+                            </span>
+                            <span className="truncate text-left text-xs font-semibold">{item.label}</span>
+                          </>
+                        )}
                       </NavLink>
-                    </li>
-                  ) : (
-                    <li key={item.to}>
+                    ) : (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span
                             aria-disabled="true"
-                            className="flex cursor-not-allowed items-center gap-3 rounded-lg border-l-[3px] border-transparent px-3 py-2 text-[13px] font-medium text-sidebar-foreground/35"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-not-allowed"
+                            style={{ color: "rgba(168,196,232,0.3)", borderLeft: "3px solid transparent" }}
                           >
-                            <NavIcon name={item.icon} className="size-[18px] shrink-0" />
-                            <span className="truncate">{item.label}</span>
+                            <span style={{ flexShrink: 0 }}>
+                              <NavIcon name={item.icon} />
+                            </span>
+                            <span className="truncate text-left text-xs font-semibold">{item.label}</span>
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent side="right">
-                          Not built yet
-                        </TooltipContent>
+                        <TooltipContent side="right">Not built yet</TooltipContent>
                       </Tooltip>
-                    </li>
-                  ),
-                )}
+                    )}
+                  </li>
+                ))}
               </ul>
             </div>
           ))
         )}
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
+      <div className="p-3 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
         {isLoading ? (
-          <Skeleton className="h-12 w-full bg-white/10" />
+          <div className="h-12 rounded-xl mb-1 animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
         ) : (
-          <div className="mb-1 flex items-center gap-2.5 rounded-lg bg-white/[0.06] px-2.5 py-2">
-            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl mb-1" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
+              style={{ background: roleStyle.color }}
+            >
               {initialsFrom(user?.email)}
-            </span>
+            </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-white">
-                {user?.email ?? "—"}
-              </p>
-              <p className="truncate text-[11px] text-sidebar-foreground/60">
-                {roleLabel(user?.role)}
-              </p>
+              <p className="text-white text-xs font-bold truncate">{user?.email ?? "—"}</p>
+              <p className="text-xs truncate" style={{ color: "rgba(168,196,232,0.55)" }}>{roleLabel(user?.role)}</p>
             </div>
           </div>
         )}
-        <p className="px-2.5 pb-2 text-[11px] leading-snug text-sidebar-foreground/45">
-          {roleScopeLine(user?.role)}
-        </p>
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
           onClick={onLogout}
-          className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-white"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:bg-white/[0.06] hover:text-[rgba(168,196,232,0.9)]"
+          style={{ color: "rgba(168,196,232,0.55)" }}
         >
-          <LogOut className="size-4" />
-          Sign out
-        </Button>
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+          </svg>
+          Sign Out
+        </button>
       </div>
     </div>
   );
@@ -142,9 +145,9 @@ function SidebarNavSkeleton() {
     <div className="space-y-5">
       {[4, 3, 2].map((count, s) => (
         <div key={s} className="space-y-2">
-          <Skeleton className="ml-3 h-3 w-20 bg-white/10" />
+          <div className="ml-3 h-3 w-20 rounded animate-pulse" style={{ background: "rgba(255,255,255,0.1)" }} />
           {Array.from({ length: count }).map((_, i) => (
-            <Skeleton key={i} className="h-9 w-full bg-white/[0.07]" />
+            <div key={i} className="h-9 w-full rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.07)" }} />
           ))}
         </div>
       ))}

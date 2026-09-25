@@ -28,17 +28,18 @@ Standard verification for every task (not repeated below):
 **Scope:** M
 **Result (2026-09-25):** `npx tsc -b` now really type-checks: `baseUrl` was dropped, `paths` point to `./@/*`, and dead `../rmis-frontend-auth` includes were removed. It surfaced 0 errors. `npm run build` passes. eslint went from 78 to 19 errors, all pre-existing in our pages; the rest came from linting the prototype folder. The `cyan-light` token keeps our `#67e8f9`. The prototype only defines its tokens and uses inline hex, so there's no clash.
 
-### - [ ] T2: Layout (sidebar, topbar, nav)
+### - [x] T2: Layout (sidebar, topbar, nav)
 **Description:** Rebuild `AppShell`/`AppSidebar`/`Topbar` from `Layout.tsx`: `#0a2050` sidebar, LSPU logo block, grouped nav (Core / Financial / Research / Insights / Administration), user card + Sign Out, topbar with page title + scope subtitle, notification bell (mock), role badge, prototype mobile overlay drawer.
 **Acceptance criteria:**
-- [ ] `nav.ts` relabeled/regrouped to prototype labels; our extra items (Staff, Leader load, Personnel changes, Procurement, Pending registrations) placed in the matching group; `tiers` unchanged
-- [ ] Client-doc names win over prototype labels: no "Disbursement" (→ "Financial Monitoring"; it and Procurement sit together in one nav group "Procurement, Realignment & Financial Monitoring"), "Compliance Tracking" (not "Ethics and compliance"), "Document and Records Management" (see plan.md "Client docs alignment")
-- [ ] Active item style matches (cyan left border, `#67e8f9` text); active item still scrolls into view (commit `0e490eb`)
-- [ ] Logout, real user name/role, and role-based nav visibility still work
+- [x] `nav.ts` relabeled/regrouped to prototype labels; our extra items (Staff, Leader load, Personnel changes, Procurement, Pending registrations) placed in the matching group; `tiers` unchanged
+- [x] Client-doc names win over prototype labels: no "Disbursement" (→ "Financial Monitoring"; it and Procurement sit together in one nav group "Procurement, Realignment & Financial Monitoring"), "Compliance Tracking" (not "Ethics and compliance"), "Document and Records Management" (see plan.md "Client docs alignment")
+- [x] Active item style matches (cyan left border, `#67e8f9` text); active item still scrolls into view (commit `0e490eb`)
+- [x] Logout, real user name/role, and role-based nav visibility still work
 **Verification:** Log in as system_admin and a project_leader; compare sidebars to prototype logged in as Super Admin / Project Leader.
 **Dependencies:** T1
 **Files:** `src/components/layout/AppShell.tsx`, `AppSidebar.tsx`, `Topbar.tsx`, `NavIcon.tsx`, `src/lib/nav.ts`, `src/mocks/notifications.ts`
 **Scope:** M
+**Result (2026-09-25):** Built with the prototype's markup and inline styles. The mobile Sheet was replaced by the prototype's overlay drawer. Icons use the prototype's SVG paths, with heroicons-style cart, sync, and team added. Nav groups are Core / Financial / Procurement, Realignment & Financial Monitoring / Research / Insights / Administration. Reports moved to Research as "Reports & Data Export". Staff, Leader Load, and Personnel Changes are under Administration next to Personnel Coordination. "Budget Office Sync" is a `ready: false` placeholder until T17b. Tiers are unchanged. `/budget` uses `end` so it's no longer active on `/budget/forecast`. The avatar color comes from `protoRoleStyle`, and the label is our real role name. Notifications are mocked (REGISTRY row). tsc, eslint, and build are clean. **Not browser-checked yet** (needs a real login).
 
 ### - [ ] T3: Login + auth pages
 **Description:** Clone `Login.tsx` layout (navy hero left, sign-in card right) into `LoginPage` with the real flow: email + password + Google button. Restyle Register, GoogleChooseRole, RegistrationPending, AuthCallback in the same hero/card language.

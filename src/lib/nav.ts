@@ -43,7 +43,10 @@ export type IconName =
   | "userCog"
   | "clipboard"
   | "settings"
-  | "cart";
+  | "cart"
+  | "sync"
+  | "team"
+  | "reports";
 
 const ALL_RESEARCH: RoleTier[] = [
   "system_admin",
@@ -64,112 +67,51 @@ const OVERSIGHT: RoleTier[] = [
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    heading: "Overview",
+    heading: "Core",
     items: [
       { label: "Dashboard", to: "/dashboard", icon: "grid", tiers: "all", ready: true },
-    ],
-  },
-  {
-    heading: "Research operations",
-    items: [
+      { label: "Project Management", to: "/projects", icon: "folder", tiers: ALL_RESEARCH, ready: true },
       {
-        label: "Projects",
-        to: "/projects",
-        icon: "folder",
-        tiers: ALL_RESEARCH,
-        ready: true,
-      },
-      {
-        label: "Work plan",
+        label: "Work Plan",
         to: "/work-plan",
         icon: "calendar",
         tiers: [...OVERSIGHT, "project_management", "study_management"],
         ready: false,
       },
-      {
-        label: "Tasks",
-        to: "/tasks",
-        icon: "users",
-        tiers: ALL_RESEARCH,
-        ready: true,
-      },
-      {
-        label: "Staff and assignments",
-        to: "/staff",
-        icon: "users",
-        tiers: [...OVERSIGHT, "project_management", "study_management"],
-        ready: true,
-      },
-      {
-        label: "Leader load",
-        to: "/leader-load",
-        icon: "activity",
-        tiers: [...OVERSIGHT, "project_management"],
-        ready: true,
-      },
-      {
-        label: "Personnel changes",
-        to: "/personnel-changes",
-        icon: "userCog",
-        tiers: [...OVERSIGHT, "procurement"],
-        ready: true,
-      },
-      {
-        label: "Ethics and compliance",
-        to: "/compliance",
-        icon: "shield",
-        tiers: [...OVERSIGHT, "project_management", "study_management"],
-        ready: true,
-      },
-      {
-        label: "Documents",
-        to: "/documents",
-        icon: "file",
-        tiers: ALL_RESEARCH,
-        ready: true,
-      },
-      {
-        label: "Research outputs",
-        to: "/outputs",
-        icon: "book",
-        tiers: ALL_RESEARCH,
-        ready: true,
-      },
-      {
-        label: "Monitoring",
-        to: "/monitoring",
-        icon: "activity",
-        tiers: ALL_RESEARCH,
-        ready: true,
-      },
-      {
-        label: "Risks",
-        to: "/risks",
-        icon: "alert",
-        tiers: [...OVERSIGHT, "project_management"],
-        ready: true,
-      },
+      { label: "Personnel & Tasks", to: "/tasks", icon: "users", tiers: ALL_RESEARCH, ready: true },
     ],
   },
   {
-    heading: "Finance",
+    heading: "Financial",
     items: [
       {
-        label: "Budget",
+        label: "Budget Management",
         to: "/budget",
         icon: "wallet",
         tiers: [...OVERSIGHT, "finance", "procurement", "project_management"],
         ready: true,
       },
       {
-        label: "Budget forecast",
+        label: "Budget Forecasting",
         to: "/budget/forecast",
         icon: "trending",
         tiers: ["system_admin", "institution_oversight", "finance"],
         ready: true,
       },
       {
-        label: "Disbursements",
+        label: "Budget Office Sync",
+        to: "/budget-sync",
+        icon: "sync",
+        tiers: ["system_admin", "institution_oversight", "finance"],
+        ready: false,
+      },
+    ],
+  },
+  {
+    heading: "Procurement, Realignment & Financial Monitoring",
+    items: [
+      {
+        label: "Financial Monitoring",
         to: "/disbursements",
         icon: "receipt",
         tiers: [...OVERSIGHT, "finance", "project_management"],
@@ -185,27 +127,37 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    heading: "Insights",
+    heading: "Research",
     items: [
       {
-        label: "Analytics",
-        to: "/analytics",
-        icon: "chart",
-        tiers: [...OVERSIGHT, "finance"],
+        label: "Compliance Tracking",
+        to: "/compliance",
+        icon: "shield",
+        tiers: [...OVERSIGHT, "project_management", "study_management"],
         ready: true,
       },
+      { label: "Document and Records Management", to: "/documents", icon: "file", tiers: ALL_RESEARCH, ready: true },
+      { label: "Research Outputs", to: "/outputs", icon: "book", tiers: ALL_RESEARCH, ready: true },
+      { label: "Monitoring & Evaluation", to: "/monitoring", icon: "activity", tiers: ALL_RESEARCH, ready: true },
       {
-        label: "Funding recommendations",
+        label: "Risk Management",
+        to: "/risks",
+        icon: "alert",
+        tiers: [...OVERSIGHT, "project_management"],
+        ready: true,
+      },
+      { label: "Reports & Data Export", to: "/reports", icon: "reports", tiers: [...OVERSIGHT, "finance"], ready: true },
+    ],
+  },
+  {
+    heading: "Insights",
+    items: [
+      { label: "Analytics", to: "/analytics", icon: "chart", tiers: [...OVERSIGHT, "finance"], ready: true },
+      {
+        label: "Decision Support System",
         to: "/decision-support",
         icon: "compass",
         tiers: ["system_admin", "institution_oversight", "finance"],
-        ready: true,
-      },
-      {
-        label: "Reports",
-        to: "/reports",
-        icon: "file",
-        tiers: [...OVERSIGHT, "finance"],
         ready: true,
       },
     ],
@@ -213,34 +165,37 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     heading: "Administration",
     items: [
+      { label: "User & Access Management", to: "/admin/users", icon: "userCog", tiers: ["system_admin"], ready: true },
       {
-        label: "Users",
-        to: "/admin/users",
-        icon: "userCog",
-        tiers: ["system_admin"],
-        ready: true,
-      },
-      {
-        label: "Pending registrations",
+        label: "Pending Registrations",
         to: "/admin/pending-users",
         icon: "clipboard",
         tiers: ["system_admin"],
         ready: true,
       },
       {
-        label: "Audit logs",
-        to: "/admin/audit",
-        icon: "activity",
-        tiers: ["system_admin"],
+        label: "Personnel Coordination",
+        to: "/staff",
+        icon: "team",
+        tiers: [...OVERSIGHT, "project_management", "study_management"],
         ready: true,
       },
       {
-        label: "Settings",
-        to: "/admin/settings",
-        icon: "settings",
-        tiers: ["system_admin"],
-        ready: false,
+        label: "Leader Load",
+        to: "/leader-load",
+        icon: "activity",
+        tiers: [...OVERSIGHT, "project_management"],
+        ready: true,
       },
+      {
+        label: "Personnel Changes",
+        to: "/personnel-changes",
+        icon: "userCog",
+        tiers: [...OVERSIGHT, "procurement"],
+        ready: true,
+      },
+      { label: "Audit Logs", to: "/admin/audit", icon: "clipboard", tiers: ["system_admin"], ready: true },
+      { label: "System Settings", to: "/admin/settings", icon: "settings", tiers: ["system_admin"], ready: false },
     ],
   },
 ];
