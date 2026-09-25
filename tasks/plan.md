@@ -40,7 +40,8 @@ endpoint now exists, swap them to real API calls, delete the row.
   campus_coordination→campus_research_coordinator,
   college_oversight→college_research_coordinator, finance→finance_officer,
   procurement→finance_officer, project_management/study_management→project_leader,
-  execution→researcher. Cosmetic only — never used for access control.
+  execution→researcher, with one code override: riuh→compliance_officer (client Clarification Q1a). `management_bor` is
+  never used, because BOR is not a system user (Q1b). Cosmetic only — never used for access control.
 - **Conflicting modules: prototype tabs first, our extras kept.** Where the
   prototype models a module differently from our backend (Compliance,
   Outputs, Monitoring, Forecast, DSS, Risk, Reports), the page gets the
@@ -84,7 +85,7 @@ the API functions in `src/lib/<domain>Api.ts` get added inside each page task.
 | UserManagement | `UsersListPage`, `PendingUsersPage` | users + office/position, account status (suspend/reactivate/deactivate), **scope (campus/college) assignment, read-only permission matrix** | profile editing beyond role |
 | AuditLogs | `AuditLogsPage` | audit logs | — |
 | Settings | **new** `SettingsPage` (`/admin/settings`) | none | everything |
-| (none) | Budget Office Sync view inside `BudgetPage` (Module 15) | **imports (.xlsx), records + manual link, reconciliation** | — |
+| (none) | **new** `BudgetSyncPage` (`/budget-sync`, Module 15) | **imports (.xlsx), records + manual link, reconciliation** | — |
 
 ## Backend permission codes → our role gates (rmis-backend `85b8e9c`, 2026-09-25)
 The backend now gates with DB permission codes (`HasRole("budget.certify")`, table `RolePermission`, 36 codes). The
@@ -126,6 +127,38 @@ Scope (unchanged from `dea9255`): budget/financial endpoints are row-scoped (lea
 none, campus roles see their `scope.campus`). `scope.college` is stored but not enforced. Other modules are still
 unscoped (backend P11–P15 are not built yet). When they land, re-run this sync.
 
+## Client docs alignment (checked 2026-09-25)
+Sources: `../RMIS chap1/RMIS_Module_Objective_Alignment.docx` and `RMIS_Clarification_Answers.docx`. rmis-backend
+followed both. These override the prototype wherever the two disagree:
+- **Labels (T2 + each page title):** Module 5 = "Procurement, Realignment, and Financial Monitoring". LSPU has no
+  Disbursement office, so no "Disbursement" wording anywhere in the UI (the prototype's `Disbursement.tsx` → our
+  `DisbursementsPage`, labeled "Financial Monitoring"). Module 5 stays 2 pages (Financial Monitoring + Procurement) under one
+  nav group "Procurement, Realignment & Financial Monitoring" (Carl OK'd 2026-09-25). Module 6 = "Compliance Tracking" (no ethics committee / IACUC
+  wording). Module 7 = "Document and Records Management". Proposal = read-only reference only (Q5), so there's no
+  proposal submission/approval UI even if the prototype has one.
+- **Actors (Q1):** VP / University Admin / DRD = one university-wide group. BOR is not a user, only a resolution number.
+  RIUH = compliance verifier at college level. CRC Chair = campus scope, with a read-only compliance view.
+- **Module 10 hosts the 4 objective dashboards (5a–5d):** Compliance & Activity, Budget Monitoring, Forecasting
+  Analytics, Funding Allocation Decision. They must be visibly named that way (T4/T24).
+- **Q12 budget access** (route gates must follow this):
+  - Project Leader: views own budget, requests LIB, procurement, and realignment.
+  - Program Leader: roll-up view.
+  - Study Leader: own-study allocation, read-only.
+  - Staff: none.
+  - Procurement: campus procurement items plus status/release.
+  - Finance: campus, plus certify/actual.
+  - Gaps in our gates: `/procurement` lacks program/project leaders (they file requests, `financial.request_procurement`),
+    and `/budget` lacks study_leader (view-only).
+  - Backend note: until P11 there's no `LineItem.study`, so a study leader sees the whole project LIB.
+- **Required by the docs but not in the backend yet** (rmis-backend P11–P15) → mock + REGISTRY row, per the data rule:
+  - temporary replacement while a user is suspended (Q3, T26)
+  - per-document sharing with expiry (Q8, T19)
+  - risk alert inbox: medium → PL, high → RIUH+CRC, critical → VP/DRD (Q7, T22 / topbar notifications)
+  - study-level allocation (Q12, T13)
+  - Module 14's "custom filtered report builder / scheduled generation" (T23)
+- **Needs client confirm (don't build more than the backend has):** Q4 project-code format, Q6 peso allocation (ranking
+  only), Q7 score bands, Q9 rubric (configurable), Q11 6Ps definition.
+
 ## Dependency graph
 ```
 T1 foundation (CSS, deps, mocks/, NoActualData, protoRole, lint ignore, docs)
@@ -148,7 +181,7 @@ order; the order below front-loads the pages the panel sees first.
 See `tasks/todo.md` for full acceptance criteria per task.
 
 ### Phase 0: Foundation
-- [ ] T1 Foundation: global CSS, deps, mocks scaffolding, helpers, docs
+- [x] T1 Foundation: global CSS, deps, mocks scaffolding, helpers, docs
 - [ ] T2 Layout: sidebar, topbar, nav regroup
 - [ ] T3 Login + auth pages
 ### Checkpoint A
@@ -172,7 +205,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 - [ ] T15 Disbursements
 - [ ] T16 Budget Forecast
 - [ ] T17 Procurement — restyle + procurement requests
-- [ ] T17b Budget Office Sync view in Budget Management (Module 15)
+- [ ] T17b Budget Office Sync page (Module 15, own nav item)
 ### Checkpoint D
 
 ### Phase 3: Research
@@ -225,4 +258,4 @@ No test suite exists in this repo (no `test` script). Each task is verified by:
    - Project status: backend stays `active/completed/archived`; the prototype's Registered/Ongoing/Completed/Closed pills are display labels mapped from those (no data-model change)
    - ~~Not implemented anywhere: task priority, hours, For Review~~ → all real since rmis-backend `209dac2` (2026-09-25). No task mocks needed.
 3. **Prototype folder** — add to `.gitignore` and eslint `globalIgnores` (T1).
-4. **Budget Office Sync (Module 15)** — the prototype has no screen for it. Its closest home in the prototype is **Budget Management** (`Budget.tsx`), whose landing view is the institution-wide LIB register (KPI strip + table of every project's LIB). Sync reconciles exactly those LIB totals against the Budget Office workbook, so it goes there as a second view toggle ("LIB Register | Budget Office Sync") using the same KPI-strip + table styling, not a new sidebar item.
+4. **Budget Office Sync (Module 15)** — REVISED 2026-09-25 (Carl OK'd): the Alignment doc lists it as its own module, so it gets its **own nav item + page** (`/budget-sync`, Financial group). It keeps the Budget page's KPI-strip + table styling. Superseded note:  the prototype has no screen for it. Its closest home in the prototype is **Budget Management** (`Budget.tsx`), whose landing view is the institution-wide LIB register (KPI strip + table of every project's LIB). Sync reconciles exactly those LIB totals against the Budget Office workbook, so it goes there as a second view toggle ("LIB Register | Budget Office Sync") using the same KPI-strip + table styling, not a new sidebar item.

@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Figma Make prototype (design reference, not part of the app)
+University Research Operations Website/

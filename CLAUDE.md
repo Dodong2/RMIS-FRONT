@@ -13,7 +13,17 @@ Backend API base URL comes from `VITE_API_URL` in `.env.local` (Vite env vars ne
 - `src/pages/` — one file per route. Admin-only pages live in `src/pages/admin/`. Follow this pattern for other role-scoped pages too (e.g. `src/pages/dean/`) as they're built.
 - `src/lib/<domain>Api.ts` — one API module per backend app (`authApi.ts`, `researchApi.ts`, ...). Never call `apiClient` directly from a page component.
 - `src/types/<domain>.ts` — mirrors the backend serializer fields exactly. If a backend serializer changes, update the matching type file in the same turn.
-- shadcn components live under `@/components/ui/` — import from there, don't recreate a Button/Select/etc.
+- shadcn components live under `@/components/ui/` (the root `@/` folder, not `src/`). Code under `src/` imports `src/` modules with relative paths.
+- `src/mocks/<domain>.ts` — prototype mock data for sections that have no backend endpoint yet. Every mocked section gets a row in `src/mocks/REGISTRY.md`.
+
+## Styling (prototype UI clone, decided 2026-09-24, supersedes the 2026-09-22 "design-system pass only" scope)
+- Pages copy the markup of `University Research Operations Website/src/components/<Name>.tsx` nearly verbatim: Tailwind classes + inline `style={{...}}` hex colors. Don't convert them to tokens or shadcn. Strip the prototype's comments.
+- shadcn is used only for behavior: Dialog, Select, Tooltip, and toasts (`notify`), restyled to match. Buttons, cards, tables, badges, and inputs are the prototype's raw elements.
+- Data rule per section: the API returns rows → real data. The API returns nothing → `<NoActualData />` (`src/components/common/NoActualData.tsx`). There's no endpoint → a mock from `src/mocks/` with no visible badge, plus a REGISTRY row.
+- Real flow, prototype look: when the prototype's flow contradicts the backend (demo logins, fake workflows), keep the real flow.
+- Access control stays on our role codes (`RoleGate`, `*_ROLE_CODES`, nav tiers). `src/lib/protoRole.ts` maps a role to the prototype's 9 roles for cosmetic branching only. Never use it for access.
+- The prototype folder is gitignored and eslint-ignored. It's a read-only reference, never import from it.
+- Type-check with `npx tsc -b` (fixed 2026-09-25; it used to stop at TS5101 without checking).
 
 ## Patterns to follow (already established, keep consistent)
 - Every page that needs auth wraps content in `<ProtectedRoute>`; every role-gated section uses `<RoleGate allow={[...]}>` or a local `canRegister`-style boolean derived from `user.role?.code`.

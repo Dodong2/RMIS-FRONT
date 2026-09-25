@@ -28,7 +28,7 @@ review workflow, vs. our real Module 6's Ethics Reviews/Similarity Checks/AI
 Declarations/COI/Misconduct logs) — client confirmed: keep our real data,
 don't chase the reference's Compliance content, only its visual language.
 
-Scope agreed with client 2026-09-22: **design-system pass only** — shared
+(SUPERSEDED 2026-09-24 by the prototype UI clone, see "Next thing to do" + CLAUDE.md "Styling".) Scope agreed with client 2026-09-22: **design-system pass only** — shared
 tokens/components (colors, sidebar, topbar, card/badge style), not a
 per-page rebuild to match the reference's bespoke KPI-strip/stat-tile
 layouts. Since every page here is built on the same shared shadcn

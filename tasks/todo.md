@@ -15,22 +15,24 @@ Standard verification for every task (not repeated below):
 
 ## Phase 0: Foundation
 
-### - [ ] T1: Foundation
+### - [x] T1: Foundation
 **Description:** Port the prototype's global styling and set up mock scaffolding and docs so every page task can just copy markup.
 **Acceptance criteria:**
-- [ ] `src/index.css` has the prototype's `@theme` colors, fonts (Inter + Source Sans 3 + JetBrains Mono), body bg `#f0f4f8`, scrollbar, `.mono`, `.label-field`, `animate-fade-in`, `animate-slide-in`, without breaking existing shadcn tokens
-- [ ] `jspdf`, `jspdf-autotable`, `xlsx` installed; `src/mocks/REGISTRY.md` exists; `NoActualData` component and `src/lib/protoRole.ts` (RoleTier → prototype role, cosmetic only) exist
-- [ ] Prototype folder ignored by eslint and git (resolved Q3); CLAUDE.md styling/mock rules and handover scope note updated
-- [ ] tsconfig `baseUrl` deprecation fixed so `npx tsc -b` really type-checks; fix whatever it surfaces
+- [x] `src/index.css` has the prototype's `@theme` colors, fonts (Inter + Source Sans 3 + JetBrains Mono), body bg `#f0f4f8`, scrollbar, `.mono`, `.label-field`, `animate-fade-in`, `animate-slide-in`, without breaking existing shadcn tokens
+- [x] `jspdf`, `jspdf-autotable`, `xlsx` installed; `src/mocks/REGISTRY.md` exists; `NoActualData` component and `src/lib/protoRole.ts` (RoleTier → prototype role, cosmetic only) exist
+- [x] Prototype folder ignored by eslint and git (resolved Q3); CLAUDE.md styling/mock rules and handover scope note updated
+- [x] tsconfig `baseUrl` deprecation fixed so `npx tsc -b` really type-checks; fix whatever it surfaces
 **Verification:** `npm run build` passes; existing pages still render.
 **Dependencies:** None
 **Files:** `tsconfig.app.json`, `src/index.css`, `package.json`, `eslint.config.js`, `.gitignore`, `src/mocks/REGISTRY.md`, `src/components/common/NoActualData.tsx`, `src/lib/protoRole.ts`, `CLAUDE.md`, `.claude/rules/handover.md`
 **Scope:** M
+**Result (2026-09-25):** `npx tsc -b` now really type-checks: `baseUrl` was dropped, `paths` point to `./@/*`, and dead `../rmis-frontend-auth` includes were removed. It surfaced 0 errors. `npm run build` passes. eslint went from 78 to 19 errors, all pre-existing in our pages; the rest came from linting the prototype folder. The `cyan-light` token keeps our `#67e8f9`. The prototype only defines its tokens and uses inline hex, so there's no clash.
 
 ### - [ ] T2: Layout (sidebar, topbar, nav)
 **Description:** Rebuild `AppShell`/`AppSidebar`/`Topbar` from `Layout.tsx`: `#0a2050` sidebar, LSPU logo block, grouped nav (Core / Financial / Research / Insights / Administration), user card + Sign Out, topbar with page title + scope subtitle, notification bell (mock), role badge, prototype mobile overlay drawer.
 **Acceptance criteria:**
 - [ ] `nav.ts` relabeled/regrouped to prototype labels; our extra items (Staff, Leader load, Personnel changes, Procurement, Pending registrations) placed in the matching group; `tiers` unchanged
+- [ ] Client-doc names win over prototype labels: no "Disbursement" (→ "Financial Monitoring"; it and Procurement sit together in one nav group "Procurement, Realignment & Financial Monitoring"), "Compliance Tracking" (not "Ethics and compliance"), "Document and Records Management" (see plan.md "Client docs alignment")
 - [ ] Active item style matches (cyan left border, `#67e8f9` text); active item still scrolls into view (commit `0e490eb`)
 - [ ] Logout, real user name/role, and role-based nav visibility still work
 **Verification:** Log in as system_admin and a project_leader; compare sidebars to prototype logged in as Super Admin / Project Leader.
@@ -63,6 +65,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Projects/Budget/Compliance/Outputs tabs read `dashboardApi`; Risk tab reads `riskApi` (incl. `critical`); Personnel tab reads `dashboard/tasks/` + workload; M&E reads monitoring status indicators
 - [ ] Empty dev DB shows "No actual data" per section, not zeros that look like data
+- [ ] The 4 objective dashboards are visibly named: Compliance & Activity, Budget Monitoring, Forecasting Analytics (`dashboard/forecasting/`), Funding Allocation Decision (`dashboard/funding-allocation/`)
 **Dependencies:** T2
 **Files:** `src/pages/DashboardPage.tsx`, `src/mocks/dashboard.ts`
 **Scope:** M
@@ -162,6 +165,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Create budget, add/remove line item, certify still work with the `MANAGE_ROLE_CODES` / `CERTIFY_ROLE_CODES` split intact. `MANAGE_ROLE_CODES` gains `program_leader` + `project_leader` (backend `budget.manage`, rmis-backend `209dac2`): leaders encode their own LIB and get a 400 on other projects. Certify stays finance_budget/system_admin
 - [ ] Remove line item hidden on a certified budget (backend now 400s the delete)
+- [ ] `/budget` RoleGate + nav tiers gain study_leader, view-only (Q12). Study-level allocation is mocked + REGISTRY row until backend P11 (`LineItem.study`)
 - [ ] PS/MOOE/CO grouping from `category`; fiscal year, funding source, counterpart fields in the add form; `exceeds_dry_cap` shown as a non-blocking warning
 **Dependencies:** T2
 **Files:** `src/pages/BudgetPage.tsx`, `src/mocks/budget.ts`
@@ -198,17 +202,19 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] APP-flagged worklist + project filter still work
 - [ ] Leaders can file a request (certified budget only); procurement_officer_lib/system_admin move Requested → Processing → Released/Cancelled; overdue filter
+- [ ] `/procurement` RoleGate + nav tiers gain program_leader/project_leader (Q12; they can't open the page today). The APP worklist stays visible to them (backend scopes budget data to their projects)
 **Dependencies:** T15
 **Files:** `src/pages/ProcurementPage.tsx`, `src/lib/financialApi.ts`
 **Scope:** M
 
-### - [ ] T17b: Budget Office Sync view in Budget Management (Module 15)
-**Description:** Add a "LIB Register | Budget Office Sync" toggle to the Budget Management landing view (the prototype's institution-wide LIB register), with the XLSX import + reconciliation in the same KPI-strip + table style. No new sidebar item.
+### - [ ] T17b: Budget Office Sync page (Module 15)
+**Description:** New Module 15 page for the XLSX import + reconciliation, styled with the Budget page's KPI strip + table. It gets its own sidebar item (decision revised 2026-09-25).
 **Acceptance criteria:**
+- [ ] New `BudgetSyncPage` at `/budget-sync`: own nav item in the Financial group (Alignment doc lists Module 15 separately). RoleGate = finance_budget/system_admin write + oversight/finance read, mirroring the backend
 - [ ] Upload .xlsx (system_admin/finance_budget), list imports and records, manually link/unlink a record to a project
 - [ ] Reconciliation table with matched/discrepancy/no_rmis_budget/unlinked summary
 **Dependencies:** T13
-**Files:** `src/pages/BudgetPage.tsx`, `src/lib/budgetSyncApi.ts`
+**Files:** `src/pages/BudgetSyncPage.tsx`, `src/lib/budgetSyncApi.ts`, `src/App.tsx`, `src/lib/nav.ts`
 **Scope:** M
 
 ## Checkpoint D: Financial
@@ -234,6 +240,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Upload (25MB check), current/all versions, download (signed URL), archive all still work
 - [ ] Access level = real `sensitivity`; review status + review action real; module links mocked
+- [ ] Per-document sharing with expiry (Q8) mocked + REGISTRY row (backend P14 not built)
 **Dependencies:** T2
 **Files:** `src/pages/DocumentsPage.tsx`, `src/mocks/documents.ts`
 **Scope:** M
@@ -261,6 +268,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Risk register real (`risk/register/` + updates): 5×5 matrix, owner, mitigation, status
 - [ ] Computed 5×5 flags + `recommended_action` kept real (Institution Overview + Project Risk Status)
+- [ ] Role-banded alert inbox (Q7) mocked + REGISTRY row (backend P15 `risk/alerts/` not built)
 **Dependencies:** T2
 **Files:** `src/pages/RisksPage.tsx`, `src/mocks/risks.ts`
 **Scope:** M
@@ -278,6 +286,7 @@ Standard verification for every task (not repeated below):
 - [ ] Appendix E/F/G + Project List download real server files (`file_format`, blob error handling unchanged); Generation Log real + role-gated
 - [ ] Financial/Compliance/Personnel/Outputs module reports download from `reports/<type>/`
 - [ ] Only catalog entries with no endpoint export client-side from mock data (jspdf/xlsx)
+- [ ] Custom report builder / scheduled generation (Alignment doc, Module 14) mocked + REGISTRY row
 **Dependencies:** T5 (shared export helper)
 **Files:** `src/pages/ReportsPage.tsx`, `src/mocks/reports.ts`, `src/lib/exportFiles.ts`
 **Scope:** M
@@ -311,6 +320,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Existing user list + approve/reject pending users still work
 - [ ] Office/position shown; Suspend/Reactivate/Deactivate via `account-status/` (deactivate shows the hand-over-first error); assignments mocked where no endpoint
+- [ ] Temporary replacement while suspended (Q3) mocked + REGISTRY row (backend P13 not built)
 - [ ] Scope (campus/college) shown per user and editable via `PATCH admin/users/<id>/scope/` (a blank value clears it). Note in the UI hint: college is stored but not enforced yet
 - [ ] Extra tab "Roles & Permissions": read-only role × permission matrix from `GET admin/permissions/` (36 codes × 12 roles, grouped by module). No editing (client: future enhancement)
 **Dependencies:** T2

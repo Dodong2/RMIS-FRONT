@@ -17,8 +17,7 @@
     "jsx": "react-jsx",
 
     /* Path alias */
-    "baseUrl": ".",
-    "paths": { "@/*": ["@/*"] },
+    "paths": { "@/*": ["./@/*"] },
 
     /* Linting */
     "noUnusedLocals": true,
@@ -26,5 +25,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "../rmis-frontend-auth/rmis-frontend/src/components", "../rmis-frontend-auth/rmis-frontend/src/providers", "../rmis-frontend-auth/rmis-frontend/src/types"]
+  "include": ["src"]
 }
