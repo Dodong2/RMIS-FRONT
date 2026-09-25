@@ -169,13 +169,14 @@ Standard verification for every task (not repeated below):
 - The completeness panel is computed from real form state (required vs recommended); clicking an item jumps to its step. Register is blocked until the required items + certification are done.
 - Verified with a rolled-back APIClient run (0 leaked rows): create with the new fields → 201, status PATCH → history row, project_leader milestone on own project → 201. The concurrency-limit 400 surfaced correctly on the first try. Headless screenshots of the steps look fine.
 
-### - [ ] T9: Register Program restyle
+### - [x] T9: Register Program restyle
 **Description:** Restyle `RegisterProgramPage` in the wizard's visual language (no prototype counterpart).
 **Acceptance criteria:**
-- [ ] Program create → redirect → appears in list still works
+- [x] Program create → redirect → appears in list still works
 **Dependencies:** T8
 **Files:** `src/pages/RegisterProgramPage.tsx`
 **Scope:** XS
+**Result (2026-09-25):** Restyled in the wizard card language (navy header, info note, prototype inputs, footer actions). Same fields and gates. Verified with a rolled-back APIClient run: create → 201, appears in `programs/`, 0 leaked rows.
 
 ## Checkpoint B: Dashboard + Projects
 - [ ] Build + lint clean

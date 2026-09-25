@@ -192,7 +192,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 - [x] T6 Projects list
 - [x] T7 Project detail
 - [x] T8 Register Approved Project wizard
-- [ ] T9 Register Program restyle
+- [x] T9 Register Program restyle
 ### Checkpoint B
 - [ ] T10 Work Plan (new page)
 - [ ] T11 Tasks (Personnel & Tasks)
