@@ -187,7 +187,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Checkpoint A
 
 ### Phase 1: Core
-- [ ] T4 Dashboard — KPIs + domain tabs
+- [x] T4 Dashboard — KPIs + domain tabs
 - [ ] T5 Dashboard — drill-down + export
 - [ ] T6 Projects list
 - [ ] T7 Project detail

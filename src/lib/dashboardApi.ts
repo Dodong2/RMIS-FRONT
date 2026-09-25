@@ -5,6 +5,9 @@ import type {
   AppendixGExport,
   BudgetDashboard,
   ComplianceDashboard,
+  ForecastingDashboard,
+  FundingAllocationDashboard,
+  TaskDashboardRow,
   OutputDashboard,
   PlanningMetric,
   PlanningTarget,
@@ -28,6 +31,25 @@ export const dashboardApi = {
   },
   getOutputDashboard: async (params: { year?: number } = {}): Promise<OutputDashboard> => {
     const { data } = await apiClient.get("/api/dashboard/outputs/", { params });
+    return data;
+  },
+  getForecastingDashboard: async (
+    params: { campus?: string; funding_type?: string } = {},
+  ): Promise<ForecastingDashboard> => {
+    const { data } = await apiClient.get("/api/dashboard/forecasting/", { params });
+    return data;
+  },
+  getFundingAllocationDashboard: async (params: { run?: number } = {}): Promise<FundingAllocationDashboard | null> => {
+    try {
+      const { data } = await apiClient.get("/api/dashboard/funding-allocation/", { params });
+      return data;
+    } catch (err) {
+      if ((err as { response?: { status?: number } })?.response?.status === 404) return null;
+      throw err;
+    }
+  },
+  getTaskDashboard: async (params: { project?: number } = {}): Promise<TaskDashboardRow[]> => {
+    const { data } = await apiClient.get("/api/dashboard/tasks/", { params });
     return data;
   },
   getREIThrustAlignment: async (): Promise<REIThrustAlignment> => {

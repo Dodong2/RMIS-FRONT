@@ -62,15 +62,25 @@ Standard verification for every task (not repeated below):
 
 ## Phase 1: Core
 
-### - [ ] T4: Dashboard — KPIs + domain tabs
+### - [x] T4: Dashboard — KPIs + domain tabs
 **Description:** Clone `Dashboard.tsx` top half: KPI strip, domain tabs (Projects/Budget/Compliance/Outputs/M&E/Risk/Personnel).
 **Acceptance criteria:**
-- [ ] Projects/Budget/Compliance/Outputs tabs read `dashboardApi`; Risk tab reads `riskApi` (incl. `critical`); Personnel tab reads `dashboard/tasks/` + workload; M&E reads monitoring status indicators
-- [ ] Empty dev DB shows "No actual data" per section, not zeros that look like data
-- [ ] The 4 objective dashboards are visibly named: Compliance & Activity, Budget Monitoring, Forecasting Analytics (`dashboard/forecasting/`), Funding Allocation Decision (`dashboard/funding-allocation/`)
+- [x] Projects/Budget/Compliance/Outputs tabs read `dashboardApi`; Risk tab reads `riskApi` (incl. `critical`); Personnel tab reads `dashboard/tasks/` + workload; M&E reads monitoring status indicators
+- [x] Empty dev DB shows "No actual data" per section, not zeros that look like data
+- [x] The 4 objective dashboards are visibly named: Compliance & Activity, Budget Monitoring, Forecasting Analytics (`dashboard/forecasting/`), Funding Allocation Decision (`dashboard/funding-allocation/`)
 **Dependencies:** T2
 **Files:** `src/pages/DashboardPage.tsx`, `src/mocks/dashboard.ts`
 **Scope:** M
+**Result (2026-09-25):** Rebuilt from the prototype's `Dashboard.tsx`.
+- Top of the page: an institutional KPI strip (system_admin / institution_oversight only), a scope bar, and 7 domain summary tiles.
+- The prototype's left drill-down column now holds the 4 named Objective Dashboards (5a–5d), linked only when the user's nav allows it.
+- There are 7 domain tabs. They're all real data except the M&E tab, which uses a project picker (`monitoring/status/<id>/`), because institution-wide indicators would take N calls.
+- Workload is fetched only for task-assigner roles.
+- API additions: `dashboardApi.getForecastingDashboard`, `getFundingAllocationDashboard` (404 → null), `getTaskDashboard`, and `personnelApi.getWorkload`.
+- `src/lib/projectStatus.ts` maps active/completed/archived → Ongoing/Completed/Closed with the prototype's colors.
+- Removed from the old page: the "Welcome" header and the "Your modules" build-status card (all modules are built now). The admin Accounts counts are kept.
+- Verified with headless Chrome (CDP, minted JWT, Django on :8001) as system_admin and project_leader, desktop and 390px: real data shows (1 project, ₱120K LIB, 1 critical risk), empty sections show "No actual data", and there were no console errors.
+- Nothing is mocked, so there are no REGISTRY rows.
 
 ### - [ ] T5: Dashboard — drill-down + export
 **Description:** Institution → campus → college → project drill-down and the report quick-export (xlsx/pdf) from the prototype.

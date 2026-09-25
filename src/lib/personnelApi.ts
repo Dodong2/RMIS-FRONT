@@ -6,9 +6,14 @@ import type {
   StaffProfile,
   Task,
   TaskStatus,
+  WorkloadRow,
 } from "../types/personnel";
 
 export const personnelApi = {
+  getWorkload: async (params: { project?: number } = {}): Promise<WorkloadRow[]> => {
+    const { data } = await apiClient.get("/api/personnel/workload/", { params });
+    return data;
+  },
   getTasks: async (
     params: { project?: number; study?: number; assignee?: number; status?: TaskStatus } = {},
   ): Promise<Task[]> => {
