@@ -98,14 +98,28 @@ Standard verification for every task (not repeated below):
 - In the PDF, ₱ is written as "PHP" because jsPDF's built-in font has no ₱ glyph.
 - Verified headless: the drill reaches P77, and the downloaded PDF/XLSX are real files (`file` + pdftotext/openpyxl content checked).
 
-### - [ ] T6: Projects list
+### - [x] T6: Projects list
 **Description:** Clone the Projects list view (filters, cards/table, status pills, "Register Approved Project" CTA) onto `ProjectsPage`.
 **Acceptance criteria:**
-- [ ] Real programs/projects from `researchApi`; status pill uses prototype colors mapped from our `active/completed/archived`
-- [ ] CTA still gated to system_admin/crc_chair and routes to `/projects/new`; Register Program still reachable
+- [x] Real programs/projects from `researchApi`; status pill uses prototype colors mapped from our `active/completed/archived`
+- [x] CTA still gated to system_admin/crc_chair and routes to `/projects/new`; Register Program still reachable
 **Dependencies:** T2
 **Files:** `src/pages/ProjectsPage.tsx`
 **Scope:** S
+**Result (2026-09-25):**
+- Cloned the prototype list: header + CTAs, a status KPI strip that doubles as a filter (All/Ongoing/Completed/Closed), search + funding-type filter, and project cards.
+- Card fields are real:
+  - code, status, research type, funding type, campus chips
+  - PI (lead email), implementing unit, cooperating agencies
+  - total cost
+  - period
+  - milestones done/total (`getMilestones()` is now project-optional)
+  - program
+  - team (active assignments + leader)
+  - physical/financial bars (`deliverables_pct`/`budget_used_pct` from `monitoring/status/<id>/`, one call per project, fine at capstone scale)
+- The Programs table is kept as a "Research Programs" card below the list (it's our extra; the prototype has none).
+- The page title is now "Project Management" (nav label).
+- Headless check as system_admin (desktop) and project_leader (390px): OK.
 
 ### - [ ] T7: Project detail
 **Description:** Clone detail tabs (Overview, Registration Info, Team, Work Plan, Impact, History, Closure) onto `ProjectDetailPage`, keeping the existing dialogs (commit `0e490eb`).

@@ -189,7 +189,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Phase 1: Core
 - [x] T4 Dashboard — KPIs + domain tabs
 - [x] T5 Dashboard — drill-down + export
-- [ ] T6 Projects list
+- [x] T6 Projects list
 - [ ] T7 Project detail
 - [ ] T8 Register Approved Project wizard
 - [ ] T9 Register Program restyle

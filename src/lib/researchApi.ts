@@ -61,8 +61,8 @@ export const researchApi = {
     const { data } = await apiClient.post("/api/studies/", payload);
     return data;
   },
-  getMilestones: async (projectId: number): Promise<Milestone[]> => {
-    const { data } = await apiClient.get(`/api/milestones/?project=${projectId}`);
+  getMilestones: async (projectId?: number): Promise<Milestone[]> => {
+    const { data } = await apiClient.get("/api/milestones/", { params: projectId ? { project: projectId } : {} });
     return data;
   },
   createMilestone: async (payload: {
