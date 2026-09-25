@@ -372,6 +372,7 @@ Standard verification for every task (not repeated below):
 
 ## Checkpoint D: Financial
 - [ ] Build + lint clean; certify → disburse → realign walk-through; human review
+**Automated part (2026-09-25):** Build clean; eslint shows only the 7 pre-existing errors. Rolled-back API walk-through on budget 18 (P77): leader certify → 403; admin certify → 200; disburse → 201 (leader → 403); minor realign → auto `implemented`; major realign (50%) → `pending_approval`; leader review → 403; admin approve → 200, and the summary's adjusted amounts moved (₱10,917.60 → ₱14,417.60, ₱7,000 → ₱3,500). 0 leaked. **Human review still pending.**
 
 ---
 
