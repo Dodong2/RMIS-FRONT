@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { DocumentStage, DocumentType, ProjectDocument } from "../types/document";
+import type { DocumentReviewStatus, DocumentSensitivity, DocumentStage, DocumentType, ProjectDocument } from "../types/document";
 
 export const documentApi = {
   getDocuments: async (
@@ -8,6 +8,7 @@ export const documentApi = {
       study?: number;
       document_type?: DocumentType;
       stage?: DocumentStage;
+      review_status?: DocumentReviewStatus;
       current_only?: boolean;
     } = {},
   ): Promise<ProjectDocument[]> => {
@@ -26,6 +27,7 @@ export const documentApi = {
     study?: number | null;
     document_type: DocumentType;
     stage?: DocumentStage;
+    sensitivity?: DocumentSensitivity;
     file: File;
   }): Promise<ProjectDocument> => {
     const form = new FormData();
@@ -33,12 +35,17 @@ export const documentApi = {
     if (payload.study) form.append("study", String(payload.study));
     form.append("document_type", payload.document_type);
     if (payload.stage) form.append("stage", payload.stage);
+    if (payload.sensitivity) form.append("sensitivity", payload.sensitivity);
     form.append("file", payload.file);
     const { data } = await apiClient.post("/api/documents/documents/", form);
     return data;
   },
   archiveDocument: async (id: number): Promise<ProjectDocument> => {
     const { data } = await apiClient.post(`/api/documents/documents/${id}/archive/`);
+    return data;
+  },
+  reviewDocument: async (id: number, review_status: "approved" | "returned", review_remarks: string): Promise<ProjectDocument> => {
+    const { data } = await apiClient.post(`/api/documents/documents/${id}/review/`, { review_status, review_remarks });
     return data;
   },
 };

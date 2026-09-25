@@ -403,15 +403,26 @@ Rolled-back smoke test:
 - Leader misconduct → 403; leader review reference → 201.
 - 0 leaked. Headless-checked with throwaway rows (deleted after).
 
-### - [ ] T19: Documents
+### - [x] T19: Documents
 **Description:** Clone `Documents.tsx` onto `DocumentsPage`.
 **Acceptance criteria:**
-- [ ] Upload (25MB check), current/all versions, download (signed URL), archive all still work
-- [ ] Access level = real `sensitivity`; review status + review action real; module links mocked
-- [ ] Per-document sharing with expiry (Q8) mocked + REGISTRY row (backend P14 not built)
+- [x] Upload (25MB check), current/all versions, download (signed URL), archive all still work
+- [x] Access level = real `sensitivity`; review status + review action real; module links mocked
+- [x] Per-document sharing with expiry (Q8) mocked + REGISTRY row (backend P14 not built)
 **Dependencies:** T2
 **Files:** `src/pages/DocumentsPage.tsx`, `src/mocks/documents.ts`
 **Scope:** M
+**Result (2026-09-25):** `DocumentsPage` is the prototype card grid across every project the user can see (the backend's `visible_documents` already scopes by role + sensitivity).
+- Controls: 6 KPIs (Total, Active, Pending Review, Returned, Versioned, Projects), search/type/review-status/project filters, All / By Project / By Type views, and a "Show superseded versions" toggle (drives `current_only`).
+- Upload is a 2-step modal: file (25MB check), type, project, study; then stage, access level = real `sensitivity`, defaulting to financial for LIB.
+- The detail modal has 4 tabs:
+  - Info: review panel with Approve / Return (return needs remarks), for riuh/system_admin via the new `documentApi.reviewDocument`. Download uses a signed URL, "Upload New Version" pre-fills project/type/study, and Archive is manage-only.
+  - Version History: real, the same project/type/study.
+  - Linked Records: computed from real compliance requirements + monthly/midterm/terminal reports that point to this document (so it isn't mocked).
+  - Sharing: mocked, read-only (`src/mocks/documents.ts` + REGISTRY row; P14 not built).
+- Dropped from the prototype: title/description/tags/version notes (no backend fields). The Draft KPI is replaced by Pending Review/Returned.
+
+Rolled-back API test: leader sees team docs but not `restricted`; `current_only` returns only v2; leader review → 403; admin return → 200 with remarks; `?review_status=returned` filter works. Archive was only exercised against a fake storage path (it 500s when signing the fake path, test artifact only; everything rolled back, 0 leaked). Headless-checked with throwaway rows (deleted after).
 
 ### - [ ] T20: Research Outputs
 **Description:** Clone `ResearchOutputs.tsx` onto `OutputsPage`.

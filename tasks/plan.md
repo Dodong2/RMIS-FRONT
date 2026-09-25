@@ -210,7 +210,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 
 ### Phase 3: Research
 - [x] T18 Compliance
-- [ ] T19 Documents
+- [x] T19 Documents
 - [ ] T20 Research Outputs
 - [ ] T21 Monitoring & Evaluation
 - [ ] T22 Risk Management
