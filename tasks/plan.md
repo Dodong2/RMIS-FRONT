@@ -202,7 +202,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Phase 2: Financial
 - [x] T13 Budget — overview + line items
 - [x] T14 Budget — funding, utilization, history, LIB wizard
-- [ ] T15 Disbursements
+- [x] T15 Disbursements
 - [ ] T16 Budget Forecast
 - [ ] T17 Procurement — restyle + procurement requests
 - [ ] T17b Budget Office Sync page (Module 15, own nav item)

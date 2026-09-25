@@ -305,14 +305,33 @@ Standard verification for every task (not repeated below):
 - Dropped from the prototype: its "Upload LIB file" option. The xlsx import belongs to Budget Office Sync (T17b).
 - The wizard's save was not exercised live (it would write items to P77's real draft). It uses the same `createBudget`/`createLineItem` calls verified in T13. Headless screenshots OK.
 
-### - [ ] T15: Disbursements
+### - [x] T15: Disbursements
 **Description:** Clone `Disbursement.tsx` (Ledger, Utilization, Variance, Budget Adjustments, Financial Report) onto `DisbursementsPage`.
 **Acceptance criteria:**
-- [ ] Ledger = real disbursements incl. payee + supporting document; Adjustments = real realignments incl. tier-gated review + BOR resolution number
-- [ ] Variance/Report computed from real data where possible, else mocked
+- [x] Ledger = real disbursements incl. payee + supporting document; Adjustments = real realignments incl. tier-gated review + BOR resolution number
+- [x] Variance/Report computed from real data where possible, else mocked
 **Dependencies:** T2
 **Files:** `src/pages/DisbursementsPage.tsx`, `src/mocks/disbursements.ts`
 **Scope:** M
+**Result (2026-09-25):** `DisbursementsPage` ("Financial Monitoring") rebuilt from `Disbursement.tsx`. Everything is real; nothing is mocked.
+- **List:** 6 KPIs from all budgets/disbursements/realignments, and a card per project (certified / not certified / no LIB, pending realignments, utilization vs certified LIB).
+- **Board** at `?project=`, 5 tabs:
+  - **Ledger:** real disbursements with payee, reference, category filter, and a detail modal showing funding source and supporting document.
+  - **Utilization:** summary per line item with adjusted/actual/balance bars.
+  - **Variance:** flags computed from real figures. Over >100%, near limit >85%, under <20% on ≥₱50k, realigned >15%. The prototype's "missing LIB link" flag is dropped because every disbursement must be linked.
+  - **Budget Adjustments:** real realignments with tier/status, tier-gated Approve/Reject inline, and the BOR resolution no. required for BOR approval.
+  - **Financial Report:** summary KPIs, category breakdown, monthly bar chart from disbursement dates.
+- **Record modal:** LIB item picker showing available/%, an over-available block, payee, reference, and a supporting document picker from the project's current documents.
+- **Realign modal:** existing or new item, and an expected-tier preview; the tier itself is server-computed.
+- The prototype's draft/posted/flagged/reversed transaction statuses have no backend field; every disbursement shows as Posted.
+- Verified with a rolled-back APIClient run (0 leaked, budget 18 back to draft):
+  - certify → 200
+  - disbursement with payee → 201
+  - over-available → 400 with the balance message
+  - summary actual updates
+  - leader realignment → 201 (major, pending)
+  - admin review → approved
+- Headless screenshots OK; P77 is still draft, so the board shows the "needs certified LIB" states.
 
 ### - [ ] T16: Budget Forecast
 **Description:** Clone `BudgetForecast.tsx` onto `BudgetForecastPage`.

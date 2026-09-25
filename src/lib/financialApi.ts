@@ -2,7 +2,9 @@ import { apiClient } from "./apiClient";
 import type { BudgetRealignment, BudgetSummary, Disbursement } from "../types/financial";
 
 export const financialApi = {
-  getDisbursements: async (params: { line_item?: number; budget?: number } = {}): Promise<Disbursement[]> => {
+  getDisbursements: async (
+    params: { line_item?: number; budget?: number; project?: number; from?: string; to?: string } = {},
+  ): Promise<Disbursement[]> => {
     const { data } = await apiClient.get("/api/financial/disbursements/", { params });
     return data;
   },
@@ -11,6 +13,8 @@ export const financialApi = {
     amount: string;
     reference_number?: string;
     description?: string;
+    payee?: string;
+    supporting_document?: number | null;
     disbursed_on: string;
   }): Promise<Disbursement> => {
     const { data } = await apiClient.post("/api/financial/disbursements/", payload);
