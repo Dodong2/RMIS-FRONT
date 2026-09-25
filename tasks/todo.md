@@ -516,10 +516,19 @@ register PDF (client). Test log rows deleted.
 **Files:** `src/pages/ReportsPage.tsx`, `src/mocks/reports.ts`, `src/lib/exportFiles.ts`
 **Scope:** M
 
-### - [ ] T24: Analytics
+### - [x] T24: Analytics
 **Description:** Clone `Analytics.tsx` onto `AnalyticsPage`.
 **Acceptance criteria:**
-- [ ] All existing real charts/tabs (incl. Planning Targets create + comparison, exports) still present in prototype style
+- [x] All existing real charts/tabs (incl. Planning Targets create + comparison, exports) still present in prototype style
+**Result:** Prototype filter bar (campus + funding type from real projects, drive the project/budget/forecast dashboards)
+and segmented tabs: Overview (KPIs, status donut, funding/campus bars, monthly disbursement trend from real
+`financial/disbursements/` with a year picker, output summary, compliance snapshot) / Projects (+ project register
+table) / Budget / Budget Forecast (new, `dashboard/forecasting/`) / Compliance / Outputs / REI Thrust / Planning Targets
+/ Data Exports. recharts replaced by the prototype's CSS HBar/Donut/TrendBar (`src/components/analytics/ProtoCharts.tsx`).
+No mock needed, so no `src/mocks/analytics.ts`. Dropped from the prototype (no data): per-project physical %,
+program/agency filters, campus/college weighted ranking, monthly output submissions, funding-source pipeline. "Ethics
+Reviews" relabeled "Review References". Fixed a pre-existing bug: an Institution-wide planning target 400'd because
+`campus` was omitted (backend needs the key, blank allowed); it now sends `""` (verified 201 in a rolled-back shell test).
 **Dependencies:** T2
 **Files:** `src/pages/AnalyticsPage.tsx`, `src/mocks/analytics.ts`
 **Scope:** M
