@@ -82,14 +82,21 @@ Standard verification for every task (not repeated below):
 - Verified with headless Chrome (CDP, minted JWT, Django on :8001) as system_admin and project_leader, desktop and 390px: real data shows (1 project, ₱120K LIB, 1 critical risk), empty sections show "No actual data", and there were no console errors.
 - Nothing is mocked, so there are no REGISTRY rows.
 
-### - [ ] T5: Dashboard — drill-down + export
+### - [x] T5: Dashboard — drill-down + export
 **Description:** Institution → campus → college → project drill-down and the report quick-export (xlsx/pdf) from the prototype.
 **Acceptance criteria:**
-- [ ] Drill-down uses `campus` filter on dashboard endpoints where supported; college/project levels mocked
-- [ ] Export buttons produce real .xlsx/.pdf files client-side
+- [x] Drill-down uses `campus` filter on dashboard endpoints where supported; college/project levels mocked
+- [x] Export buttons produce real .xlsx/.pdf files client-side
 **Dependencies:** T4
 **Files:** `src/pages/DashboardPage.tsx`, `src/lib/exportFiles.ts`, `src/mocks/dashboard.ts`
 **Scope:** S
+**Result (2026-09-25):**
+- Drill-down is Institution → Campus → Project, all real. Campuses come from `Project.campus`. At campus scope, the projects/budget/risk/forecasting dashboards are refetched with `?campus=`. The other panels are filtered client-side by project id. Compliance/Outputs show an "Institution-wide figures" note, because those endpoints have no filter.
+- **The college level is not shown**, not mocked. There's no `Project.college` yet (backend P11). Fake colleges between real campuses and real projects would give numbers that don't add up. Add the level when P11 lands.
+- The Objective Dashboards (5a–5d) moved to a 4-card row under the grid, and the left column is the drill panel (as in the prototype).
+- The Generate Report modal has 4 types (Consolidated / Project Status / Budget (LIB) / Risk Indicator) × PDF/XLSX, built from the scoped real data by `src/lib/exportFiles.ts`, which is reusable for T23.
+- In the PDF, ₱ is written as "PHP" because jsPDF's built-in font has no ₱ glyph.
+- Verified headless: the drill reaches P77, and the downloaded PDF/XLSX are real files (`file` + pdftotext/openpyxl content checked).
 
 ### - [ ] T6: Projects list
 **Description:** Clone the Projects list view (filters, cards/table, status pills, "Register Approved Project" CTA) onto `ProjectsPage`.

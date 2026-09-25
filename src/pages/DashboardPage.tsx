@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
@@ -7,13 +7,15 @@ import { useAuth } from "../context/AuthContext";
 import { authApi } from "../lib/authApi";
 import { budgetApi } from "../lib/budgetApi";
 import { dashboardApi } from "../lib/dashboardApi";
+import { exportPdf, exportXlsx, type ExportSection } from "../lib/exportFiles";
 import { monitoringApi } from "../lib/monitoringApi";
+import { notify } from "../lib/notify";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { riskApi } from "../lib/riskApi";
 import { visibleSections } from "../lib/nav";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
-import { resolveTier, roleLabel, roleScopeLine, type RoleTier } from "../lib/roles";
+import { resolveTier, type RoleTier } from "../lib/roles";
 import type {
   BudgetDashboard,
   ComplianceDashboard,
@@ -28,6 +30,12 @@ import type { ProjectMonitoringStatus } from "../types/monitoring";
 import type { WorkloadRow } from "../types/personnel";
 import type { Project, RecordStatus } from "../types/research";
 import type { RiskDashboard, RiskLevel } from "../types/risk";
+
+interface Scope {
+  level: "institution" | "campus" | "project";
+  campus: string | null;
+  projectId: number | null;
+}
 
 type DomainTab = "projects" | "budget" | "compliance" | "outputs" | "me" | "risk" | "personnel";
 
@@ -172,6 +180,14 @@ function Loading() {
   );
 }
 
+function InstitutionWideNote() {
+  return (
+    <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "#f8fafc", color: "#94a3b8", border: "1px solid #e2e8f0" }}>
+      Institution-wide figures. This dashboard has no campus/project filter yet.
+    </p>
+  );
+}
+
 function DomainSummary({ data }: { data: DashData }) {
   const { projectDash, budgetDash, complianceDash, outputDash, riskDash } = data;
   const hasProjects = !!projectDash && projectDash.total_projects > 0;
@@ -268,8 +284,9 @@ function ObjectiveDashboards({ data, canOpen }: { data: DashData; canOpen: (to: 
   ];
 
   return (
-    <div className="space-y-2">
+    <div>
       <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Objective Dashboards — 5a–5d</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
       {cards.map((c) => {
         const body = (
           <>
@@ -306,23 +323,24 @@ function ObjectiveDashboards({ data, canOpen }: { data: DashData; canOpen: (to: 
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
 
-function ProjectsPanel({ data }: { data: DashData }) {
-  const { projectDash, projects } = data;
-  if (projectDash === undefined || projects === undefined) return <Loading />;
-  if (!projectDash || projectDash.total_projects === 0) return <NoActualData />;
+function ProjectsPanel({ data, scoped }: { data: DashData; scoped: Project[] }) {
+  const { projects } = data;
+  if (projects === undefined) return <Loading />;
+  if (scoped.length === 0) return <NoActualData />;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2 mb-2">
         {(["active", "completed", "archived"] as const).map((s) => {
           const c = PROJECT_STATUS_STYLE[s];
-          return <CountTile key={s} label={PROJECT_STATUS_LABELS[s]} value={projectDash.by_status[s] ?? 0} color={c.text} bg={c.bg} />;
+          return <CountTile key={s} label={PROJECT_STATUS_LABELS[s]} value={scoped.filter((p) => p.status === s).length} color={c.text} bg={c.bg} />;
         })}
       </div>
-      {(projects ?? []).map((proj) => (
+      {scoped.map((proj) => (
         <Link
           key={proj.id}
           to={`/projects/${proj.id}`}
@@ -344,14 +362,14 @@ function ProjectsPanel({ data }: { data: DashData }) {
   );
 }
 
-function BudgetPanel({ data }: { data: DashData }) {
+function BudgetPanel({ data, ids }: { data: DashData; ids: Set<number> | null }) {
   const { budgetDash, budgets, projects } = data;
   if (budgetDash === undefined) return <Loading />;
   if (!budgetDash || budgetDash.project_count === 0) return <NoActualData hint="No certified budgets in scope yet." />;
   const balance = budgetDash.total_approved - budgetDash.total_actual;
   const util = Math.round(budgetDash.utilization_pct ?? 0);
   const projectCode = (id: number) => projects?.find((p) => p.id === id)?.project_code ?? `#${id}`;
-  const current = (budgets ?? []).filter((b) => b.is_current);
+  const current = (budgets ?? []).filter((b) => b.is_current && (!ids || ids.has(b.project)));
 
   return (
     <div className="space-y-4">
@@ -416,7 +434,7 @@ function BudgetPanel({ data }: { data: DashData }) {
   );
 }
 
-function CompliancePanel({ data }: { data: DashData }) {
+function CompliancePanel({ data, scopedView }: { data: DashData; scopedView: boolean }) {
   const { complianceDash } = data;
   if (complianceDash === undefined) return <Loading />;
   if (!complianceDash) return <NoActualData />;
@@ -433,6 +451,7 @@ function CompliancePanel({ data }: { data: DashData }) {
 
   return (
     <div className="space-y-4">
+      {scopedView && <InstitutionWideNote />}
       <div className="grid grid-cols-3 gap-2">
         <CountTile label="Within Threshold" value={sim.within_threshold} color="#059669" bg="#d1fae5" />
         <CountTile label="Over Threshold" value={sim.over_threshold} color="#dc2626" bg="#fee2e2" />
@@ -467,7 +486,7 @@ function CompliancePanel({ data }: { data: DashData }) {
   );
 }
 
-function OutputsPanel({ data }: { data: DashData }) {
+function OutputsPanel({ data, scopedView }: { data: DashData; scopedView: boolean }) {
   const { outputDash } = data;
   if (outputDash === undefined) return <Loading />;
   if (!outputDash) return <NoActualData />;
@@ -484,6 +503,7 @@ function OutputsPanel({ data }: { data: DashData }) {
 
   return (
     <div className="space-y-3">
+      {scopedView && <InstitutionWideNote />}
       <div className="grid grid-cols-2 gap-2">
         {tiles.map(([l, v, c, bg]) => (
           <div key={l} className="rounded-xl p-3" style={{ background: bg }}>
@@ -508,9 +528,9 @@ function OutputsPanel({ data }: { data: DashData }) {
   );
 }
 
-function MEPanel({ data }: { data: DashData }) {
-  const { projects } = data;
-  const [projectId, setProjectId] = useState<number | null>(null);
+function MEPanel({ data, scoped, initialId }: { data: DashData; scoped: Project[]; initialId: number | null }) {
+  const projects = data.projects === undefined ? undefined : scoped;
+  const [projectId, setProjectId] = useState<number | null>(initialId);
   const [status, setStatus] = useState<ProjectMonitoringStatus | null | undefined>(undefined);
   const selected = projectId ?? projects?.[0]?.id ?? null;
 
@@ -600,19 +620,28 @@ function MEPanel({ data }: { data: DashData }) {
   );
 }
 
-function RiskPanel({ data }: { data: DashData }) {
+function RiskPanel({ data, ids, projectLevel }: { data: DashData; ids: Set<number> | null; projectLevel: boolean }) {
   const { riskDash } = data;
   if (riskDash === undefined) return <Loading />;
   if (!riskDash || riskDash.total_projects === 0) return <NoActualData />;
+  const flagged = riskDash.flagged_projects.filter((p) => !ids || ids.has(p.project));
+  const counts: Record<RiskLevel, number> = projectLevel
+    ? {
+        critical: flagged.filter((p) => p.risk_level === "critical").length,
+        high: flagged.filter((p) => p.risk_level === "high").length,
+        medium: flagged.filter((p) => p.risk_level === "medium").length,
+        low: flagged.length === 0 ? 1 : 0,
+      }
+    : riskDash.by_risk_level;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-4 gap-2">
         {(["critical", "high", "medium", "low"] as RiskLevel[]).map((s) => {
           const m = RISK_SEV_META[s];
-          return <CountTile key={s} label={m.label} value={riskDash.by_risk_level[s] ?? 0} color={m.color} bg={m.bg} />;
+          return <CountTile key={s} label={m.label} value={counts[s] ?? 0} color={m.color} bg={m.bg} />;
         })}
       </div>
-      {riskDash.flagged_projects.map((p) => {
+      {flagged.map((p) => {
         const m = RISK_SEV_META[p.risk_level];
         const flags = Object.entries(p.flags)
           .filter(([, f]) => f.flagged)
@@ -630,7 +659,7 @@ function RiskPanel({ data }: { data: DashData }) {
           </div>
         );
       })}
-      {riskDash.flagged_projects.length === 0 && (
+      {flagged.length === 0 && (
         <div className="text-center py-6 rounded-xl" style={{ background: "#d1fae5" }}>
           <p className="text-sm font-bold" style={{ color: "#166534" }}>No open risks in scope</p>
         </div>
@@ -639,10 +668,11 @@ function RiskPanel({ data }: { data: DashData }) {
   );
 }
 
-function PersonnelPanel({ data, canSeeWorkload }: { data: DashData; canSeeWorkload: boolean }) {
-  const { taskDash, workload } = data;
-  if (taskDash === undefined) return <Loading />;
-  if (!taskDash || taskDash.length === 0) return <NoActualData hint="No tasks recorded yet." />;
+function PersonnelPanel({ data, canSeeWorkload, ids }: { data: DashData; canSeeWorkload: boolean; ids: Set<number> | null }) {
+  const { workload } = data;
+  if (data.taskDash === undefined) return <Loading />;
+  const taskDash = (data.taskDash ?? []).filter((r) => !ids || ids.has(r.project));
+  if (taskDash.length === 0) return <NoActualData hint="No tasks recorded yet." />;
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -686,6 +716,326 @@ function PersonnelPanel({ data, canSeeWorkload }: { data: DashData; canSeeWorklo
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ScopeBar({ scope, projects, onChange }: { scope: Scope; projects: Project[]; onChange: (s: Scope) => void }) {
+  const crumbs: { label: string; target: Scope }[] = [
+    { label: "Institution", target: { level: "institution", campus: null, projectId: null } },
+  ];
+  if (scope.campus !== null)
+    crumbs.push({ label: scope.campus || "Unspecified", target: { level: "campus", campus: scope.campus, projectId: null } });
+  if (scope.projectId !== null)
+    crumbs.push({
+      label: projects.find((p) => p.id === scope.projectId)?.project_code ?? `#${scope.projectId}`,
+      target: scope,
+    });
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      <span className="text-xs font-black uppercase tracking-widest mr-1" style={{ color: "#94a3b8" }}>Scope:</span>
+      {crumbs.map((c, i) => (
+        <div key={c.target.level} className="flex items-center gap-1">
+          {i > 0 && (
+            <svg width="10" height="10" fill="none" stroke="#cbd5e1" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          )}
+          <button
+            onClick={() => onChange(c.target)}
+            className="text-xs font-bold px-2 py-1 rounded-lg transition-all"
+            style={{
+              background: scope.level === c.target.level ? "#0d2a5e" : "#f1f5f9",
+              color: scope.level === c.target.level ? "white" : "#64748b",
+            }}
+          >
+            {c.label}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DrillPanel({
+  scope,
+  data,
+  scoped,
+  onChange,
+}: {
+  scope: Scope;
+  data: DashData;
+  scoped: Project[];
+  onChange: (s: Scope) => void;
+}) {
+  const { projects, budgets } = data;
+  if (projects === undefined) return <Loading />;
+  if (!projects || projects.length === 0) return <NoActualData />;
+  const libTotal = (ids: number[]) =>
+    (budgets ?? []).filter((b) => b.is_current && ids.includes(b.project)).reduce((s, b) => s + Number(b.total_amount), 0);
+
+  if (scope.level === "institution") {
+    const campuses = [...new Set(projects.map((p) => p.campus))].sort();
+    return (
+      <div className="space-y-2">
+        <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Institution → Campus</p>
+        {campuses.map((campus) => {
+          const projs = projects.filter((p) => p.campus === campus);
+          const active = projs.filter((p) => p.status === "active").length;
+          return (
+            <button
+              key={campus}
+              onClick={() => onChange({ level: "campus", campus, projectId: null })}
+              className="w-full text-left rounded-2xl p-4 transition-all hover:border-[#0891b2] hover:-translate-y-px"
+              style={{ background: "white", border: "1px solid #e2e8f0" }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-sm font-black" style={{ color: "#0d2a5e" }}>{campus || "Unspecified campus"}</p>
+                  <p className="text-xs" style={{ color: "#94a3b8" }}>{active} ongoing</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-black" style={{ color: "#0891b2" }}>{projs.length}</p>
+                  <p className="text-xs" style={{ color: "#94a3b8" }}>projects</p>
+                </div>
+              </div>
+              <p className="text-xs" style={{ color: "#94a3b8" }}>{peso(libTotal(projs.map((p) => p.id)))} total LIB</p>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (scope.level === "campus") {
+    return (
+      <div className="space-y-2">
+        <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Campus → Projects</p>
+        {scoped.map((proj) => (
+          <button
+            key={proj.id}
+            onClick={() => onChange({ level: "project", campus: scope.campus, projectId: proj.id })}
+            className="w-full text-left rounded-2xl p-4 transition-all hover:border-[#0891b2]"
+            style={{ background: "white", border: "1px solid #e2e8f0" }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-mono font-bold" style={{ color: "#0891b2" }}>{proj.project_code}</p>
+                <p className="text-xs font-semibold leading-snug mt-0.5 line-clamp-2" style={{ color: "#0d2a5e" }}>{proj.title}</p>
+              </div>
+              <StatusDot status={proj.status} />
+            </div>
+            <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>{peso(libTotal([proj.id]))} LIB</p>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  const proj = scoped[0];
+  if (!proj) return <NoActualData />;
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Project</p>
+      <div className="rounded-2xl p-4" style={{ background: "#0d2a5e" }}>
+        <p className="text-xs font-mono" style={{ color: "rgba(168,196,232,0.5)" }}>{proj.project_code}</p>
+        <p className="text-sm font-black text-white leading-snug mt-0.5">{proj.title}</p>
+        <p className="text-xs mt-1" style={{ color: "rgba(168,196,232,0.5)" }}>
+          {FUNDING_TYPE_LABELS[proj.funding_type] ?? proj.funding_type}
+          {proj.total_cost ? ` · ${peso(Number(proj.total_cost))}` : ""}
+        </p>
+        <p className="text-xs mt-1" style={{ color: "rgba(168,196,232,0.5)" }}>
+          {proj.start_date ?? "—"} → {proj.target_end_date ?? "—"}
+        </p>
+      </div>
+      <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white text-xs shrink-0" style={{ background: "#0d2a5e" }}>
+          {proj.lead_detail.email.slice(0, 2).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{proj.lead_detail.email}</p>
+          <p className="text-xs" style={{ color: "#0891b2" }}>Project Leader</p>
+        </div>
+      </div>
+      <Link to={`/projects/${proj.id}`} className="block text-xs font-bold text-center py-2 rounded-xl" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
+        Open project →
+      </Link>
+    </div>
+  );
+}
+
+const REPORT_TYPES = [
+  { value: "consolidated", label: "Consolidated Institutional Report", icon: "📊" },
+  { value: "project_status", label: "Project Status Report", icon: "📋" },
+  { value: "budget_utilization", label: "Budget (LIB) Report", icon: "💰" },
+  { value: "risk_register", label: "Risk Indicator Report", icon: "⚠️" },
+] as const;
+
+type ReportType = (typeof REPORT_TYPES)[number]["value"];
+
+function buildSections(type: ReportType, data: DashData, scoped: Project[], ids: Set<number> | null): ExportSection[] {
+  const inScope = (id: number) => !ids || ids.has(id);
+  const code = (id: number) => data.projects?.find((p) => p.id === id)?.project_code ?? `#${id}`;
+  const projectRows: ExportSection = {
+    heading: "Project Portfolio",
+    head: ["Code", "Title", "Status", "Funding", "Total Cost", "Campus", "Start", "End", "Project Leader"],
+    body: scoped.map((p) => [
+      p.project_code,
+      p.title,
+      PROJECT_STATUS_LABELS[p.status],
+      FUNDING_TYPE_LABELS[p.funding_type] ?? p.funding_type,
+      p.total_cost ? peso(Number(p.total_cost)) : "—",
+      p.campus || "—",
+      p.start_date ?? "—",
+      p.target_end_date ?? "—",
+      p.lead_detail.email,
+    ]),
+  };
+  const budgetRows: ExportSection = {
+    heading: "Line-Item Budgets (current version)",
+    head: ["Project", "Version", "Status", "Total LIB", "Over Dry Cap"],
+    body: (data.budgets ?? [])
+      .filter((b) => b.is_current && inScope(b.project))
+      .map((b) => [code(b.project), `v${b.version_number}`, humanize(b.status), peso(Number(b.total_amount)), b.exceeds_dry_cap ? "Yes" : "No"]),
+  };
+  const riskRows: ExportSection = {
+    heading: "Flagged Projects (Risk Indicators)",
+    head: ["Project", "Level", "Score", "Flags", "Recommended Action"],
+    body: (data.riskDash?.flagged_projects ?? [])
+      .filter((p) => inScope(p.project))
+      .map((p) => [
+        p.project_code,
+        RISK_SEV_META[p.risk_level].label,
+        p.risk_score,
+        Object.entries(p.flags)
+          .filter(([, f]) => f.flagged)
+          .map(([k]) => humanize(k))
+          .join(", "),
+        p.recommended_action,
+      ]),
+  };
+  const b = data.budgetDash;
+  const summary: ExportSection = {
+    heading: "Summary",
+    head: ["Projects", "Total Approved", "Actual", "Balance", "Utilization"],
+    body: [
+      [
+        scoped.length,
+        b ? peso(b.total_approved) : "—",
+        b ? peso(b.total_actual) : "—",
+        b ? peso(b.total_approved - b.total_actual) : "—",
+        b?.utilization_pct != null ? `${Math.round(b.utilization_pct)}%` : "—",
+      ],
+    ],
+  };
+  if (type === "project_status") return [projectRows];
+  if (type === "budget_utilization") return [summary, budgetRows];
+  if (type === "risk_register") return [riskRows];
+  return [summary, projectRows, budgetRows, riskRows];
+}
+
+function GenerateReportModal({
+  label,
+  data,
+  scoped,
+  ids,
+  onClose,
+}: {
+  label: string;
+  data: DashData;
+  scoped: Project[];
+  ids: Set<number> | null;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState<ReportType>("consolidated");
+  const [format, setFormat] = useState<"PDF" | "Excel (XLSX)">("PDF");
+
+  const generate = () => {
+    const doc = { title: REPORT_TYPES.find((t) => t.value === type)!.label, scope: label, sections: buildSections(type, data, scoped, ids) };
+    try {
+      if (format === "PDF") exportPdf(doc);
+      else exportXlsx(doc);
+      notify.success(`${doc.title} downloaded.`);
+      onClose();
+    } catch {
+      notify.error("The report could not be generated. Try again.");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 px-4 pb-4" style={{ background: "rgba(8,26,61,0.6)", backdropFilter: "blur(4px)" }}>
+      <div className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[95vh]" style={{ background: "white" }}>
+        <div className="px-6 py-4 flex items-center justify-between shrink-0" style={{ background: "#0d2a5e" }}>
+          <div>
+            <p className="text-white font-bold">Generate Report</p>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(168,196,232,0.5)" }}>Scope: {label}</p>
+          </div>
+          <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close">
+            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div>
+            <label className="label-field">Report Type</label>
+            <div className="space-y-2 mt-1">
+              {REPORT_TYPES.map((rt) => (
+                <button
+                  key={rt.value}
+                  onClick={() => setType(rt.value)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                  style={{
+                    background: type === rt.value ? "#e0eaf7" : "#f8fafc",
+                    border: `1.5px solid ${type === rt.value ? "#0d2a5e40" : "#e2e8f0"}`,
+                  }}
+                >
+                  <span className="text-base">{rt.icon}</span>
+                  <p className="flex-1 text-xs font-bold" style={{ color: "#0d2a5e" }}>{rt.label}</p>
+                  {type === rt.value && (
+                    <svg width="12" height="12" fill="none" stroke="#0d2a5e" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path d="M5 13l4 4L19 7" strokeLinecap="round" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="label-field">Output Format</label>
+            <select
+              value={format}
+              onChange={(e) => setFormat(e.target.value as "PDF" | "Excel (XLSX)")}
+              className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
+              style={{ borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" }}
+            >
+              <option>PDF</option>
+              <option>Excel (XLSX)</option>
+            </select>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+            <p className="text-xs font-bold mb-2" style={{ color: "#0d2a5e" }}>Scope</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>{label}</span>
+              <span className="text-xs" style={{ color: "#94a3b8" }}>
+                {scoped.length} project{scoped.length !== 1 ? "s" : ""} in scope
+              </span>
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: "#94a3b8" }}>
+            Quick export of what this dashboard shows. Official Appendix E/F/G files are under Reports &amp; Data Export.
+          </p>
+        </div>
+        <div className="px-6 pb-6 flex gap-3 shrink-0">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
+            Cancel
+          </button>
+          <button onClick={generate} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: "#0d2a5e" }}>
+            Generate &amp; Download
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -745,36 +1095,23 @@ function DashboardContent() {
 
   const [data, setData] = useState<DashData>({});
   const [domainTab, setDomainTab] = useState<DomainTab>("projects");
+  const [scope, setScope] = useState<Scope>({ level: "institution", campus: null, projectId: null });
+  const [showReport, setShowReport] = useState(false);
+  const campus = scope.campus;
 
   useEffect(() => {
     if (!hasRole) return;
     let active = true;
     Promise.all([
-      settle(dashboardApi.getProjectDashboard()),
-      settle(dashboardApi.getBudgetDashboard()),
       settle(dashboardApi.getComplianceDashboard()),
       settle(dashboardApi.getOutputDashboard()),
-      settle(riskApi.getDashboard()),
-      settle(dashboardApi.getForecastingDashboard()),
       settle(dashboardApi.getFundingAllocationDashboard()),
       settle(dashboardApi.getTaskDashboard()),
       settle(researchApi.getProjects()),
       settle(budgetApi.getBudgets()),
-    ]).then(([projectDash, budgetDash, complianceDash, outputDash, riskDash, forecastDash, fundingDash, taskDash, projects, budgets]) => {
+    ]).then(([complianceDash, outputDash, fundingDash, taskDash, projects, budgets]) => {
       if (!active) return;
-      setData((d) => ({
-        ...d,
-        projectDash,
-        budgetDash,
-        complianceDash,
-        outputDash,
-        riskDash,
-        forecastDash,
-        fundingDash,
-        taskDash,
-        projects,
-        budgets,
-      }));
+      setData((d) => ({ ...d, complianceDash, outputDash, fundingDash, taskDash, projects, budgets }));
     });
     if (canSeeWorkload) {
       settle(personnelApi.getWorkload()).then((workload) => active && setData((d) => ({ ...d, workload })));
@@ -783,6 +1120,46 @@ function DashboardContent() {
       active = false;
     };
   }, [hasRole, canSeeWorkload]);
+
+  useEffect(() => {
+    if (!hasRole) return;
+    let active = true;
+    const params = campus !== null ? { campus } : {};
+    Promise.all([
+      settle(dashboardApi.getProjectDashboard(params)),
+      settle(dashboardApi.getBudgetDashboard(params)),
+      settle(riskApi.getDashboard(params)),
+      settle(dashboardApi.getForecastingDashboard(params)),
+    ]).then(([projectDash, budgetDash, riskDash, forecastDash]) => {
+      if (!active) return;
+      setData((d) => ({ ...d, projectDash, budgetDash, riskDash, forecastDash }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [hasRole, campus]);
+
+  const changeScope = (next: Scope) => {
+    if (next.campus !== scope.campus) {
+      setData((d) => ({ ...d, projectDash: undefined, budgetDash: undefined, riskDash: undefined, forecastDash: undefined }));
+    }
+    setScope(next);
+  };
+
+  const scoped = useMemo(
+    () =>
+      (data.projects ?? []).filter(
+        (p) => (scope.campus === null || p.campus === scope.campus) && (scope.projectId === null || p.id === scope.projectId),
+      ),
+    [data.projects, scope],
+  );
+  const ids = useMemo(() => (scope.level === "institution" ? null : new Set(scoped.map((p) => p.id))), [scope.level, scoped]);
+  const scopeLabel =
+    scope.level === "project"
+      ? scoped[0]?.project_code ?? "Project"
+      : scope.level === "campus"
+        ? scope.campus || "Unspecified campus"
+        : "LSPU (Institutional)";
 
   if (!hasRole) {
     return (
@@ -803,6 +1180,7 @@ function DashboardContent() {
     ? sum(outputDash.publications_by_type) + sum(outputDash.ip_records_by_status) + outputDash.creative_works_count
     : 0;
   const highRisks = riskDash ? riskDash.by_risk_level.high + riskDash.by_risk_level.critical : 0;
+  const scopedView = scope.level !== "institution";
 
   const DOMAIN_TABS: { key: DomainTab; label: string }[] = [
     { key: "projects", label: "Projects" },
@@ -856,20 +1234,23 @@ function DashboardContent() {
       )}
 
       <div className="flex items-center justify-between gap-3 flex-wrap py-3 px-5 rounded-2xl" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-xs font-black uppercase tracking-widest mr-1" style={{ color: "#94a3b8" }}>Scope:</span>
-          <span className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "#0d2a5e", color: "white" }}>
-            {isWide ? "Institution" : user?.office || roleScopeLine(user?.role)}
-          </span>
-        </div>
-        <span className="text-xs font-semibold" style={{ color: "#94a3b8" }}>{roleLabel(user?.role)}</span>
+        <ScopeBar scope={scope} projects={data.projects ?? []} onChange={changeScope} />
+        <button
+          onClick={() => setShowReport(true)}
+          disabled={data.projects === undefined}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shrink-0 disabled:opacity-50"
+          style={{ background: "#0d2a5e" }}
+        >
+          {svgPath("M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", 12)}
+          Generate Report
+        </button>
       </div>
 
       <DomainSummary data={data} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="rounded-2xl p-4 overflow-y-auto" style={{ background: "white", border: "1px solid #e2e8f0", maxHeight: "640px" }}>
-          <ObjectiveDashboards data={data} canOpen={canOpen} />
+          <DrillPanel scope={scope} data={data} scoped={scoped} onChange={changeScope} />
         </div>
 
         <div className="lg:col-span-2 rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
@@ -889,21 +1270,27 @@ function DashboardContent() {
             ))}
           </div>
           <div className="p-5 overflow-y-auto" style={{ maxHeight: "580px" }}>
-            {domainTab === "projects" && <ProjectsPanel data={data} />}
-            {domainTab === "budget" && <BudgetPanel data={data} />}
-            {domainTab === "compliance" && <CompliancePanel data={data} />}
-            {domainTab === "outputs" && <OutputsPanel data={data} />}
-            {domainTab === "me" && <MEPanel data={data} />}
-            {domainTab === "risk" && <RiskPanel data={data} />}
-            {domainTab === "personnel" && <PersonnelPanel data={data} canSeeWorkload={canSeeWorkload} />}
+            {domainTab === "projects" && <ProjectsPanel data={data} scoped={scoped} />}
+            {domainTab === "budget" && <BudgetPanel data={data} ids={ids} />}
+            {domainTab === "compliance" && <CompliancePanel data={data} scopedView={scopedView} />}
+            {domainTab === "outputs" && <OutputsPanel data={data} scopedView={scopedView} />}
+            {domainTab === "me" && <MEPanel key={scope.projectId ?? scope.campus ?? "all"} data={data} scoped={scoped} initialId={scope.projectId} />}
+            {domainTab === "risk" && <RiskPanel data={data} ids={ids} projectLevel={scope.level === "project"} />}
+            {domainTab === "personnel" && <PersonnelPanel data={data} canSeeWorkload={canSeeWorkload} ids={ids} />}
           </div>
         </div>
       </div>
+
+      <ObjectiveDashboards data={data} canOpen={canOpen} />
 
       {tier === "system_admin" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <AccountsCard />
         </div>
+      )}
+
+      {showReport && (
+        <GenerateReportModal label={scopeLabel} data={data} scoped={scoped} ids={ids} onClose={() => setShowReport(false)} />
       )}
     </div>
   );
