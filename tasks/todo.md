@@ -496,13 +496,22 @@ counts the open risk. Screenshots taken on 3 temporary risks on P77 (deleted aft
 
 ## Phase 4: Insights
 
-### - [ ] T23: Reports
+### - [x] T23: Reports
 **Description:** Clone `Reports.tsx` report catalog onto `ReportsPage`.
 **Acceptance criteria:**
-- [ ] Appendix E/F/G + Project List download real server files (`file_format`, blob error handling unchanged); Generation Log real + role-gated
-- [ ] Financial/Compliance/Personnel/Outputs module reports download from `reports/<type>/`
-- [ ] Only catalog entries with no endpoint export client-side from mock data (jspdf/xlsx)
-- [ ] Custom report builder / scheduled generation (Alignment doc, Module 14) mocked + REGISTRY row
+- [x] Appendix E/F/G + Project List download real server files (`file_format`, blob error handling unchanged); Generation Log real + role-gated
+- [x] Financial/Compliance/Personnel/Outputs module reports download from `reports/<type>/`
+- [x] Only catalog entries with no endpoint export client-side (jspdf/xlsx) — both use live data, none mocked
+- [x] Custom report builder / scheduled generation mocked + REGISTRY row (Scheduled Reports tab; the filtered builder is the real Project List report)
+**Result:** Tabs Report Catalog (10 entries, domain filter, Generate modal with per-report params + format) / Generation
+History (real `reports/logs/`, system_admin/riuh/drd/vprei only, "Regenerate" re-runs the logged filters on current data)
+/ Submitted Reports (real monthly/midterm/terminal reports across projects, view attached document, export Appendix E/F
+preset to that project; submitting stays in Monitoring & Evaluation) / Scheduled Reports (mock). Client-side entries:
+Risk Register Export, Evaluation Summary (PDF/XLSX via `exportFiles.ts`, not logged by the server). Dropped from the
+prototype: report Preview, row count / file size, 5 catalog entries with no data source (Disbursement Detail, Budget
+Forecast, Compliance Audit Trail, Project Performance, DSS Scorecard). Smoke-tested: 4 module types × 4 formats all 200
+with the right content type, unknown type 404, leader logs 403; headless download of a real PDF (server) and the risk
+register PDF (client). Test log rows deleted.
 **Dependencies:** T5 (shared export helper)
 **Files:** `src/pages/ReportsPage.tsx`, `src/mocks/reports.ts`, `src/lib/exportFiles.ts`
 **Scope:** M

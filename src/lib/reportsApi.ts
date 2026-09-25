@@ -52,6 +52,10 @@ export const reportsApi = {
     year?: string;
     file_format: ReportFormat;
   }) => downloadReport("/api/reports/projects/", params, `project_list.${params.file_format}`),
+  downloadModule: (
+    type: "financial" | "compliance" | "personnel" | "outputs",
+    params: { campus?: string; funding_type?: string; file_format: ReportFormat },
+  ) => downloadReport(`/api/reports/${type}/`, params, `${type}.${params.file_format}`),
   getLogs: async (): Promise<GeneratedReportLog[]> => {
     const { data } = await apiClient.get("/api/reports/logs/");
     return data;

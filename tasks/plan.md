@@ -217,7 +217,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Checkpoint E
 
 ### Phase 4: Insights
-- [ ] T23 Reports
+- [x] T23 Reports
 - [ ] T24 Analytics
 - [ ] T25 Decision Support
 ### Checkpoint F
