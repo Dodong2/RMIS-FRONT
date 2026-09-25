@@ -1,14 +1,10 @@
 import { useState, type SyntheticEvent } from "react";
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { AuthShell } from "../components/auth/AuthShell";
 import { GoogleButton } from "../components/auth/GoogleButton";
 import { notify } from "../lib/notify";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { AuthDivider, AuthHint, AuthInput, AuthLabel, AuthSubmit, EyeToggle } from "../components/auth/AuthFields";
 
 export default function LoginPage() {
   const { login, loginWithGoogle } = useAuth();
@@ -56,25 +52,21 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="Sign in"
-      subtitle="Use your LSPU account to continue"
+      title="Sign In to RMIS"
+      subtitle="Enter your LSPU account email and password"
       footer={
         <>
           No account yet?{" "}
-          <Link
-            to="/register"
-            className="font-semibold text-cyan-light underline-offset-4 hover:underline"
-          >
+          <Link to="/register" className="font-bold hover:underline" style={{ color: "#0891b2" }}>
             Request access
           </Link>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email<span className="text-destructive" aria-hidden="true"> *</span></Label>
-          <Input
+        <div>
+          <AuthLabel htmlFor="email" required>Email</AuthLabel>
+          <AuthInput
             id="email"
             type="email"
             autoComplete="email"
@@ -82,46 +74,33 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@lspu.edu.ph"
             required
-            aria-invalid={!!error || (attempted && !email.trim())}
+            invalid={!!error || (attempted && !email.trim())}
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password<span className="text-destructive" aria-hidden="true"> *</span></Label>
+        <div>
+          <AuthLabel htmlFor="password" required>Password</AuthLabel>
           <div className="relative">
-            <Input
+            <AuthInput
               id="password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Your password"
+              placeholder="Enter your password"
               required
-              className="pr-10"
-              aria-invalid={!!error || (attempted && !password)}
+              className="pr-11"
+              invalid={!!error || (attempted && !password)}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-md text-muted-foreground hover:text-navy"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
+            <EyeToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
           </div>
+          {error && <AuthHint tone="error">{error}</AuthHint>}
         </div>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-          {isSubmitting ? "Signing in…" : "Sign in"}
-        </Button>
+        <AuthSubmit busy={isSubmitting} busyLabel="Signing in…">Sign In</AuthSubmit>
       </form>
 
-      <div className="my-5 flex items-center gap-3">
-        <Separator className="flex-1" />
-        <span className="text-xs text-muted-foreground">or</span>
-        <Separator className="flex-1" />
-      </div>
+      <AuthDivider />
 
       <GoogleButton
         label="Continue with Google"

@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { LspuMark } from "../common/LspuMark";
 
 interface AuthShellProps {
   title: string;
@@ -8,74 +7,91 @@ interface AuthShellProps {
   footer?: ReactNode;
 }
 
+const CAMPUSES = ["SPC", "Siniloan", "Los Baños", "Sta. Cruz"];
+
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
   return (
-    <div className="flex min-h-screen bg-navy-deep">
-      {/* Left panel — the one bold moment on these pages. Cyan rule, navy field. */}
-      <section className="relative hidden flex-col justify-between overflow-hidden p-12 lg:flex lg:w-[52%] bg-[linear-gradient(155deg,#081a3d_0%,#0d2a5e_55%,#1a3f7a_100%)]">
+    <div className="min-h-screen flex" style={{ background: "linear-gradient(150deg, #05122e 0%, #0d2a5e 55%, #1a3f7a 100%)" }}>
+      <div className="hidden lg:flex lg:w-[55%] flex-col justify-between p-12 relative overflow-hidden">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.05]"
+          className="absolute inset-0 opacity-[0.04]"
           style={{
             backgroundImage:
-              "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+              "linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)",
             backgroundSize: "48px 48px",
           }}
         />
+
         <div className="relative">
-          <div className="mb-12 flex items-center gap-4">
-            <LspuMark size={52} />
+          <div className="flex items-center gap-4 mb-10">
+            <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-xl shrink-0">
+              <span className="text-base font-black" style={{ color: "#0d2a5e" }}>LSPU</span>
+            </div>
             <div>
-              <p className="text-sm font-semibold leading-tight text-white">
-                Laguna State Polytechnic University
-              </p>
-              <p className="text-xs text-white/55">
-                Office of the VP for Research, Development and Extension
-              </p>
+              <p className="text-white/50 text-xs uppercase tracking-widest">Republic of the Philippines</p>
+              <p className="text-white font-bold leading-tight">Laguna State Polytechnic University</p>
+              <p className="text-white/60 text-xs">Research &amp; Development Office</p>
             </div>
           </div>
 
-          <div className="border-l-[3px] border-cyan pl-6">
-            <h2 className="text-4xl font-extrabold leading-[1.1] text-white xl:text-5xl">
-              Research Management
-              <br />
-              Information System
-            </h2>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-white/60">
-              Proposals, budgets, compliance, personnel and research outputs for
-              every LSPU campus and college, in one place.
+          <div className="border-l-4 pl-6 mb-8" style={{ borderColor: "#0891b2" }}>
+            <h1 className="text-white font-black text-4xl xl:text-5xl leading-tight">
+              Research<br />Management<br />
+              <span style={{ color: "#67e8f9" }}>Information</span><br />System
+            </h1>
+            <p className="text-white/60 mt-3 text-sm leading-relaxed max-w-sm">
+              A campus- and college-based platform designed to manage, monitor, and analyze research projects,
+              resources, compliance, outputs, and performance across the LSPU campuses and their respective colleges.
             </p>
           </div>
         </div>
 
-        <p className="relative text-xs text-white/25">
-          Phase 1 — authentication and role-based access
+        <p className="relative text-white/20 text-xs">
+          LSPU–RMIS&nbsp;&nbsp;· LSPU-ICTS · Campus- &amp; College-Based Research Platform
         </p>
-      </section>
+      </div>
 
-      <section className="flex w-full items-center justify-center p-5 lg:w-[48%] lg:p-10">
+      <div className="w-full lg:w-[45%] flex items-center justify-center p-5 lg:p-10">
         <div className="w-full max-w-md">
-          <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <LspuMark size={36} />
-            <p className="text-sm font-bold text-white">LSPU RMIS</p>
-          </div>
+          <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: "#f8fafc" }}>
+            <div className="px-7 py-6" style={{ background: "linear-gradient(135deg, #0d2a5e 0%, #1a3f7a 100%)" }}>
+              <div className="flex items-center gap-3 lg:hidden mb-5">
+                <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0">
+                  <span className="text-xs font-black" style={{ color: "#0d2a5e" }}>LSPU</span>
+                </div>
+                <p className="text-white font-bold text-sm">LSPU–RMIS</p>
+              </div>
 
-          <div className="overflow-hidden rounded-xl bg-card shadow-2xl">
-            <div className="border-b-[3px] border-cyan bg-[linear-gradient(135deg,#0d2a5e_0%,#1a3f7a_100%)] px-7 py-6">
-              <h1 className="text-2xl font-extrabold leading-tight text-white">
-                {title}
-              </h1>
-              {subtitle && (
-                <p className="mt-1 text-sm text-white/60">{subtitle}</p>
-              )}
+              <div className="flex flex-wrap gap-1.5 mb-5">
+                {CAMPUSES.map((c) => (
+                  <span
+                    key={c}
+                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+
+              <h2 className="text-white font-black text-2xl leading-tight">{title}</h2>
+              {subtitle && <p className="text-white/50 text-sm mt-1">{subtitle}</p>}
             </div>
-            <div className="p-6">{children}</div>
-          </div>
 
-          {footer && (
-            <div className="mt-5 text-center text-sm text-white/55">{footer}</div>
-          )}
+            <div className="p-6">{children}</div>
+
+            {footer && (
+              <div className="px-7 pb-5 text-center text-sm" style={{ color: "#64748b" }}>{footer}</div>
+            )}
+
+            <div className="px-7 py-3 border-t" style={{ borderColor: "#e2e8f0", background: "#f1f5f9" }}>
+              <p className="text-xs text-center" style={{ color: "#94a3b8" }}>
+                LSPU–RMIS&nbsp;&nbsp;· ICTS-Supported · Campus- &amp; College-Based
+              </p>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

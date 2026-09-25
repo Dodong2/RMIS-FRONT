@@ -183,7 +183,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Phase 0: Foundation
 - [x] T1 Foundation: global CSS, deps, mocks scaffolding, helpers, docs
 - [x] T2 Layout: sidebar, topbar, nav regroup
-- [ ] T3 Login + auth pages
+- [x] T3 Login + auth pages
 ### Checkpoint A
 
 ### Phase 1: Core

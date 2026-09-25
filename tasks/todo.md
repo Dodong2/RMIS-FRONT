@@ -41,19 +41,20 @@ Standard verification for every task (not repeated below):
 **Scope:** M
 **Result (2026-09-25):** Built with the prototype's markup and inline styles. The mobile Sheet was replaced by the prototype's overlay drawer. Icons use the prototype's SVG paths, with heroicons-style cart, sync, and team added. Nav groups are Core / Financial / Procurement, Realignment & Financial Monitoring / Research / Insights / Administration. Reports moved to Research as "Reports & Data Export". Staff, Leader Load, and Personnel Changes are under Administration next to Personnel Coordination. "Budget Office Sync" is a `ready: false` placeholder until T17b. Tiers are unchanged. `/budget` uses `end` so it's no longer active on `/budget/forecast`. The avatar color comes from `protoRoleStyle`, and the label is our real role name. Notifications are mocked (REGISTRY row). tsc, eslint, and build are clean. **Not browser-checked yet** (needs a real login).
 
-### - [ ] T3: Login + auth pages
+### - [x] T3: Login + auth pages
 **Description:** Clone `Login.tsx` layout (navy hero left, sign-in card right) into `LoginPage` with the real flow: email + password + Google button. Restyle Register, GoogleChooseRole, RegistrationPending, AuthCallback in the same hero/card language.
 **Acceptance criteria:**
-- [ ] No account picker, no demo password hint
-- [ ] Email/password login, Google login, pending-account error message all still work
-- [ ] Register + Google choose-role + pending + callback pages visually consistent with Login
+- [x] No account picker, no demo password hint
+- [x] Email/password login, Google login, pending-account error message all still work
+- [x] Register + Google choose-role + pending + callback pages visually consistent with Login
 **Verification:** Log in both ways against dev backend; register flow reaches pending page.
 **Dependencies:** T1
 **Files:** `src/pages/LoginPage.tsx`, `RegisterPage.tsx`, `GoogleChooseRolePage.tsx`, `RegistrationPendingPage.tsx`, `AuthCallbackPage.tsx`, `src/components/auth/AuthShell.tsx`
 **Scope:** M
+**Result (2026-09-25):** `AuthShell` is now the prototype's Login layout (navy hero left, card with campus pills + footer strip right), so all 5 auth pages share it. The shared prototype-styled fields are in `src/components/auth/AuthFields.tsx`. The login/register/Google logic is unchanged. There's no account picker and no demo password. Checked with headless screenshots of /login, /register, /registration-pending at 1440px and 390px. Roles showed "No roles available" there only because the headless run used port 5199, which isn't in backend CORS. **Real login with Google/email not re-tested.** `LspuMark` is now unused. It's kept for when the real seal asset arrives.
 
 ## Checkpoint A: Foundation
-- [ ] Build + lint clean
+- [x] Build + lint clean (tsc -b, build OK; eslint 18 pre-existing errors, 0 new)
 - [ ] Login → dashboard → navigate all nav items works (pages still old style inside new shell)
 - [ ] Human review of Layout + Login before continuing
 

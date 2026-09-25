@@ -1,13 +1,10 @@
 import { useState, useEffect, type SyntheticEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { authApi } from "../lib/authApi";
 import { supabase } from "../lib/supabaseClient";
 import type { Role } from "../types/auth";
 import { AuthShell } from "../components/auth/AuthShell";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AUTH_SELECT_TRIGGER, AuthHint, AuthLabel, AuthSubmit } from "../components/auth/AuthFields";
 import {
   Select,
   SelectContent,
@@ -69,26 +66,16 @@ export default function GoogleChooseRolePage() {
   };
 
   return (
-    <AuthShell
-      title="One more step"
-      subtitle="Tell us which role you need so an administrator can review it"
-    >
+    <AuthShell title="One More Step" subtitle="Tell us which role you need so an administrator can review it">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="role">Role you are requesting<span className="text-destructive" aria-hidden="true"> *</span></Label>
+        <div>
+          <AuthLabel htmlFor="role" required>Role You Are Requesting</AuthLabel>
           {rolesLoading ? (
-            <Skeleton className="h-9 w-full rounded-md" />
+            <div className="h-12 w-full rounded-xl animate-pulse" style={{ background: "#e2e8f0" }} />
           ) : (
-            <Select
-              value={requestedRole}
-              onValueChange={setRequestedRole}
-              disabled={roles.length === 0}
-            >
-              <SelectTrigger id="role" className="w-full" aria-invalid={attempted && !requestedRole}>
-                <SelectValue
-                  placeholder={roles.length === 0 ? "No roles available" : "Choose a role"}
-                />
+            <Select value={requestedRole} onValueChange={setRequestedRole} disabled={roles.length === 0}>
+              <SelectTrigger id="role" className={AUTH_SELECT_TRIGGER} aria-invalid={attempted && !requestedRole}>
+                <SelectValue placeholder={roles.length === 0 ? "No roles available" : "Choose a role"} />
               </SelectTrigger>
               <SelectContent>
                 {roles.map((role) => (
@@ -99,15 +86,12 @@ export default function GoogleChooseRolePage() {
               </SelectContent>
             </Select>
           )}
-          <p className="text-xs text-muted-foreground">
-            Your Google account is already verified. Only the role is still needed.
-          </p>
+          <AuthHint>Your Google account is already verified. Only the role is still needed.</AuthHint>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting || rolesLoading}>
-          {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-          {isSubmitting ? "Submitting…" : "Submit request"}
-        </Button>
+        <AuthSubmit busy={isSubmitting} busyLabel="Submitting…" disabled={rolesLoading}>
+          Submit Request
+        </AuthSubmit>
       </form>
     </AuthShell>
   );

@@ -1,16 +1,19 @@
 import { useState, useEffect, type SyntheticEvent } from "react";
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { authApi } from "../lib/authApi";
 import type { Role } from "../types/auth";
 import { AuthShell } from "../components/auth/AuthShell";
 import { GoogleButton } from "../components/auth/GoogleButton";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AUTH_SELECT_TRIGGER,
+  AuthDivider,
+  AuthHint,
+  AuthInput,
+  AuthLabel,
+  AuthSubmit,
+  EyeToggle,
+} from "../components/auth/AuthFields";
 import {
   Select,
   SelectContent,
@@ -35,7 +38,6 @@ export default function RegisterPage() {
 
   useEffect(() => {
     let active = true;
-    setRolesLoading(true);
     authApi
       .getRoles()
       .then((data) => {
@@ -100,25 +102,21 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      title="Request access"
+      title="Request Access"
       subtitle="An administrator confirms your role before your account opens"
       footer={
         <>
           Already have an account?{" "}
-          <Link
-            to="/login"
-            className="font-semibold text-cyan-light underline-offset-4 hover:underline"
-          >
+          <Link to="/login" className="font-bold hover:underline" style={{ color: "#0891b2" }}>
             Sign in
           </Link>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email<span className="text-destructive" aria-hidden="true"> *</span></Label>
-          <Input
+        <div>
+          <AuthLabel htmlFor="email" required>Email</AuthLabel>
+          <AuthInput
             id="email"
             type="email"
             autoComplete="email"
@@ -126,14 +124,14 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@lspu.edu.ph"
             required
-            aria-invalid={attempted && !email.trim()}
+            invalid={attempted && !email.trim()}
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password<span className="text-destructive" aria-hidden="true"> *</span></Label>
+        <div>
+          <AuthLabel htmlFor="password" required>Password</AuthLabel>
           <div className="relative">
-            <Input
+            <AuthInput
               id="password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
@@ -141,23 +139,16 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
               required
-              className="pr-10"
-              aria-invalid={attempted && !password}
+              className="pr-11"
+              invalid={attempted && !password}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute inset-y-0 right-0 grid w-10 place-items-center rounded-r-md text-muted-foreground hover:text-navy"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
+            <EyeToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="password2">Confirm password<span className="text-destructive" aria-hidden="true"> *</span></Label>
-          <Input
+        <div>
+          <AuthLabel htmlFor="password2" required>Confirm Password</AuthLabel>
+          <AuthInput
             id="password2"
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
@@ -165,29 +156,19 @@ export default function RegisterPage() {
             onChange={(e) => setPassword2(e.target.value)}
             placeholder="Retype your password"
             required
-            aria-invalid={(password2.length > 0 && !passwordsMatch) || (attempted && !password2)}
+            invalid={(password2.length > 0 && !passwordsMatch) || (attempted && !password2)}
           />
-          {password2.length > 0 && !passwordsMatch && (
-            <p className="text-xs text-destructive">The passwords do not match yet.</p>
-          )}
+          {password2.length > 0 && !passwordsMatch && <AuthHint tone="error">The passwords do not match yet.</AuthHint>}
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="role">Role you are requesting<span className="text-destructive" aria-hidden="true"> *</span></Label>
+        <div>
+          <AuthLabel htmlFor="role" required>Role You Are Requesting</AuthLabel>
           {rolesLoading ? (
-            <Skeleton className="h-9 w-full rounded-md" />
+            <div className="h-12 w-full rounded-xl animate-pulse" style={{ background: "#e2e8f0" }} />
           ) : (
-            <Select
-              value={requestedRole}
-              onValueChange={setRequestedRole}
-              disabled={roles.length === 0}
-            >
-              <SelectTrigger id="role" className="w-full" aria-invalid={attempted && !requestedRole}>
-                <SelectValue
-                  placeholder={
-                    roles.length === 0 ? "No roles available" : "Choose a role"
-                  }
-                />
+            <Select value={requestedRole} onValueChange={setRequestedRole} disabled={roles.length === 0}>
+              <SelectTrigger id="role" className={AUTH_SELECT_TRIGGER} aria-invalid={attempted && !requestedRole}>
+                <SelectValue placeholder={roles.length === 0 ? "No roles available" : "Choose a role"} />
               </SelectTrigger>
               <SelectContent>
                 {roles.map((role) => (
@@ -198,22 +179,13 @@ export default function RegisterPage() {
               </SelectContent>
             </Select>
           )}
-          <p className="text-xs text-muted-foreground">
-            An administrator can assign a different role than the one you request.
-          </p>
+          <AuthHint>An administrator can assign a different role than the one you request.</AuthHint>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-          {isSubmitting ? "Submitting…" : "Submit request"}
-        </Button>
+        <AuthSubmit busy={isSubmitting} busyLabel="Submitting…">Submit Request</AuthSubmit>
       </form>
 
-      <div className="my-5 flex items-center gap-3">
-        <Separator className="flex-1" />
-        <span className="text-xs text-muted-foreground">or</span>
-        <Separator className="flex-1" />
-      </div>
+      <AuthDivider />
 
       <GoogleButton
         label="Sign up with Google"
