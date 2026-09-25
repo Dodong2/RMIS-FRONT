@@ -8,6 +8,9 @@ import type {
   PendingUser,
   AdminUser,
   AuditLog,
+  AccountStatus,
+  UserScope,
+  PermissionMatrix,
 } from "../types/auth";
 
 export const authApi = {
@@ -55,8 +58,19 @@ export const authApi = {
   updateUserRole: async (userId: number, roleId: number): Promise<void> => {
     await apiClient.patch(`/api/admin/users/${userId}/update-role/`, { role_id: roleId });
   },
-  toggleUserActive: async (userId: number): Promise<{ is_active: boolean }> => {
-    const { data } = await apiClient.patch(`/api/admin/users/${userId}/toggle-active/`);
+  setAccountStatus: async (
+    userId: number,
+    action: "suspend" | "reactivate" | "deactivate",
+  ): Promise<{ id: number; account_status: AccountStatus; is_active: boolean }> => {
+    const { data } = await apiClient.post(`/api/admin/users/${userId}/account-status/`, { action });
+    return data;
+  },
+  updateUserScope: async (userId: number, scope: { campus: string; college: string }): Promise<{ id: number; scope: UserScope }> => {
+    const { data } = await apiClient.patch(`/api/admin/users/${userId}/scope/`, scope);
+    return data;
+  },
+  getPermissionMatrix: async (): Promise<PermissionMatrix> => {
+    const { data } = await apiClient.get("/api/admin/permissions/");
     return data;
   },
   getAuditLogs: async (params: { actor?: number; method?: string } = {}): Promise<AuditLog[]> => {

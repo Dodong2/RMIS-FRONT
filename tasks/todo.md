@@ -560,14 +560,28 @@ headless screenshots on temporary seed data, deleted after (incl. its 9 audit-lo
 
 ## Phase 5: Administration + wrap-up
 
-### - [ ] T26: User & Access Management
+### - [x] T26: User & Access Management
 **Description:** Clone `UserManagement.tsx` tabs (Accounts, Profiles, Assignments, Audit) across `UsersListPage` + `PendingUsersPage`.
 **Acceptance criteria:**
-- [ ] Existing user list + approve/reject pending users still work
-- [ ] Office/position shown; Suspend/Reactivate/Deactivate via `account-status/` (deactivate shows the hand-over-first error); assignments mocked where no endpoint
-- [ ] Temporary replacement while suspended (Q3) mocked + REGISTRY row (backend P13 not built)
-- [ ] Scope (campus/college) shown per user and editable via `PATCH admin/users/<id>/scope/` (a blank value clears it). Note in the UI hint: college is stored but not enforced yet
-- [ ] Extra tab "Roles & Permissions": read-only role × permission matrix from `GET admin/permissions/` (36 codes × 12 roles, grouped by module). No editing (client: future enhancement)
+- [x] Existing user list + approve/reject pending users still work
+- [x] Office/position shown; Suspend/Reactivate/Deactivate via `account-status/` (deactivate shows the hand-over-first error); assignments mocked where no endpoint
+- [x] Temporary replacement while suspended (Q3) mocked + REGISTRY row (backend P13 not built)
+- [x] Scope (campus/college) shown per user and editable via `PATCH admin/users/<id>/scope/` (a blank value clears it). Note in the UI hint: college is stored but not enforced yet
+- [x] Extra tab "Roles & Permissions": read-only role × permission matrix from `GET admin/permissions/` (36 codes × 12 roles, grouped by module). No editing (client: future enhancement)
+**Result:** `/admin/users` is now User & Access Management with 5 tabs: User Accounts (KPIs, search/role/scope/status
+filters, inline role change, Suspend/Reactivate/Deactivate via `account-status/`, deactivate behind a confirm modal and
+the hand-over-first 400 shown with the counts, own row locked), Personnel Profiles (office/position/scope cards), Org.
+Assignments (grouped by real `scope` campus → college, Scope editor with datalist of project campuses, blank clears,
+"college not enforced" hint), Roles & Permissions (read-only matrix, 36 × 12, grouped by module; Perms modal per role),
+Access Audit (real audit log filtered to `/api/admin/*`, link to `/admin/audit`). Row click opens the user detail modal;
+a suspended account shows the mocked temporary-replacement card (`src/mocks/users.ts`, REGISTRY row). Dropped from the
+prototype (no endpoint): Create Account wizard (replaced by a "Pending Registrations (n)" link, the real flow), Reset
+Password, Edit Profile, employee ID, last login. `/admin/pending-users` restyled (KPIs, native selects preselected to
+the requested role, "Assign & Activate"). `toggleUserActive` removed from `authApi` (superseded by `account-status/`).
+eslint 7 → 5 (both admin pages' set-state-in-effect errors gone). Verified with a rolled-back APIClient run (suspend,
+reactivate, scope set/clear, deactivate 400 for a project lead with `{"projects": 1}`, deactivate 200, reactivate-after-
+deactivate 400; 0 users / 0 audit rows leaked) and headless screenshots. The deactivate UI click was not exercised on
+the dev DB (the first eligible row is a real account without responsibilities, so it would really deactivate).
 **Dependencies:** T2
 **Files:** `src/pages/admin/UsersListPage.tsx`, `src/pages/admin/PendingUsersPage.tsx`, `src/mocks/users.ts`
 **Scope:** M

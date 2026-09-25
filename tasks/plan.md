@@ -223,7 +223,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Checkpoint F
 
 ### Phase 5: Administration + wrap-up
-- [ ] T26 User & Access Management
+- [x] T26 User & Access Management
 - [ ] T27 Audit Logs
 - [ ] T28 Settings (new page)
 - [ ] T29 Wrap-up: registry audit, handover, full walkthrough
