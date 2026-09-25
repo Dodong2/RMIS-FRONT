@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { BudgetRealignment, BudgetSummary, Disbursement } from "../types/financial";
+import type { BudgetRealignment, BudgetSummary, Disbursement, ProcurementRequest, ProcurementStatus } from "../types/financial";
 
 export const financialApi = {
   getDisbursements: async (
@@ -43,6 +43,29 @@ export const financialApi = {
     payload: { decision: "approved" | "rejected"; bor_resolution_number?: string },
   ): Promise<BudgetRealignment> => {
     const { data } = await apiClient.post(`/api/financial/realignments/${id}/review/`, payload);
+    return data;
+  },
+
+  getProcurementRequests: async (
+    params: { project?: number; status?: ProcurementStatus; fiscal_year?: number; quarter?: number; overdue?: boolean } = {},
+  ): Promise<ProcurementRequest[]> => {
+    const { overdue, ...rest } = params;
+    const { data } = await apiClient.get("/api/financial/procurement-requests/", { params: { ...rest, ...(overdue ? { overdue: "true" } : {}) } });
+    return data;
+  },
+  createProcurementRequest: async (payload: {
+    line_item: number;
+    description: string;
+    amount: string;
+    fiscal_year: number;
+    quarter: number;
+    remarks?: string;
+  }): Promise<ProcurementRequest> => {
+    const { data } = await apiClient.post("/api/financial/procurement-requests/", payload);
+    return data;
+  },
+  updateProcurementStatus: async (id: number, status: "processing" | "released" | "cancelled", remarks?: string): Promise<ProcurementRequest> => {
+    const { data } = await apiClient.post(`/api/financial/procurement-requests/${id}/status/`, { status, remarks });
     return data;
   },
 

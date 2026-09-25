@@ -334,7 +334,7 @@ export default function App() {
         path="/procurement"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "vprei", "university_admin", "drd", "procurement_officer_lib", "finance_budget"]}>
+            <RoleGate allow={["system_admin", "vprei", "university_admin", "drd", "procurement_officer_lib", "finance_budget", "program_leader", "project_leader"]}>
               <ProcurementPage />
             </RoleGate>
           </ProtectedRoute>

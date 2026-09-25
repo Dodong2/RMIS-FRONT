@@ -348,15 +348,16 @@ Standard verification for every task (not repeated below):
 - Budget status uses the certified summary (adjusted) when available, otherwise the LIB total.
 - Headless screenshot OK. **The quick-method charts were not seen with data**: the dev DB has 0 disbursements, so they show "No actual data".
 
-### - [ ] T17: Procurement — restyle + procurement requests
+### - [x] T17: Procurement — restyle + procurement requests
 **Description:** Restyle `ProcurementPage` in the Disbursement page's language and add the new procurement-request pipeline.
 **Acceptance criteria:**
-- [ ] APP-flagged worklist + project filter still work
-- [ ] Leaders can file a request (certified budget only); procurement_officer_lib/system_admin move Requested → Processing → Released/Cancelled; overdue filter
-- [ ] `/procurement` RoleGate + nav tiers gain program_leader/project_leader (Q12; they can't open the page today). The APP worklist stays visible to them (backend scopes budget data to their projects)
+- [x] APP-flagged worklist + project filter still work
+- [x] Leaders can file a request (certified budget only); procurement_officer_lib/system_admin move Requested → Processing → Released/Cancelled; overdue filter
+- [x] `/procurement` RoleGate + nav tiers gain program_leader/project_leader (Q12; they can't open the page today). The APP worklist stays visible to them (backend scopes budget data to their projects)
 **Dependencies:** T15
 **Files:** `src/pages/ProcurementPage.tsx`, `src/lib/financialApi.ts`
 **Scope:** M
+**Result (2026-09-25):** Two tabs: Procurement Requests (pipeline dots, routing label, delayed flag, inline status actions for update roles) and APP Worklist (> ₱50,000). There are 6 KPIs; Delayed comes from `?overdue=true`. The New Request modal only lists projects with a certified current LIB and shows a routing preview. Rolled-back APIClient smoke test: leader file → 201 (routed to university_president); leader status move → 403; requested→released skip → 400; processing → released → 200; 0 leaked rows. Headless-checked as project_leader. The dev DB has no certified LIB, so the modal shows its empty state.
 
 ### - [ ] T17b: Budget Office Sync page (Module 15)
 **Description:** New Module 15 page for the XLSX import + reconciliation, styled with the Budget page's KPI strip + table. It gets its own sidebar item (decision revised 2026-09-25).

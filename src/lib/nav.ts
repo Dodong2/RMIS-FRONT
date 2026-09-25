@@ -121,7 +121,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Procurement",
         to: "/procurement",
         icon: "cart",
-        tiers: ["system_admin", "institution_oversight", "procurement", "finance"],
+        tiers: ["system_admin", "institution_oversight", "procurement", "finance", "project_management"],
         ready: true,
       },
     ],
