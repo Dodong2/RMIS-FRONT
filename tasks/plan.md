@@ -57,7 +57,7 @@ endpoint now exists, swap them to real API calls, delete the row.
 
 ## Page mapping
 Updated 2026-09-24 after rmis-backend `dea9255` ("align backend with DPMIS
-spec"). Types for every new/changed serializer are already in `src/types/`;
+spec"), and again 2026-09-25 after `209dac2`..`85b8e9c` (backend Phase 3 P1–P10). Types for every new/changed serializer are already in `src/types/`;
 the API functions in `src/lib/<domain>Api.ts` get added inside each page task.
 
 | Prototype component | Our page(s) | Real API now | Still mock (no endpoint) |
@@ -67,13 +67,13 @@ the API functions in `src/lib/<domain>Api.ts` get added inside each page task.
 | Dashboard | `DashboardPage` | projects/budget/compliance/outputs + **forecasting, funding-allocation, tasks** dashboards, risk dashboard | college/project drill-down levels |
 | Projects | `ProjectsPage`, `ProjectDetailPage`, `RegisterProjectPage`, `RegisterProgramPage` | projects + **description/objectives/beneficiaries/outcomes/impacts, approval info (`ntp_number`, `proposal_approved_on`, `reviewing_body`), status history**; approval docs via Documents | — |
 | WorkPlan | **new** `WorkPlanPage` (`/work-plan`) | milestones + **start date, objective, deliverable, responsible, `?delayed=true`** | dependencies, planned-vs-actual %, version history |
-| PersonnelTasks | `TasksPage` | tasks + **`?overdue=true`, task updates, workload** | priority, hours, kanban "For Review" column (not in backend) |
+| PersonnelTasks | `TasksPage` | tasks + `?overdue=true`, task updates (kind + hours), workload (+ est/logged hours), **For Review + leader approve/return, priority, estimated/logged hours, tags, deliverables checklist, started/completed dates** | — |
 | Personnel | `StaffPage` (+ `LeaderLoadPage`, `PersonnelChangesPage` restyled) | assignments + **department, collaboration (cross-dept)** | expertise tags |
 | Budget | `BudgetPage` | budgets/line items + **fiscal year, funding source, counterpart, `exceeds_dry_cap`, summary by category/funding source** | LIB review workflow, version-change notes |
 | Disbursement | `DisbursementsPage` | disbursements + **payee, supporting document**, realignments (= Budget Adjustments) | txn flags, reversal |
 | (none) | `ProcurementPage` restyled | APP worklist + **procurement requests (Requested → Processing → Released, ₱25k routing, `?overdue=true`)** | — |
 | BudgetForecast | `BudgetForecastPage` | ARIMA runs | method/scenario switcher |
-| Compliance | `CompliancePage` | 5 logs + **RIUH verify**, **requirements tracker (submit/review, overdue)** | — (prototype's tracker is now real) |
+| Compliance | `CompliancePage` | 5 logs + RIUH verify, requirements tracker (submit/review, overdue), **AI-content % + over-20% flag** | — (prototype's tracker is now real) |
 | Documents | `DocumentsPage` | documents + **sensitivity, review status/review action** | module links |
 | ResearchOutputs | `OutputsPage` | publications, IP, creative works, SENSE + **6Ps expected outputs, expected-vs-actual, outcomes/impacts** | technologies/partnerships detail forms (map to 6Ps "products"/"places_partnerships") |
 | Monitoring | `MonitoringPage` | reports, evaluations + **evaluation rubric + weighted score, extension requests, indicators block** | indicator baseline/target time series |
@@ -81,10 +81,50 @@ the API functions in `src/lib/<domain>Api.ts` get added inside each page task.
 | Reports | `ReportsPage` | Appendix E/F/G, project list + **financial/compliance/personnel/outputs** module reports | report history re-download |
 | Analytics | `AnalyticsPage` | dashboard endpoints | — |
 | DecisionSupport | `DecisionSupportPage` | AHP/WSM + **decision records, risk criterion** | — |
-| UserManagement | `UsersListPage`, `PendingUsersPage` | users + **office/position, account status (suspend/reactivate/deactivate)** | profile editing beyond role |
+| UserManagement | `UsersListPage`, `PendingUsersPage` | users + office/position, account status (suspend/reactivate/deactivate), **scope (campus/college) assignment, read-only permission matrix** | profile editing beyond role |
 | AuditLogs | `AuditLogsPage` | audit logs | — |
 | Settings | **new** `SettingsPage` (`/admin/settings`) | none | everything |
 | (none) | Budget Office Sync view inside `BudgetPage` (Module 15) | **imports (.xlsx), records + manual link, reconciliation** | — |
+
+## Backend permission codes → our role gates (rmis-backend `85b8e9c`, 2026-09-25)
+The backend now gates with DB permission codes (`HasRole("budget.certify")`, table `RolePermission`, 36 codes). The
+day-one seed was frozen from the old role-list constants, and a parity script shows 0 differences. **So 403 behavior
+is identical except for the P1/P2 widenings marked NEW below.** The frontend keeps its role-code arrays, per the "roles
+stay ours" rule. We don't fetch `admin/permissions/` for gating (it's system_admin-only). Each page's `*_ROLE_CODES`
+array has to mirror the row below; `system_admin` is in every row.
+
+| Permission code | Roles (besides system_admin) | Frontend gate |
+|---|---|---|
+| accounts.manage_users | — | admin pages |
+| accounts.view_users_by_role | crc_chair | leader/staff pickers |
+| projects.register | crc_chair | `REGISTRATION_ROLE_CODES` (Projects, ProjectDetail) |
+| projects.manage_milestones | crc_chair, **NEW** program_leader, project_leader, study_leader (scoped) | ProjectDetail milestones, WorkPlan (T7, T10) |
+| personnel.manage | crc_chair, drd, riuh | Staff, PersonnelChanges |
+| personnel.view_leader_load | crc_chair, drd, riuh, program_leader, project_leader | LeaderLoad |
+| personnel.assign_tasks | crc_chair, drd, riuh, program/project/study leaders | `TASK_ASSIGNER_CODES`; also gates review, deliverable create/delete, workload |
+| personnel.clearance | crc_chair, drd, riuh, procurement_officer_lib | PersonnelChanges clearance |
+| budget.manage | finance_budget, procurement_officer_lib, **NEW** program_leader, project_leader (scoped) | BudgetPage `MANAGE_ROLE_CODES` (T13) |
+| budget.certify | finance_budget | `CERTIFY_ROLE_CODES` |
+| financial.record_disbursement | finance_budget | Disbursements |
+| financial.request_realignment | project_leader | Disbursements |
+| financial.review_major_realignment / review_bor_realignment | university_admin / — | Disbursements review |
+| financial.request_procurement / update_procurement | program_leader, project_leader / procurement_officer_lib | Procurement (T17) |
+| budget_sync.manage | finance_budget | Budget Office Sync (T17b) |
+| compliance.manage / compliance.encode | riuh / riuh + leaders | Compliance |
+| documents.manage | riuh | Documents |
+| outputs.manage / report / report_creative_work | riuh / riuh, project_leader, study_leader / + project_staff | Outputs |
+| monitoring.report | riuh, project_leader, study_leader, project_staff | Monitoring |
+| monitoring.certify_terminal / evaluate / decide_renewal | riuh / vprei, drd, crc_chair / riuh, drd, vprei | Monitoring |
+| monitoring.request / endorse / approve_extension | program+project leader / drd, crc_chair / university_admin | Monitoring extensions |
+| dashboard.manage_targets | riuh, drd, vprei | Analytics targets |
+| forecasting.run | drd, vprei, finance_budget | BudgetForecast |
+| dss.manage / dss.decide | drd, vprei / + university_admin | DecisionSupport |
+| risk.manage_register | drd, vprei, crc_chair, riuh, program_leader, project_leader | Risks register |
+| reports.view_logs | riuh, drd, vprei | Reports log tab |
+
+Scope (unchanged from `dea9255`): budget/financial endpoints are row-scoped (leaders see their own projects, staff see
+none, campus roles see their `scope.campus`). `scope.college` is stored but not enforced. Other modules are still
+unscoped (backend P11–P15 are not built yet). When they land, re-run this sync.
 
 ## Dependency graph
 ```
@@ -183,6 +223,6 @@ No test suite exists in this repo (no `test` script). Each task is verified by:
    - Approval Document / supporting documents → uploaded through Documents after the project is created (`toe` or `other` type); the wizard's upload step posts to `documents/` once the project id exists
    - Closure → project `status` change to completed/archived (recorded in `status-history/` with remarks) + terminal report certify
    - Project status: backend stays `active/completed/archived`; the prototype's Registered/Ongoing/Completed/Closed pills are display labels mapped from those (no data-model change)
-   - **Not implemented anywhere:** task `priority`, `estimated_hours`/`logged_hours`, and the "For Review" kanban column (task statuses are pending/in_progress/done/blocked). These render disabled/mocked and get a REGISTRY row.
+   - ~~Not implemented anywhere: task priority, hours, For Review~~ → all real since rmis-backend `209dac2` (2026-09-25). No task mocks needed.
 3. **Prototype folder** — add to `.gitignore` and eslint `globalIgnores` (T1).
 4. **Budget Office Sync (Module 15)** — the prototype has no screen for it. Its closest home in the prototype is **Budget Management** (`Budget.tsx`), whose landing view is the institution-wide LIB register (KPI strip + table of every project's LIB). Sync reconciles exactly those LIB totals against the Budget Office workbook, so it goes there as a second view toggle ("LIB Register | Budget Office Sync") using the same KPI-strip + table styling, not a new sidebar item.

@@ -1,6 +1,9 @@
 import type { Lead } from "./research";
 
-export type TaskStatus = "pending" | "in_progress" | "done" | "blocked";
+export type TaskStatus = "pending" | "in_progress" | "for_review" | "done" | "blocked";
+export type TaskPriority = "critical" | "high" | "medium" | "low";
+export type TaskUpdateKind = "update" | "comment" | "blocker" | "completion";
+export type TaskReviewAction = "approve" | "return";
 export type ChangeType = "leader" | "staff";
 export type ChangeStatus = "initiated" | "clearance_pending" | "cleared" | "completed";
 
@@ -34,10 +37,24 @@ export interface Task {
   description: string;
   due_date: string | null;
   status: TaskStatus;
+  priority: TaskPriority;
+  estimated_hours: string | null;
+  logged_hours: string;
+  tags: string[];
+  deliverables: TaskDeliverable[];
   assignee: number;
   assignee_detail: Lead;
   assigned_by: number;
+  started_at: string | null;
+  completed_at: string | null;
   created_at: string;
+}
+
+export interface TaskDeliverable {
+  id: number;
+  task: number;
+  text: string;
+  done: boolean;
 }
 
 export interface TaskUpdate {
@@ -46,6 +63,8 @@ export interface TaskUpdate {
   author: number;
   author_email: string;
   note: string;
+  kind: TaskUpdateKind;
+  hours: string;
   new_status: TaskStatus | "";
   created_at: string;
 }
@@ -56,6 +75,8 @@ export interface WorkloadRow {
   open: number;
   overdue: number;
   done: number;
+  estimated_hours: number;
+  logged_hours: number;
 }
 
 export interface CollaborationRow {

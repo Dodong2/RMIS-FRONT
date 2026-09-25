@@ -48,9 +48,27 @@ export interface AdminUser {
   role: Role | null;
   office: string;
   position: string;
+  scope: UserScope;
   is_active: boolean;
   account_status: AccountStatus;
   date_joined: string;
+}
+
+export interface UserScope {
+  campus?: string;
+  college?: string;
+}
+
+export interface PermissionEntry {
+  code: string;
+  module: string;
+  name: string;
+  roles: string[];
+}
+
+export interface PermissionMatrix {
+  roles: string[];
+  permissions: PermissionEntry[];
 }
 
 export interface AuditLog {

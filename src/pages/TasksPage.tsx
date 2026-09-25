@@ -47,6 +47,7 @@ const TASK_ASSIGNER_CODES = [
 const STATUS_LABELS: Record<TaskStatus, string> = {
   pending: "Pending",
   in_progress: "In Progress",
+  for_review: "For Review",
   done: "Done",
   blocked: "Blocked",
 };

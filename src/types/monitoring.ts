@@ -126,6 +126,7 @@ export interface MonitoringIndicators {
   realignments_this_year: number;
   procurement_delayed: number;
   similarity_checks: { total: number; over_threshold: number };
+  ai_declarations: { total: number; over_threshold: number };
   outputs_6ps: { target: number; expected_output_rows: number };
   forecast_overrun_risk: boolean | null;
   budget_office_status: BudgetOfficeMatchStatus | null;

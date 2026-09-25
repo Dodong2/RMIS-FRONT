@@ -656,8 +656,9 @@ Carl:
 - Roles/RoleGate/nav tiers stay ours; nav labels/grouping from prototype.
 - No backend changes, nothing existing removed.
 - Trigger phrase: "read mo yung changes sa rmis-backend" → diff backend since
-  `80cf678`, sync `src/types`, swap mocks that now have an endpoint, update the
-  plan's mapping table.
+  `85b8e9c` (last synced 2026-09-25: backend P1–P10, see plan.md "Backend permission
+  codes → our role gates"), sync `src/types`, swap mocks that now have an endpoint,
+  update the plan's mapping table.
 
 Older list (browser-testing backlog, still valid but lower priority):
 1. Browser-test the Audit Logs / Procurement fix — as system_admin, check

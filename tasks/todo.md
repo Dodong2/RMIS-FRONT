@@ -89,7 +89,7 @@ Standard verification for every task (not repeated below):
 **Description:** Clone detail tabs (Overview, Registration Info, Team, Work Plan, Impact, History, Closure) onto `ProjectDetailPage`, keeping the existing dialogs (commit `0e490eb`).
 **Acceptance criteria:**
 - [ ] All tabs real: Registration (incl. approval info fields), Team, Work Plan, Impact (expected outcomes/impacts + outcomes endpoint), History (`status-history/`), Closure (status change to completed/archived with remarks + terminal report status)
-- [ ] Milestone status update still restricted to system_admin/crc_chair (known gap, unchanged)
+- [ ] Milestone create/edit/status: `system_admin`/`crc_chair` + `program_leader`/`project_leader`/`study_leader` (backend `projects.manage_milestones`, rmis-backend `209dac2`). Leaders are scoped to their own projects; an out-of-scope write returns 400, and that message is shown as a toast. Project register/edit stays `system_admin`/`crc_chair`.
 **Dependencies:** T6
 **Files:** `src/pages/ProjectDetailPage.tsx`, `src/mocks/projects.ts`
 **Scope:** M
@@ -124,6 +124,7 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Project selector real; Gantt rows from milestones (`start_date` → `target_date`), activities table shows objective/deliverable/responsible, delayed filter uses `?delayed=true`; dependencies/versions mocked
 - [ ] Route wrapped in ProtectedRoute + RoleGate matching nav tiers; nav item `ready: true`
+- [ ] Add/edit milestone gated to `projects.manage_milestones` roles (admin, crc_chair, program/project/study leaders)
 **Dependencies:** T2
 **Files:** `src/pages/WorkPlanPage.tsx`, `src/App.tsx`, `src/lib/nav.ts`, `src/mocks/workPlan.ts`
 **Scope:** M
@@ -133,7 +134,9 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Real tasks in kanban/list; existing create/update-status actions still work
 - [ ] Comments = real task updates; Workload tab = `personnel/workload/`; overdue via `?overdue=true`
-- [ ] Kanban columns follow real statuses (pending/in_progress/blocked/done); priority/hours shown disabled + registry row (not in backend)
+- [ ] Kanban columns = real statuses incl. **For Review** (`for_review`, rmis-backend `209dac2`). An assignee can move a task only to in_progress/blocked/for_review; "done" comes only from a leader/assigner via `tasks/<id>/review/` (`approve` → done, `return` → in_progress, with remarks)
+- [ ] Real priority (`?priority=`), estimated/logged hours, tags (`?tag=`), started/completed dates, update kinds (update/comment/blocker/completion) + hours per update, deliverables checklist (`tasks/<id>/deliverables/`, `task-deliverables/<id>/`). Nothing on this page stays mocked
+- [ ] Workload tab shows estimated/logged hours
 **Dependencies:** T2
 **Files:** `src/pages/TasksPage.tsx`, `src/mocks/tasks.ts`
 **Scope:** M
@@ -157,7 +160,8 @@ Standard verification for every task (not repeated below):
 ### - [ ] T13: Budget — overview + line items
 **Description:** Clone `Budget.tsx` project picker, Overview and Line Items tabs onto `BudgetPage`.
 **Acceptance criteria:**
-- [ ] Create budget, add/remove line item, certify still work with `MANAGE_ROLE_CODES` / `CERTIFY_ROLE_CODES` split intact
+- [ ] Create budget, add/remove line item, certify still work with the `MANAGE_ROLE_CODES` / `CERTIFY_ROLE_CODES` split intact. `MANAGE_ROLE_CODES` gains `program_leader` + `project_leader` (backend `budget.manage`, rmis-backend `209dac2`): leaders encode their own LIB and get a 400 on other projects. Certify stays finance_budget/system_admin
+- [ ] Remove line item hidden on a certified budget (backend now 400s the delete)
 - [ ] PS/MOOE/CO grouping from `category`; fiscal year, funding source, counterpart fields in the add form; `exceeds_dry_cap` shown as a non-blocking warning
 **Dependencies:** T2
 **Files:** `src/pages/BudgetPage.tsx`, `src/mocks/budget.ts`
@@ -218,6 +222,7 @@ Standard verification for every task (not repeated below):
 **Description:** Clone `Compliance.tsx` onto `CompliancePage` per resolved Q1.
 **Acceptance criteria:**
 - [ ] All 5 existing logs still work; leaders can now encode; RIUH "Verify" action on each record
+- [ ] AI declaration form has an optional `ai_content_pct` (0–100) input; an "Over 20% AI" badge shows from `exceeds_ai_threshold` (server-computed, never recomputed client-side)
 - [ ] Prototype requirement tracker wired to `compliance/requirements/` (create, submit with document, review → compliant/returned/non_compliant, overdue)
 - [ ] No "Ethics Committee approval" wording (panel recommendation)
 **Dependencies:** T2
@@ -306,6 +311,8 @@ Standard verification for every task (not repeated below):
 **Acceptance criteria:**
 - [ ] Existing user list + approve/reject pending users still work
 - [ ] Office/position shown; Suspend/Reactivate/Deactivate via `account-status/` (deactivate shows the hand-over-first error); assignments mocked where no endpoint
+- [ ] Scope (campus/college) shown per user and editable via `PATCH admin/users/<id>/scope/` (a blank value clears it). Note in the UI hint: college is stored but not enforced yet
+- [ ] Extra tab "Roles & Permissions": read-only role × permission matrix from `GET admin/permissions/` (36 codes × 12 roles, grouped by module). No editing (client: future enhancement)
 **Dependencies:** T2
 **Files:** `src/pages/admin/UsersListPage.tsx`, `src/pages/admin/PendingUsersPage.tsx`, `src/mocks/users.ts`
 **Scope:** M

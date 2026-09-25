@@ -42,6 +42,8 @@ export interface AIUseDeclaration {
   tool_name: string;
   purpose: string;
   extent: string;
+  ai_content_pct: string | null;
+  exceeds_ai_threshold: boolean;
   declared_on: string;
   created_at: string;
   verified_by: number | null;
