@@ -13,3 +13,4 @@ else uses it, and delete the row. The trigger phrase is "read mo yung changes sa
 | Documents (`/documents`) | Document detail → Sharing tab (read-only list, no share action) | `src/mocks/documents.ts` / `DOCUMENT_SHARES` | Per-document sharing with expiry (rmis-backend P14, client Q8) |
 | Reports (`/reports`) | Scheduled Reports tab (read-only list, no create/run action) | `src/mocks/reports.ts` / `SCHEDULED_REPORTS` | Scheduled report generation (Alignment doc Module 14; none in rmis-backend) |
 | User & Access Management (`/admin/users`) | User detail → Temporary Replacement card (read-only, shown only for a suspended account) | `src/mocks/users.ts` / `TEMPORARY_REPLACEMENTS` | Temporary replacement while suspended (rmis-backend P13, client Q3) |
+| System Settings (`/admin/settings`) | System Information card (read-only) | `src/mocks/settings.ts` / `SYSTEM_INFO` | System settings / config endpoint (none in rmis-backend) |

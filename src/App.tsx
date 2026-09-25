@@ -8,6 +8,7 @@ import DashboardPage from "./pages/DashboardPage";
 import PendingUsersPage from "./pages/admin/PendingUsersPage";
 import UsersListPage from "./pages/admin/UsersListPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
+import SettingsPage from "./pages/admin/SettingsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import RegisterProgramPage from "./pages/RegisterProgramPage";
@@ -337,6 +338,16 @@ export default function App() {
           <ProtectedRoute>
             <RoleGate allow={["system_admin"]}>
               <AuditLogsPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin"]}>
+              <SettingsPage />
             </RoleGate>
           </ProtectedRoute>
         }

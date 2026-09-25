@@ -600,10 +600,16 @@ In, ...), so every label is derived, not stored. "Export Logs" writes the filter
 **Files:** `src/pages/admin/AuditLogsPage.tsx`
 **Scope:** S
 
-### - [ ] T28: Settings (new page)
+### - [x] T28: Settings (new page)
 **Description:** New `/admin/settings` page cloned from `Settings.tsx`, fully mocked.
 **Acceptance criteria:**
-- [ ] system_admin-only route; nav item `ready: true`; nothing pretends to persist
+- [x] system_admin-only route; nav item `ready: true`; nothing pretends to persist
+**Result:** `/admin/settings` (new `SettingsPage`, system_admin RoleGate, nav `ready: true`). Deviation from "fully
+mocked", per the CLAUDE.md data rule: only System Information is mocked (`src/mocks/settings.ts`, REGISTRY row). The
+Role-to-Module Access Matrix is real, derived from `GET admin/permissions/` (role × module cell = All / n of m / —,
+tooltip lists the permission names), since a hardcoded matrix with the prototype's 9 roles would contradict the real one
+on `/admin/users`. System User Accounts is the real `getUsers()` list; Add User / Edit became a "Manage Users" link.
+Nothing on the page writes.
 **Dependencies:** T2
 **Files:** `src/pages/admin/SettingsPage.tsx`, `src/App.tsx`, `src/lib/nav.ts`, `src/mocks/settings.ts`
 **Scope:** S
