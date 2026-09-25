@@ -289,13 +289,21 @@ Standard verification for every task (not repeated below):
 - **Study-level allocation is not mocked.** Study leaders see a note that per-study allocation isn't tracked yet (until backend P11 `LineItem.study`). A fake split of a real LIB would misstate real money.
 - Verified with a rolled-back APIClient run as project_leader: add CO item with FY/funding/counterpart → 201, APP-flagged; delete → 204; 0 leaked. There's no study_leader account in the dev DB to test with. Headless screenshots OK.
 
-### - [ ] T14: Budget — funding, utilization, history, LIB wizard
+### - [x] T14: Budget — funding, utilization, history, LIB wizard
 **Description:** Remaining Budget tabs: Funding Sources, Utilization, Version History, LIB wizard.
 **Acceptance criteria:**
-- [ ] Utilization + Funding Sources read the summary's `by_category`/`by_funding_source`/`utilization_pct`; version history from budget versions; LIB review workflow mocked
+- [x] Utilization + Funding Sources read the summary's `by_category`/`by_funding_source`/`utilization_pct`; version history from budget versions; LIB review workflow mocked
 **Dependencies:** T13
 **Files:** `src/pages/BudgetPage.tsx`, `src/mocks/budget.ts`
 **Scope:** M
+**Result (2026-09-25):**
+- **Funding Sources:** grouped from line items' `funding_source` + `is_counterpart` (works on drafts too), with actual/available from `summary.by_funding_source` once certified.
+- **Utilization:** PS/MOOE/CO cards (adjusted, actual, %, available) + a per-line-item Approved→Adjusted→Actual→Available table from the summary. Drafts show the prototype's "starts after certification" state.
+- **Version History:** real versions table (created, certified, items, total, current) + a timeline of real events (Prepared / Certified).
+- **LIB wizard:** real, not mocked. Steps are Budget Info (default FY + funding source) → PS → MOOE → CO → Validate & Save. It creates the budget when none exists (or appends to the current draft) and POSTs each item with amount = qty × unit cost; qty/unit/unit cost are kept in the description text because the model has no fields for them. Checks: ≥1 item, descriptions, FY and funding source present. It shows the dry-cap warning when institutional dry research goes over ₱100k.
+- **The prototype's LIB review workflow (submitted/returned/revision requested) is not mocked.** The real flow is draft → Budget Officer certify, and that is what the page shows.
+- Dropped from the prototype: its "Upload LIB file" option. The xlsx import belongs to Budget Office Sync (T17b).
+- The wizard's save was not exercised live (it would write items to P77's real draft). It uses the same `createBudget`/`createLineItem` calls verified in T13. Headless screenshots OK.
 
 ### - [ ] T15: Disbursements
 **Description:** Clone `Disbursement.tsx` (Ledger, Utilization, Variance, Budget Adjustments, Financial Report) onto `DisbursementsPage`.

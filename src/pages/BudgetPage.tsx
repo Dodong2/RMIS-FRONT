@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
@@ -30,7 +31,7 @@ const STATUS_META = {
   certified: { label: "Certified", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
 } as const;
 
-type LIBTab = "overview" | "line_items";
+type LIBTab = "overview" | "line_items" | "funding" | "utilization" | "history";
 
 const peso = (n: string | number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 2 }).format(Number(n));
@@ -83,6 +84,484 @@ function DryCapWarning() {
   );
 }
 
+function FundingTab({ budget, summary }: { budget: LineItemBudget; summary: BudgetSummary | null }) {
+  const groups = useMemo(() => {
+    const map = new Map<string, { source: string; amount: number; counterpart: number; items: number }>();
+    budget.line_items.forEach((li) => {
+      const key = li.funding_source.trim() || "Unspecified";
+      const g = map.get(key) ?? { source: key, amount: 0, counterpart: 0, items: 0 };
+      g.amount += Number(li.amount);
+      if (li.is_counterpart) g.counterpart += Number(li.amount);
+      g.items += 1;
+      map.set(key, g);
+    });
+    return [...map.values()].sort((a, b) => b.amount - a.amount);
+  }, [budget]);
+  const total = Number(budget.total_amount) || 1;
+  const actualOf = (source: string) => summary?.by_funding_source.find((f) => (f.funding_source || "Unspecified") === source);
+
+  if (budget.line_items.length === 0) return <NoActualData />;
+  return (
+    <div className="space-y-4">
+      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Funding Sources (from line items)</p>
+      <div className="space-y-3">
+        {groups.map((g) => {
+          const pct = Math.round((g.amount / total) * 100);
+          const isCounterpart = g.counterpart === g.amount;
+          const actual = actualOf(g.source);
+          return (
+            <div key={g.source} className="rounded-2xl p-4" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span
+                      className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={isCounterpart ? { background: "#f0fdf4", color: "#166534" } : { background: "#e0f2fe", color: "#0369a1" }}
+                    >
+                      {isCounterpart ? "Counterpart" : g.counterpart > 0 ? "Primary + Counterpart" : "Primary"}
+                    </span>
+                    <span className="text-xs" style={{ color: "#94a3b8" }}>{g.items} line item{g.items !== 1 ? "s" : ""}</span>
+                  </div>
+                  <p className="font-bold" style={{ color: "#0d2a5e" }}>{g.source}</p>
+                  {actual && (
+                    <p className="text-xs mt-1" style={{ color: "#64748b" }}>
+                      Actual {peso(actual.actual)} · Available {peso(actual.available)}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-black font-mono" style={{ color: "#0d2a5e" }}>{peso(g.amount)}</p>
+                  <p className="text-xs font-bold" style={{ color: "#64748b" }}>{pct}% of total</p>
+                </div>
+              </div>
+              <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: "#f1f5f9" }}>
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: isCounterpart ? "#059669" : "#0891b2" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="rounded-2xl p-4 flex justify-between" style={{ background: "#0d2a5e" }}>
+        <span className="text-white font-black text-sm">Total Funding</span>
+        <span className="font-black font-mono text-white">{peso(budget.total_amount)}</span>
+      </div>
+    </div>
+  );
+}
+
+function UtilizationTab({ budget, summary }: { budget: LineItemBudget; summary: BudgetSummary | null }) {
+  if (budget.status !== "certified") {
+    return (
+      <div className="rounded-2xl p-10 text-center" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+        <p className="text-2xl mb-2">📊</p>
+        <p className="text-sm font-semibold" style={{ color: "#64748b" }}>Utilization tracking starts once the Budget Officer certifies this LIB.</p>
+        <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>The certified LIB becomes the approved baseline for disbursements.</p>
+      </div>
+    );
+  }
+  if (!summary) return <SkeletonRows rows={3} />;
+  const pctOf = (f: { utilization_pct: number | null }) => Math.round(f.utilization_pct ?? 0);
+  return (
+    <div className="space-y-5">
+      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Budget Utilization &amp; Variance</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {CATEGORIES.map((cat) => {
+          const cm = CATEGORY_META[cat];
+          const row = summary.by_category.find((c) => c.category === cat);
+          const pct = row ? pctOf(row) : 0;
+          return (
+            <div key={cat} className="rounded-2xl p-4" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+              <p className="text-xs font-bold mb-1" style={{ color: cm.color }}>{cm.icon} {cm.label} — {cm.full}</p>
+              <p className="text-xs" style={{ color: "#94a3b8" }}>Adjusted budget</p>
+              <p className="text-sm font-black font-mono" style={{ color: "#0d2a5e" }}>{peso(row?.adjusted ?? 0)}</p>
+              <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>Actual (disbursed)</p>
+              <p className="text-sm font-black font-mono" style={{ color: "#0891b2" }}>{peso(row?.actual ?? 0)}</p>
+              <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: "#f1f5f9" }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: pct > 100 ? "#dc2626" : cm.color }} />
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-xs font-mono" style={{ color: "#94a3b8" }}>{pct}% utilized</span>
+                <span className="text-xs font-bold font-mono" style={{ color: "#059669" }}>{peso(row?.available ?? 0)} left</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Approved → Adjusted → Actual per Line Item</p>
+        <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: "#f0f4f8" }}>
+                {["Line Item", "Approved", "Adjusted", "Actual", "Available", "Utilization"].map((h, i) => (
+                  <th key={h} className={`px-3 py-2 text-xs font-bold whitespace-nowrap ${i ? "text-right" : "text-left"}`} style={{ color: "#64748b" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {summary.line_items.map((r) => {
+                const pct = pctOf(r);
+                return (
+                  <tr key={r.line_item} className="border-t" style={{ borderColor: "#f1f5f9" }}>
+                    <td className="px-3 py-2.5 text-xs" style={{ color: "#0d2a5e" }}>
+                      <span className="font-bold mr-1.5" style={{ color: CATEGORY_META[r.category].color }}>{CATEGORY_META[r.category].label}</span>
+                      {r.description}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#334155" }}>{peso(r.approved)}</td>
+                    <td className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#334155" }}>{peso(r.adjusted)}</td>
+                    <td className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#0891b2" }}>{peso(r.actual)}</td>
+                    <td className="px-3 py-2.5 text-right text-xs font-mono font-bold" style={{ color: "#059669" }}>{peso(r.available)}</td>
+                    <td className="px-3 py-2.5 text-right">
+                      <span
+                        className="text-xs font-bold px-2 py-0.5 rounded-full"
+                        style={pct > 100 ? { background: "#fee2e2", color: "#dc2626" } : { background: "#d1fae5", color: "#166534" }}
+                      >
+                        {pct}%
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{ background: "#f0f4f8" }}>
+                <td className="px-3 py-2 text-xs font-black" style={{ color: "#0d2a5e" }}>TOTAL</td>
+                <td className="px-3 py-2 text-right text-xs font-mono font-black" style={{ color: "#0d2a5e" }}>{peso(summary.totals.approved)}</td>
+                <td className="px-3 py-2 text-right text-xs font-mono font-black" style={{ color: "#0d2a5e" }}>{peso(summary.totals.adjusted)}</td>
+                <td className="px-3 py-2 text-right text-xs font-mono font-black" style={{ color: "#0891b2" }}>{peso(summary.totals.actual)}</td>
+                <td className="px-3 py-2 text-right text-xs font-mono font-black" style={{ color: "#059669" }}>{peso(summary.totals.available)}</td>
+                <td className="px-3 py-2 text-right">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#e0f2fe", color: "#0369a1" }}>{pctOf(summary.totals)}%</span>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HistoryTab({ versions }: { versions: LineItemBudget[] }) {
+  const sorted = [...versions].sort((a, b) => b.version_number - a.version_number);
+  const events = sorted
+    .flatMap((v) => [
+      ...(v.certified_at ? [{ key: `c${v.id}`, icon: "✅", label: "Certified", color: "#166534", date: v.certified_at, text: `LIB v${v.version_number} certified — ${peso(v.total_amount)} baseline` }] : []),
+      { key: `d${v.id}`, icon: "📝", label: "Prepared", color: "#0369a1", date: v.created_at, text: `LIB v${v.version_number} draft created` },
+    ])
+    .sort((a, b) => b.date.localeCompare(a.date));
+  return (
+    <div className="space-y-4">
+      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>LIB Version History</p>
+      <div className="space-y-3">
+        {events.map((e, idx) => (
+          <div key={e.key} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-base shrink-0" style={{ background: "#f0f4f8" }}>{e.icon}</div>
+              {idx < events.length - 1 && <div className="w-px flex-1 mt-1" style={{ background: "#e2e8f0" }} />}
+            </div>
+            <div className="flex-1 pb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-black" style={{ color: e.color }}>{e.label}</span>
+                <span className="text-xs font-mono shrink-0 ml-auto" style={{ color: "#94a3b8" }}>{e.date.slice(0, 10)}</span>
+              </div>
+              <p className="text-xs" style={{ color: "#475569" }}>{e.text}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: "#f0f4f8" }}>
+              {["Version", "Created", "Certified", "Line Items", "Total Amount", "Status"].map((h) => (
+                <th key={h} className="px-3 py-2 text-left text-xs font-bold" style={{ color: "#64748b" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((v) => (
+              <tr key={v.id} className="border-t" style={{ borderColor: "#f1f5f9" }}>
+                <td className="px-3 py-2.5 text-xs font-mono font-bold" style={{ color: "#0d2a5e" }}>
+                  v{v.version_number}
+                  {v.is_current && <span className="ml-1.5 font-sans font-bold" style={{ color: "#0891b2" }}>current</span>}
+                </td>
+                <td className="px-3 py-2.5 text-xs font-mono" style={{ color: "#64748b" }}>{v.created_at.slice(0, 10)}</td>
+                <td className="px-3 py-2.5 text-xs font-mono" style={{ color: "#64748b" }}>{v.certified_at?.slice(0, 10) ?? "—"}</td>
+                <td className="px-3 py-2.5 text-xs font-mono" style={{ color: "#334155" }}>{v.line_items.length}</td>
+                <td className="px-3 py-2.5 text-xs font-mono font-bold" style={{ color: "#0d2a5e" }}>{peso(v.total_amount)}</td>
+                <td className="px-3 py-2.5"><StatusBadge s={v.status} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+interface WizardItem {
+  description: string;
+  unit: string;
+  qty: number;
+  unitCost: number;
+  fiscalYear: string;
+  fundingSource: string;
+  counterpart: boolean;
+}
+
+const blankItem = (unit: string, fy: string, fund: string): WizardItem => ({
+  description: "",
+  unit,
+  qty: 1,
+  unitCost: 0,
+  fiscalYear: fy,
+  fundingSource: fund,
+  counterpart: false,
+});
+
+function LIBWizard({ project, existing, onClose, onDone }: { project: Project; existing: LineItemBudget | null; onClose: () => void; onDone: () => void }) {
+  const thisYear = new Date().getFullYear();
+  const [step, setStep] = useState(0);
+  const [defaults, setDefaults] = useState({ fiscalYear: String(thisYear), fundingSource: "" });
+  const [items, setItems] = useState<Record<LineItemCategory, WizardItem[]>>({ ps: [], mooe: [], co: [] });
+  const [saving, setSaving] = useState(false);
+
+  const STEPS = ["Budget Info", "PS Items", "MOOE Items", "CO Items", "Validate & Save"];
+  const lineTotal = (i: WizardItem) => i.qty * i.unitCost;
+  const catSum = (cat: LineItemCategory) => items[cat].reduce((s, i) => s + lineTotal(i), 0);
+  const filled = (cat: LineItemCategory) => items[cat].filter((i) => i.description.trim() && lineTotal(i) > 0);
+  const grand = CATEGORIES.reduce((s, c) => s + filled(c).reduce((a, i) => a + lineTotal(i), 0), 0);
+  const count = CATEGORIES.reduce((s, c) => s + filled(c).length, 0);
+  const existingTotal = Number(existing?.total_amount ?? 0);
+
+  const checks = [
+    { label: "At least one line item with an amount", ok: count > 0 },
+    { label: "Every item has a description", ok: CATEGORIES.every((c) => items[c].every((i) => lineTotal(i) === 0 || i.description.trim())) },
+    { label: "Every item has a fiscal year", ok: CATEGORIES.every((c) => filled(c).every((i) => i.fiscalYear)) },
+    { label: "Every item has a funding source", ok: CATEGORIES.every((c) => filled(c).every((i) => i.fundingSource.trim())) },
+  ];
+  const allValid = checks.every((c) => c.ok);
+  const dryWarning = project.is_dry_research && project.funding_type === "institutional" && existingTotal + grand > 100000;
+
+  const update = (cat: LineItemCategory, idx: number, patch: Partial<WizardItem>) =>
+    setItems((prev) => ({ ...prev, [cat]: prev[cat].map((it, i) => (i === idx ? { ...it, ...patch } : it)) }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const budget = existing ?? (await budgetApi.createBudget(project.id));
+      for (const cat of CATEGORIES) {
+        for (const it of filled(cat)) {
+          const detail = it.qty !== 1 || it.unit ? ` (${it.qty} ${it.unit} × ${peso(it.unitCost)})` : "";
+          await budgetApi.createLineItem({
+            budget: budget.id,
+            category: cat,
+            description: `${it.description.trim()}${detail}`,
+            amount: lineTotal(it).toFixed(2),
+            fiscal_year: it.fiscalYear ? Number(it.fiscalYear) : null,
+            funding_source: it.fundingSource.trim(),
+            is_counterpart: it.counterpart,
+          });
+        }
+      }
+      notify.success(`${count} line item${count !== 1 ? "s" : ""} saved to LIB v${budget.version_number}. Awaiting Budget Officer certification.`);
+      onDone();
+    } catch (err) {
+      notify.error(errorMessage(err, "The LIB could not be saved. Items saved before the error are kept."));
+      onDone();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const editor = (cat: LineItemCategory) => {
+    const cm = CATEGORY_META[cat];
+    const unit = cat === "ps" ? "month" : cat === "mooe" ? "lot" : "unit";
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base">{cm.icon}</span>
+            <span className="font-black text-sm" style={{ color: cm.color }}>{cm.full} — {cm.label}</span>
+          </div>
+          <button
+            onClick={() => setItems((p) => ({ ...p, [cat]: [...p[cat], blankItem(unit, defaults.fiscalYear, defaults.fundingSource)] }))}
+            className="text-xs font-bold px-2.5 py-1.5 rounded-xl"
+            style={{ background: cm.bg, color: cm.color }}
+          >
+            + Add Line Item
+          </button>
+        </div>
+        {items[cat].length === 0 && <p className="text-xs text-center py-6" style={{ color: "#94a3b8" }}>No {cm.label} items. Skip this step if the project has none.</p>}
+        {items[cat].map((it, idx) => (
+          <div key={idx} className="rounded-2xl p-4 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold font-mono" style={{ color: "#94a3b8" }}>{cm.label}-{String(idx + 1).padStart(2, "0")}</span>
+              <button onClick={() => setItems((p) => ({ ...p, [cat]: p[cat].filter((_, i) => i !== idx) }))} className="text-xs px-2 py-0.5 rounded-lg" style={{ background: "#fee2e2", color: "#dc2626" }}>
+                Remove
+              </button>
+            </div>
+            <Field label="Description / Particulars">
+              <input className={INPUT_CLS} style={INPUT_STYLE} value={it.description} onChange={(e) => update(cat, idx, { description: e.target.value })} placeholder="Describe the line item…" />
+            </Field>
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="Unit">
+                <input className={INPUT_CLS} style={INPUT_STYLE} value={it.unit} onChange={(e) => update(cat, idx, { unit: e.target.value })} />
+              </Field>
+              <Field label="Qty">
+                <input type="number" min="1" className={INPUT_CLS} style={INPUT_STYLE} value={it.qty} onChange={(e) => update(cat, idx, { qty: Number(e.target.value) })} />
+              </Field>
+              <Field label="Unit Cost (₱)">
+                <input type="number" min="0" step="0.01" className={INPUT_CLS} style={INPUT_STYLE} value={it.unitCost} onChange={(e) => update(cat, idx, { unitCost: Number(e.target.value) })} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Fiscal Year">
+                <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={it.fiscalYear} onChange={(e) => update(cat, idx, { fiscalYear: e.target.value })} />
+              </Field>
+              <Field label="Funding Source">
+                <input className={INPUT_CLS} style={INPUT_STYLE} value={it.fundingSource} onChange={(e) => update(cat, idx, { fundingSource: e.target.value })} />
+              </Field>
+            </div>
+            <div className="flex items-center justify-between px-2 py-1.5 rounded-xl" style={{ background: cm.bg }}>
+              <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: cm.color }}>
+                <input type="checkbox" checked={it.counterpart} onChange={(e) => update(cat, idx, { counterpart: e.target.checked })} />
+                Counterpart
+              </label>
+              <span className="font-black font-mono text-sm" style={{ color: cm.color }}>{peso(lineTotal(it))}</span>
+            </div>
+          </div>
+        ))}
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: cm.bg }}>
+          <span className="text-sm font-black" style={{ color: cm.color }}>{cm.label} Subtotal</span>
+          <span className="font-black font-mono text-lg" style={{ color: cm.color }}>{peso(catSum(cat))}</span>
+        </div>
+      </div>
+    );
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 px-4 pb-4" style={{ background: "rgba(8,26,61,0.6)", backdropFilter: "blur(4px)" }}>
+      <div className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[95vh]" style={{ background: "white" }}>
+        <div className="px-6 py-4 shrink-0" style={{ background: "#0d2a5e" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-white font-bold">Prepare Line-Item Budget (LIB)</p>
+            <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close">
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p className="text-xs font-mono mb-3 truncate" style={{ color: "rgba(168,196,232,0.6)" }}>
+            {project.project_code} · {project.title}
+          </p>
+          <div className="flex items-center gap-0.5">
+            {STEPS.map((s, i) => (
+              <div key={s} className="flex items-center gap-0.5 flex-1 min-w-0">
+                <div className="flex flex-col items-center min-w-0 flex-1">
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+                    style={{
+                      background: i < step ? "#22c55e" : i === step ? "white" : "rgba(255,255,255,0.2)",
+                      color: i < step ? "white" : i === step ? "#0d2a5e" : "rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    {i < step ? "✓" : i + 1}
+                  </div>
+                  <p className="text-center leading-tight mt-0.5 truncate w-full" style={{ fontSize: "8px", color: i === step ? "white" : "rgba(168,196,232,0.5)" }}>{s}</p>
+                </div>
+                {i < STEPS.length - 1 && <div className="h-px flex-1 mx-0.5 mb-3" style={{ background: i < step ? "#22c55e" : "rgba(255,255,255,0.2)" }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {step === 0 && (
+            <div className="space-y-4">
+              <div className="rounded-xl p-4" style={{ background: "#f0f4f8" }}>
+                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "#64748b" }}>Project</p>
+                <p className="font-bold" style={{ color: "#0d2a5e" }}>{project.title}</p>
+                <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>
+                  {project.implementing_unit || "—"} · PI: {project.lead_detail.email} · {project.start_date ?? "—"} – {project.target_end_date ?? "—"}
+                </p>
+              </div>
+              {existing && (
+                <div className="rounded-xl px-4 py-3 text-xs" style={{ background: "#fef3c7", border: "1px solid #fcd34d", color: "#92400e" }}>
+                  Items will be added to the existing draft LIB v{existing.version_number} ({existing.line_items.length} item(s), {peso(existing.total_amount)}).
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Default Fiscal Year">
+                  <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={defaults.fiscalYear} onChange={(e) => setDefaults({ ...defaults, fiscalYear: e.target.value })} />
+                </Field>
+                <Field label="Default Funding Source">
+                  <input className={INPUT_CLS} style={INPUT_STYLE} value={defaults.fundingSource} onChange={(e) => setDefaults({ ...defaults, fundingSource: e.target.value })} placeholder="e.g. LSPU GAA" />
+                </Field>
+              </div>
+              <p className="text-xs" style={{ color: "#94a3b8" }}>New items start with these defaults; each item can override them.</p>
+            </div>
+          )}
+          {step === 1 && editor("ps")}
+          {step === 2 && editor("mooe")}
+          {step === 3 && editor("co")}
+          {step === 4 && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {CATEGORIES.map((c) => {
+                  const cm = CATEGORY_META[c];
+                  return (
+                    <div key={c} className="rounded-2xl p-4" style={{ background: cm.bg }}>
+                      <p className="text-xs font-bold" style={{ color: cm.color }}>{cm.icon} {cm.label}</p>
+                      <p className="text-lg font-black font-mono mt-1" style={{ color: cm.color }}>{peso(catSum(c))}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: "#0d2a5e" }}>
+                <span className="text-white font-black">New Items Total</span>
+                <span className="text-2xl font-black font-mono text-white">{peso(grand)}</span>
+              </div>
+              {dryWarning && <DryCapWarning />}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Validation Checklist</p>
+                <div className="space-y-1.5">
+                  {checks.map((c) => (
+                    <div key={c.label} className="flex items-center gap-2.5 px-3 py-2 rounded-xl" style={{ background: c.ok ? "#f0fdf4" : "#fff7ed" }}>
+                      <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: c.ok ? "#059669" : "#f59e0b" }}>
+                        <span className="text-white font-black" style={{ fontSize: "9px" }}>{c.ok ? "✓" : "!"}</span>
+                      </div>
+                      <p className="text-xs font-semibold" style={{ color: c.ok ? "#166534" : "#92400e" }}>{c.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t flex items-center justify-between gap-3 shrink-0" style={{ borderColor: "#e2e8f0" }}>
+          <div className="text-xs font-mono" style={{ color: "#94a3b8" }}>Step {step + 1} of {STEPS.length}</div>
+          <div className="flex gap-2">
+            {step > 0 && (
+              <button onClick={() => setStep(step - 1)} className="px-4 py-2 rounded-xl text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>Back</button>
+            )}
+            {step < STEPS.length - 1 ? (
+              <button onClick={() => setStep(step + 1)} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: "#0d2a5e" }}>Continue</button>
+            ) : (
+              <button onClick={save} disabled={!allValid || saving} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: allValid && !saving ? "#059669" : "#94a3b8" }}>
+                {saving ? "Saving…" : "Save LIB"}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 const EMPTY_ITEM = { category: "", description: "", amount: "", fiscal_year: "", funding_source: "", is_counterpart: false };
 
 function LIBDetail({
@@ -101,6 +580,8 @@ function LIBDetail({
   onChanged: () => void;
 }) {
   const [budget, setBudget] = useState<LineItemBudget | null | undefined>(undefined);
+  const [versions, setVersions] = useState<LineItemBudget[]>([]);
+  const [showWizard, setShowWizard] = useState(false);
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [tab, setTab] = useState<LIBTab>("overview");
@@ -116,6 +597,7 @@ function LIBDetail({
         if (!active) return;
         const current = list.find((b) => b.is_current) ?? null;
         setBudget(current);
+        setVersions(list);
         if (current?.status === "certified") {
           financialApi
             .getBudgetSummary(current.id)
@@ -205,9 +687,8 @@ function LIBDetail({
           <p className="text-sm font-semibold" style={{ color: "#64748b" }}>This project has no Line-Item Budget yet.</p>
           {canManage && (
             <button
-              onClick={() => run(() => budgetApi.createBudget(project.id), "LIB draft started.")}
-              disabled={busy}
-              className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60"
+              onClick={() => setShowWizard(true)}
+              className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white"
               style={{ background: "#0d2a5e" }}
             >
               + Prepare LIB
@@ -234,6 +715,12 @@ function LIBDetail({
                   {budget.certified_at ? ` · Certified ${budget.certified_at.slice(0, 10)}` : " · Not yet certified by the Budget Officer"}
                 </p>
               </div>
+              <div className="flex gap-2 shrink-0">
+              {canManage && isDraft && (
+                <button onClick={() => setShowWizard(true)} className="px-4 py-2 rounded-xl text-xs font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "white" }}>
+                  + Encode with Wizard
+                </button>
+              )}
               {canCertify && isDraft && (
                 <button
                   onClick={() => run(() => budgetApi.certifyBudget(budget.id), "LIB certified.")}
@@ -244,6 +731,7 @@ function LIBDetail({
                   Certify LIB
                 </button>
               )}
+              </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
               {[
@@ -263,6 +751,9 @@ function LIBDetail({
               [
                 ["overview", "Overview"],
                 ["line_items", "Line Items"],
+                ["funding", "Funding Sources"],
+                ["utilization", "Utilization"],
+                ["history", "Version History"],
               ] as [LIBTab, string][]
             ).map(([key, label]) => (
               <button
@@ -358,6 +849,16 @@ function LIBDetail({
                 )}
               </div>
             )}
+
+            {tab === "funding" && (
+              <FundingTab budget={budget} summary={summary} />
+            )}
+
+            {tab === "utilization" && (
+              <UtilizationTab budget={budget} summary={summary} />
+            )}
+
+            {tab === "history" && <HistoryTab versions={versions} />}
 
             {tab === "line_items" && (
               <div className="space-y-5">
@@ -486,6 +987,17 @@ function LIBDetail({
             )}
           </div>
         </div>
+      )}
+      {showWizard && (
+        <LIBWizard
+          project={project}
+          existing={budget && budget.status === "draft" ? budget : null}
+          onClose={() => setShowWizard(false)}
+          onDone={() => {
+            setShowWizard(false);
+            reload();
+          }}
+        />
       )}
     </div>
   );
