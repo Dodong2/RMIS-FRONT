@@ -424,14 +424,28 @@ Rolled-back smoke test:
 
 Rolled-back API test: leader sees team docs but not `restricted`; `current_only` returns only v2; leader review → 403; admin return → 200 with remarks; `?review_status=returned` filter works. Archive was only exercised against a fake storage path (it 500s when signing the fake path, test artifact only; everything rolled back, 0 leaked). Headless-checked with throwaway rows (deleted after).
 
-### - [ ] T20: Research Outputs
+### - [x] T20: Research Outputs
 **Description:** Clone `ResearchOutputs.tsx` onto `OutputsPage`.
 **Acceptance criteria:**
-- [ ] Publications + IP real (server-computed incentive shown); Creative Works + SENSE publishers kept as extra tabs
-- [ ] Outcomes & Impacts real (`outputs/outcomes/`); 6Ps expected outputs + expected-vs-actual real; Technologies/Partnerships detail forms mocked
+- [x] Publications + IP real (server-computed incentive shown); Creative Works + SENSE publishers kept as extra tabs
+- [x] Outcomes & Impacts real (`outputs/outcomes/`); 6Ps expected outputs + expected-vs-actual real; Technologies/Partnerships detail forms mocked
 **Dependencies:** T2
 **Files:** `src/pages/OutputsPage.tsx`, `src/mocks/outputs.ts`
 **Scope:** M
+**Result (2026-09-25):** `OutputsPage` has 4 tabs.
+- **Research Outputs** is the prototype family grid across all projects, all real:
+  - Publications (server `estimated_incentive` shown) and IP (status select + incentive-claimed toggle for report roles; eligibility from the server).
+  - Technologies = 6Ps `products` expected outputs; Partnerships = 6Ps `places_partnerships`. Real records with target/actual; the detail modal edits the manual count or removes it.
+  - Outcomes & Impacts = `outputs/outcomes/`.
+  - Family KPI buttons, 5 secondary KPIs (incl. the estimated publication incentive total), search/family/status/project filters, and a detail modal (Details / Linked Researchers / Supporting Records).
+- **Register Output** (`src/components/outputs/RegisterOutputModal.tsx`) covers all 5 families.
+- **6Ps Expected vs Actual**: per-project category cards from `expected-vs-actual/`, a target table with inline manual-count edits (computed categories are read-only), and an add-target form.
+- **Creative Works** and **SENSE Publishers** tabs are kept.
+- Shared labels live in `src/lib/outputsMeta.ts`. Added API: `createOutcome`, expected-output list/create/update/delete.
+- **Deviation:** Technologies/Partnerships detail fields (adopters, partner org, agreement no., signatories) were *not* mocked. They map to real 6Ps records instead, with no invented detail. No `src/mocks/outputs.ts`.
+- **Fix:** `PublicationRecord.estimated_incentive` retyped to `number | null`. The SerializerMethodField returns a Decimal, which DRF renders as a JSON number; it was wrongly typed as a string.
+
+Rolled-back API test: leader publication (ISI, IF 2.5) → ₱60,000; IP create → disclosed/not eligible, PATCH registered → 200; expected output create/patch (actual 0→2)/delete 204; expected-vs-actual categories correct (publications counted from records); outcome 201; crc_chair outcome → 403. 0 leaked. Headless-checked with throwaway rows (deleted after).
 
 ### - [ ] T21: Monitoring & Evaluation
 **Description:** Clone `Monitoring.tsx` onto `MonitoringPage`.

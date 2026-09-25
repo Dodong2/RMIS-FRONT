@@ -1,15 +1,18 @@
 import { apiClient } from "./apiClient";
 import type {
   CreativeWorkRecord,
+  ExpectedOutput,
   ExpectedVsActual,
   IndexingTier,
   IPRecord,
   IPStatus,
   IPType,
+  OutcomeKind,
   PublicationRecord,
   ProjectOutcome,
   PublicationType,
   SenseRankedPublisher,
+  SixPCategory,
 } from "../types/outputs";
 
 export const outputsApi = {
@@ -20,6 +23,40 @@ export const outputsApi = {
   getOutcomes: async (params: { project?: number } = {}): Promise<ProjectOutcome[]> => {
     const { data } = await apiClient.get("/api/outputs/outcomes/", { params });
     return data;
+  },
+  createOutcome: async (payload: {
+    project: number;
+    kind: OutcomeKind;
+    description: string;
+    observed_on?: string | null;
+    evidence?: string;
+  }): Promise<ProjectOutcome> => {
+    const { data } = await apiClient.post("/api/outputs/outcomes/", payload);
+    return data;
+  },
+  getExpectedOutputs: async (params: { project?: number } = {}): Promise<ExpectedOutput[]> => {
+    const { data } = await apiClient.get("/api/outputs/expected-outputs/", { params });
+    return data;
+  },
+  createExpectedOutput: async (payload: {
+    project: number;
+    category: SixPCategory;
+    description: string;
+    target_count: number;
+    manual_actual_count?: number;
+  }): Promise<ExpectedOutput> => {
+    const { data } = await apiClient.post("/api/outputs/expected-outputs/", payload);
+    return data;
+  },
+  updateExpectedOutput: async (
+    id: number,
+    payload: Partial<{ description: string; target_count: number; manual_actual_count: number }>,
+  ): Promise<ExpectedOutput> => {
+    const { data } = await apiClient.patch(`/api/outputs/expected-outputs/${id}/`, payload);
+    return data;
+  },
+  deleteExpectedOutput: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/outputs/expected-outputs/${id}/`);
   },
   getSensePublishers: async (): Promise<SenseRankedPublisher[]> => {
     const { data } = await apiClient.get("/api/outputs/sense-publishers/");

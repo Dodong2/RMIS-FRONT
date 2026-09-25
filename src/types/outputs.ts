@@ -31,7 +31,7 @@ export interface PublicationRecord {
   publisher_name: string;
   doi_or_isbn: string;
   published_on: string;
-  estimated_incentive: string | null;
+  estimated_incentive: number | null;
   recorded_by: number;
   created_at: string;
 }
