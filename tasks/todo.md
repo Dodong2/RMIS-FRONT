@@ -586,10 +586,16 @@ the dev DB (the first eligible row is a real account without responsibilities, s
 **Files:** `src/pages/admin/UsersListPage.tsx`, `src/pages/admin/PendingUsersPage.tsx`, `src/mocks/users.ts`
 **Scope:** M
 
-### - [ ] T27: Audit Logs
+### - [x] T27: Audit Logs
 **Description:** Clone `AuditLogs.tsx` onto `AuditLogsPage`.
 **Acceptance criteria:**
-- [ ] Real audit log list with actor/method filters
+- [x] Real audit log list with actor/method filters
+**Result:** Prototype activity-list layout on the real `admin/audit-logs/`: KPIs computed from the loaded rows (events
+today, distinct actors today, failed requests = status ≥ 400, events loaded; the prototype's "Failed Logins"/"System
+Alerts" have no source), server-side actor/method filters plus a client-side module filter. Module comes from the path's
+first segment and the action label from the method or the action suffix (`/certify/` → Certified, `/login/` → Logged
+In, ...), so every label is derived, not stored. "Export Logs" writes the filtered rows to XLSX via `exportXlsx`
+(headless download verified: real XLSX). No mock.
 **Dependencies:** T2
 **Files:** `src/pages/admin/AuditLogsPage.tsx`
 **Scope:** S
