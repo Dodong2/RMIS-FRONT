@@ -333,14 +333,20 @@ Standard verification for every task (not repeated below):
   - admin review → approved
 - Headless screenshots OK; P77 is still draft, so the board shows the "needs certified LIB" states.
 
-### - [ ] T16: Budget Forecast
+### - [x] T16: Budget Forecast
 **Description:** Clone `BudgetForecast.tsx` onto `BudgetForecastPage`.
 **Acceptance criteria:**
-- [ ] Real ARIMA runs + trigger + insufficient-data message still work
-- [ ] Prototype method/scenario controls mocked (backend has ARIMA only)
+- [x] Real ARIMA runs + trigger + insufficient-data message still work
+- [x] Prototype method/scenario controls mocked (backend has ARIMA only)
 **Dependencies:** T2
 **Files:** `src/pages/BudgetForecastPage.tsx`, `src/mocks/forecast.ts`
 **Scope:** M
+**Result (2026-09-25):** `BudgetForecastPage` rebuilt from `BudgetForecast.tsx` (parameters panel + Projections / Budget Comparison / Saved Forecasts tabs).
+- **The prototype's method/scenario controls are real, not mocked.** Burn rate, linear trend (least squares over the anchor period), moving average, and % completion (remaining budget ÷ months to `target_end_date`) are computed in the browser from the project's actual monthly disbursements (`disbursements/?project=`, zero-filled months). Scenarios are optimistic ×0.85, base, and conservative ×(1+contingency). These quick runs are not persisted (no endpoint); the page says so.
+- ARIMA (server) is the default method: trigger (FORECAST roles), confidence-band chart, MAE/RMSE/MAPE, overrun flag, insufficient-data message.
+- "Saved Forecasts" = the real ARIMA run history, with Load.
+- Budget status uses the certified summary (adjusted) when available, otherwise the LIB total.
+- Headless screenshot OK. **The quick-method charts were not seen with data**: the dev DB has 0 disbursements, so they show "No actual data".
 
 ### - [ ] T17: Procurement — restyle + procurement requests
 **Description:** Restyle `ProcurementPage` in the Disbursement page's language and add the new procurement-request pipeline.
