@@ -32,6 +32,9 @@ export const budgetApi = {
     category: LineItemCategory;
     description: string;
     amount: string;
+    fiscal_year?: number | null;
+    funding_source?: string;
+    is_counterpart?: boolean;
   }): Promise<LineItem> => {
     const { data } = await apiClient.post("/api/budget/line-items/", payload);
     return data;

@@ -268,16 +268,26 @@ Standard verification for every task (not repeated below):
 
 ## Phase 2: Financial
 
-### - [ ] T13: Budget — overview + line items
+### - [x] T13: Budget — overview + line items
 **Description:** Clone `Budget.tsx` project picker, Overview and Line Items tabs onto `BudgetPage`.
 **Acceptance criteria:**
-- [ ] Create budget, add/remove line item, certify still work with the `MANAGE_ROLE_CODES` / `CERTIFY_ROLE_CODES` split intact. `MANAGE_ROLE_CODES` gains `program_leader` + `project_leader` (backend `budget.manage`, rmis-backend `209dac2`): leaders encode their own LIB and get a 400 on other projects. Certify stays finance_budget/system_admin
-- [ ] Remove line item hidden on a certified budget (backend now 400s the delete)
-- [ ] `/budget` RoleGate + nav tiers gain study_leader, view-only (Q12). Study-level allocation is mocked + REGISTRY row until backend P11 (`LineItem.study`)
-- [ ] PS/MOOE/CO grouping from `category`; fiscal year, funding source, counterpart fields in the add form; `exceeds_dry_cap` shown as a non-blocking warning
+- [x] Create budget, add/remove line item, certify still work with the `MANAGE_ROLE_CODES` / `CERTIFY_ROLE_CODES` split intact. `MANAGE_ROLE_CODES` gains `program_leader` + `project_leader` (backend `budget.manage`, rmis-backend `209dac2`): leaders encode their own LIB and get a 400 on other projects. Certify stays finance_budget/system_admin
+- [x] Remove line item hidden on a certified budget (backend now 400s the delete)
+- [x] `/budget` RoleGate + nav tiers gain study_leader, view-only (Q12). Study-level allocation is mocked + REGISTRY row until backend P11 (`LineItem.study`)
+- [x] PS/MOOE/CO grouping from `category`; fiscal year, funding source, counterpart fields in the add form; `exceeds_dry_cap` shown as a non-blocking warning
 **Dependencies:** T2
 **Files:** `src/pages/BudgetPage.tsx`, `src/mocks/budget.ts`
 **Scope:** M
+**Result (2026-09-25):** `BudgetPage` rebuilt from `Budget.tsx`.
+- **LIB register:** 6 KPIs (Total LIB, Certified ₱, Certified count, Draft, Over dry cap, No LIB yet), a card per current LIB (status, version, dry-cap flag, PS/MOOE/CO split, certification prompt), and a "Prepare New LIB" project picker.
+- **Detail** at `?project=`:
+  - header with totals + Certify (finance_budget/system_admin, disabled when there are no items)
+  - **Overview:** category bar, annual allocations by `fiscal_year` ("No fiscal year" column for nulls), certified baseline from the summary
+  - **Line Items:** grouped PS/MOOE/CO tables with APP/counterpart chips; an add form with fiscal year/funding source/counterpart; Remove only on draft
+- The prototype's LIB statuses (submitted/under review/returned) map onto our real draft/certified only.
+- Leaders were added to `MANAGE_ROLE_CODES`, and study_leader to the `/budget` RoleGate + nav tier (read-only).
+- **Study-level allocation is not mocked.** Study leaders see a note that per-study allocation isn't tracked yet (until backend P11 `LineItem.study`). A fake split of a real LIB would misstate real money.
+- Verified with a rolled-back APIClient run as project_leader: add CO item with FY/funding/counterpart → 201, APP-flagged; delete → 204; 0 leaked. There's no study_leader account in the dev DB to test with. Headless screenshots OK.
 
 ### - [ ] T14: Budget — funding, utilization, history, LIB wizard
 **Description:** Remaining Budget tabs: Funding Sources, Utilization, Version History, LIB wizard.

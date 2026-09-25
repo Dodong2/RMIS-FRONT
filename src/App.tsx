@@ -247,6 +247,7 @@ export default function App() {
                 "procurement_officer_lib",
                 "program_leader",
                 "project_leader",
+                "study_leader",
               ]}
             >
               <BudgetPage />
