@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { Program, Project, Study, Milestone } from "../types/research";
+import type { Program, Project, ProjectStatusHistory, Study, Milestone } from "../types/research";
 import type { AdminUser } from "../types/auth";
 
 export const researchApi = {
@@ -69,6 +69,9 @@ export const researchApi = {
     project: number;
     title: string;
     target_date: string;
+    start_date?: string;
+    objective?: string;
+    deliverable?: string;
     remarks?: string;
   }): Promise<Milestone> => {
     const { data } = await apiClient.post("/api/milestones/", payload);
@@ -76,6 +79,14 @@ export const researchApi = {
   },
   updateMilestoneStatus: async (id: number, status: string): Promise<Milestone> => {
     const { data } = await apiClient.patch(`/api/milestones/${id}/`, { status });
+    return data;
+  },
+  updateProject: async (id: number, payload: Partial<Project> & { status_remarks?: string }): Promise<Project> => {
+    const { data } = await apiClient.patch(`/api/projects/${id}/`, payload);
+    return data;
+  },
+  getStatusHistory: async (id: number): Promise<ProjectStatusHistory[]> => {
+    const { data } = await apiClient.get(`/api/projects/${id}/status-history/`);
     return data;
   },
   getUsersByRole: async (code: string): Promise<AdminUser[]> => {

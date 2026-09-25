@@ -121,14 +121,30 @@ Standard verification for every task (not repeated below):
 - The page title is now "Project Management" (nav label).
 - Headless check as system_admin (desktop) and project_leader (390px): OK.
 
-### - [ ] T7: Project detail
+### - [x] T7: Project detail
 **Description:** Clone detail tabs (Overview, Registration Info, Team, Work Plan, Impact, History, Closure) onto `ProjectDetailPage`, keeping the existing dialogs (commit `0e490eb`).
 **Acceptance criteria:**
-- [ ] All tabs real: Registration (incl. approval info fields), Team, Work Plan, Impact (expected outcomes/impacts + outcomes endpoint), History (`status-history/`), Closure (status change to completed/archived with remarks + terminal report status)
-- [ ] Milestone create/edit/status: `system_admin`/`crc_chair` + `program_leader`/`project_leader`/`study_leader` (backend `projects.manage_milestones`, rmis-backend `209dac2`). Leaders are scoped to their own projects; an out-of-scope write returns 400, and that message is shown as a toast. Project register/edit stays `system_admin`/`crc_chair`.
+- [x] All tabs real: Registration (incl. approval info fields), Team, Work Plan, Impact (expected outcomes/impacts + outcomes endpoint), History (`status-history/`), Closure (status change to completed/archived with remarks + terminal report status)
+- [x] Milestone create/edit/status: `system_admin`/`crc_chair` + `program_leader`/`project_leader`/`study_leader` (backend `projects.manage_milestones`, rmis-backend `209dac2`). Leaders are scoped to their own projects; an out-of-scope write returns 400, and that message is shown as a toast. Project register/edit stays `system_admin`/`crc_chair`.
 **Dependencies:** T6
 **Files:** `src/pages/ProjectDetailPage.tsx`, `src/mocks/projects.ts`
 **Scope:** M
+**Result (2026-09-25):**
+- Cloned the prototype detail: breadcrumb, navy header card (cost, LIB total, duration, team size, deliverables/budget bars from `monitoring/status`), and 7 tabs.
+- The prototype's proposal workflow pipeline was **replaced** by a real lifecycle strip (NTP → Ongoing → Terminal Report → Certified → Completed → Closed). Q5 says the proposal flow stays outside RMIS.
+- Tabs:
+  - **Overview:** description, info cards, objectives from the `objectives` text, and Studies with the Add Study dialog kept.
+  - **Registration Info:** classification, read-only approval reference fields, beneficiaries, SDGs.
+  - **Team:** leader + active assignments, linking to Personnel Coordination.
+  - **Work Plan:** Gantt from `start_date`→`target_date`, milestone cards with a status select, and an Add Milestone dialog that now also sends start date/objective/deliverable.
+  - **Impact:** beneficiaries, 6Ps expected-vs-actual, expected + recorded outcomes/impacts.
+  - **History:** `status-history/` timeline plus the registration entry.
+  - **Closure:** status, terminal report state, and a status change with remarks via project PATCH (`status_remarks`, writes history), for system_admin/crc_chair.
+- The prototype's closure checklist was left out because it isn't persisted anywhere.
+- Loading now uses a reload-key effect, which clears the old eslint-disable.
+- API additions: `researchApi.updateProject`, `getStatusHistory`, extended `createMilestone`, `outputsApi.getExpectedVsActual`, `getOutcomes`.
+- There are no mocks, so `src/mocks/projects.ts` wasn't needed.
+- Headless check as system_admin and project_leader: OK. Writes (add milestone, status change) were not exercised live, to avoid touching the dev DB.
 
 ### - [ ] T8: Register Approved Project wizard
 **Description:** Clone the 8-step wizard (Basic Info → Validate & Register) onto `RegisterProjectPage`, submitting to the existing create-project endpoint.

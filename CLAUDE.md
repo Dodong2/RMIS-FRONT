@@ -32,7 +32,7 @@ Backend API base URL comes from `VITE_API_URL` in `.env.local` (Vite env vars ne
 - No code comments in generated code, per earlier project preference — keep this unless told otherwise.
 
 ## Known gaps (don't be surprised, ask before "fixing")
-- Milestone writes: closed on the backend in rmis-backend `209dac2` (`projects.manage_milestones`). It now includes program/project/study leaders, scoped to their own projects. The frontend still gates on `system_admin`/`crc_chair` until T7/T10 of the UI clone.
+- Milestone writes: closed on the backend in rmis-backend `209dac2` (`projects.manage_milestones`). It now includes program/project/study leaders, scoped to their own projects. ProjectDetailPage mirrors this since T7 (`MILESTONE_ROLE_CODES`); an out-of-scope write surfaces the backend's 400 message as a toast.
 - `AdminUser` (has `id`) and `User` (has `pk`) are deliberately different types — the former matches `/api/admin/*` responses, the latter matches dj-rest-auth's `/api/auth/user/`. Don't merge them.
 
 ## Session start

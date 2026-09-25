@@ -1,16 +1,26 @@
 import { apiClient } from "./apiClient";
 import type {
   CreativeWorkRecord,
+  ExpectedVsActual,
   IndexingTier,
   IPRecord,
   IPStatus,
   IPType,
   PublicationRecord,
+  ProjectOutcome,
   PublicationType,
   SenseRankedPublisher,
 } from "../types/outputs";
 
 export const outputsApi = {
+  getExpectedVsActual: async (projectId: number): Promise<ExpectedVsActual> => {
+    const { data } = await apiClient.get(`/api/outputs/expected-vs-actual/${projectId}/`);
+    return data;
+  },
+  getOutcomes: async (params: { project?: number } = {}): Promise<ProjectOutcome[]> => {
+    const { data } = await apiClient.get("/api/outputs/outcomes/", { params });
+    return data;
+  },
   getSensePublishers: async (): Promise<SenseRankedPublisher[]> => {
     const { data } = await apiClient.get("/api/outputs/sense-publishers/");
     return data;
