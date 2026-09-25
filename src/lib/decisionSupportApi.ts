@@ -3,6 +3,8 @@ import type {
   AHPMatrixRun,
   AHPPairwiseComparison,
   DecisionCriterion,
+  DecisionRecord,
+  FundingDecision,
   FundingRecommendationRun,
   SensitivityAnalysisResult,
 } from "../types/decisionSupport";
@@ -60,6 +62,23 @@ export const decisionSupportApi = {
     campus?: string;
   }): Promise<FundingRecommendationRun> => {
     const { data } = await apiClient.post("/api/decision-support/recommendation-runs/trigger/", payload);
+    return data;
+  },
+  getDecisions: async (runId: number): Promise<DecisionRecord[]> => {
+    const { data } = await apiClient.get(`/api/decision-support/recommendation-runs/${runId}/decisions/`);
+    return data;
+  },
+  recordDecision: async (
+    runId: number,
+    payload: {
+      project: number;
+      decision: FundingDecision;
+      indicative_amount: string | null;
+      rationale: string;
+      reference_number: string;
+    },
+  ): Promise<DecisionRecord> => {
+    const { data } = await apiClient.post(`/api/decision-support/recommendation-runs/${runId}/decisions/`, payload);
     return data;
   },
   getSensitivity: async (

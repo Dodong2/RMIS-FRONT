@@ -533,11 +533,22 @@ Reviews" relabeled "Review References". Fixed a pre-existing bug: an Institution
 **Files:** `src/pages/AnalyticsPage.tsx`, `src/mocks/analytics.ts`
 **Scope:** M
 
-### - [ ] T25: Decision Support
+### - [x] T25: Decision Support
 **Description:** Clone `DecisionSupport.tsx` onto `DecisionSupportPage`.
 **Acceptance criteria:**
-- [ ] Criteria, AHP weighting/finalize, recommendation trigger, sensitivity all still work
-- [ ] Decision records real (`recommendation-runs/<id>/decisions/`, University President can decide); prototype DSS "models" view mocked if kept
+- [x] Criteria, AHP weighting/finalize, recommendation trigger, sensitivity all still work
+- [x] Decision records real (`recommendation-runs/<id>/decisions/`, University President can decide); prototype DSS "models" view mocked if kept
+**Result:** Prototype layout mapped onto the real AHP/WSM flow, no mock needed. "DSS Models" = AHP runs (+ New creates
+one; a draft gets "Set Weights", the Saaty pairwise modal that submits + finalizes; CR > 0.10 blocks Run DSS). "Run DSS"
+= recommendation trigger with funding-type/campus filters (dss.manage roles). Rankings: composite × 100 as the DSS score,
+cosmetic grade bands from the prototype, rank cards + comparison table + sensitivity panel, score-detail modal with
+per-indicator breakdown and a domain radar (domain derived from `metric_key`). Indicators: criteria of the model, weight
+bar + CR, Define Indicator → real criterion; formula text matches `decision_support/services.py`. Decision Records: real
+list/record/replace per run, Fund/Defer/Decline + indicative amount + reference no. (the backend's fields, replacing the
+prototype's approve/terminate/escalate + follow-up); `canDecide` = system_admin/drd/vprei/university_admin
+(`DECISION_ROLES`). Decider names resolve via `getUsers()` for system_admin only, else "You"/"User #id". Verified with a
+rolled-back APIClient run (project_leader 403 on decide, university_admin 201, replace, unranked project 400) and
+headless screenshots on temporary seed data, deleted after (incl. its 9 audit-log rows).
 **Dependencies:** T2
 **Files:** `src/pages/DecisionSupportPage.tsx`, `src/mocks/decisionSupport.ts`
 **Scope:** M

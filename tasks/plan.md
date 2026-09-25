@@ -219,7 +219,7 @@ See `tasks/todo.md` for full acceptance criteria per task.
 ### Phase 4: Insights
 - [x] T23 Reports
 - [x] T24 Analytics
-- [ ] T25 Decision Support
+- [x] T25 Decision Support
 ### Checkpoint F
 
 ### Phase 5: Administration + wrap-up
