@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { initialsFrom, resolveTier, roleLabel, roleScopeLine } from "../../lib/roles";
 import { protoRoleStyle } from "../../lib/protoRole";
-import { NOTIFICATIONS } from "../../mocks/notifications";
+import { riskApi } from "../../lib/riskApi";
 import type { User } from "../../types/auth";
+import type { RiskAlertInbox } from "../../types/risk";
 
 interface TopbarProps {
   user: User | null;
@@ -19,8 +21,25 @@ function scopeSubtitle(user: User | null): string {
 }
 
 export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
+  const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [inbox, setInbox] = useState<RiskAlertInbox | null>(null);
   const roleStyle = protoRoleStyle(user?.role);
+  const alerts = inbox?.alerts ?? [];
+
+  const userId = user?.pk;
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    riskApi
+      .getAlerts()
+      .then((data) => active && setInbox(data))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   return (
     <header
@@ -59,7 +78,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" />
             </svg>
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: "#ef4444" }} />
+            {alerts.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: "#ef4444" }} />}
           </button>
           {notifOpen && (
             <div
@@ -70,34 +89,55 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
                 className="px-4 py-3 flex items-center justify-between border-b"
                 style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}
               >
-                <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>Notifications</p>
-                <span className="text-xs px-2 py-0.5 rounded-full text-white font-semibold" style={{ background: "#ef4444" }}>
-                  {NOTIFICATIONS.length}
+                <div>
+                  <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>Risk Alerts</p>
+                  {inbox && (
+                    <p className="text-xs" style={{ color: "#94a3b8" }}>
+                      Live · as of {inbox.as_of}
+                    </p>
+                  )}
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full text-white font-semibold" style={{ background: alerts.length ? "#ef4444" : "#94a3b8" }}>
+                  {alerts.length}
                 </span>
               </div>
-              <ul className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-                {NOTIFICATIONS.map((n) => (
-                  <li key={n.id} className="px-4 py-3 flex gap-3 hover:bg-slate-50 cursor-pointer">
-                    <div
-                      className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                        n.type === "warning"
-                          ? "bg-amber-400"
-                          : n.type === "danger"
-                            ? "bg-red-400"
-                            : n.type === "success"
-                              ? "bg-green-400"
-                              : "bg-cyan-400"
-                      }`}
-                    />
-                    <div>
-                      <p className="text-xs leading-relaxed" style={{ color: "#334155" }}>{n.text}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{n.time}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {alerts.length === 0 ? (
+                <p className="px-4 py-6 text-xs text-center" style={{ color: "#94a3b8" }}>
+                  {inbox ? "No risk alerts in your scope." : "Loading alerts…"}
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                  {alerts.map((n) => (
+                    <li
+                      key={n.project}
+                      onClick={() => {
+                        setNotifOpen(false);
+                        navigate(`/projects/${n.project}`);
+                      }}
+                      className="px-4 py-3 flex gap-3 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.type === "danger" ? "bg-red-400" : "bg-amber-400"}`} />
+                      <div>
+                        <p className="text-xs leading-relaxed" style={{ color: "#334155" }}>{n.text}</p>
+                        <p className="text-xs mt-0.5 capitalize" style={{ color: "#94a3b8" }}>
+                          {n.risk_level} risk · score {n.risk_score}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="px-4 py-3 border-t" style={{ borderColor: "#e2e8f0" }}>
-                <button className="text-xs font-bold" style={{ color: "#0891b2" }}>View all notifications →</button>
+                <button
+                  onClick={() => {
+                    setNotifOpen(false);
+                    navigate("/risks");
+                  }}
+                  className="text-xs font-bold"
+                  style={{ color: "#0891b2" }}
+                >
+                  View risk management →
+                </button>
               </div>
             </div>
           )}

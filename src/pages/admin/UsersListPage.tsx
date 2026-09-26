@@ -5,14 +5,13 @@ import { researchApi } from "../../lib/researchApi";
 import { errorMessage } from "../../lib/errorMessage";
 import { notify } from "../../lib/notify";
 import { protoRoleStyle } from "../../lib/protoRole";
-import { BTN_GHOST_STYLE, INPUT_CLS, INPUT_STYLE } from "../../lib/protoStyles";
-import type { AccountStatus, AdminUser, AuditLog, PermissionMatrix, Role } from "../../types/auth";
+import { BTN_GHOST_STYLE, BTN_PRIMARY, BTN_PRIMARY_STYLE, INPUT_CLS, INPUT_STYLE } from "../../lib/protoStyles";
+import type { AccountStatus, AdminUser, AuditLog, PermissionMatrix, Role, TemporaryReplacement } from "../../types/auth";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { useAuth } from "../../context/AuthContext";
 import { AppShell } from "../../components/layout/AppShell";
 import { Field, Pill, ProtoModal, SkeletonRows, TableHead } from "../../components/common/proto";
 import { NoActualData } from "../../components/common/NoActualData";
-import { TEMPORARY_REPLACEMENTS } from "../../mocks/users";
 
 type Tab = "accounts" | "profiles" | "assignments" | "permissions" | "audit";
 type StatusAction = "suspend" | "reactivate" | "deactivate";
@@ -162,7 +161,7 @@ function ScopeModal({ user, campuses, onSaved, onClose }: { user: AdminUser; cam
       }
     >
       <p className="text-xs font-bold px-3 py-2 rounded-lg" style={{ background: "#f0f9ff", color: "#0369a1" }}>
-        Leave a field blank to clear it. A blank campus means university-wide access. Campus limits what campus-scoped roles see; college is stored but not enforced yet.
+        Leave a field blank to clear it. A blank campus means university-wide access. Campus and college limit what campus-scoped roles see.
       </p>
       <Field label="Campus">
         <input list="scope-campuses" value={campus} onChange={(e) => setCampus(e.target.value)} className={INPUT_CLS} style={INPUT_STYLE} placeholder="e.g. Santa Cruz" />
@@ -205,8 +204,128 @@ function ConfirmDeactivateModal({ user, isWorking, onConfirm, onClose }: { user:
   );
 }
 
+function ReplacementCard({ user, users }: { user: AdminUser; users: AdminUser[] }) {
+  const [list, setList] = useState<TemporaryReplacement[] | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [formOpen, setFormOpen] = useState(false);
+  const [attempted, setAttempted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ replacement: "", designation: "", coverage: "", start_date: "", end_date: "", basis: "" });
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  useEffect(() => {
+    let active = true;
+    authApi
+      .getTemporaryReplacements({ suspended_user: user.id })
+      .then((r) => active && setList(r))
+      .catch(() => active && setList([]));
+    return () => {
+      active = false;
+    };
+  }, [user.id, reloadKey]);
+
+  const current = list?.find((r) => r.is_current) ?? null;
+  const candidates = users.filter((u) => u.id !== user.id && u.account_status === "active" && u.role);
+
+  const save = async () => {
+    setAttempted(true);
+    if (!form.replacement || !form.start_date || !form.end_date) {
+      notify.error("Replacement, start date, and end date are required.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await authApi.createTemporaryReplacement({ ...form, suspended_user: user.id, replacement: Number(form.replacement) });
+      notify.success("Temporary replacement assigned.");
+      setFormOpen(false);
+      setAttempted(false);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not assign the replacement."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const end = async (id: number) => {
+    setBusy(true);
+    try {
+      await authApi.endTemporaryReplacement(id);
+      notify.success("Replacement ended.");
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not end the replacement."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="p-3 rounded-xl" style={{ background: "#fef3c7", border: "1px solid #fde68a" }}>
+      <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#92400e" }}>Temporary Replacement While Suspended</p>
+      {list === null ? (
+        <p className="text-xs" style={{ color: "#92400e" }}>Loading…</p>
+      ) : current ? (
+        <>
+          <p className="text-sm font-bold break-all" style={{ color: "#78350f" }}>{current.replacement_email}</p>
+          {current.designation && <p className="text-xs" style={{ color: "#92400e" }}>{current.designation}</p>}
+          {current.coverage && <p className="text-xs mt-1" style={{ color: "#78350f" }}>Covers: {current.coverage}</p>}
+          <p className="text-xs mt-1" style={{ color: "#92400e" }}>
+            {current.start_date} → {current.end_date}
+            {current.basis ? ` · ${current.basis}` : ""}
+          </p>
+          <p className="text-xs mt-1" style={{ color: "#78350f" }}>Sees and manages every program, project, and study this user leads. Ends automatically on reactivation.</p>
+          <button onClick={() => end(current.id)} disabled={busy} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "white", color: "#92400e" }}>
+            End Replacement
+          </button>
+        </>
+      ) : !formOpen ? (
+        <>
+          <p className="text-xs" style={{ color: "#92400e" }}>No acting replacement assigned.</p>
+          <button onClick={() => setFormOpen(true)} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "white", color: "#92400e" }}>
+            Assign Replacement
+          </button>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <Field label="Replacement" required>
+            <select className={INPUT_CLS} style={{ ...INPUT_STYLE, borderColor: attempted && !form.replacement ? "#dc2626" : "#e2e8f0" }} value={form.replacement} onChange={set("replacement")}>
+              <option value="">Select an active account…</option>
+              {candidates.map((u) => (
+                <option key={u.id} value={u.id}>{u.email} · {u.role?.name}</option>
+              ))}
+            </select>
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Designation">
+              <input className={INPUT_CLS} style={INPUT_STYLE} value={form.designation} onChange={set("designation")} placeholder="e.g. Study Leader (Acting)" />
+            </Field>
+            <Field label="Basis">
+              <input className={INPUT_CLS} style={INPUT_STYLE} value={form.basis} onChange={set("basis")} placeholder="Office order / memo no." />
+            </Field>
+            <Field label="Start Date" required>
+              <input type="date" className={INPUT_CLS} style={{ ...INPUT_STYLE, borderColor: attempted && !form.start_date ? "#dc2626" : "#e2e8f0" }} value={form.start_date} onChange={set("start_date")} />
+            </Field>
+            <Field label="End Date" required>
+              <input type="date" className={INPUT_CLS} style={{ ...INPUT_STYLE, borderColor: attempted && !form.end_date ? "#dc2626" : "#e2e8f0" }} value={form.end_date} onChange={set("end_date")} />
+            </Field>
+          </div>
+          <Field label="Coverage">
+            <input className={INPUT_CLS} style={INPUT_STYLE} value={form.coverage} onChange={set("coverage")} placeholder="e.g. Milestone updates and team coordination" />
+          </Field>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setFormOpen(false)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={BTN_GHOST_STYLE}>Cancel</button>
+            <button onClick={save} disabled={busy} className={BTN_PRIMARY} style={BTN_PRIMARY_STYLE}>{busy ? "Saving…" : "Assign"}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UserDetailModal({
   user,
+  users,
   isWorking,
   onAction,
   onScope,
@@ -214,13 +333,13 @@ function UserDetailModal({
   onClose,
 }: {
   user: AdminUser;
+  users: AdminUser[];
   isWorking: boolean;
   onAction: (a: StatusAction) => void;
   onScope: () => void;
   onPerms: () => void;
   onClose: () => void;
 }) {
-  const replacement = user.account_status === "suspended" ? TEMPORARY_REPLACEMENTS[user.id % TEMPORARY_REPLACEMENTS.length] : null;
   return (
     <ProtoModal
       title={
@@ -256,19 +375,9 @@ function UserDetailModal({
           <button onClick={onScope} className="text-xs px-2 py-1 rounded-lg font-bold" style={{ background: "white", color: "#0369a1" }}>Edit Scope</button>
         </div>
         <ScopePill user={user} />
-        <p className="text-xs mt-2" style={{ color: "#475569" }}>College is stored but not enforced yet.</p>
+        <p className="text-xs mt-2" style={{ color: "#475569" }}>Campus and college both limit which projects campus-scoped roles see.</p>
       </div>
-      {replacement && (
-        <div className="p-3 rounded-xl" style={{ background: "#fef3c7", border: "1px solid #fde68a" }}>
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#92400e" }}>Temporary Replacement While Suspended</p>
-          <p className="text-sm font-bold" style={{ color: "#78350f" }}>{replacement.replacementName}</p>
-          <p className="text-xs" style={{ color: "#92400e" }}>{replacement.designation}</p>
-          <p className="text-xs mt-1" style={{ color: "#78350f" }}>Covers: {replacement.coverage}</p>
-          <p className="text-xs mt-1" style={{ color: "#92400e" }}>
-            {replacement.from} → {replacement.until} · {replacement.basis}
-          </p>
-        </div>
-      )}
+      {user.account_status === "suspended" && <ReplacementCard user={user} users={users} />}
       <div className="flex gap-2 flex-wrap">
         {statusActionsFor(user.account_status).map((a) => (
           <button key={a} onClick={() => onAction(a)} disabled={isWorking} className="px-3 py-2 rounded-xl text-sm font-bold disabled:opacity-50" style={{ background: ACTION_META[a].bg, color: ACTION_META[a].color }}>
@@ -640,7 +749,7 @@ function UsersListContent() {
 
       {tab === "assignments" && (
         <div className="space-y-4">
-          <p className="text-xs" style={{ color: "#94a3b8" }}>Grouped by each account's assigned scope. Campus limits what campus-scoped roles see; college is stored but not enforced yet.</p>
+          <p className="text-xs" style={{ color: "#94a3b8" }}>Grouped by each account's assigned scope. Campus and college limit what campus-scoped roles see.</p>
           {assignmentGroups.length === 0 && <NoActualData message="No accounts match your filters." />}
           {assignmentGroups.map(([campus, byCollege]) => {
             const count = [...byCollege.values()].reduce((s, l) => s + l.length, 0);
@@ -756,6 +865,7 @@ function UsersListContent() {
       {selectedUser && (
         <UserDetailModal
           user={selectedUser}
+          users={users}
           isWorking={workingId === selectedUser.id}
           onAction={(a) => (selectedUser.id === me?.pk ? notify.error("You can't change your own account status.") : requestAction(selectedUser, a))}
           onScope={() => setScopeUser(selectedUser)}

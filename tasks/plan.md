@@ -124,8 +124,7 @@ array has to mirror the row below; `system_admin` is in every row.
 | reports.view_logs | riuh, drd, vprei | Reports log tab |
 
 Scope (unchanged from `dea9255`): budget/financial endpoints are row-scoped (leaders see their own projects, staff see
-none, campus roles see their `scope.campus`). `scope.college` is stored but not enforced. Other modules are still
-unscoped (backend P11–P15 are not built yet). When they land, re-run this sync.
+none, campus roles see their `scope.campus`). `scope.college` is enforced too since rmis-backend `cdbb7d0`. P13–P15 landed 2026-09-26 and are synced.
 
 ## Client docs alignment (checked 2026-09-25)
 Sources: `../RMIS chap1/RMIS_Module_Objective_Alignment.docx` and `RMIS_Clarification_Answers.docx`. rmis-backend
@@ -151,9 +150,10 @@ followed both. These override the prototype wherever the two disagree:
     and `/budget` lacks study_leader (view-only).
   - Backend note: until P11 there's no `LineItem.study`, so a study leader sees the whole project LIB.
 - **Required by the docs but not in the backend yet** (rmis-backend P11–P15) → mock + REGISTRY row, per the data rule:
-  - temporary replacement while a user is suspended (Q3, T26)
-  - per-document sharing with expiry (Q8, T19)
-  - risk alert inbox: medium → PL, high → RIUH+CRC, critical → VP/DRD (Q7, T22 / topbar notifications)
+  - temporary replacement while a user is suspended (Q3, T26): real since 2026-09-26 (backend P13, `admin/temporary-replacements/`)
+  - per-document sharing with expiry (Q8, T19): real since 2026-09-26 (backend P14, `documents/<id>/shares/`)
+  - risk alert inbox: medium → PL, high → RIUH+CRC, critical → VP/DRD (Q7, T22 / topbar notifications): real since
+    2026-09-26 (backend P15, `risk/alerts/`)
   - study-level allocation (Q12, T13)
   - Module 14's "custom filtered report builder / scheduled generation" (T23)
 - **Needs client confirm (don't build more than the backend has):** Q4 project-code format, Q6 peso allocation (ranking

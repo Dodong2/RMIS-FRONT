@@ -7,8 +7,9 @@ import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
-import { DOCUMENT_SHARES } from "../mocks/documents";
-import type { DocumentReviewStatus, DocumentSensitivity, DocumentStage, DocumentType, ProjectDocument } from "../types/document";
+import { ROLE_META } from "../lib/roles";
+import type { DocumentReviewStatus, DocumentSensitivity, DocumentShare, DocumentStage, DocumentType, ProjectDocument } from "../types/document";
+import type { AdminUser } from "../types/auth";
 import type { Project, Study } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
@@ -273,6 +274,161 @@ function UploadModal({ projects, preset, onClose, onSaved }: { projects: Project
 
 type LinkedRecord = { module: string; description: string };
 
+function SharingTab({ doc }: { doc: ProjectDocument }) {
+  const [shares, setShares] = useState<DocumentShare[] | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [roleCode, setRoleCode] = useState("");
+  const [candidates, setCandidates] = useState<AdminUser[]>([]);
+  const [form, setForm] = useState({ user: "", expires_on: "", reason: "" });
+  const [attempted, setAttempted] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    documentApi
+      .getShares(doc.id)
+      .then((r) => active && setShares(r))
+      .catch((err) => {
+        if (!active) return;
+        setForbidden((err as { response?: { status?: number } })?.response?.status === 403);
+        setShares([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [doc.id, reloadKey]);
+
+  useEffect(() => {
+    if (!roleCode) return;
+    let active = true;
+    researchApi
+      .getUsersByRole(roleCode)
+      .then((u) => active && setCandidates(u))
+      .catch(() => active && setCandidates([]));
+    return () => {
+      active = false;
+    };
+  }, [roleCode]);
+
+  const grant = async () => {
+    setAttempted(true);
+    if (!form.user || !form.expires_on) {
+      notify.error("Choose a user and an expiry date.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await documentApi.createShare(doc.id, { user: Number(form.user), expires_on: form.expires_on, reason: form.reason.trim() || undefined });
+      notify.success("Document shared.");
+      setForm({ user: "", expires_on: "", reason: "" });
+      setAttempted(false);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not share the document."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = async (id: number) => {
+    setBusy(true);
+    try {
+      await documentApi.revokeShare(id);
+      notify.success("Share revoked.");
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not revoke the share."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (shares === null) return <SkeletonRows rows={2} />;
+  if (forbidden)
+    return (
+      <div className="text-center py-10 rounded-2xl" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+        <p className="text-sm" style={{ color: "#94a3b8" }}>Only the project leader or RIUH can see and manage sharing for this document.</p>
+      </div>
+    );
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl p-4 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Share with an RMIS user until a set date</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field label="Role">
+            <select
+              className={INPUT_CLS}
+              style={INPUT_STYLE}
+              value={roleCode}
+              onChange={(e) => {
+                setRoleCode(e.target.value);
+                setForm((p) => ({ ...p, user: "" }));
+              }}
+            >
+              <option value="">Select a role…</option>
+              {Object.values(ROLE_META).map((r) => (
+                <option key={r.code} value={r.code}>{r.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="User" required>
+            <select className={INPUT_CLS} style={invalidStyle(attempted && !form.user)} value={form.user} disabled={!roleCode} onChange={(e) => setForm((p) => ({ ...p, user: e.target.value }))}>
+              <option value="">{roleCode ? (candidates.length ? "Select a user…" : "No active users with this role") : "Pick a role first"}</option>
+              {candidates.map((u) => (
+                <option key={u.id} value={u.id}>{u.email}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Expires On" required>
+            <input type="date" className={INPUT_CLS} style={invalidStyle(attempted && !form.expires_on)} value={form.expires_on} onChange={(e) => setForm((p) => ({ ...p, expires_on: e.target.value }))} />
+          </Field>
+          <Field label="Reason">
+            <input className={INPUT_CLS} style={INPUT_STYLE} value={form.reason} onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))} placeholder="e.g. External evaluation" />
+          </Field>
+        </div>
+        <div className="flex justify-end">
+          <button onClick={grant} disabled={busy} className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
+            🔑 Share Document
+          </button>
+        </div>
+      </div>
+
+      {shares.length === 0 ? (
+        <p className="text-sm text-center py-4" style={{ color: "#94a3b8" }}>Not shared with anyone outside the usual access rules.</p>
+      ) : (
+        <div className="space-y-3">
+          {shares.map((sh) => (
+            <div key={sh.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", opacity: sh.is_active ? 1 : 0.6 }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: "#faf5ff" }}>🔑</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold break-all" style={{ color: "#0d2a5e" }}>{sh.user_email}</p>
+                <p className="text-xs" style={{ color: "#94a3b8" }}>
+                  {sh.user_role} · shared by {sh.granted_by_email} on {sh.granted_at.slice(0, 10)}
+                  {sh.reason ? ` · ${sh.reason}` : ""}
+                </p>
+              </div>
+              {sh.is_active ? (
+                <>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#fef3c7", color: "#92400e" }}>Expires {sh.expires_on}</span>
+                  <button onClick={() => revoke(sh.id)} disabled={busy} className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 disabled:opacity-60" style={{ background: "#fee2e2", color: "#991b1b" }}>
+                    Revoke
+                  </button>
+                </>
+              ) : (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#f1f5f9", color: "#64748b" }}>
+                  {sh.revoked_at ? `Revoked ${sh.revoked_at.slice(0, 10)}` : `Expired ${sh.expires_on}`}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailModal({
   doc,
   projectLabel,
@@ -502,20 +658,7 @@ function DetailModal({
           </div>
         ))}
 
-      {tab === "sharing" && (
-        <div className="space-y-3">
-          {DOCUMENT_SHARES.map((s) => (
-            <div key={s.sharedWith} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: "#faf5ff" }}>🔑</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold" style={{ color: "#0d2a5e" }}>{s.sharedWith}</p>
-                <p className="text-xs" style={{ color: "#94a3b8" }}>{s.role} · shared by {s.sharedBy} on {s.sharedAt}</p>
-              </div>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#fef3c7", color: "#92400e" }}>Expires {s.expiresAt}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {tab === "sharing" && <SharingTab doc={doc} />}
     </ProtoModal>
   );
 }

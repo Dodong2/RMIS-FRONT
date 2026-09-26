@@ -1,5 +1,13 @@
 import { apiClient } from "./apiClient";
-import type { ProjectRisk, ProjectRiskStatus, RiskCategory, RiskDashboard, RiskRegisterStatus, RiskUpdate } from "../types/risk";
+import type {
+  ProjectRisk,
+  ProjectRiskStatus,
+  RiskAlertInbox,
+  RiskCategory,
+  RiskDashboard,
+  RiskRegisterStatus,
+  RiskUpdate,
+} from "../types/risk";
 
 export type RiskInput = {
   project: number;
@@ -38,6 +46,10 @@ export const riskApi = {
   },
   addUpdate: async (riskId: number, payload: { note: string; new_status: RiskRegisterStatus | "" }): Promise<RiskUpdate> => {
     const { data } = await apiClient.post(`/api/risk/register/${riskId}/updates/`, payload);
+    return data;
+  },
+  getAlerts: async (): Promise<RiskAlertInbox> => {
+    const { data } = await apiClient.get("/api/risk/alerts/");
     return data;
   },
 };

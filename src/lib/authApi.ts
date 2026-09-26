@@ -11,6 +11,7 @@ import type {
   AccountStatus,
   UserScope,
   PermissionMatrix,
+  TemporaryReplacement,
 } from "../types/auth";
 
 export const authApi = {
@@ -75,6 +76,28 @@ export const authApi = {
   },
   getAuditLogs: async (params: { actor?: number; method?: string } = {}): Promise<AuditLog[]> => {
     const { data } = await apiClient.get("/api/admin/audit-logs/", { params });
+    return data;
+  },
+  getTemporaryReplacements: async (params: { suspended_user?: number; current?: boolean } = {}): Promise<TemporaryReplacement[]> => {
+    const { data } = await apiClient.get("/api/admin/temporary-replacements/", {
+      params: { ...(params.suspended_user ? { suspended_user: params.suspended_user } : {}), ...(params.current ? { current: "true" } : {}) },
+    });
+    return data;
+  },
+  createTemporaryReplacement: async (payload: {
+    suspended_user: number;
+    replacement: number;
+    designation?: string;
+    coverage?: string;
+    start_date: string;
+    end_date: string;
+    basis?: string;
+  }): Promise<TemporaryReplacement> => {
+    const { data } = await apiClient.post("/api/admin/temporary-replacements/", payload);
+    return data;
+  },
+  endTemporaryReplacement: async (id: number): Promise<TemporaryReplacement> => {
+    const { data } = await apiClient.post(`/api/admin/temporary-replacements/${id}/end/`);
     return data;
   },
 };

@@ -81,3 +81,19 @@ export interface AuditLog {
   ip_address: string | null;
   created_at: string;
 }
+export interface TemporaryReplacement {
+  id: number;
+  suspended_user: number;
+  suspended_user_email: string;
+  replacement: number;
+  replacement_email: string;
+  designation: string;
+  coverage: string;
+  start_date: string;
+  end_date: string;
+  basis: string;
+  created_by: number;
+  created_at: string;
+  ended_at: string | null;
+  is_current: boolean;
+}

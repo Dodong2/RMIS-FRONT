@@ -106,3 +106,21 @@ export interface RiskUpdate {
   author_email: string;
   created_at: string;
 }
+
+export interface RiskAlert {
+  project: number;
+  project_code: string;
+  title: string;
+  risk_level: RiskLevel;
+  risk_score: number;
+  top_trigger: string;
+  recommended_action: string;
+  type: "warning" | "danger";
+  text: string;
+}
+
+export interface RiskAlertInbox {
+  as_of: string;
+  count: number;
+  alerts: RiskAlert[];
+}
