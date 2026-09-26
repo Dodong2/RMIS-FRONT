@@ -7,7 +7,7 @@ function extractFilename(disposition: unknown, fallback: string): string {
   return match ? match[1] : fallback;
 }
 
-async function downloadReport(
+export async function downloadReport(
   url: string,
   params: Record<string, string | number | undefined>,
   fallbackName: string,

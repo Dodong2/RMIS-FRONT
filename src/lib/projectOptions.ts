@@ -65,3 +65,8 @@ export const TYPOLOGY_OPTIONS = Object.entries(TYPOLOGY_LABELS).map(([value, lab
   value,
   label,
 }));
+
+export const SECTOR_OPTIONS = Object.entries(SECTOR_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));

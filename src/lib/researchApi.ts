@@ -1,5 +1,14 @@
 import { apiClient } from "./apiClient";
-import type { Program, Project, ProjectStatusHistory, Study, Milestone } from "../types/research";
+import { downloadReport } from "./reportsApi";
+import type {
+  Program,
+  Project,
+  ProjectStatusHistory,
+  ProjectTeamMember,
+  Study,
+  Milestone,
+  TargetBeneficiary,
+} from "../types/research";
 import type { AdminUser } from "../types/auth";
 
 export const researchApi = {
@@ -39,27 +48,78 @@ export const researchApi = {
     target_end_date?: string;
     rei_thrust?: string;
     sdgs: number[];
-    sector: string;
+    sectors: string[];
     sector_other?: string;
     is_continuing?: boolean;
+    continuing_year?: number;
     research_type?: string;
     research_priority_area?: string;
     research_typology?: string[];
     campus?: string;
+    college?: string;
     implementing_unit?: string;
     cooperating_agencies?: string;
     total_cost?: string;
-    description?: string;
+    lead_gender?: string;
+    contact_number?: string;
+    background?: string;
     objectives?: string;
-    beneficiaries?: string;
+    methodology?: string;
+    socio_economic_significance?: string;
+    monitoring_evaluation?: string;
+    references?: string;
+    description?: string;
     expected_outcomes?: string;
     expected_impacts?: string;
     proposal_submitted_on?: string;
     proposal_reviewed_on?: string;
     proposal_approved_on?: string;
     reviewing_body?: string;
+    endorsed_by_dean?: string;
+    endorsed_by_dean_on?: string;
+    noted_by_rds_director?: string;
+    noted_by_rds_director_on?: string;
+    recommended_by_campus_director?: string;
+    recommended_by_campus_director_on?: string;
+    recommended_by_vprde?: string;
+    recommended_by_vprde_on?: string;
+    approved_by_president?: string;
   }): Promise<Project> => {
     const { data } = await apiClient.post("/api/projects/", payload);
+    return data;
+  },
+  downloadImportTemplate: () =>
+    downloadReport("/api/projects/import-template/", {}, "rmis_project_registration_template.xlsx"),
+  importProject: async (file: File): Promise<Project> => {
+    const form = new FormData();
+    form.append("file", file);
+    const { data } = await apiClient.post("/api/projects/import/", form);
+    return data;
+  },
+  getTeamMembers: async (projectId: number): Promise<ProjectTeamMember[]> => {
+    const { data } = await apiClient.get("/api/project-team/", { params: { project: projectId } });
+    return data;
+  },
+  createTeamMember: async (payload: {
+    project: number;
+    member_role: string;
+    name: string;
+    gender?: string;
+  }): Promise<ProjectTeamMember> => {
+    const { data } = await apiClient.post("/api/project-team/", payload);
+    return data;
+  },
+  getBeneficiaries: async (projectId: number): Promise<TargetBeneficiary[]> => {
+    const { data } = await apiClient.get("/api/target-beneficiaries/", { params: { project: projectId } });
+    return data;
+  },
+  createBeneficiary: async (payload: {
+    project: number;
+    group: string;
+    description?: string;
+    total: number;
+  }): Promise<TargetBeneficiary> => {
+    const { data } = await apiClient.post("/api/target-beneficiaries/", payload);
     return data;
   },
   getStudies: async (projectId: number): Promise<Study[]> => {

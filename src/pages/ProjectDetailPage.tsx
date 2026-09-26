@@ -22,8 +22,10 @@ import type {
   Program,
   Project,
   ProjectStatusHistory,
+  ProjectTeamMember,
   RecordStatus,
   Study,
+  TargetBeneficiary,
 } from "../types/research";
 import type { AdminUser } from "../types/auth";
 import type { ProjectAssignment } from "../types/personnel";
@@ -40,7 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type DetailTab = "overview" | "registration" | "team" | "workplan" | "impact" | "history" | "closure";
 
-const REGISTRATION_ROLE_CODES = ["system_admin", "crc_chair"];
+const REGISTRATION_ROLE_CODES = ["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"];
 const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "program_leader", "project_leader", "study_leader"];
 
 const FUNDING_LABELS: Record<FundingType, string> = {
@@ -247,6 +249,8 @@ function ProjectDetailContent() {
   const [studies, setStudies] = useState<Study[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [team, setTeam] = useState<ProjectAssignment[]>([]);
+  const [formTeam, setFormTeam] = useState<ProjectTeamMember[]>([]);
+  const [targetBeneficiaries, setTargetBeneficiaries] = useState<TargetBeneficiary[]>([]);
   const [history, setHistory] = useState<ProjectStatusHistory[] | null | undefined>(undefined);
   const [status, setStatus] = useState<ProjectMonitoringStatus | null | undefined>(undefined);
   const [terminal, setTerminal] = useState<TerminalReport | null | undefined>(undefined);
@@ -302,6 +306,8 @@ function ProjectDetailContent() {
       .then(guard((r: TerminalReport[]) => setTerminal(r[0] ?? null)))
       .catch(guard(() => setTerminal(null)));
     personnelApi.getAssignments({ project: projectId, active: true }).then(guard(setTeam)).catch(() => undefined);
+    researchApi.getTeamMembers(projectId).then(guard(setFormTeam)).catch(() => undefined);
+    researchApi.getBeneficiaries(projectId).then(guard(setTargetBeneficiaries)).catch(() => undefined);
     outputsApi.getExpectedVsActual(projectId).then(guard(setExpected)).catch(() => undefined);
     outputsApi.getOutcomes({ project: projectId }).then(guard(setOutcomes)).catch(() => undefined);
     budgetApi.getBudgets(projectId).then(guard(setBudgets)).catch(() => undefined);
@@ -571,18 +577,54 @@ function ProjectDetailContent() {
             <div className="space-y-5">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <InfoCard label="Research Category" value={project.research_type ? RESEARCH_TYPE_LABELS[project.research_type] : ""} />
-                <InfoCard label="Proposal Type" value={project.is_continuing ? "Continuing" : "New Proposal"} />
+                <InfoCard label="Proposal Type" value={project.is_continuing ? `Continuing (Year ${project.continuing_year ?? "?"})` : "New Proposal"} />
                 <InfoCard
                   label="Sector"
-                  value={project.sector === "others" ? project.sector_other : project.sector ? SECTOR_LABELS[project.sector] : ""}
+                  value={project.sectors.map((c) => (c === "others" ? project.sector_other || "Others" : SECTOR_LABELS[c])).join(", ")}
                 />
                 <InfoCard label="Priority Area" value={project.research_priority_area ? PRIORITY_AREA_LABELS[project.research_priority_area] : ""} />
                 <InfoCard label="Typology" value={project.research_typology.map((t) => TYPOLOGY_LABELS[t]).join(", ")} />
                 <InfoCard label="Dry / Wet Research" value={project.is_dry_research ? "Dry research" : "Wet research"} />
                 <InfoCard label="Total Project Cost" value={project.total_cost ? peso(Number(project.total_cost)) : ""} />
                 <InfoCard label="Campus" value={project.campus} />
+                <InfoCard label="College Unit" value={project.college} />
                 <InfoCard label="Implementing Unit" value={project.implementing_unit} />
+                <InfoCard label="Cooperating Agency/ies" value={project.cooperating_agencies} />
+                <InfoCard label="Leader Gender" value={project.lead_gender ? (project.lead_gender === "male" ? "Male" : "Female") : ""} />
+                <InfoCard label="Contact No./s." value={project.contact_number} />
               </div>
+              <div>
+                <SectionHeader>Co-Project Leader / Project Team (as listed on the form)</SectionHeader>
+                {formTeam.length === 0 ? (
+                  <p className="text-sm" style={{ color: "#94a3b8" }}>No team listed.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {formTeam.map((m) => (
+                      <span key={m.id} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: "#e0f2fe", color: "#0369a1" }}>
+                        {m.member_role === "co_leader" ? "Co-Leader: " : ""}
+                        {m.name}
+                        {m.gender ? ` (${m.gender === "male" ? "M" : "F"})` : ""}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {(
+                [
+                  ["II. Background of the Study", project.background],
+                  ["IV. Project Descriptions / Methodology", project.methodology],
+                  ["VI. Socio-Economic Significance", project.socio_economic_significance],
+                  ["VIII. Monitoring / Evaluation", project.monitoring_evaluation],
+                  ["IX. List of References", project.references],
+                ] as const
+              )
+                .filter(([, text]) => text.trim())
+                .map(([heading, text]) => (
+                  <div key={heading}>
+                    <SectionHeader>{heading}</SectionHeader>
+                    <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#334155" }}>{text}</p>
+                  </div>
+                ))}
               <div>
                 <SectionHeader>Approval Information (read-only reference)</SectionHeader>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -593,11 +635,32 @@ function ProjectDetailContent() {
                   <InfoCard label="Proposal Reviewed" value={project.proposal_reviewed_on ?? ""} />
                   <InfoCard label="Proposal Approved" value={project.proposal_approved_on ?? ""} />
                   <InfoCard label="Reviewing / Approving Body" value={project.reviewing_body} />
+                  <InfoCard label="Endorsed By (Dean)" value={[project.endorsed_by_dean, project.endorsed_by_dean_on].filter(Boolean).join(" · ")} />
+                  <InfoCard label="Noted By (RDS Director)" value={[project.noted_by_rds_director, project.noted_by_rds_director_on].filter(Boolean).join(" · ")} />
+                  <InfoCard
+                    label="Recommending (Campus Director)"
+                    value={[project.recommended_by_campus_director, project.recommended_by_campus_director_on].filter(Boolean).join(" · ")}
+                  />
+                  <InfoCard label="Recommending (VPRDE)" value={[project.recommended_by_vprde, project.recommended_by_vprde_on].filter(Boolean).join(" · ")} />
+                  <InfoCard label="Approved By (President)" value={project.approved_by_president} />
                 </div>
               </div>
               <div>
                 <SectionHeader>Target Beneficiaries</SectionHeader>
-                {lines(project.beneficiaries).length === 0 ? (
+                {targetBeneficiaries.length > 0 ? (
+                  <div className="space-y-2">
+                    {targetBeneficiaries.map((b) => (
+                      <div key={b.id} className="rounded-xl p-3 flex items-start gap-3" style={{ background: "#faf5ff", border: "1px solid #e9d5ff" }}>
+                        <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: "#7c3aed" }} />
+                        <p className="text-xs flex-1" style={{ color: "#334155" }}>
+                          <span className="font-semibold">{b.group}</span>
+                          {b.description ? ` — ${b.description}` : ""}
+                        </p>
+                        <span className="text-xs font-bold" style={{ color: "#7c3aed" }}>{b.total.toLocaleString("en-PH")}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : lines(project.beneficiaries).length === 0 ? (
                   <p className="text-sm" style={{ color: "#94a3b8" }}>No beneficiaries recorded yet.</p>
                 ) : (
                   <div className="space-y-2">
@@ -751,7 +814,14 @@ function ProjectDetailContent() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { title: "Target Beneficiaries", items: lines(project.beneficiaries), color: "#7c3aed", bg: "#faf5ff" },
+                  {
+                    title: "Target Beneficiaries",
+                    items: targetBeneficiaries.length
+                      ? targetBeneficiaries.map((b) => `${b.group}${b.description ? ` — ${b.description}` : ""} (${b.total})`)
+                      : lines(project.beneficiaries),
+                    color: "#7c3aed",
+                    bg: "#faf5ff",
+                  },
                   {
                     title: "Expected Outputs (6Ps)",
                     items: (expected?.by_category ?? [])

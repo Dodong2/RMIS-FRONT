@@ -48,7 +48,7 @@ export default function App() {
         path="/projects/new"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "crc_chair"]}>
+            <RoleGate allow={["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"]}>
               <RegisterProjectPage />
             </RoleGate>
           </ProtectedRoute>
@@ -59,7 +59,7 @@ export default function App() {
         path="/programs/new"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "crc_chair"]}>
+            <RoleGate allow={["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"]}>
               <RegisterProgramPage />
             </RoleGate>
           </ProtectedRoute>

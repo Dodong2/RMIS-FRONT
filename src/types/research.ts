@@ -26,6 +26,8 @@ export type Typology =
   | "laboratory_field"
   | "quasi_experimental"
   | "pure_experimental";
+export type Gender = "male" | "female";
+export type TeamMemberRole = "co_leader" | "member";
 export type MilestoneStatus = "pending" | "in_progress" | "done" | "delayed";
 
 export interface Lead {
@@ -58,23 +60,32 @@ export interface Project {
   is_dry_research: boolean;
   lead: number;
   lead_detail: Lead;
+  lead_gender: Gender | "";
+  contact_number: string;
   status: RecordStatus;
   start_date: string | null;
   target_end_date: string | null;
   rei_thrust: string;
   is_continuing: boolean;
+  continuing_year: number | null;
   research_type: ResearchType | "";
-  sector: Sector | "";
+  sectors: Sector[];
   sector_other: string;
   research_priority_area: PriorityArea | "";
   research_typology: Typology[];
   sdgs: number[];
   campus: string;
+  college: string;
   implementing_unit: string;
   cooperating_agencies: string;
   total_cost: string | null;
-  description: string;
+  background: string;
   objectives: string;
+  methodology: string;
+  socio_economic_significance: string;
+  monitoring_evaluation: string;
+  references: string;
+  description: string;
   beneficiaries: string;
   expected_outcomes: string;
   expected_impacts: string;
@@ -82,7 +93,40 @@ export interface Project {
   proposal_reviewed_on: string | null;
   proposal_approved_on: string | null;
   reviewing_body: string;
+  endorsed_by_dean: string;
+  endorsed_by_dean_on: string | null;
+  noted_by_rds_director: string;
+  noted_by_rds_director_on: string | null;
+  recommended_by_campus_director: string;
+  recommended_by_campus_director_on: string | null;
+  recommended_by_vprde: string;
+  recommended_by_vprde_on: string | null;
+  approved_by_president: string;
   created_at: string;
+}
+
+export interface ProjectTeamMember {
+  id: number;
+  project: number;
+  member_role: TeamMemberRole;
+  name: string;
+  gender: Gender | "";
+  user: number | null;
+}
+
+export interface TargetBeneficiary {
+  id: number;
+  project: number;
+  group: string;
+  description: string;
+  total: number;
+}
+
+export interface ProjectImportError {
+  sheet: string | null;
+  row: number | null;
+  field: string;
+  message: string;
 }
 
 export interface ProjectStatusHistory {
