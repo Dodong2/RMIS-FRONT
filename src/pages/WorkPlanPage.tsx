@@ -5,7 +5,6 @@ import { personnelApi } from "../lib/personnelApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
-import { WORK_PLAN_VERSIONS } from "../mocks/workPlan";
 import type { Milestone, MilestoneStatus, Project } from "../types/research";
 import type { ProjectAssignment } from "../types/personnel";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -14,7 +13,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-type WPTab = "gantt" | "activities" | "deliverables" | "versions";
+type WPTab = "gantt" | "activities" | "deliverables";
 
 const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "program_leader", "project_leader", "study_leader"];
 
@@ -271,7 +270,6 @@ function WorkPlanDetail({
     { key: "gantt", label: "Gantt Chart" },
     { key: "activities", label: "Activities" },
     { key: "deliverables", label: "Deliverables" },
-    { key: "versions", label: "Version History" },
   ];
 
   return (
@@ -476,66 +474,6 @@ function WorkPlanDetail({
                         {deliverables.length} deliverable{deliverables.length !== 1 ? "s" : ""} across {sorted.length} activities
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {tab === "versions" && (
-                <div className="space-y-4">
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Work Plan Version History</p>
-                  {sorted.length === 0 ? (
-                    <NoActualData hint="Versions start once the inception work plan has activities." />
-                  ) : (
-                  <div className="relative">
-                    <div className="absolute left-4 top-0 bottom-0 w-px" style={{ background: "#e2e8f0" }} />
-                    <div className="space-y-4">
-                      {[...WORK_PLAN_VERSIONS].reverse().map((v, idx) => {
-                        const isFirst = idx === 0;
-                        const cc =
-                          v.changeType === "initial"
-                            ? { bg: "#e0eaf7", text: "#0d2a5e" }
-                            : v.changeType === "revision"
-                              ? { bg: "#faf5ff", text: "#7c3aed" }
-                              : { bg: "#fef3c7", text: "#92400e" };
-                        return (
-                          <div key={v.version} className="relative flex gap-5 pl-10">
-                            <div
-                              className="absolute left-0.5 w-7 h-7 rounded-full flex items-center justify-center border-2 font-black text-xs"
-                              style={{ background: isFirst ? "#0d2a5e" : "white", borderColor: isFirst ? "#0d2a5e" : "#e2e8f0", color: isFirst ? "white" : "#94a3b8" }}
-                            >
-                              {v.version}
-                            </div>
-                            <div className="flex-1 rounded-xl p-4" style={{ background: isFirst ? "#f0f9ff" : "#f8fafc", border: `1px solid ${isFirst ? "#bae6fd" : "#e2e8f0"}` }}>
-                              <div className="flex items-start justify-between gap-3 flex-wrap">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-black text-sm" style={{ color: "#0d2a5e" }}>v{v.version}</span>
-                                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: cc.bg, color: cc.text }}>
-                                    {v.changeType.charAt(0).toUpperCase() + v.changeType.slice(1)}
-                                  </span>
-                                  <span
-                                    className="text-xs font-bold px-2 py-0.5 rounded-full"
-                                    style={v.status === "approved" ? { background: "#d1fae5", color: "#166534" } : { background: "#fef3c7", color: "#92400e" }}
-                                  >
-                                    {v.status === "approved" ? "Approved" : "Submitted"}
-                                  </span>
-                                </div>
-                                <p className="text-xs font-mono" style={{ color: "#94a3b8" }}>{v.createdAt}</p>
-                              </div>
-                              <p className="text-sm mt-2 leading-relaxed" style={{ color: "#334155" }}>{v.revisionRemarks}</p>
-                              <div className="flex flex-wrap gap-4 mt-2 text-xs" style={{ color: "#94a3b8" }}>
-                                <span>Submitted by: <strong style={{ color: "#475569" }}>{v.revisedBy}</strong></span>
-                                {v.approvedAt && (
-                                  <span>
-                                    Approved: <strong style={{ color: "#059669" }}>{v.approvedAt}</strong> by {v.approvedBy}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                   )}
                 </div>
               )}

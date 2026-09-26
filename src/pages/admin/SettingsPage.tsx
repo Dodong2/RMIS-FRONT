@@ -7,7 +7,6 @@ import type { AdminUser, PermissionMatrix, Role } from "../../types/auth";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { AppShell } from "../../components/layout/AppShell";
 import { SkeletonRows } from "../../components/common/proto";
-import { SYSTEM_INFO } from "../../mocks/settings";
 
 const MODULE_LABELS: Record<string, string> = {
   accounts: "User & Access",
@@ -58,18 +57,6 @@ function SettingsContent() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="rounded-xl p-5" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-        <p className="font-bold text-sm mb-4" style={{ color: "#0d2a5e" }}>System Information</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {SYSTEM_INFO.map((item) => (
-            <div key={item.label} className="p-3 rounded-lg" style={{ background: "#f8fafc" }}>
-              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#94a3b8" }}>{item.label}</p>
-              <p className="text-sm font-medium mt-1" style={{ color: "#1e293b" }}>{item.val}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="rounded-xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
         <div className="px-5 py-4 border-b flex items-start justify-between gap-3 flex-wrap" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
           <div>

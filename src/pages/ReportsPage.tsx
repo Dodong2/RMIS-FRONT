@@ -9,19 +9,18 @@ import { runServerReport, type ReportParams } from "../lib/reportRunner";
 import { DOMAIN_META, FORMAT_META, FUNDING_TYPE_LABELS, PARAM_LABELS, REPORT_DEFINITIONS, STATUS_LABELS, type ReportDefinition, type ReportDomain, type ReportParam } from "../lib/reportCatalog";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { SCHEDULED_REPORTS } from "../mocks/reports";
 import type { GeneratedReportLog } from "../types/reports";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { NoActualData } from "../components/common/NoActualData";
-import { SkeletonRows, TableHead } from "../components/common/proto";
+import { SkeletonRows } from "../components/common/proto";
 import { GenerateReportModal } from "../components/reports/GenerateReportModal";
 import { useAuth } from "../context/AuthContext";
 
 const REPORT_LOG_VIEW_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
 
-type Tab = "catalog" | "history" | "submitted" | "scheduled";
+type Tab = "catalog" | "history" | "submitted";
 type SubmittedKind = "monthly" | "midterm" | "terminal";
 
 type Submitted = {
@@ -174,7 +173,6 @@ function ReportsContent() {
     ["catalog", "Report Catalog"],
     ...(canViewLogs ? ([["history", "Generation History"]] as [Tab, string][]) : []),
     ["submitted", "Submitted Reports"],
-    ["scheduled", "Scheduled Reports"],
   ];
 
   return (
@@ -403,35 +401,6 @@ function ReportsContent() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {tab === "scheduled" && (
-            <div className="space-y-3">
-              <p className="text-xs" style={{ color: "#64748b" }}>Recurring report generation and distribution to offices.</p>
-              <div className="overflow-x-auto rounded-xl" style={{ border: "1px solid #e2e8f0" }}>
-                <table className="w-full text-xs">
-                  <TableHead cols={["Report", "Frequency", "Format", "Scope", "Recipients", "Last Run", "Next Run", "Status"]} />
-                  <tbody>
-                    {SCHEDULED_REPORTS.map((s) => (
-                      <tr key={s.id} className="border-t" style={{ borderColor: "#f1f5f9" }}>
-                        <td className="px-4 py-3 font-semibold" style={{ color: "#0d2a5e" }}>{s.reportName}</td>
-                        <td className="px-4 py-3" style={{ color: "#334155" }}>{s.frequency}</td>
-                        <td className="px-4 py-3">
-                          <span className="px-1.5 py-0.5 rounded font-semibold" style={s.format === "PDF" ? { background: FORMAT_META.pdf.bg, color: FORMAT_META.pdf.color } : { background: FORMAT_META.xlsx.bg, color: FORMAT_META.xlsx.color }}>{s.format}</span>
-                        </td>
-                        <td className="px-4 py-3" style={{ color: "#64748b" }}>{s.scope}</td>
-                        <td className="px-4 py-3" style={{ color: "#64748b" }}>{s.recipients}</td>
-                        <td className="px-4 py-3 font-mono" style={{ color: "#94a3b8" }}>{s.lastRun ?? "—"}</td>
-                        <td className="px-4 py-3 font-mono" style={{ color: "#334155" }}>{s.nextRun}</td>
-                        <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 rounded-full font-semibold" style={s.active ? { background: "#d1fae5", color: "#059669" } : { background: "#f1f5f9", color: "#64748b" }}>{s.active ? "Active" : "Paused"}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
         </div>
