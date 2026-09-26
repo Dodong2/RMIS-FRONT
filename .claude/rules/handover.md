@@ -3,6 +3,8 @@
 ## Module we're on
 Prototype UI clone (`tasks/plan.md`, `tasks/todo.md`): T1–T29 are done and committed. What's left is human work: the
 browser reviews for Checkpoints D, E and F plus the "Complete" sign-off (see "Next thing to do").
+Since then (2026-09-26): project registration follows the Research Proposal Form (LSPU-RDO-SF-018, `Dataset/BRIDGI_1.PDF`)
+with a Manual / Upload via Excel choice. See the Module 2 bullet and "Last thing done".
 The per-module bullets under "Frontend status" describe the pre-clone pages. Where a clone changed a page, the
 "Prototype clone status" bullet and each task's **Result** note in `tasks/todo.md` win. Those older bullets also say
 "`tsc --noEmit` clean"; the real type-check is `npx tsc -b` (see CLAUDE.md).
@@ -66,6 +68,21 @@ automatically — most pages needed zero code changes for this pass.
   RoleGate at the route level like /staff, /budget, etc. Browser-tested:
   navigation, both forms rendering correctly, and Program registration
   end-to-end (create → redirect → appears in table) all confirmed working.
+  **2026-09-26 (`1d7ccd7`), SF-018 registration + Excel upload:** RegisterProjectPage has two modes. Manual is a
+  7-step wizard following the form: Project Details (continuing year), Proponents & Team (leader gender/contact,
+  free-text co-leader/team rows, campus, college), Classification (multi `sectors`, 17 SDGs), Proposal Content
+  (Sections II–IV, VI, VIII, IX plus the optional executive summary/outcomes/impacts), Target Beneficiaries rows (VII),
+  and Endorsement & Approval (NTP + Annex A names/dates). Team and beneficiary rows are POSTed after the project,
+  alongside the documents (`allSettled`). Excel mode downloads the backend template and posts it to
+  `projects/import/`. It's all-or-nothing, and a 400 `{errors:[{sheet,row,field,message}]}` renders as a table.
+  6Ps, the LIB (QTR1–QTR4) and the work plan come in only through Excel. Manual entry still uses their own modules.
+  Registration roles (App.tsx RoleGates for `/projects/new` + `/programs/new`, `REGISTRATION_ROLE_CODES` in
+  ProjectsPage/ProjectDetailPage) are now system_admin, crc_chair, drd, riuh, program/project/study leaders, per the
+  Module Structure docx M2. Leaders are limited server-side to records they're part of. Because of this, leaders can
+  also change their own project's status on the Closure tab, since that gate is `canRegister`.
+  ProjectDetailPage's Registration tab shows the new fields, the form team and the beneficiary rows. The free-text
+  `beneficiaries` is the fallback for old projects. Programs and the leader picker are fetched separately. If
+  `users/by-role` 403s, a project_leader gets themself preselected and other roles get a "use Upload via Excel" hint.
 - Module 3 (Personnel/Roles/Task Coordination pages): done, stable.
 - Module 4 (Budget pages): BudgetPage built against budget_lib — project selector,
   line items, add-item form, certify, plus a Budget Summary section (Approved/
@@ -443,6 +460,20 @@ automatically — most pages needed zero code changes for this pass.
   browser-tested by the client, and not yet committed on the frontend side.
 
 ## Backend endpoints available to consume right now
+research_projects (Module 2, SF-018 additions, rmis-backend `cdbb7d0` + `d3de4be`, all consumed in `1d7ccd7`):
+- Project gained `sectors` (list, replaces `sector`), `continuing_year` (required ≥2 when continuing), `college`,
+  `lead_gender`, `contact_number`, `background`, `methodology`, `socio_economic_significance`,
+  `monitoring_evaluation`, `references`, and the Annex A fields `endorsed_by_dean(_on)`, `noted_by_rds_director(_on)`,
+  `recommended_by_campus_director(_on)`, `recommended_by_vprde(_on)`, `approved_by_president`
+- GET/POST /api/project-team/?project=<id>, GET/PATCH/DELETE /api/project-team/<id>/ (writes: projects.register)
+- GET/POST /api/target-beneficiaries/?project=<id>, GET/PATCH/DELETE .../<id>/ (same)
+- GET /api/projects/import-template/ (xlsx), POST /api/projects/import/ (multipart `file`), both projects.register
+- LineItem gained optional `q1_amount`..`q4_amount` (strings). They must add up to `amount` when any are given. Typed but
+  not yet shown or editable on BudgetPage.
+- `projects.register` and `accounts.view_users_by_role` both cover system_admin/crc_chair/drd/riuh/program/project/
+  study leaders now (accounts migrations 0009, 0010)
+- Not consumed: PATCH/DELETE on team/beneficiary rows (no edit UI on the detail page yet)
+
 budget_lib (Module 4):
 - GET/POST /api/budget/budgets/?project=<id>, POST .../certify/
 - GET/POST /api/budget/line-items/?budget=<id>
@@ -614,49 +645,53 @@ pattern is pre-clone.
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-2026-09-25 (second session): finished the prototype UI clone, T24–T29, each committed after Carl said yes:
-`5528a77` T24, `5452a3f` T25, `77523e7` T26, `beb2ffd` T27, `1fa0926` T28 (T29 = the handover/tasks commit).
+2026-09-26: synced the frontend with rmis-backend's SF-018 registration + Excel import work (`cdbb7d0`, `56d18c8`, both
+committed by Carl), then committed:
+- rmis-backend `d3de4be`: `USERS_BY_ROLE` in `permission_seed.py` widened to every projects.register role, plus data
+  migration `accounts/0010_widen_view_users_by_role` (applied to the dev DB, `permission_parity.py` 0 differences).
+  Without it, DRD/RIUH/leaders got a 403 on the leader picker.
+- rmis-frontend `1d7ccd7`: see the Module 2 bullet (2026-09-26).
 
-Verification per task:
-- rolled-back APIClient smoke tests via `manage.py shell`, run as `APIClient(HTTP_HOST="localhost")` (the default
-  `testserver` host is rejected by `ALLOWED_HOSTS`), with throwaway users created with `is_pending_role=False`
-- headless screenshots (`shot.mjs` in the session scratchpad)
-- `npx tsc -b` + build clean; eslint went from 7 to 5 pre-existing errors (T26 fixed the two admin pages)
-
-Temporary seed data (the T25 DSS seed with its 9 audit rows, and the walkthrough's finance user) was deleted. The dev
-DB has no DSS data, so `/api/dashboard/funding-allocation/` returns 404, which is expected and handled as "no data".
+Verification:
+- `npx tsc -b`, eslint on touched files, `npm run build`: all clean
+- rolled-back APIClient tests covered these:
+  - RIUH manual create with team and beneficiary rows
+  - a leader registering for someone else gets 400, and their own project gets 201
+  - template download
+  - admin Excel import: sdgs/sectors, 1 team row, 1 beneficiary row, 1 milestone, and a line item with quarters were
+    all saved
+  - errors for a duplicate code, a junk file, and a leader importing another leader's project
+  - after `d3de4be`: RIUH/DRD/study_leader get 200 on `users/by-role`, project_staff gets 403
+- headless screenshots (RIUH, before `d3de4be`): wizard step 2, Excel mode, the template download, and the error table
+- throwaway users deleted, and I stopped the Django server I started
 
 Things worth knowing:
-- **Deactivate was not click-tested in the UI.** The first eligible row in the dev DB is a real account with no
-  responsibilities, so the click would really deactivate it permanently. The rolled-back test covered 200 and the
-  hand-over 400.
-- **`/api/auth/login/` shows up in the audit log** (as "Logged In"). The middleware logs it; left as is.
-- **Project leaders can't open `/reports`:** the RoleGate only allows oversight + finance. Unchanged.
-- **Downloaded report files get the fallback name** (e.g. `project_list.pdf`). The backend's `Content-Disposition`
-  apparently isn't exposed via CORS, so the frontend can't read it. Needs a backend change if wanted.
-- **Deliberate deviations (all flagged to Carl and accepted):**
-  - no mocked indicator time series
-  - compliance categories / waive dropped
-  - risk title / contingency / mitigation status dropped (no backend field)
-  - 5 report catalog entries with no data source dropped
-  - DSS decisions are Fund/Defer/Decline + indicative amount + reference no. (the backend's fields), with no
-    Approve/Terminate/Escalate or follow-up
-  - User management has no Create Account wizard (replaced by the Pending Registrations link), no Reset Password,
-    Edit Profile, employee ID or last login
-  - Settings is mostly real instead of fully mocked
+- Prettier has no config in this repo. Running it reformats a whole file to 80 cols, so don't.
+- Concurrency cap: a project_leader may lead only 1 active institutional project. Test imports hit this, so use a fresh
+  leader per test.
+- A leader importing a project that isn't theirs, with a filled Budget sheet, gets a plain
+  `{"project": ["This project is outside your scope."]}` 400 (not the `errors` list) because the LIB serializer raises
+  first. The frontend shows it as a toast. It could be made clearer on the backend.
+- Import errors whose field is `non_field_errors` show "—" in the Field column.
+- Still true from 2026-09-25: Deactivate not click-tested, the login shows in the audit log, project leaders can't
+  open `/reports`, and there's the list of deliberate prototype deviations (see `tasks/todo.md` Result notes).
 
 ## Next thing to do in this repo
 1. **Human browser reviews** (Carl):
-   - Checkpoint D (Financial, T13–T17b)
-   - Checkpoint E (Research, T18–T22)
-   - Checkpoint F (Insights, T23–T25)
+   - the new registration page, both modes, as a leader and as RIUH/DRD. A real template round-trip with BRIDGI's data
+     is a good demo.
+   - Checkpoints D (Financial, T13–T17b), E (Research, T18–T22), F (Insights, T23–T25)
    - "Complete" sign-off, including T26–T28 admin pages
 2. Any fixes that come out of those reviews.
-3. **Open questions for Carl (unanswered):**
+3. Possible follow-ups (ask first):
+   - show and edit QTR1–QTR4 on BudgetPage
+   - edit/delete team and beneficiary rows on the project page
+   - should leaders really be able to change their own project's status (Closure tab)? That follows from the backend
+     widening `projects.register`.
+4. **Open questions for Carl (unanswered):**
    - Is the DSS default criteria set OK for a real funding cycle? (It isn't client-confirmed.)
-   - Add "widen `view_users_by_role` to drd/riuh" to the backend todo?
    - Certify P77's budget 18 in the dev DB for demo data? Don't do it without a go.
-4. **Working rules:**
+5. **Working rules:**
    - Never `pkill -f`/`pgrep -f`; kill dev servers by port PID (`ss -ltnp`).
    - Django runs on :8001 from `../rmis-backend`, Vite on :5173.
-   - The trigger phrase "read mo yung changes sa rmis-backend" means: diff the backend since `85b8e9c` and sync.
+   - The trigger phrase "read mo yung changes sa rmis-backend" means: diff the backend since `d3de4be` and sync.
