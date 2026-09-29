@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { complianceApi } from "../lib/complianceApi";
-import { documentApi } from "../lib/documentApi";
+import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { monitoringApi } from "../lib/monitoringApi";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
@@ -179,6 +179,7 @@ function UploadModal({ projects, preset, onClose, onSaved }: { projects: Project
           <input
             ref={fileRef}
             type="file"
+            accept={DOCUMENT_ACCEPT}
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0] ?? null;
@@ -201,7 +202,7 @@ function UploadModal({ projects, preset, onClose, onSaved }: { projects: Project
               ) : (
                 <>
                   <p className="text-sm font-bold" style={{ color: "#0d2a5e" }}>Browse for a file</p>
-                  <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>PDF, DOCX, XLSX, PPTX, CSV, ZIP — max 25 MB</p>
+                  <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>PDF, Word (DOC/DOCX), Excel (XLS/XLSX) — max 25 MB</p>
                 </>
               )}
             </div>

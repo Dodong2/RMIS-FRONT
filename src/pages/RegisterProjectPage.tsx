@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
-import { documentApi } from "../lib/documentApi";
+import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import type { Program, FundingType, ProjectImportError } from "../types/research";
@@ -98,9 +98,10 @@ function FilePick({ label, files, multiple, onChange }: { label: string; files: 
       <p className="text-sm font-semibold text-center" style={{ color: "#475569" }}>
         {files.length ? files.map((f) => f.name).join(", ") : label}
       </p>
-      <p className="text-xs" style={{ color: "#94a3b8" }}>PDF, Word, or image up to 25MB each · uploaded right after registration</p>
+      <p className="text-xs" style={{ color: "#94a3b8" }}>PDF, Word, or Excel up to 25MB each · uploaded right after registration</p>
       <input
         type="file"
+        accept={DOCUMENT_ACCEPT}
         multiple={multiple}
         className="hidden"
         onChange={(e) => {

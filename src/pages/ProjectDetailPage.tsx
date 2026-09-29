@@ -7,6 +7,7 @@ import { outputsApi } from "../lib/outputsApi";
 import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { PROJECT_EDIT_ROLE_CODES, REGISTRATION_ROLE_CODES } from "../lib/roles";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
 import {
   PRIORITY_AREA_LABELS,
@@ -42,7 +43,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type DetailTab = "overview" | "registration" | "team" | "workplan" | "impact" | "history" | "closure";
 
-const REGISTRATION_ROLE_CODES = ["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"];
 const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "program_leader", "project_leader", "study_leader"];
 
 const FUNDING_LABELS: Record<FundingType, string> = {
@@ -237,6 +237,7 @@ function ProjectDetailContent() {
   const { user } = useAuth();
   const roleCode = user?.role?.code ?? "";
   const canRegister = REGISTRATION_ROLE_CODES.includes(roleCode);
+  const canEdit = PROJECT_EDIT_ROLE_CODES.includes(roleCode);
   const canManageMilestones = MILESTONE_ROLE_CODES.includes(roleCode);
   const projectId = Number(id);
 
@@ -948,7 +949,7 @@ function ProjectDetailContent() {
                 <InfoCard label="Deliverables" value={phys === null ? "—" : `${Math.round(phys)}%`} />
                 <InfoCard label="Budget Utilization" value={fin === null ? "—" : `${Math.round(fin)}%`} />
               </div>
-              {canRegister ? (
+              {canEdit ? (
                 <div className="rounded-xl p-4 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                   <p className="text-xs font-bold" style={{ color: "#0d2a5e" }}>Change Project Status</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

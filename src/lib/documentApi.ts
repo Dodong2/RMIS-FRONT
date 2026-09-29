@@ -68,3 +68,6 @@ export const documentApi = {
     return data;
   },
 };
+
+/** Mirrors ALLOWED_FILE_TYPES in document_management/serializers.py (= the Supabase bucket's allowed MIME types). */
+export const DOCUMENT_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx";

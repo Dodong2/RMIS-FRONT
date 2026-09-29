@@ -133,3 +133,10 @@ export function initialsFrom(value?: string | null): string {
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
 }
+/**
+ * Mirrors research_projects/views.py. Client decision 2026-09-29 (Option A): only CRC Chair, DRD and RIUH
+ * register programs/projects/studies (incl. Excel import); leaders only edit their own records, and the backend
+ * blocks them from changing the project code, lead, or program.
+ */
+export const REGISTRATION_ROLE_CODES = ["system_admin", "crc_chair", "drd", "riuh"];
+export const PROJECT_EDIT_ROLE_CODES = [...REGISTRATION_ROLE_CODES, "program_leader", "project_leader", "study_leader"];

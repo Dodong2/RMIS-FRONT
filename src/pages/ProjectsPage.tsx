@@ -13,6 +13,7 @@ import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { notify } from "../lib/notify";
+import { REGISTRATION_ROLE_CODES } from "../lib/roles";
 
 const FUNDING_LABELS: Record<FundingType, string> = {
   institutional: "Institutional (LSPU-Funded)",
@@ -20,7 +21,6 @@ const FUNDING_LABELS: Record<FundingType, string> = {
   externally_funded: "Externally-Funded",
 };
 
-const REGISTRATION_ROLE_CODES = ["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"];
 
 const peso = (n: number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);

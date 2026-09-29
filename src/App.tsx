@@ -33,6 +33,7 @@ import ProcurementPage from "./pages/ProcurementPage";
 import BudgetSyncPage from "./pages/BudgetSyncPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
+import { REGISTRATION_ROLE_CODES } from "./lib/roles";
 
 export default function App() {
   return (
@@ -48,7 +49,7 @@ export default function App() {
         path="/projects/new"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"]}>
+            <RoleGate allow={REGISTRATION_ROLE_CODES}>
               <RegisterProjectPage />
             </RoleGate>
           </ProtectedRoute>
@@ -59,7 +60,7 @@ export default function App() {
         path="/programs/new"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"]}>
+            <RoleGate allow={REGISTRATION_ROLE_CODES}>
               <RegisterProgramPage />
             </RoleGate>
           </ProtectedRoute>
