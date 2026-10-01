@@ -11,6 +11,7 @@ import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
 import type { AdminUser, Role } from "../types/auth";
 import { authApi } from "../lib/authApi";
+import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { useAuth } from "../context/AuthContext";
 import {
   PRIORITY_AREA_LABELS,
@@ -299,7 +300,9 @@ function RegisterProjectContent() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isProjectLeader = user?.role?.code === "project_leader";
-  const [projectLeaders, setProjectLeaders] = useState<{ id: number; email: string }[]>([]);
+  const selfName = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() || user?.email || "";
+  const [projectLeaders, setProjectLeaders] = useState<{ id: number; email: string; full_name?: string }[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
   const [leadersBlocked, setLeadersBlocked] = useState(false);
   const [accounts, setAccounts] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -466,6 +469,28 @@ function RegisterProjectContent() {
       }
     }
     setStep(step + 1);
+  };
+
+  const previewData = (): ProposalData => {
+    const lead = isProjectLeader ? { full_name: selfName, email: user?.email ?? "" } : projectLeaders.find((u) => String(u.id) === form.lead);
+    const named = filledTeam.map((t) => ({ name: t.name.trim(), gender: t.gender, role: t.member_role }));
+    return {
+      ...form,
+      lead_name: lead?.full_name || lead?.email || "",
+      lead_email: lead?.email,
+      co_leaders: named.filter((t) => t.role === "co_leader"),
+      team: named.filter((t) => t.role !== "co_leader"),
+      is_continuing: isContinuing,
+      is_dry_research: form.is_dry_research === "true",
+      study_titles: filledStudies,
+      sdgs: form.sdgs.map(Number),
+      objectives: filledObjectives,
+      outputs: [],
+      beneficiaries: filledBeneficiaries,
+      budget: filledLib.map((r) => ({ category: r.category, description: r.description, q1: Number(r.q1) || 0, q2: Number(r.q2) || 0, q3: Number(r.q3) || 0, q4: Number(r.q4) || 0 })),
+      work_plan: [],
+      endorsers: filledEndorsers.map((e) => ({ name: e.name, designation: e.designation, signed_on: e.signed_on || null })),
+    };
   };
 
   const handleCreate = async () => {
@@ -718,8 +743,8 @@ function RegisterProjectContent() {
                               ? "Leader list isn't available for your role, use Upload via Excel"
                               : "No active project leaders yet"}
                         </option>
-                        {(isProjectLeader && user ? [{ id: user.pk, email: user.email }] : projectLeaders).map((u) => (
-                          <option key={u.id} value={u.id}>{u.email}</option>
+                        {(isProjectLeader && user ? [{ id: user.pk, email: user.email, full_name: selfName }] : projectLeaders).map((u) => (
+                          <option key={u.id} value={u.id}>{u.full_name && u.full_name !== u.email ? `${u.full_name} (${u.email})` : u.email}</option>
                         ))}
                       </select>
                     </Field>
@@ -1137,6 +1162,15 @@ function RegisterProjectContent() {
                     <InfoCard label="Registration Date" value={new Date().toLocaleDateString("en-PH")} />
                   </div>
 
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(true)}
+                    className="w-full py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors hover:bg-[#c7d8ef]"
+                    style={{ background: "#e0eaf7", color: "#0d2a5e" }}
+                  >
+                    👁 View as Research Proposal Form (SF-018)
+                  </button>
+
                   <div className="rounded-xl p-4 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                     <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Registration Certification</p>
                     <label className="flex items-start gap-3 cursor-pointer">
@@ -1198,6 +1232,7 @@ function RegisterProjectContent() {
           </>
         )}
       </div>
+      {showPreview && <ProposalPreview data={previewData()} onClose={() => setShowPreview(false)} />}
     </div>
   );
 }
