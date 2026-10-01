@@ -28,6 +28,8 @@ export default function RegisterPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -63,8 +65,8 @@ export default function RegisterPage() {
     e.preventDefault();
     setAttempted(true);
 
-    if (!email.trim() || !password || !password2 || !requestedRole) {
-      notify.error("Fill in all required fields: email, password, confirm password, and role.");
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || !password2 || !requestedRole) {
+      notify.error("Fill in all required fields: first and last name, email, password, confirm password, and role.");
       return;
     }
 
@@ -77,6 +79,8 @@ export default function RegisterPage() {
     try {
       await register({
         email,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
         password,
         password2,
         requested_role: requestedRole ? Number(requestedRole) : null,
@@ -114,6 +118,33 @@ export default function RegisterPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <AuthLabel htmlFor="first_name" required>First Name</AuthLabel>
+            <AuthInput
+              id="first_name"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="e.g. Aimee Concepcion"
+              required
+              invalid={attempted && !firstName.trim()}
+            />
+          </div>
+          <div>
+            <AuthLabel htmlFor="last_name" required>Last Name</AuthLabel>
+            <AuthInput
+              id="last_name"
+              autoComplete="family-name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="e.g. Chavez"
+              required
+              invalid={attempted && !lastName.trim()}
+            />
+          </div>
+        </div>
+
         <div>
           <AuthLabel htmlFor="email" required>Email</AuthLabel>
           <AuthInput

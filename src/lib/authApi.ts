@@ -66,6 +66,13 @@ export const authApi = {
     const { data } = await apiClient.post(`/api/admin/users/${userId}/account-status/`, { action });
     return data;
   },
+  updateUserProfile: async (
+    userId: number,
+    profile: { first_name: string; last_name: string; office: string; position: string },
+  ): Promise<AdminUser> => {
+    const { data } = await apiClient.patch(`/api/admin/users/${userId}/profile/`, profile);
+    return data;
+  },
   updateUserScope: async (userId: number, scope: { campus: string; college: string }): Promise<{ id: number; scope: UserScope }> => {
     const { data } = await apiClient.patch(`/api/admin/users/${userId}/scope/`, scope);
     return data;

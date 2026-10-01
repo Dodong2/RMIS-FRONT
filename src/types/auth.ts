@@ -27,6 +27,8 @@ export interface LoginPayload {
 
 export interface RegisterPayload {
   email: string;
+  first_name: string;
+  last_name: string;
   password: string;
   password2: string;
   requested_role: number | null;
@@ -46,6 +48,8 @@ export interface AdminUser {
   id: number;
   email: string;
   full_name: string;
+  first_name: string;
+  last_name: string;
   role: Role | null;
   office: string;
   position: string;

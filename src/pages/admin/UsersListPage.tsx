@@ -126,6 +126,60 @@ function PermissionModal({ role, matrix, onClose }: { role: Role; matrix: Permis
   );
 }
 
+function ProfileModal({ user, onSaved, onClose }: { user: AdminUser; onSaved: (u: AdminUser) => void; onClose: () => void }) {
+  const [form, setForm] = useState({ first_name: user.first_name, last_name: user.last_name, office: user.office, position: user.position });
+  const [isSaving, setIsSaving] = useState(false);
+  const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      onSaved(await authApi.updateUserProfile(user.id, form));
+      notify.success("Profile updated.");
+      onClose();
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not update the profile."));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <ProtoModal
+      title="Edit Profile"
+      subtitle={user.email}
+      onClose={onClose}
+      width="max-w-md"
+      footer={
+        <>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={BTN_GHOST_STYLE}>Cancel</button>
+          <button onClick={handleSave} disabled={isSaving} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40" style={{ background: "#0d2a5e" }}>
+            {isSaving ? "Saving…" : "Save Profile"}
+          </button>
+        </>
+      }
+    >
+      <p className="text-xs font-bold px-3 py-2 rounded-lg" style={{ background: "#f0f9ff", color: "#0369a1" }}>
+        The name and position appear in the people pickers and fill in the Annex A endorsement page.
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="First Name">
+          <input value={form.first_name} onChange={set("first_name")} className={INPUT_CLS} style={INPUT_STYLE} />
+        </Field>
+        <Field label="Last Name">
+          <input value={form.last_name} onChange={set("last_name")} className={INPUT_CLS} style={INPUT_STYLE} />
+        </Field>
+      </div>
+      <Field label="Position">
+        <input value={form.position} onChange={set("position")} className={INPUT_CLS} style={INPUT_STYLE} placeholder="e.g. Associate Professor II" />
+      </Field>
+      <Field label="Office">
+        <input value={form.office} onChange={set("office")} className={INPUT_CLS} style={INPUT_STYLE} placeholder="e.g. CTE, Siniloan Campus" />
+      </Field>
+    </ProtoModal>
+  );
+}
+
 function ScopeModal({ user, campuses, onSaved, onClose }: { user: AdminUser; campuses: string[]; onSaved: (u: AdminUser) => void; onClose: () => void }) {
   const [campus, setCampus] = useState(user.scope?.campus ?? "");
   const [college, setCollege] = useState(user.scope?.college ?? "");
@@ -329,6 +383,7 @@ function UserDetailModal({
   isWorking,
   onAction,
   onScope,
+  onProfile,
   onPerms,
   onClose,
 }: {
@@ -337,6 +392,7 @@ function UserDetailModal({
   isWorking: boolean;
   onAction: (a: StatusAction) => void;
   onScope: () => void;
+  onProfile: () => void;
   onPerms: () => void;
   onClose: () => void;
 }) {
@@ -346,7 +402,7 @@ function UserDetailModal({
         <div className="flex items-center gap-3">
           <Avatar user={user} size="w-10 h-10 text-sm" />
           <div className="min-w-0">
-            <p className="text-white font-bold truncate">{user.email}</p>
+            <p className="text-white font-bold truncate">{user.full_name}</p>
             <p className="text-white/50 text-xs">{user.role?.name ?? "No role"}</p>
           </div>
         </div>
@@ -356,6 +412,7 @@ function UserDetailModal({
     >
       <div className="grid grid-cols-2 gap-3">
         {[
+          { label: "Name", val: user.first_name || user.last_name ? `${user.first_name} ${user.last_name}`.trim() : "Not set" },
           { label: "Email", val: user.email },
           { label: "Role", val: user.role?.name ?? "—" },
           { label: "Office", val: user.office || "—" },
@@ -369,6 +426,9 @@ function UserDetailModal({
           </div>
         ))}
       </div>
+      <button onClick={onProfile} className="w-full py-2 rounded-xl text-xs font-bold cursor-pointer hover:opacity-80" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
+        Edit Name, Office, and Position
+      </button>
       <div className="p-3 rounded-xl" style={{ background: "#f0f9ff", border: "1px solid #bae6fd" }}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0891b2" }}>Access Scope — UAM-03/05</p>
@@ -454,6 +514,7 @@ function UsersListContent() {
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [scopeUser, setScopeUser] = useState<AdminUser | null>(null);
+  const [profileUser, setProfileUser] = useState<AdminUser | null>(null);
   const [permRole, setPermRole] = useState<Role | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<AdminUser | null>(null);
 
@@ -487,7 +548,7 @@ function UsersListContent() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
-      const matchSearch = !q || [u.email, u.office, u.position, u.role?.name ?? ""].some((v) => v.toLowerCase().includes(q));
+      const matchSearch = !q || [u.full_name, u.email, u.office, u.position, u.role?.name ?? ""].some((v) => v.toLowerCase().includes(q));
       const matchRole = roleFilter === "all" || String(u.role?.id ?? "") === roleFilter;
       const matchCampus = campusFilter === "all" || (campusFilter === "" ? !u.scope?.campus : u.scope?.campus === campusFilter);
       const matchStatus = statusFilter === "all" || u.account_status === statusFilter;
@@ -869,10 +930,12 @@ function UsersListContent() {
           isWorking={workingId === selectedUser.id}
           onAction={(a) => (selectedUser.id === me?.pk ? notify.error("You can't change your own account status.") : requestAction(selectedUser, a))}
           onScope={() => setScopeUser(selectedUser)}
+          onProfile={() => setProfileUser(selectedUser)}
           onPerms={() => selectedUser.role && setPermRole(selectedUser.role)}
           onClose={() => setSelectedId(null)}
         />
       )}
+      {profileUser && <ProfileModal user={profileUser} onSaved={patchUser} onClose={() => setProfileUser(null)} />}
       {scopeUser && <ScopeModal user={scopeUser} campuses={allCampuses} onSaved={patchUser} onClose={() => setScopeUser(null)} />}
       {permRole && <PermissionModal role={permRole} matrix={matrix} onClose={() => setPermRole(null)} />}
       {confirmDeactivate && (
