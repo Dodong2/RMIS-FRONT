@@ -109,6 +109,7 @@ export const researchApi = {
     member_role: string;
     name: string;
     gender?: string;
+    user?: number | null;
   }): Promise<ProjectTeamMember> => {
     const { data } = await apiClient.post("/api/project-team/", payload);
     return data;
@@ -178,6 +179,10 @@ export const researchApi = {
   },
   getStatusHistory: async (id: number): Promise<ProjectStatusHistory[]> => {
     const { data } = await apiClient.get(`/api/projects/${id}/status-history/`);
+    return data;
+  },
+  getActiveUsers: async (): Promise<AdminUser[]> => {
+    const { data } = await apiClient.get("/api/users/by-role/");
     return data;
   },
   getUsersByRole: async (code: string): Promise<AdminUser[]> => {

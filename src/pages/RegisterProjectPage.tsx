@@ -8,6 +8,8 @@ import type { FundingType, ProjectImportError } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
+import { UserPicker } from "../components/common/UserPicker";
+import type { AdminUser } from "../types/auth";
 import { useAuth } from "../context/AuthContext";
 import {
   PRIORITY_AREA_LABELS,
@@ -50,7 +52,7 @@ const MODES = [
   ["excel", "📊 Upload via Excel"],
 ] as const;
 
-type TeamRow = { member_role: string; name: string; gender: string };
+type TeamRow = { member_role: string; name: string; gender: string; user: number | null };
 type BeneficiaryRow = { group: string; description: string; total: string };
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -284,6 +286,7 @@ function RegisterProjectContent() {
   const isProjectLeader = user?.role?.code === "project_leader";
   const [projectLeaders, setProjectLeaders] = useState<{ id: number; email: string }[]>([]);
   const [leadersBlocked, setLeadersBlocked] = useState(false);
+  const [accounts, setAccounts] = useState<AdminUser[]>([]);
   const [mode, setMode] = useState<"manual" | "excel">("manual");
   const [step, setStep] = useState(0);
   const [attempted, setAttempted] = useState(false);
@@ -350,6 +353,10 @@ function RegisterProjectContent() {
 
   useEffect(() => {
     let active = true;
+    researchApi
+      .getActiveUsers()
+      .then((list) => active && setAccounts(list))
+      .catch(() => undefined);
     if (!user || user.role?.code === "project_leader") return;
     researchApi
       .getUsersByRole("project_leader")
@@ -487,7 +494,7 @@ function RegisterProjectContent() {
       });
       const results = await Promise.allSettled([
         ...filledTeam.map((t) =>
-          researchApi.createTeamMember({ project: project.id, member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined }),
+          researchApi.createTeamMember({ project: project.id, member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined, user: t.user }),
         ),
         ...filledBeneficiaries.map((b) =>
           researchApi.createBeneficiary({ project: project.id, group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 }),
@@ -639,7 +646,7 @@ function RegisterProjectContent() {
               {step === 1 && (
                 <div className="space-y-4">
                   <StepNote>
-                    Project Leader, Co-Project Leader, and Project Team as listed on the form, plus the implementing campus and college. Team names are free text since members may not have RMIS accounts.
+                    Project Leader, Co-Project Leader, and Project Team as listed on the form, plus the implementing campus and college. Pick a registered account for each member, or type a name for people or groups without an account.
                     {isProjectLeader && " You are registering this project as its Project Leader."}
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -673,7 +680,7 @@ function RegisterProjectContent() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="label-field mb-0">Co-Project Leader / Project Team</label>
-                      <AddRowButton onClick={() => setTeam([...team, { member_role: team.length ? "member" : "co_leader", name: "", gender: "" }])}>Add Member</AddRowButton>
+                      <AddRowButton onClick={() => setTeam([...team, { member_role: team.length ? "member" : "co_leader", name: "", gender: "", user: null }])}>Add Member</AddRowButton>
                     </div>
                     {team.length === 0 ? (
                       <p className="text-xs" style={{ color: "#94a3b8" }}>No co-leader or team members added.</p>
@@ -687,7 +694,13 @@ function RegisterProjectContent() {
                                 <option value="co_leader">Co-Project Leader</option>
                                 <option value="member">Team Member</option>
                               </select>
-                              <input className={inputCls + " flex-1"} style={inputSt} value={t.name} onChange={(e) => update({ name: e.target.value })} placeholder="Name (or group, e.g. EIU Coordinators)" />
+                              <UserPicker
+                                className="flex-1"
+                                users={accounts.filter((a) => String(a.id) !== form.lead)}
+                                value={{ user: t.user, name: t.name }}
+                                onChange={(picked) => update(picked)}
+                                placeholder="Search an account, or type a name/group (e.g. EIU Coordinators)"
+                              />
                               <select className={inputCls + " max-w-32"} style={inputSt} value={t.gender} onChange={(e) => update({ gender: e.target.value })}>
                                 <option value="">Gender</option>
                                 {GENDERS.map((g) => (

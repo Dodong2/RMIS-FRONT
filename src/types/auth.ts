@@ -45,6 +45,7 @@ export type AccountStatus = "active" | "suspended" | "deactivated";
 export interface AdminUser {
   id: number;
   email: string;
+  full_name: string;
   role: Role | null;
   office: string;
   position: string;
