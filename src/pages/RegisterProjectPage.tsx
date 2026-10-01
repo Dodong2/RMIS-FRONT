@@ -287,6 +287,8 @@ function RegisterProjectContent() {
   const [mode, setMode] = useState<"manual" | "excel">("manual");
   const [step, setStep] = useState(0);
   const [attempted, setAttempted] = useState(false);
+  const [triedSteps, setTriedSteps] = useState<number[]>([]);
+  const [isCheckingCode, setIsCheckingCode] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [certified, setCertified] = useState(false);
   const [objectives, setObjectives] = useState([""]);
@@ -362,6 +364,17 @@ function RegisterProjectContent() {
   const filledTeam = team.filter((t) => t.name.trim());
   const filledBeneficiaries = beneficiaryRows.filter((b) => b.group.trim());
   const isContinuing = form.is_continuing === "true";
+  const stepMissing = (i: number): string[] => {
+    const missing: Record<number, string[]> = {
+      0: form.project_code.trim() ? [] : ["Project Code"],
+      1: form.campus ? [] : ["Campus"],
+      2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
+      3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
+      4: beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim()) ? [] : ["every Target Beneficiaries row"],
+      5: form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"],
+    };
+    return missing[i] ?? [];
+  };
   const checks: { label: string; done: boolean; required?: boolean; step: number }[] = [
     { label: "Project title entered", done: !!form.title.trim(), required: true, step: 0 },
     { label: "Project code (LSPU Faculty Research Number) entered", done: !!form.project_code.trim(), required: true, step: 0 },
@@ -369,21 +382,47 @@ function RegisterProjectContent() {
     ...(isContinuing ? [{ label: "Continuing year (2 or later) entered", done: Number(form.continuing_year) >= 2, required: true, step: 0 }] : []),
     { label: "Start and end dates provided", done: !!form.start_date && !!form.target_end_date, step: 0 },
     { label: "Project Leader identified", done: !!form.lead, required: true, step: 1 },
-    { label: "Campus, college, and implementing unit specified", done: !!form.campus.trim() && !!form.college.trim() && !!form.implementing_unit.trim(), step: 1 },
+    { label: "Campus selected", done: !!form.campus, required: true, step: 1 },
+    { label: "College and implementing unit specified", done: !!form.college.trim() && !!form.implementing_unit.trim(), step: 1 },
     { label: "At least 1 sector selected", done: form.sectors.length > 0 && (!form.sectors.includes("others") || !!form.sector_other.trim()), required: true, step: 2 },
     { label: "At least 1 SDG selected", done: form.sdgs.length > 0, required: true, step: 2 },
     { label: "Background of the study written", done: !!form.background.trim(), step: 3 },
-    { label: "At least 1 objective defined", done: filledObjectives.length > 0, step: 3 },
+    { label: "At least 1 objective defined", done: filledObjectives.length > 0, required: true, step: 3 },
     { label: "Methodology written", done: !!form.methodology.trim(), step: 3 },
-    { label: "Target beneficiaries identified", done: filledBeneficiaries.length > 0, step: 4 },
-    { label: "Approval reference number provided", done: !!form.ntp_number.trim(), step: 5 },
+    { label: "Every target beneficiary row complete", done: stepMissing(4).length === 0, required: true, step: 4 },
+    { label: "Approval reference number provided", done: !!form.ntp_number.trim(), required: true, step: 5 },
     { label: "Approval document attached", done: approvalDoc.length > 0, step: 5 },
     { label: "Registration certification checked", done: certified, required: true, step: 6 },
   ];
+  const canReach = (i: number) => i <= step || Array.from({ length: i }, (_, j) => j).every((j) => stepMissing(j).length === 0);
+  const showErrors = attempted || triedSteps.includes(step);
   const completed = checks.filter((c) => c.done).length;
   const missingRequired = checks.filter((c) => c.required && !c.done);
   const completenessOk = completed === checks.length;
-  const bad = (k: keyof typeof form) => attempted && (Array.isArray(form[k]) ? form[k].length === 0 : !String(form[k]).trim());
+  const bad = (k: keyof typeof form) => showErrors && (Array.isArray(form[k]) ? form[k].length === 0 : !String(form[k]).trim());
+
+  const handleNext = async () => {
+    const missing = stepMissing(step);
+    if (missing.length) {
+      setTriedSteps((t) => (t.includes(step) ? t : [...t, step]));
+      notify.error(`Fill in ${missing.join(", ")} before going to the next step.`);
+      return;
+    }
+    if (step === 0) {
+      setIsCheckingCode(true);
+      try {
+        if (!(await researchApi.isProjectCodeAvailable(form.project_code.trim()))) {
+          notify.error(`Project code ${form.project_code.trim()} already exists. Use a different code.`);
+          return;
+        }
+      } catch {
+        // The backend still rejects a duplicate on Register, so a failed check doesn't block the wizard.
+      } finally {
+        setIsCheckingCode(false);
+      }
+    }
+    setStep(step + 1);
+  };
 
   const handleCreate = async () => {
     setAttempted(true);
@@ -462,7 +501,13 @@ function RegisterProjectContent() {
       else notify.success("Project registered.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
-      notify.error(errorMessage(err, "Could not register the project."));
+      const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
+      if (data?.project_code) {
+        notify.error(`Project code ${form.project_code.trim()} already exists. Use a different code.`);
+        setStep(0);
+      } else {
+        notify.error(errorMessage(err, "Could not register the project."));
+      }
     } finally {
       setIsCreating(false);
     }
@@ -511,7 +556,10 @@ function RegisterProjectContent() {
               <div className="flex items-center gap-1 min-w-max">
                 {WIZARD_STEPS.map((s, i) => (
                   <div key={s.label} className="flex items-center gap-1">
-                    <button onClick={() => setStep(i)} className="flex flex-col items-center gap-0.5">
+                    <button
+                      onClick={() => (canReach(i) ? setStep(i) : notify.error("Finish the required fields of the earlier steps first."))}
+                      className="flex flex-col items-center gap-0.5"
+                    >
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
                         style={{ background: i < step ? "#059669" : i === step ? "#0d2a5e" : "#e2e8f0", color: i <= step ? "white" : "#94a3b8" }}
@@ -655,7 +703,9 @@ function RegisterProjectContent() {
                   </div>
 
                   <div>
-                    <label className="label-field">Campus</label>
+                    <label className="label-field">
+                      Campus<span style={{ color: "#dc2626" }}> *</span>
+                    </label>
                     <div className="grid grid-cols-2 gap-2 mt-1">
                       {CAMPUSES.map((c) => (
                         <button
@@ -670,7 +720,7 @@ function RegisterProjectContent() {
                         </button>
                       ))}
                     </div>
-                    <input className={inputCls + " mt-2"} style={inputSt} value={form.campus} onChange={set("campus")} placeholder="Or type the campus name" />
+                    {showErrors && !form.campus && <p className="mt-1 text-xs font-semibold" style={{ color: "#dc2626" }}>Required</p>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="College Unit">
@@ -724,9 +774,12 @@ function RegisterProjectContent() {
                   </Field>
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="label-field mb-0">III. Objectives of the Study</label>
+                      <label className="label-field mb-0">
+                        III. Objectives of the Study<span style={{ color: "#dc2626" }}> *</span>
+                      </label>
                       <AddRowButton onClick={() => setObjectives([...objectives, ""])}>Add Objective</AddRowButton>
                     </div>
+                    {showErrors && filledObjectives.length === 0 && <p className="mb-2 text-xs font-semibold" style={{ color: "#dc2626" }}>Add at least one objective</p>}
                     <div className="space-y-2">
                       {objectives.map((obj, i) => (
                         <div key={i} className="flex gap-2 items-start">
@@ -775,20 +828,23 @@ function RegisterProjectContent() {
 
               {step === 4 && (
                 <div className="space-y-4">
-                  <StepNote>Section VII: one row per beneficiary group with its total.</StepNote>
+                  <StepNote>Section VII: one row per beneficiary group with its total. Every row you add needs a group, description, and total.</StepNote>
                   <div className="flex items-center justify-between">
-                    <label className="label-field mb-0">VII. Target Beneficiaries</label>
+                    <label className="label-field mb-0">
+                      VII. Target Beneficiaries<span style={{ color: "#dc2626" }}> *</span>
+                    </label>
                     <AddRowButton onClick={() => setBeneficiaryRows([...beneficiaryRows, { group: "", description: "", total: "" }])}>Add Group</AddRowButton>
                   </div>
                   <div className="space-y-2">
                     {beneficiaryRows.map((b, i) => {
+                      const rowSt = (v: string) => ({ ...inputSt, borderColor: showErrors && !v.trim() ? "#dc2626" : inputSt.borderColor });
                       const update = (patch: Partial<BeneficiaryRow>) =>
                         setBeneficiaryRows(beneficiaryRows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
                       return (
                         <div key={i} className="flex gap-2 items-start">
-                          <input className={inputCls + " max-w-56"} style={inputSt} value={b.group} onChange={(e) => update({ group: e.target.value })} placeholder="Group, e.g. Faculty" />
-                          <input className={inputCls + " flex-1"} style={inputSt} value={b.description} onChange={(e) => update({ description: e.target.value })} placeholder="Description" />
-                          <input type="number" min="0" className={inputCls + " max-w-24"} style={inputSt} value={b.total} onChange={(e) => update({ total: e.target.value })} placeholder="Total" />
+                          <input className={inputCls + " max-w-56"} style={rowSt(b.group)} value={b.group} onChange={(e) => update({ group: e.target.value })} placeholder="Group, e.g. Faculty" />
+                          <input className={inputCls + " flex-1"} style={rowSt(b.description)} value={b.description} onChange={(e) => update({ description: e.target.value })} placeholder="Description" />
+                          <input type="number" min="0" className={inputCls + " max-w-24"} style={rowSt(b.total)} value={b.total} onChange={(e) => update({ total: e.target.value })} placeholder="Total" />
                           {beneficiaryRows.length > 1 && <RemoveButton onClick={() => setBeneficiaryRows(beneficiaryRows.filter((_, idx) => idx !== i))} label="Remove group" />}
                         </div>
                       );
@@ -808,7 +864,7 @@ function RegisterProjectContent() {
                     Approval references and the Annex A endorsement page. Review, endorsement, and approval happen outside RMIS; these are recorded as read-only references.
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Approval Reference Number (NTP No.)">
+                    <Field label="Approval Reference Number (NTP No.)" required invalid={bad("ntp_number")}>
                       <input className={inputCls} style={inputSt} value={form.ntp_number} onChange={set("ntp_number")} placeholder="e.g. RES-2026-041" />
                     </Field>
                     <Field label="Notice to Proceed Date">
@@ -945,8 +1001,13 @@ function RegisterProjectContent() {
                 ))}
               </div>
               {step < WIZARD_STEPS.length - 1 ? (
-                <button onClick={() => setStep(step + 1)} className="px-5 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#0891b2" }}>
-                  Next →
+                <button
+                  onClick={handleNext}
+                  disabled={isCheckingCode}
+                  className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ background: "#0891b2" }}
+                >
+                  {isCheckingCode ? "Checking code…" : "Next →"}
                 </button>
               ) : (
                 <button

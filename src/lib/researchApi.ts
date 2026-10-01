@@ -88,6 +88,10 @@ export const researchApi = {
     const { data } = await apiClient.post("/api/projects/", payload);
     return data;
   },
+  isProjectCodeAvailable: async (code: string): Promise<boolean> => {
+    const { data } = await apiClient.get("/api/projects/code-available/", { params: { code } });
+    return data.available;
+  },
   downloadImportTemplate: () =>
     downloadReport("/api/projects/import-template/", {}, "rmis_project_registration_template.xlsx"),
   importProject: async (file: File): Promise<Project> => {
