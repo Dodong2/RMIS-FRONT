@@ -39,6 +39,7 @@ const WIZARD_STEPS = [
   { label: "Classification", icon: "🌱" },
   { label: "Proposal Content", icon: "📝" },
   { label: "Beneficiaries", icon: "🎯" },
+  { label: "Budget (LIB)", icon: "💰" },
   { label: "Endorsement & Approval", icon: "🔖" },
   { label: "Validate & Register", icon: "✅" },
 ];
@@ -55,6 +56,18 @@ const MODES = [
 
 type TeamRow = { member_role: string; name: string; gender: string; user: number | null };
 type BeneficiaryRow = { group: string; description: string; total: string };
+type LibRow = { category: LibCategory; description: string; q1: string; q2: string; q3: string; q4: string };
+type LibCategory = "ps" | "mooe" | "co";
+
+const LIB_CATEGORIES: { key: LibCategory; label: string }[] = [
+  { key: "ps", label: "Personal Services (PS)" },
+  { key: "mooe", label: "Maintenance and Other Operating Expenses (MOOE)" },
+  { key: "co", label: "Equipment Outlay / Capital Outlay (CO)" },
+];
+const QUARTERS = ["q1", "q2", "q3", "q4"] as const;
+const libRowTotal = (r: LibRow) => QUARTERS.reduce((sum, q) => sum + (Number(r[q]) || 0), 0);
+const peso = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 type EndorserRow = { role_code: string; user: number | null; name: string; designation: string; signed_on: string };
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -291,6 +304,8 @@ function RegisterProjectContent() {
   const [accounts, setAccounts] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [endorsers, setEndorsers] = useState<EndorserRow[]>([]);
+  const [libRows, setLibRows] = useState<LibRow[]>([]);
+  const [libYear, setLibYear] = useState(String(new Date().getFullYear()));
   const [mode, setMode] = useState<"manual" | "excel">("manual");
   const [step, setStep] = useState(0);
   const [attempted, setAttempted] = useState(false);
@@ -372,6 +387,8 @@ function RegisterProjectContent() {
   const filledTeam = team.filter((t) => t.name.trim());
   const filledBeneficiaries = beneficiaryRows.filter((b) => b.group.trim());
   const filledEndorsers = endorsers.filter((e) => e.name.trim());
+  const filledLib = libRows.filter((r) => r.description.trim() && libRowTotal(r) > 0);
+  const updateLib = (i: number, patch: Partial<LibRow>) => setLibRows((rows) => rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
   const roleName = (code: string) => roles.find((r) => r.code === code)?.name ?? "";
   const peopleWithRole = (code: string) => accounts.filter((a) => a.role?.code === code);
   const updateEndorser = (i: number, patch: Partial<EndorserRow>) => setEndorsers((rows) => rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
@@ -397,7 +414,7 @@ function RegisterProjectContent() {
       2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
       3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
       4: beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim()) ? [] : ["every Target Beneficiaries row"],
-      5: form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"],
+      6: form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"],
     };
     return missing[i] ?? [];
   };
@@ -416,9 +433,10 @@ function RegisterProjectContent() {
     { label: "At least 1 objective defined", done: filledObjectives.length > 0, required: true, step: 3 },
     { label: "Methodology written", done: !!form.methodology.trim(), step: 3 },
     { label: "Every target beneficiary row complete", done: stepMissing(4).length === 0, required: true, step: 4 },
-    { label: "Approval reference number provided", done: !!form.ntp_number.trim(), required: true, step: 5 },
-    { label: "Approval document attached", done: approvalDoc.length > 0, step: 5 },
-    { label: "Registration certification checked", done: certified, required: true, step: 6 },
+    { label: "LIB line items entered", done: filledLib.length > 0, step: 5 },
+    { label: "Approval reference number provided", done: !!form.ntp_number.trim(), required: true, step: 6 },
+    { label: "Approval document attached", done: approvalDoc.length > 0, step: 6 },
+    { label: "Registration certification checked", done: certified, required: true, step: 7 },
   ];
   const canReach = (i: number) => i <= step || Array.from({ length: i }, (_, j) => j).every((j) => stepMissing(j).length === 0);
   const showErrors = attempted || triedSteps.includes(step);
@@ -507,6 +525,22 @@ function RegisterProjectContent() {
           researchApi.createTeamMember({ project: project.id, member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined, user: t.user }),
         ),
         ...filledStudies.map((title) => researchApi.createStudy({ project: project.id, title })),
+        ...(filledLib.length
+          ? [
+              researchApi.createProjectLib(
+                project.id,
+                filledLib.map((r) => ({
+                  category: r.category,
+                  description: r.description.trim(),
+                  fiscal_year: Number(libYear) || null,
+                  q1_amount: r.q1 || null,
+                  q2_amount: r.q2 || null,
+                  q3_amount: r.q3 || null,
+                  q4_amount: r.q4 || null,
+                })),
+              ),
+            ]
+          : []),
         filledEndorsers.reduce(
           (chain, e) =>
             chain.then(() =>
@@ -529,7 +563,7 @@ function RegisterProjectContent() {
         ),
       ]);
       const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed) notify.error(`Project registered, but ${failed} team/study/endorser/beneficiary/document row(s) failed to save. Add them from the project page.`);
+      if (failed) notify.error(`Project registered, but ${failed} team/study/LIB/endorser/beneficiary/document row(s) failed to save. Add them from the project page.`);
       else notify.success("Project registered.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
@@ -830,7 +864,7 @@ function RegisterProjectContent() {
 
               {step === 3 && (
                 <div className="space-y-5">
-                  <StepNote>Sections II–IV, VI, VIII, and IX of the form. Section V (6Ps expected outputs) is set under Research Outputs, and Section X (budget) under Budget, or all at once through the Excel upload.</StepNote>
+                  <StepNote>Sections II–IV, VI, VIII, and IX of the form. Section V (6Ps expected outputs) is set under Research Outputs or through the Excel upload; Section X (budget) has its own step.</StepNote>
                   <Field label="II. Background of the Study">
                     <textarea rows={6} className={inputCls + " resize-y"} style={inputSt} value={form.background} onChange={set("background")} placeholder="Background and rationale as stated in the approved proposal" />
                   </Field>
@@ -923,6 +957,64 @@ function RegisterProjectContent() {
               {step === 5 && (
                 <div className="space-y-4">
                   <StepNote>
+                    Section X, Budget Requirements: the approved Line-Item Budget per quarter. It is saved as the project's draft LIB (version 1) for the
+                    Budget Officer to certify under Budget Management. Optional here; leave it empty to encode the LIB later.
+                  </StepNote>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Field label="Fiscal Year">
+                      <input type="number" min="2000" className={inputCls} style={inputSt} value={libYear} onChange={(e) => setLibYear(e.target.value)} />
+                    </Field>
+                  </div>
+                  {LIB_CATEGORIES.map((cat) => {
+                    const rows = libRows.map((r, i) => ({ r, i })).filter(({ r }) => r.category === cat.key);
+                    const subtotal = rows.reduce((sum, { r }) => sum + libRowTotal(r), 0);
+                    return (
+                      <div key={cat.key} className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
+                        <div className="px-3 py-2 flex items-center justify-between" style={{ background: "#f8fafc" }}>
+                          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0d2a5e" }}>{cat.label}</p>
+                          <AddRowButton onClick={() => setLibRows([...libRows, { category: cat.key, description: "", q1: "", q2: "", q3: "", q4: "" }])}>Add Item</AddRowButton>
+                        </div>
+                        {rows.length === 0 ? (
+                          <p className="px-3 py-2 text-xs" style={{ color: "#94a3b8" }}>No items.</p>
+                        ) : (
+                          <div className="p-2 space-y-2">
+                            {rows.map(({ r, i }) => (
+                              <div key={i} className="flex flex-wrap md:flex-nowrap gap-2 items-start">
+                                <input className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(e) => updateLib(i, { description: e.target.value })} placeholder="Particulars, e.g. Travel Expenses" />
+                                {QUARTERS.map((q, qi) => (
+                                  <input
+                                    key={q}
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    className={inputCls + " max-w-28"}
+                                    style={inputSt}
+                                    value={r[q]}
+                                    onChange={(e) => updateLib(i, { [q]: e.target.value })}
+                                    placeholder={`QTR${qi + 1}`}
+                                    aria-label={`QTR${qi + 1}`}
+                                  />
+                                ))}
+                                <span className="mt-2.5 text-xs font-mono font-bold w-24 text-right shrink-0" style={{ color: "#0d2a5e" }}>₱{peso(libRowTotal(r))}</span>
+                                <RemoveButton onClick={() => setLibRows(libRows.filter((_, idx) => idx !== i))} label="Remove item" />
+                              </div>
+                            ))}
+                            <p className="text-xs font-semibold text-right pr-8" style={{ color: "#64748b" }}>Subtotal: ₱{peso(subtotal)}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: "#fef2f2", border: "1px solid #fecaca" }}>
+                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#991b1b" }}>Grand Total</p>
+                    <p className="text-sm font-mono font-black" style={{ color: "#991b1b" }}>₱{peso(libRows.reduce((sum, r) => sum + libRowTotal(r), 0))}</p>
+                  </div>
+                </div>
+              )}
+
+              {step === 6 && (
+                <div className="space-y-4">
+                  <StepNote>
                     Approval references and the Annex A endorsement page. Review, endorsement, and approval happen outside RMIS; these are recorded as read-only references.
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1006,7 +1098,7 @@ function RegisterProjectContent() {
                 </div>
               )}
 
-              {step === 6 && (
+              {step === 7 && (
                 <div className="space-y-4">
                   <div className="rounded-xl overflow-hidden" style={{ border: `2px solid ${completenessOk ? "#22c55e" : "#f59e0b"}` }}>
                     <div className="px-4 py-3 flex items-center justify-between" style={{ background: completenessOk ? "#f0fdf4" : "#fffbeb" }}>

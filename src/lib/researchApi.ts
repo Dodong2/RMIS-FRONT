@@ -2,6 +2,7 @@ import { apiClient } from "./apiClient";
 import { downloadReport } from "./reportsApi";
 import type { Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
 import type { AdminUser } from "../types/auth";
+import type { LineItemBudget } from "../types/budget";
 
 export const researchApi = {
   getPrograms: async (): Promise<Program[]> => {
@@ -104,6 +105,21 @@ export const researchApi = {
     user?: number | null;
   }): Promise<ProjectTeamMember> => {
     const { data } = await apiClient.post("/api/project-team/", payload);
+    return data;
+  },
+  createProjectLib: async (
+    projectId: number,
+    lineItems: {
+      category: string;
+      description: string;
+      fiscal_year: number | null;
+      q1_amount: string | null;
+      q2_amount: string | null;
+      q3_amount: string | null;
+      q4_amount: string | null;
+    }[],
+  ): Promise<LineItemBudget> => {
+    const { data } = await apiClient.post(`/api/projects/${projectId}/lib/`, { line_items: lineItems });
     return data;
   },
   getEndorsers: async (projectId: number): Promise<ProjectEndorser[]> => {
