@@ -4,7 +4,7 @@ import { researchApi } from "../lib/researchApi";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import type { Program, FundingType, ProjectImportError } from "../types/research";
+import type { FundingType, ProjectImportError } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
@@ -280,7 +280,6 @@ function ExcelImport() {
 
 function RegisterProjectContent() {
   const navigate = useNavigate();
-  const [programs, setPrograms] = useState<Program[]>([]);
   const { user } = useAuth();
   const isProjectLeader = user?.role?.code === "project_leader";
   const [projectLeaders, setProjectLeaders] = useState<{ id: number; email: string }[]>([]);
@@ -300,7 +299,6 @@ function RegisterProjectContent() {
     title: "",
     project_code: "",
     funding_type: "",
-    program: "",
     lead: isProjectLeader && user ? String(user.pk) : "",
     lead_gender: "",
     contact_number: "",
@@ -350,10 +348,6 @@ function RegisterProjectContent() {
 
   useEffect(() => {
     let active = true;
-    researchApi
-      .getPrograms()
-      .then((programList) => active && setPrograms(programList))
-      .catch(() => active && notify.error("Could not load programs. Check your connection and refresh."));
     if (!user || user.role?.code === "project_leader") return;
     researchApi
       .getUsersByRole("project_leader")
@@ -402,7 +396,7 @@ function RegisterProjectContent() {
     const opt = (v: string) => v.trim() || undefined;
     try {
       const project = await researchApi.createProject({
-        program: form.program ? Number(form.program) : null,
+        program: null,
         title: form.title,
         project_code: form.project_code,
         funding_type: form.funding_type,
@@ -544,14 +538,6 @@ function RegisterProjectContent() {
                     </Field>
                     <Field label="Project Code (LSPU Faculty Research Number)" required invalid={bad("project_code")}>
                       <input className={inputCls} style={inputSt} value={form.project_code} onChange={set("project_code")} placeholder="e.g. FRN-2026-001" />
-                    </Field>
-                    <Field label="Parent Research Program">
-                      <select className={inputCls} style={inputSt} value={form.program} onChange={set("program")}>
-                        <option value="">Stand-alone (no parent program)</option>
-                        {programs.map((p) => (
-                          <option key={p.id} value={p.id}>{p.title}</option>
-                        ))}
-                      </select>
                     </Field>
                     <Field label="Funding Type" required invalid={bad("funding_type")}>
                       <select className={inputCls} style={inputSt} value={form.funding_type} onChange={set("funding_type")}>

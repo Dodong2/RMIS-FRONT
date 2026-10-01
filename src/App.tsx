@@ -11,7 +11,6 @@ import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
-import RegisterProgramPage from "./pages/RegisterProgramPage";
 import RegisterProjectPage from "./pages/RegisterProjectPage";
 import TasksPage from "./pages/TasksPage";
 import WorkPlanPage from "./pages/WorkPlanPage";
@@ -56,16 +55,6 @@ export default function App() {
         }
       />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
-      <Route
-        path="/programs/new"
-        element={
-          <ProtectedRoute>
-            <RoleGate allow={REGISTRATION_ROLE_CODES}>
-              <RegisterProgramPage />
-            </RoleGate>
-          </ProtectedRoute>
-        }
-      />
       <Route path="/tasks" element={<TasksPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/outputs" element={<OutputsPage />} />

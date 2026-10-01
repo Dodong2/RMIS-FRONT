@@ -5,7 +5,7 @@ import { personnelApi } from "../lib/personnelApi";
 import { monitoringApi } from "../lib/monitoringApi";
 import { RESEARCH_TYPE_LABELS } from "../lib/projectOptions";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
-import type { Milestone, Program, Project, FundingType, RecordStatus } from "../types/research";
+import type { Milestone, Project, FundingType, RecordStatus } from "../types/research";
 import type { ProjectAssignment } from "../types/personnel";
 import type { ProjectMonitoringStatus } from "../types/monitoring";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -56,7 +56,6 @@ function ProjectsContent() {
   const { user } = useAuth();
   const canRegister = !!user?.role && REGISTRATION_ROLE_CODES.includes(user.role.code);
 
-  const [programs, setPrograms] = useState<Program[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
@@ -68,10 +67,10 @@ function ProjectsContent() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([researchApi.getPrograms(), researchApi.getProjects()])
-      .then(([programList, projectList]) => {
+    researchApi
+      .getProjects()
+      .then((projectList) => {
         if (!active) return;
-        setPrograms(programList);
         setProjects(projectList);
         projectList.forEach((p) =>
           monitoringApi
@@ -118,22 +117,11 @@ function ProjectsContent() {
         <div>
           <h2 className="font-black text-xl" style={{ color: "#0d2a5e" }}>Research Projects</h2>
           <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>
-            {projects.length} registered project{projects.length !== 1 ? "s" : ""} · {programs.length} program
-            {programs.length !== 1 ? "s" : ""}
+            {projects.length} registered project{projects.length !== 1 ? "s" : ""}
           </p>
         </div>
         {canRegister && (
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => navigate("/programs/new")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-              style={{ background: "#e0eaf7", color: "#0d2a5e" }}
-            >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              Register Program
-            </button>
             <button
               onClick={() => navigate("/projects/new")}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white"
@@ -216,7 +204,6 @@ function ProjectsContent() {
             const ms = milestones.filter((m) => m.project === proj.id);
             const msDone = ms.filter((m) => m.status === "done").length;
             const team = assignments.filter((a) => a.project === proj.id).length + 1;
-            const program = programs.find((p) => p.id === proj.program);
             const st = statuses[proj.id];
             return (
               <div
@@ -284,8 +271,8 @@ function ProjectsContent() {
                     <p className="font-semibold" style={{ color: "#334155" }}>{msDone}/{ms.length} done</p>
                   </div>
                   <div>
-                    <p style={{ color: "#94a3b8" }}>Research Program</p>
-                    <p className="font-semibold truncate" style={{ color: "#334155", maxWidth: "160px" }}>{program?.title ?? "Stand-alone"}</p>
+                    <p style={{ color: "#94a3b8" }}>Campus</p>
+                    <p className="font-semibold truncate" style={{ color: "#334155", maxWidth: "160px" }}>{proj.campus || "—"}</p>
                   </div>
                   <div>
                     <p style={{ color: "#94a3b8" }}>Team</p>
@@ -301,36 +288,6 @@ function ProjectsContent() {
               </div>
             );
           })
-        )}
-      </div>
-
-      <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-        <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: "#f1f5f9", background: "#f8fafc" }}>
-          <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>Research Programs</p>
-          <span className="text-xs font-semibold" style={{ color: "#94a3b8" }}>{programs.length}</span>
-        </div>
-        {isLoading ? (
-          <div className="p-5">
-            <div className="h-10 rounded-xl animate-pulse" style={{ background: "#f1f5f9" }} />
-          </div>
-        ) : programs.length === 0 ? (
-          <p className="px-5 py-6 text-center text-sm" style={{ color: "#94a3b8" }}>
-            No programs yet. Register one once two or more related projects need grouping.
-          </p>
-        ) : (
-          <ul>
-            {programs.map((p) => (
-              <li key={p.id} className="px-5 py-3 flex flex-wrap items-center gap-3 border-b" style={{ borderColor: "#f8fafc" }}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: "#1e293b" }}>{p.title}</p>
-                  <p className="text-xs" style={{ color: "#94a3b8" }}>
-                    {FUNDING_LABELS[p.funding_type]} · {p.lead_detail.email} · {projects.filter((x) => x.program === p.id).length} project(s)
-                  </p>
-                </div>
-                <StatusBadge status={p.status} />
-              </li>
-            ))}
-          </ul>
         )}
       </div>
     </div>

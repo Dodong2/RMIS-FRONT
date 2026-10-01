@@ -462,7 +462,7 @@ function ProjectDetailContent() {
               </div>
               <h2 className="text-white font-bold text-lg leading-snug max-w-2xl">{project.title}</h2>
               <p className="text-sm mt-1" style={{ color: "rgba(168,196,232,0.8)" }}>
-                {[program?.title ?? "Stand-alone project", project.implementing_unit, project.campus].filter(Boolean).join(" · ")}
+                {[program?.title, project.implementing_unit, project.campus].filter(Boolean).join(" · ")}
               </p>
             </div>
             <StatusBadge status={project.status} />
@@ -533,7 +533,7 @@ function ProjectDetailContent() {
                 <InfoCard label="Project Leader / PI" value={project.lead_detail.email} />
                 <InfoCard label="Funding Type" value={FUNDING_LABELS[project.funding_type]} />
                 <InfoCard label="Cooperating Agencies" value={project.cooperating_agencies} />
-                <InfoCard label="Research Program" value={program?.title ?? "Stand-alone"} />
+                {program && <InfoCard label="Research Program" value={program.title} />}
                 <InfoCard label="Project Period" value={`${project.start_date ?? "—"} – ${project.target_end_date ?? "—"}`} />
                 <InfoCard label="REI Thrust" value={project.rei_thrust} />
               </div>

@@ -289,7 +289,6 @@ function PersonnelChangesContent() {
                     value={form.record_type}
                     onChange={(e) => setForm((f) => ({ ...f, record_type: e.target.value as RecordType, program: "", project: "", study: "", incoming: "" }))}
                   >
-                    <option value="program">Program</option>
                     <option value="project">Project</option>
                     <option value="study">Study</option>
                   </select>
