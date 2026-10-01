@@ -144,8 +144,8 @@ export interface Study {
   id: number;
   project: number;
   title: string;
-  lead: number;
-  lead_detail: Lead;
+  lead: number | null;
+  lead_detail: Lead | null;
   status: RecordStatus;
   created_at: string;
 }

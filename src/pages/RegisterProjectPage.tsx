@@ -295,6 +295,7 @@ function RegisterProjectContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [certified, setCertified] = useState(false);
   const [objectives, setObjectives] = useState([""]);
+  const [studyTitles, setStudyTitles] = useState(["", ""]);
   const [team, setTeam] = useState<TeamRow[]>([]);
   const [beneficiaryRows, setBeneficiaryRows] = useState<BeneficiaryRow[]>([{ group: "", description: "", total: "" }]);
   const [approvalDoc, setApprovalDoc] = useState<File[]>([]);
@@ -368,6 +369,7 @@ function RegisterProjectContent() {
   }, [user]);
 
   const filledObjectives = objectives.map((o) => o.trim()).filter(Boolean);
+  const filledStudies = studyTitles.map((t) => t.trim()).filter(Boolean);
   const filledTeam = team.filter((t) => t.name.trim());
   const filledBeneficiaries = beneficiaryRows.filter((b) => b.group.trim());
   const isContinuing = form.is_continuing === "true";
@@ -496,6 +498,7 @@ function RegisterProjectContent() {
         ...filledTeam.map((t) =>
           researchApi.createTeamMember({ project: project.id, member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined, user: t.user }),
         ),
+        ...filledStudies.map((title) => researchApi.createStudy({ project: project.id, title })),
         ...filledBeneficiaries.map((b) =>
           researchApi.createBeneficiary({ project: project.id, group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 }),
         ),
@@ -504,7 +507,7 @@ function RegisterProjectContent() {
         ),
       ]);
       const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed) notify.error(`Project registered, but ${failed} team/beneficiary/document row(s) failed to save. Add them from the project page.`);
+      if (failed) notify.error(`Project registered, but ${failed} team/study/beneficiary/document row(s) failed to save. Add them from the project page.`);
       else notify.success("Project registered.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
@@ -751,7 +754,10 @@ function RegisterProjectContent() {
 
               {step === 2 && (
                 <div className="space-y-4">
-                  <StepNote>Sector, research priority area, typology, and the 17 Sustainable Development Goals. Sector and SDGs allow more than one.</StepNote>
+                  <StepNote>
+                    Sector, research priority area, typology, the 17 Sustainable Development Goals, and the study component titles. Sector and SDGs allow
+                    more than one. A project is composed of two or more studies.
+                  </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Sector" required invalid={bad("sectors")}>
                       <MultiSelect invalid={bad("sectors")} options={SECTOR_OPTIONS} value={form.sectors} onChange={(next) => setForm((p) => ({ ...p, sectors: next }))} placeholder="Select sector" />
@@ -775,6 +781,27 @@ function RegisterProjectContent() {
                     <Field label="Sustainable Development Goals (SDGs)" required invalid={bad("sdgs")} span>
                       <MultiSelect invalid={bad("sdgs")} options={SDG_OPTIONS} value={form.sdgs} onChange={(next) => setForm((p) => ({ ...p, sdgs: next }))} placeholder="Select SDGs (1–17)" />
                     </Field>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="label-field mb-0">Study Component Titles</label>
+                      <AddRowButton onClick={() => setStudyTitles([...studyTitles, ""])}>Add Study</AddRowButton>
+                    </div>
+                    <div className="space-y-2">
+                      {studyTitles.map((title, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                          <span className="mt-2.5 text-xs font-bold shrink-0" style={{ color: "#0891b2", width: "52px" }}>Study {i + 1}</span>
+                          <input
+                            value={title}
+                            onChange={(e) => setStudyTitles(studyTitles.map((t, idx) => (idx === i ? e.target.value : t)))}
+                            className={inputCls + " flex-1"}
+                            style={inputSt}
+                            placeholder={`Title of Study ${i + 1}`}
+                          />
+                          {studyTitles.length > 1 && <RemoveButton onClick={() => setStudyTitles(studyTitles.filter((_, idx) => idx !== i))} label="Remove study" />}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

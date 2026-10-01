@@ -164,9 +164,9 @@ function PersonnelChangesContent() {
         return;
       }
     } else {
-      outgoing = currentLead();
+      outgoing = currentLead() ?? undefined;
       if (!outgoing) {
-        notify.error("Select the program, project, or study to change the leader of.");
+        notify.error("Select the project or study to change the leader of. A study with no leader yet has no leader to hand over.");
         return;
       }
     }
@@ -323,7 +323,7 @@ function PersonnelChangesContent() {
                     >
                       <option value="">{studies.length ? "Select study" : "No studies for this project"}</option>
                       {studies.map((s) => (
-                        <option key={s.id} value={s.id}>{s.title} — {s.lead_detail.email}</option>
+                        <option key={s.id} value={s.id}>{s.title} — {s.lead_detail?.email ?? "no study leader"}</option>
                       ))}
                     </select>
                   </Field>

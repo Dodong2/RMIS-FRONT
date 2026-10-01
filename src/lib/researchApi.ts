@@ -131,7 +131,7 @@ export const researchApi = {
     const { data } = await apiClient.get(`/api/studies/?project=${projectId}`);
     return data;
   },
-  createStudy: async (payload: { project: number; title: string; lead: number }): Promise<Study> => {
+  createStudy: async (payload: { project: number; title: string; lead?: number | null }): Promise<Study> => {
     const { data } = await apiClient.post("/api/studies/", payload);
     return data;
   },

@@ -563,7 +563,7 @@ function ProjectDetailContent() {
                       <div key={s.id} className="rounded-xl p-3 flex items-center gap-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate" style={{ color: "#0d2a5e" }}>{s.title}</p>
-                          <p className="text-xs" style={{ color: "#94a3b8" }}>Study Leader: {s.lead_detail.email}</p>
+                          <p className="text-xs" style={{ color: "#94a3b8" }}>Study Leader: {s.lead_detail?.email ?? "Not assigned"}</p>
                         </div>
                         <StatusBadge status={s.status} />
                       </div>
