@@ -26,6 +26,7 @@ import type {
   ProjectTeamMember,
   RecordStatus,
   Study,
+  ProjectEndorser,
   TargetBeneficiary,
 } from "../types/research";
 import type { AdminUser } from "../types/auth";
@@ -252,6 +253,7 @@ function ProjectDetailContent() {
   const [team, setTeam] = useState<ProjectAssignment[]>([]);
   const [formTeam, setFormTeam] = useState<ProjectTeamMember[]>([]);
   const [targetBeneficiaries, setTargetBeneficiaries] = useState<TargetBeneficiary[]>([]);
+  const [endorsers, setEndorsers] = useState<ProjectEndorser[]>([]);
   const [history, setHistory] = useState<ProjectStatusHistory[] | null | undefined>(undefined);
   const [status, setStatus] = useState<ProjectMonitoringStatus | null | undefined>(undefined);
   const [terminal, setTerminal] = useState<TerminalReport | null | undefined>(undefined);
@@ -309,6 +311,7 @@ function ProjectDetailContent() {
     personnelApi.getAssignments({ project: projectId, active: true }).then(guard(setTeam)).catch(() => undefined);
     researchApi.getTeamMembers(projectId).then(guard(setFormTeam)).catch(() => undefined);
     researchApi.getBeneficiaries(projectId).then(guard(setTargetBeneficiaries)).catch(() => undefined);
+    researchApi.getEndorsers(projectId).then(guard(setEndorsers)).catch(() => undefined);
     outputsApi.getExpectedVsActual(projectId).then(guard(setExpected)).catch(() => undefined);
     outputsApi.getOutcomes({ project: projectId }).then(guard(setOutcomes)).catch(() => undefined);
     budgetApi.getBudgets(projectId).then(guard(setBudgets)).catch(() => undefined);
@@ -636,14 +639,22 @@ function ProjectDetailContent() {
                   <InfoCard label="Proposal Reviewed" value={project.proposal_reviewed_on ?? ""} />
                   <InfoCard label="Proposal Approved" value={project.proposal_approved_on ?? ""} />
                   <InfoCard label="Reviewing / Approving Body" value={project.reviewing_body} />
-                  <InfoCard label="Endorsed By (Dean)" value={[project.endorsed_by_dean, project.endorsed_by_dean_on].filter(Boolean).join(" · ")} />
-                  <InfoCard label="Noted By (RDS Director)" value={[project.noted_by_rds_director, project.noted_by_rds_director_on].filter(Boolean).join(" · ")} />
-                  <InfoCard
-                    label="Recommending (Campus Director)"
-                    value={[project.recommended_by_campus_director, project.recommended_by_campus_director_on].filter(Boolean).join(" · ")}
-                  />
-                  <InfoCard label="Recommending (VPRDE)" value={[project.recommended_by_vprde, project.recommended_by_vprde_on].filter(Boolean).join(" · ")} />
-                  <InfoCard label="Approved By (President)" value={project.approved_by_president} />
+                  {endorsers.length > 0 ? (
+                    endorsers.map((e) => (
+                      <InfoCard key={e.id} label={e.designation || "Endorser"} value={[e.name, e.signed_on].filter(Boolean).join(" · ")} />
+                    ))
+                  ) : (
+                    <>
+                      <InfoCard label="Endorsed By (Dean)" value={[project.endorsed_by_dean, project.endorsed_by_dean_on].filter(Boolean).join(" · ")} />
+                      <InfoCard label="Noted By (RDS Director)" value={[project.noted_by_rds_director, project.noted_by_rds_director_on].filter(Boolean).join(" · ")} />
+                      <InfoCard
+                        label="Recommending (Campus Director)"
+                        value={[project.recommended_by_campus_director, project.recommended_by_campus_director_on].filter(Boolean).join(" · ")}
+                      />
+                      <InfoCard label="Recommending (VPRDE)" value={[project.recommended_by_vprde, project.recommended_by_vprde_on].filter(Boolean).join(" · ")} />
+                      <InfoCard label="Approved By (President)" value={project.approved_by_president} />
+                    </>
+                  )}
                 </div>
               </div>
               <div>

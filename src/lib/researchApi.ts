@@ -1,14 +1,6 @@
 import { apiClient } from "./apiClient";
 import { downloadReport } from "./reportsApi";
-import type {
-  Program,
-  Project,
-  ProjectStatusHistory,
-  ProjectTeamMember,
-  Study,
-  Milestone,
-  TargetBeneficiary,
-} from "../types/research";
+import type { Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
 import type { AdminUser } from "../types/auth";
 
 export const researchApi = {
@@ -112,6 +104,14 @@ export const researchApi = {
     user?: number | null;
   }): Promise<ProjectTeamMember> => {
     const { data } = await apiClient.post("/api/project-team/", payload);
+    return data;
+  },
+  getEndorsers: async (projectId: number): Promise<ProjectEndorser[]> => {
+    const { data } = await apiClient.get("/api/project-endorsers/", { params: { project: projectId } });
+    return data;
+  },
+  createEndorser: async (payload: Omit<ProjectEndorser, "id">): Promise<ProjectEndorser> => {
+    const { data } = await apiClient.post("/api/project-endorsers/", payload);
     return data;
   },
   getBeneficiaries: async (projectId: number): Promise<TargetBeneficiary[]> => {

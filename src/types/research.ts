@@ -114,6 +114,16 @@ export interface ProjectTeamMember {
   user: number | null;
 }
 
+export interface ProjectEndorser {
+  id: number;
+  project: number;
+  role_code: string;
+  user: number | null;
+  name: string;
+  designation: string;
+  signed_on: string | null;
+}
+
 export interface TargetBeneficiary {
   id: number;
   project: number;

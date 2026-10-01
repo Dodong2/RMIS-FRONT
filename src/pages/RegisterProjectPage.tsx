@@ -9,7 +9,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
-import type { AdminUser } from "../types/auth";
+import type { AdminUser, Role } from "../types/auth";
+import { authApi } from "../lib/authApi";
 import { useAuth } from "../context/AuthContext";
 import {
   PRIORITY_AREA_LABELS,
@@ -54,6 +55,7 @@ const MODES = [
 
 type TeamRow = { member_role: string; name: string; gender: string; user: number | null };
 type BeneficiaryRow = { group: string; description: string; total: string };
+type EndorserRow = { role_code: string; user: number | null; name: string; designation: string; signed_on: string };
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -287,6 +289,8 @@ function RegisterProjectContent() {
   const [projectLeaders, setProjectLeaders] = useState<{ id: number; email: string }[]>([]);
   const [leadersBlocked, setLeadersBlocked] = useState(false);
   const [accounts, setAccounts] = useState<AdminUser[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [endorsers, setEndorsers] = useState<EndorserRow[]>([]);
   const [mode, setMode] = useState<"manual" | "excel">("manual");
   const [step, setStep] = useState(0);
   const [attempted, setAttempted] = useState(false);
@@ -340,20 +344,15 @@ function RegisterProjectContent() {
     proposal_reviewed_on: "",
     proposal_approved_on: "",
     reviewing_body: "",
-    endorsed_by_dean: "",
-    endorsed_by_dean_on: "",
-    noted_by_rds_director: "",
-    noted_by_rds_director_on: "",
-    recommended_by_campus_director: "",
-    recommended_by_campus_director_on: "",
-    recommended_by_vprde: "",
-    recommended_by_vprde_on: "",
-    approved_by_president: "",
   });
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
   useEffect(() => {
     let active = true;
+    authApi
+      .getRoles()
+      .then((list) => active && setRoles(list))
+      .catch(() => undefined);
     researchApi
       .getActiveUsers()
       .then((list) => active && setAccounts(list))
@@ -372,6 +371,24 @@ function RegisterProjectContent() {
   const filledStudies = studyTitles.map((t) => t.trim()).filter(Boolean);
   const filledTeam = team.filter((t) => t.name.trim());
   const filledBeneficiaries = beneficiaryRows.filter((b) => b.group.trim());
+  const filledEndorsers = endorsers.filter((e) => e.name.trim());
+  const roleName = (code: string) => roles.find((r) => r.code === code)?.name ?? "";
+  const peopleWithRole = (code: string) => accounts.filter((a) => a.role?.code === code);
+  const updateEndorser = (i: number, patch: Partial<EndorserRow>) => setEndorsers((rows) => rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+  const pickEndorserRole = (i: number, code: string) => {
+    const people = code ? peopleWithRole(code) : [];
+    const only = people.length === 1 ? people[0] : null;
+    updateEndorser(i, {
+      role_code: code,
+      user: only?.id ?? null,
+      name: only?.full_name ?? "",
+      designation: only?.position || roleName(code),
+    });
+  };
+  const pickEndorserUser = (i: number, id: string) => {
+    const person = accounts.find((a) => String(a.id) === id);
+    updateEndorser(i, { user: person?.id ?? null, name: person?.full_name ?? "", designation: person?.position || roleName(endorsers[i].role_code) });
+  };
   const isContinuing = form.is_continuing === "true";
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
@@ -484,21 +501,26 @@ function RegisterProjectContent() {
         proposal_reviewed_on: opt(form.proposal_reviewed_on),
         proposal_approved_on: opt(form.proposal_approved_on),
         reviewing_body: opt(form.reviewing_body),
-        endorsed_by_dean: opt(form.endorsed_by_dean),
-        endorsed_by_dean_on: opt(form.endorsed_by_dean_on),
-        noted_by_rds_director: opt(form.noted_by_rds_director),
-        noted_by_rds_director_on: opt(form.noted_by_rds_director_on),
-        recommended_by_campus_director: opt(form.recommended_by_campus_director),
-        recommended_by_campus_director_on: opt(form.recommended_by_campus_director_on),
-        recommended_by_vprde: opt(form.recommended_by_vprde),
-        recommended_by_vprde_on: opt(form.recommended_by_vprde_on),
-        approved_by_president: opt(form.approved_by_president),
       });
       const results = await Promise.allSettled([
         ...filledTeam.map((t) =>
           researchApi.createTeamMember({ project: project.id, member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined, user: t.user }),
         ),
         ...filledStudies.map((title) => researchApi.createStudy({ project: project.id, title })),
+        filledEndorsers.reduce(
+          (chain, e) =>
+            chain.then(() =>
+              researchApi.createEndorser({
+                project: project.id,
+                role_code: e.role_code,
+                user: e.user,
+                name: e.name.trim(),
+                designation: e.designation.trim(),
+                signed_on: e.signed_on || null,
+              }),
+            ),
+          Promise.resolve() as Promise<unknown>,
+        ),
         ...filledBeneficiaries.map((b) =>
           researchApi.createBeneficiary({ project: project.id, group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 }),
         ),
@@ -507,7 +529,7 @@ function RegisterProjectContent() {
         ),
       ]);
       const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed) notify.error(`Project registered, but ${failed} team/study/beneficiary/document row(s) failed to save. Add them from the project page.`);
+      if (failed) notify.error(`Project registered, but ${failed} team/study/endorser/beneficiary/document row(s) failed to save. Add them from the project page.`);
       else notify.success("Project registered.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
@@ -922,40 +944,58 @@ function RegisterProjectContent() {
                     <Field label="Date Submitted (Project Leader)">
                       <input type="date" className={inputCls} style={inputSt} value={form.proposal_submitted_on} onChange={set("proposal_submitted_on")} />
                     </Field>
-                  </div>
-
-                  <p className="text-xs font-bold uppercase tracking-wide pt-2" style={{ color: "#64748b" }}>Annex A · Endorsement Page</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Endorsed By (Dean/Associate Dean)">
-                      <input className={inputCls} style={inputSt} value={form.endorsed_by_dean} onChange={set("endorsed_by_dean")} />
-                    </Field>
-                    <Field label="Date Endorsed">
-                      <input type="date" className={inputCls} style={inputSt} value={form.endorsed_by_dean_on} onChange={set("endorsed_by_dean_on")} />
-                    </Field>
-                    <Field label="Noted By (RDS Director/Chairperson)">
-                      <input className={inputCls} style={inputSt} value={form.noted_by_rds_director} onChange={set("noted_by_rds_director")} />
-                    </Field>
-                    <Field label="Date Noted">
-                      <input type="date" className={inputCls} style={inputSt} value={form.noted_by_rds_director_on} onChange={set("noted_by_rds_director_on")} />
-                    </Field>
-                    <Field label="Recommending Approval (Campus Director)">
-                      <input className={inputCls} style={inputSt} value={form.recommended_by_campus_director} onChange={set("recommended_by_campus_director")} />
-                    </Field>
-                    <Field label="Date Recommended (Campus Director)">
-                      <input type="date" className={inputCls} style={inputSt} value={form.recommended_by_campus_director_on} onChange={set("recommended_by_campus_director_on")} />
-                    </Field>
-                    <Field label="Recommending Approval (VPRDE)">
-                      <input className={inputCls} style={inputSt} value={form.recommended_by_vprde} onChange={set("recommended_by_vprde")} />
-                    </Field>
-                    <Field label="Date Recommended (VPRDE)">
-                      <input type="date" className={inputCls} style={inputSt} value={form.recommended_by_vprde_on} onChange={set("recommended_by_vprde_on")} />
-                    </Field>
-                    <Field label="Approved By (University President)">
-                      <input className={inputCls} style={inputSt} value={form.approved_by_president} onChange={set("approved_by_president")} />
-                    </Field>
-                    <Field label="Date Approved">
+                    <Field label="Date Approved (University President)">
                       <input type="date" className={inputCls} style={inputSt} value={form.proposal_approved_on} onChange={set("proposal_approved_on")} />
                     </Field>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Annex A · Endorsement Page</p>
+                    <AddRowButton onClick={() => setEndorsers([...endorsers, { role_code: "", user: null, name: "", designation: "", signed_on: "" }])}>Add Endorser</AddRowButton>
+                  </div>
+                  <p className="text-xs" style={{ color: "#94a3b8" }}>
+                    Pick the endorser's role, then the person. With one account in that role the name fills in by itself. Signatories without an
+                    account (e.g. the Dean) use "Not a system role" and a typed name.
+                  </p>
+                  {endorsers.length === 0 && <p className="text-xs" style={{ color: "#94a3b8" }}>No endorsers added.</p>}
+                  <div className="space-y-2">
+                    {endorsers.map((e, i) => {
+                      const people = e.role_code ? peopleWithRole(e.role_code) : [];
+                      return (
+                        <div key={i} className="rounded-xl p-3 grid grid-cols-1 md:grid-cols-2 gap-2 relative" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                          <select className={inputCls} style={inputSt} value={e.role_code} onChange={(ev) => pickEndorserRole(i, ev.target.value)}>
+                            <option value="">Not a system role (type the name)</option>
+                            {roles.map((r) => (
+                              <option key={r.code} value={r.code}>{r.name}</option>
+                            ))}
+                          </select>
+                          {people.length > 1 ? (
+                            <select className={inputCls} style={inputSt} value={e.user ?? ""} onChange={(ev) => pickEndorserUser(i, ev.target.value)}>
+                              <option value="">Select who signed ({people.length} with this role)...</option>
+                              {people.map((u) => (
+                                <option key={u.id} value={u.id}>{u.full_name}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              className={inputCls}
+                              style={inputSt}
+                              value={e.name}
+                              readOnly={!!e.user}
+                              onChange={(ev) => updateEndorser(i, { name: ev.target.value })}
+                              placeholder={e.role_code ? "No account with this role yet, type the name" : "Full name, e.g. Adriel G. Roman"}
+                            />
+                          )}
+                          <input className={inputCls} style={inputSt} value={e.designation} onChange={(ev) => updateEndorser(i, { designation: ev.target.value })} placeholder="Designation, e.g. Dean/Associate Dean" />
+                          <div className="flex gap-2 items-start">
+                            <input type="date" className={inputCls} style={inputSt} value={e.signed_on} onChange={(ev) => updateEndorser(i, { signed_on: ev.target.value })} aria-label="Date signed" />
+                            <RemoveButton onClick={() => setEndorsers(endorsers.filter((_, idx) => idx !== i))} label="Remove endorser" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Approval Document (Notice of Approval / NTP / MOA)" span>
                       <FilePick label="Click to upload the approval document" files={approvalDoc} onChange={setApprovalDoc} />
                     </Field>
