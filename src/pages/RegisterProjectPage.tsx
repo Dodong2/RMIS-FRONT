@@ -282,6 +282,7 @@ function RegisterProjectContent() {
   const navigate = useNavigate();
   const [programs, setPrograms] = useState<Program[]>([]);
   const { user } = useAuth();
+  const isProjectLeader = user?.role?.code === "project_leader";
   const [projectLeaders, setProjectLeaders] = useState<{ id: number; email: string }[]>([]);
   const [leadersBlocked, setLeadersBlocked] = useState(false);
   const [mode, setMode] = useState<"manual" | "excel">("manual");
@@ -300,7 +301,7 @@ function RegisterProjectContent() {
     project_code: "",
     funding_type: "",
     program: "",
-    lead: "",
+    lead: isProjectLeader && user ? String(user.pk) : "",
     lead_gender: "",
     contact_number: "",
     ntp_number: "",
@@ -353,18 +354,11 @@ function RegisterProjectContent() {
       .getPrograms()
       .then((programList) => active && setPrograms(programList))
       .catch(() => active && notify.error("Could not load programs. Check your connection and refresh."));
+    if (!user || user.role?.code === "project_leader") return;
     researchApi
       .getUsersByRole("project_leader")
       .then((leaders) => active && setProjectLeaders(leaders))
-      .catch(() => {
-        if (!active || !user) return;
-        if (user.role?.code === "project_leader") {
-          setProjectLeaders([{ id: user.pk, email: user.email }]);
-          setForm((p) => ({ ...p, lead: String(user.pk) }));
-        } else {
-          setLeadersBlocked(true);
-        }
-      });
+      .catch(() => active && setLeadersBlocked(true));
     return () => {
       active = false;
     };
@@ -610,18 +604,21 @@ function RegisterProjectContent() {
 
               {step === 1 && (
                 <div className="space-y-4">
-                  <StepNote>Project Leader, Co-Project Leader, and Project Team as listed on the form, plus the implementing campus and college. Team names are free text since members may not have RMIS accounts.</StepNote>
+                  <StepNote>
+                    Project Leader, Co-Project Leader, and Project Team as listed on the form, plus the implementing campus and college. Team names are free text since members may not have RMIS accounts.
+                    {isProjectLeader && " You are registering this project as its Project Leader."}
+                  </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Project Leader" required invalid={bad("lead")} span>
-                      <select className={inputCls} style={inputSt} value={form.lead} onChange={set("lead")}>
+                      <select className={inputCls + " disabled:opacity-80"} style={inputSt} value={form.lead} onChange={set("lead")} disabled={isProjectLeader}>
                         <option value="">
-                          {projectLeaders.length
+                          {projectLeaders.length || isProjectLeader
                             ? "Select project leader..."
                             : leadersBlocked
                               ? "Leader list isn't available for your role, use Upload via Excel"
                               : "No active project leaders yet"}
                         </option>
-                        {projectLeaders.map((u) => (
+                        {(isProjectLeader && user ? [{ id: user.pk, email: user.email }] : projectLeaders).map((u) => (
                           <option key={u.id} value={u.id}>{u.email}</option>
                         ))}
                       </select>
