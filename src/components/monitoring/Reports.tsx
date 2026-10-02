@@ -11,6 +11,19 @@ import { NoActualData } from "../common/NoActualData";
 import { Field, Pill, ProtoModal, SkeletonRows, TableHead } from "../common/proto";
 
 type ReportKind = "monthly" | "midterm" | "terminal";
+const QUARTERS = ["q1", "q2", "q3", "q4"] as const;
+type ObjectiveRow = { objective: string } & Record<(typeof QUARTERS)[number], string>;
+
+/** The project's objectives as SF-017 rows; registration saves them as "1. ...\n2. ...". */
+const objectiveRows = (objectives: string): ObjectiveRow[] => {
+  const rows = objectives
+    .split("\n")
+    .map((line) => line.replace(/^\d+[.)]\s*/, "").trim())
+    .filter(Boolean)
+    .map((objective) => ({ objective, q1: "", q2: "", q3: "", q4: "" }));
+  return rows.length ? rows : [{ objective: "", q1: "", q2: "", q3: "", q4: "" }];
+};
+const badPercent = (v: string) => v.trim() !== "" && !(Number(v) >= 0 && Number(v) <= 100);
 
 const today = () => new Date().toLocaleDateString("en-CA");
 const td = "px-4 py-3 text-xs";
@@ -35,7 +48,7 @@ function ModalFooter({ onClose, onSave, saving, label }: { onClose: () => void; 
   );
 }
 
-export function ProgressReportsPanel({ project, canReport, canCertify, nameOf, onChanged, reloadKey }: { project: number; canReport: boolean; canCertify: boolean; nameOf: (id: number | null) => string; onChanged: () => void; reloadKey: number }) {
+export function ProgressReportsPanel({ project, objectives = "", canReport, canCertify, nameOf, onChanged, reloadKey }: { project: number; objectives?: string; canReport: boolean; canCertify: boolean; nameOf: (id: number | null) => string; onChanged: () => void; reloadKey: number }) {
   const [kind, setKind] = useState<ReportKind>("monthly");
   const [monthly, setMonthly] = useState<MonthlyProgressReport[] | null>(null);
   const [midterm, setMidterm] = useState<MidtermReport[]>([]);
@@ -43,6 +56,7 @@ export function ProgressReportsPanel({ project, canReport, canCertify, nameOf, o
   const [docs, setDocs] = useState<ProjectDocument[]>([]);
   const [show, setShow] = useState(false);
   const [f, setF] = useState<Record<string, string>>({ period: today().slice(0, 7), project_year: "1" });
+  const [objRows, setObjRows] = useState<ObjectiveRow[]>([]);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -77,10 +91,29 @@ export function ProgressReportsPanel({ project, canReport, canCertify, nameOf, o
       notify.error("Fill in the required fields.");
       return;
     }
+    const filledObjectives = objRows.filter((r) => r.objective.trim());
+    if (kind === "midterm" && filledObjectives.some((r) => QUARTERS.some((q) => badPercent(r[q])))) {
+      notify.error("% accomplishment must be from 0 to 100.");
+      return;
+    }
     setSaving(true);
     try {
       if (kind === "monthly") await monitoringApi.createMonthlyReport({ project, period: `${f.period}-01`, narrative: f.narrative || undefined, document });
-      if (kind === "midterm") await monitoringApi.createMidtermReport({ project, project_year: Number(f.project_year), narrative: f.narrative || undefined, expenditure_summary: f.expenditure_summary || undefined, document });
+      if (kind === "midterm")
+        await monitoringApi.createMidtermReport({
+          project,
+          project_year: Number(f.project_year),
+          narrative: f.narrative || undefined,
+          expenditure_summary: f.expenditure_summary || undefined,
+          objective_accomplishments: filledObjectives.map((r) => ({
+            objective: r.objective.trim(),
+            q1: r.q1.trim() === "" ? null : Number(r.q1),
+            q2: r.q2.trim() === "" ? null : Number(r.q2),
+            q3: r.q3.trim() === "" ? null : Number(r.q3),
+            q4: r.q4.trim() === "" ? null : Number(r.q4),
+          })),
+          document,
+        });
       if (kind === "terminal") await monitoringApi.createTerminalReport({ project, narrative: f.narrative || undefined, document });
       notify.success("Report submitted.");
       setShow(false);
@@ -120,7 +153,15 @@ export function ProgressReportsPanel({ project, canReport, canCertify, nameOf, o
             </button>
           ))}
         </div>
-        {canAdd && <AddButton label={`Submit ${labels[kind].split(" ")[0]} Report`} onClick={() => setShow(true)} />}
+        {canAdd && (
+          <AddButton
+            label={`Submit ${labels[kind].split(" ")[0]} Report`}
+            onClick={() => {
+              setObjRows(objectiveRows(objectives));
+              setShow(true);
+            }}
+          />
+        )}
       </div>
 
       {monthly === null ? (
@@ -147,11 +188,23 @@ export function ProgressReportsPanel({ project, canReport, canCertify, nameOf, o
             )}
             {kind === "midterm" && (
               <>
-                <TableHead cols={["Project Year", "Narrative", "Expenditure Summary", "Document", "Submitted"]} />
+                <TableHead cols={["Project Year", "Objectives (latest quarter %)", "Narrative", "Expenditure Summary", "Document", "Submitted"]} />
                 <tbody>
                   {midterm.map((r) => (
                     <tr key={r.id} className="border-t" style={{ borderColor: "#f1f5f9" }}>
                       <td className={td + " font-bold"} style={{ color: "#0d2a5e" }}>Year {r.project_year}</td>
+                      <td className={td + " max-w-[260px]"} style={{ color: "#334155" }}>
+                        {r.objective_accomplishments.length === 0
+                          ? "—"
+                          : r.objective_accomplishments.map((o, i) => {
+                              const latest = [...QUARTERS].reverse().find((q) => o[q] !== null);
+                              return (
+                                <p key={i} className="truncate" title={o.objective}>
+                                  {i + 1}. {o.objective} <b>{latest ? `${latest.toUpperCase()} ${o[latest]}%` : "no %"}</b>
+                                </p>
+                              );
+                            })}
+                      </td>
                       <td className={td + " max-w-[260px]"} style={{ color: "#334155" }}>{r.narrative || "—"}</td>
                       <td className={td + " max-w-[220px]"} style={{ color: "#64748b" }}>{r.expenditure_summary || "—"}</td>
                       <td className={td} style={{ color: "#0369a1" }}>{docName(r.document)}</td>
@@ -198,6 +251,61 @@ export function ProgressReportsPanel({ project, canReport, canCertify, nameOf, o
           {kind === "midterm" && (
             <Field label="Project Year" required>
               <input type="number" min="1" className={INPUT_CLS} style={invalidStyle(attempted && !f.project_year)} value={f.project_year ?? ""} onChange={set("project_year")} />
+            </Field>
+          )}
+          {kind === "midterm" && (
+            <Field label="Specific Objectives · % Accomplishment (SF-017)">
+              <div className="space-y-2">
+                <div className="grid gap-1.5 text-[11px] font-bold" style={{ gridTemplateColumns: "1fr repeat(4, 64px) 24px", color: "#64748b" }}>
+                  <span>Objective</span>
+                  {QUARTERS.map((q) => (
+                    <span key={q} className="text-center">{q.toUpperCase()} %</span>
+                  ))}
+                  <span />
+                </div>
+                {objRows.map((row, i) => (
+                  <div key={i} className="grid gap-1.5 items-start" style={{ gridTemplateColumns: "1fr repeat(4, 64px) 24px" }}>
+                    <textarea
+                      rows={2}
+                      className={INPUT_CLS + " resize-none"}
+                      style={INPUT_STYLE}
+                      value={row.objective}
+                      placeholder={`Objective ${i + 1}`}
+                      onChange={(e) => setObjRows(objRows.map((r, idx) => (idx === i ? { ...r, objective: e.target.value } : r)))}
+                    />
+                    {QUARTERS.map((q) => (
+                      <input
+                        key={q}
+                        type="number"
+                        min="0"
+                        max="100"
+                        className={INPUT_CLS + " text-center"}
+                        style={invalidStyle(badPercent(row[q]))}
+                        value={row[q]}
+                        onChange={(e) => setObjRows(objRows.map((r, idx) => (idx === i ? { ...r, [q]: e.target.value } : r)))}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      aria-label="Remove objective"
+                      onClick={() => setObjRows(objRows.filter((_, idx) => idx !== i))}
+                      className="mt-2 text-sm cursor-pointer hover:opacity-70"
+                      style={{ color: "#b91c1c" }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setObjRows([...objRows, { objective: "", q1: "", q2: "", q3: "", q4: "" }])}
+                  className="text-xs font-semibold cursor-pointer hover:underline"
+                  style={{ color: "#0d2a5e" }}
+                >
+                  + Add objective
+                </button>
+                <p className="text-[11px]" style={{ color: "#94a3b8" }}>Prefilled from the project's objectives. Leave a quarter blank if it hasn't been reached yet.</p>
+              </div>
             </Field>
           )}
           <Field label="Narrative">

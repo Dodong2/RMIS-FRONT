@@ -498,7 +498,7 @@ function MonitoringContent() {
               )}
 
               {tab === "evaluations" && <EvaluationsPanel project={project.id} canEvaluate={can(EVALUATE_ROLE_CODES)} reloadKey={reloadKey} onChanged={changed} />}
-              {tab === "reports" && <ProgressReportsPanel project={project.id} canReport={can(REPORT_ROLE_CODES)} canCertify={can(CERTIFY_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />}
+              {tab === "reports" && <ProgressReportsPanel project={project.id} objectives={project.objectives} canReport={can(REPORT_ROLE_CODES)} canCertify={can(CERTIFY_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />}
               {tab === "extensions" && (
                 <ExtensionsPanel project={project} canRequest={can(EXT_REQUEST_ROLE_CODES)} canEndorse={can(EXT_ENDORSE_ROLE_CODES)} canApprove={can(EXT_APPROVE_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />
               )}

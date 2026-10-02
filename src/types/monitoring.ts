@@ -8,12 +8,22 @@ export interface MonthlyProgressReport {
   submitted_at: string;
 }
 
+export interface ObjectiveAccomplishment {
+  objective: string;
+  q1: number | null;
+  q2: number | null;
+  q3: number | null;
+  q4: number | null;
+}
+
 export interface MidtermReport {
   id: number;
   project: number;
   project_year: number;
   narrative: string;
   expenditure_summary: string;
+  /** LSPU-RDO-SF-017: % accomplishment per objective per quarter (null = not reported) */
+  objective_accomplishments: ObjectiveAccomplishment[];
   document: number | null;
   submitted_by: number;
   submitted_at: string;

@@ -6,6 +6,7 @@ import type {
   ExtensionRequest,
   MidtermReport,
   MonthlyProgressReport,
+  ObjectiveAccomplishment,
   ProjectEvaluation,
   ProjectMonitoringStatus,
   RenewalApplication,
@@ -42,6 +43,7 @@ export const monitoringApi = {
     project_year: number;
     narrative?: string;
     expenditure_summary?: string;
+    objective_accomplishments?: ObjectiveAccomplishment[];
     document?: number | null;
   }): Promise<MidtermReport> => {
     const { data } = await apiClient.post("/api/monitoring/midterm-reports/", payload);
