@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
 import { personnelApi } from "../lib/personnelApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
-import type { Milestone, MilestoneStatus, Project } from "../types/research";
-import type { ProjectAssignment } from "../types/personnel";
+import type { Lead, Milestone, MilestoneStatus, Project, ProjectTeamMember } from "../types/research";
+import type { ProjectAssignment, Task } from "../types/personnel";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { AppShell } from "../components/layout/AppShell";
@@ -14,6 +14,8 @@ import { useAuth } from "../context/AuthContext";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type WPTab = "gantt" | "activities" | "deliverables";
+
+const nameOf = (p: Lead | null | undefined) => (p ? p.full_name || p.email : "—");
 
 const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "program_leader", "project_leader", "study_leader"];
 
@@ -112,7 +114,7 @@ function Gantt({ milestones, project, now }: { milestones: Milestone[]; project:
                 <p className="text-xs font-semibold truncate" style={{ color: "#334155" }}>{i + 1}. {m.title}</p>
               </div>
               <div className="shrink-0 text-center px-1 truncate" style={{ width: "110px" }}>
-                <p className="text-xs truncate" style={{ color: "#64748b" }}>{m.responsible_detail?.email.split("@")[0] ?? "—"}</p>
+                <p className="text-xs truncate" style={{ color: "#64748b" }}>{nameOf(m.responsible_detail)}</p>
               </div>
               <div className="flex-1 relative" style={{ height: "28px" }}>
                 <div className="absolute top-0 bottom-0 w-px z-10" style={{ left: `${todayPct}%`, background: "#ef4444", opacity: 0.5 }} />
@@ -159,6 +161,7 @@ function WorkPlanDetail({
   const [delayedOnly, setDelayedOnly] = useState(false);
   const [delayed, setDelayed] = useState<Milestone[] | null>(null);
   const [team, setTeam] = useState<ProjectAssignment[]>([]);
+  const [teamRows, setTeamRows] = useState<ProjectTeamMember[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [editing, setEditing] = useState<Milestone | "new" | null>(null);
@@ -177,6 +180,10 @@ function WorkPlanDetail({
     personnelApi
       .getAssignments({ project: project.id, active: true })
       .then((a) => active && setTeam(a))
+      .catch(() => undefined);
+    researchApi
+      .getTeamMembers(project.id)
+      .then((t) => active && setTeamRows(t))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -201,7 +208,12 @@ function WorkPlanDetail({
   );
   const seqOf = (id: number) => sorted.findIndex((m) => m.id === id) + 1;
   const s = summarize(sorted, now);
-  const people = [project.lead_detail, ...team.map((a) => a.user_detail)].filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i);
+  // Responsible Personnel (#13): project lead, team members registered with an account, and assigned staff.
+  const people: Lead[] = [
+    project.lead_detail,
+    ...teamRows.filter((t) => t.user !== null).map((t) => ({ id: t.user as number, email: "", full_name: t.name })),
+    ...team.map((a) => a.user_detail),
+  ].filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i);
   const activityRows = delayedOnly ? [...(delayed ?? [])].sort((a, b) => seqOf(a.id) - seqOf(b.id)) : sorted;
   const deliverables = sorted.filter((m) => m.deliverable.trim());
 
@@ -428,6 +440,8 @@ function WorkPlanDetail({
                               updating={updating === m.id}
                               onEdit={() => openEdit(m)}
                               onStatus={(st) => changeStatus(m, st)}
+                              people={people}
+                              onTasksChanged={() => setReloadKey((k) => k + 1)}
                             />
                           ))}
                         </tbody>
@@ -463,7 +477,7 @@ function WorkPlanDetail({
                                 </span>
                                 <span className="text-xs ml-2" style={{ color: "#64748b" }}>{m.title.length > 40 ? `${m.title.slice(0, 40)}…` : m.title}</span>
                               </td>
-                              <td className="px-4 py-2.5 text-xs" style={{ color: "#475569" }}>{m.responsible_detail?.email ?? "—"}</td>
+                              <td className="px-4 py-2.5 text-xs" style={{ color: "#475569" }}>{nameOf(m.responsible_detail)}</td>
                               <td className="px-4 py-2.5 text-xs font-mono" style={{ color: "#475569" }}>{m.target_date}</td>
                               <td className="px-4 py-2.5"><StatusDot status={m.status} /></td>
                             </tr>
@@ -513,7 +527,7 @@ function WorkPlanDetail({
               <select className={inputCls} style={inputSt} value={form.responsible} onChange={set("responsible")}>
                 <option value="">Unassigned</option>
                 {people.map((p) => (
-                  <option key={p.id} value={p.id}>{p.email}</option>
+                  <option key={p.id} value={p.id}>{nameOf(p)}</option>
                 ))}
               </select>
             </div>
@@ -540,6 +554,106 @@ function WorkPlanDetail({
   );
 }
 
+const TASK_STATUS_LABEL: Record<string, string> = { pending: "Pending", in_progress: "In Progress", for_review: "For Review", blocked: "Blocked", done: "Done" };
+
+/** The personnel tasks (activities) under one milestone, with "Add task" for leaders (client meeting 2026-10-01, #14). */
+function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: Milestone; canAdd: boolean; people: Lead[]; onChanged: () => void }) {
+  const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [reload, setReload] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ title: "", assignee: "", due_date: milestone.target_date });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    personnelApi
+      .getTasks({ project: milestone.project, milestone: milestone.id })
+      .then((t) => active && setTasks(t))
+      .catch(() => active && setTasks([]));
+    return () => {
+      active = false;
+    };
+  }, [milestone.id, milestone.project, reload]);
+
+  const save = async () => {
+    if (!form.title.trim() || !form.assignee) {
+      notify.error("Task title and assignee are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await personnelApi.createTask({
+        project: milestone.project,
+        milestone: milestone.id,
+        title: form.title.trim(),
+        assignee: Number(form.assignee),
+        due_date: form.due_date || undefined,
+      });
+      notify.success("Task added. The assignee was e-mailed.");
+      setForm({ title: "", assignee: "", due_date: milestone.target_date });
+      setAdding(false);
+      setReload((k) => k + 1);
+      onChanged();
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not add the task."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-lg p-3" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Tasks under this activity</p>
+        {canAdd && !adding && (
+          <button onClick={() => setAdding(true)} className="text-xs font-bold px-2 py-1 rounded-lg cursor-pointer transition-colors hover:bg-[#c7d8ef]" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
+            + Add task
+          </button>
+        )}
+      </div>
+      {tasks === null ? (
+        <p className="text-xs" style={{ color: "#94a3b8" }}>Loading…</p>
+      ) : tasks.length === 0 ? (
+        <p className="text-xs" style={{ color: "#94a3b8" }}>No tasks yet. Without tasks, the activity's status is set by hand.</p>
+      ) : (
+        <table className="w-full text-xs">
+          <tbody>
+            {tasks.map((t) => (
+              <tr key={t.id} className="border-t" style={{ borderColor: "#f1f5f9" }}>
+                <td className="py-1.5 pr-2 font-semibold" style={{ color: "#0d2a5e" }}>
+                  <Link to={`/tasks?project=${t.project}&task=${t.id}`} className="hover:underline">{t.title}</Link>
+                </td>
+                <td className="py-1.5 pr-2" style={{ color: "#475569" }}>{nameOf(t.assignee_detail)}</td>
+                <td className="py-1.5 pr-2 font-mono" style={{ color: "#64748b" }}>{t.due_date ?? "—"}</td>
+                <td className="py-1.5 pr-2" style={{ color: t.status === "done" ? "#059669" : "#0369a1" }}>{TASK_STATUS_LABEL[t.status] ?? t.status}</td>
+                <td className="py-1.5 font-mono font-bold text-right" style={{ color: "#0d2a5e" }}>{t.progress_pct}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {adding && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-2">
+          <input className={inputCls + " md:col-span-2"} style={inputSt} placeholder="Task title, e.g. Survey Barangay 1" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <select className={inputCls} style={inputSt} value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })}>
+            <option value="">Assignee…</option>
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>{nameOf(p)}</option>
+            ))}
+          </select>
+          <input type="date" className={inputCls} style={inputSt} value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+          <div className="md:col-span-4 flex justify-end gap-2">
+            <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer" style={{ background: "#f1f5f9", color: "#64748b" }}>Cancel</button>
+            <button onClick={save} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white cursor-pointer disabled:opacity-60" style={{ background: "#0d2a5e" }}>
+              {saving ? "Adding…" : "Add task"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActivityRow({
   m,
   seq,
@@ -550,6 +664,8 @@ function ActivityRow({
   updating,
   onEdit,
   onStatus,
+  people,
+  onTasksChanged,
 }: {
   m: Milestone;
   seq: number;
@@ -560,7 +676,10 @@ function ActivityRow({
   updating: boolean;
   onEdit: () => void;
   onStatus: (s: string) => void;
+  people: Lead[];
+  onTasksChanged: () => void;
 }) {
+  const openTasks = m.tasks_total - m.tasks_done;
   return (
     <>
       <tr className="border-t hover:bg-slate-50 cursor-pointer" style={{ borderColor: "#f1f5f9" }} onClick={onToggle}>
@@ -572,12 +691,22 @@ function ActivityRow({
             </svg>
             <p className="text-xs font-semibold" style={{ color: "#0d2a5e" }}>{m.title}</p>
           </div>
+          {m.tasks_total > 0 && (
+            <div className="flex items-center gap-2 mt-1 ml-4">
+              <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
+                <div className="h-full rounded-full" style={{ width: `${m.progress_pct}%`, background: m.progress_pct === 100 ? "#059669" : "#0891b2" }} />
+              </div>
+              <span className="text-[11px]" style={{ color: "#64748b" }}>
+                {m.tasks_done}/{m.tasks_total} tasks · {m.progress_pct}%
+              </span>
+            </div>
+          )}
         </td>
         <td className="px-3 py-2.5 text-xs whitespace-nowrap" style={{ color: "#64748b" }}>
           <p>{m.start_date ?? "—"}</p>
           <p style={{ color: "#94a3b8" }}>→ {m.target_date}</p>
         </td>
-        <td className="px-3 py-2.5 text-xs" style={{ color: "#475569" }}>{m.responsible_detail?.email ?? "—"}</td>
+        <td className="px-3 py-2.5 text-xs" style={{ color: "#475569" }}>{nameOf(m.responsible_detail)}</td>
         <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
           {canEdit ? (
             <select
@@ -588,7 +717,9 @@ function ActivityRow({
               style={{ background: STATUS_META[m.status].bg, color: STATUS_META[m.status].text }}
             >
               {Object.entries(STATUS_META).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
+                <option key={k} value={k} disabled={k === "done" && openTasks > 0 && m.status !== "done"}>
+                  {k === "done" && openTasks > 0 && m.status !== "done" ? `Done (${openTasks} open task${openTasks !== 1 ? "s" : ""})` : v.label}
+                </option>
               ))}
             </select>
           ) : (
@@ -628,6 +759,7 @@ function ActivityRow({
                 )}
               </div>
             </div>
+            <MilestoneTasks milestone={m} canAdd={canEdit} people={people} onChanged={onTasksChanged} />
           </td>
         </tr>
       )}

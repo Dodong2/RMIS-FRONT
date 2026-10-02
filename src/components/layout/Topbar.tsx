@@ -103,16 +103,16 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
               </div>
               {alerts.length === 0 ? (
                 <p className="px-4 py-6 text-xs text-center" style={{ color: "#94a3b8" }}>
-                  {inbox ? "No risk alerts in your scope." : "Loading alerts…"}
+                  {inbox ? "No alerts in your scope." : "Loading alerts…"}
                 </p>
               ) : (
                 <ul className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
                   {alerts.map((n) => (
                     <li
-                      key={n.project}
+                      key={n.kind === "milestone" ? `m${n.milestone}` : `p${n.project}`}
                       onClick={() => {
                         setNotifOpen(false);
-                        navigate(`/projects/${n.project}`);
+                        navigate(n.link);
                       }}
                       className="px-4 py-3 flex gap-3 hover:bg-slate-50 cursor-pointer"
                     >
@@ -120,7 +120,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
                       <div>
                         <p className="text-xs leading-relaxed" style={{ color: "#334155" }}>{n.text}</p>
                         <p className="text-xs mt-0.5 capitalize" style={{ color: "#94a3b8" }}>
-                          {n.risk_level} risk · score {n.risk_score}
+                          {n.kind === "milestone" ? "Work plan · overdue milestone" : `${n.risk_level} risk · score ${n.risk_score}`}
                         </p>
                       </div>
                     </li>

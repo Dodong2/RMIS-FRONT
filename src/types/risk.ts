@@ -107,17 +107,32 @@ export interface RiskUpdate {
   created_at: string;
 }
 
-export interface RiskAlert {
+interface AlertBase {
   project: number;
   project_code: string;
   title: string;
+  /** Where clicking the alert goes, e.g. /projects/12 or /work-plan?project=12 */
+  link: string;
+  type: "warning" | "danger";
+  text: string;
+}
+
+export interface ProjectRiskAlert extends AlertBase {
+  kind: "risk";
   risk_level: RiskLevel;
   risk_score: number;
   top_trigger: string;
   recommended_action: string;
-  type: "warning" | "danger";
-  text: string;
 }
+
+/** Overdue, not-done work plan milestone; goes to the project's leader and system_admin (client meeting 2026-10-01). */
+export interface MilestoneAlert extends AlertBase {
+  kind: "milestone";
+  milestone: number;
+  days_overdue: number;
+}
+
+export type RiskAlert = ProjectRiskAlert | MilestoneAlert;
 
 export interface RiskAlertInbox {
   as_of: string;

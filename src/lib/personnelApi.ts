@@ -24,6 +24,7 @@ export const personnelApi = {
     params: {
       project?: number;
       study?: number;
+      milestone?: number;
       assignee?: number;
       status?: TaskStatus;
       priority?: TaskPriority;
@@ -38,6 +39,7 @@ export const personnelApi = {
   createTask: async (payload: {
     project: number;
     study?: number | null;
+    milestone?: number | null;
     title: string;
     description?: string;
     due_date?: string;

@@ -33,6 +33,8 @@ export type MilestoneStatus = "pending" | "in_progress" | "done" | "delayed";
 export interface Lead {
   id: number;
   email: string;
+  /** First + last name, or the e-mail when the account has no name */
+  full_name?: string;
 }
 
 export interface Program {
@@ -172,5 +174,9 @@ export interface Milestone {
   responsible: number | null;
   responsible_detail: Lead | null;
   remarks: string;
+  /** Personnel tasks under this milestone (client meeting 2026-10-01, #14) */
+  tasks_total: number;
+  tasks_done: number;
+  progress_pct: number;
   created_at: string;
 }

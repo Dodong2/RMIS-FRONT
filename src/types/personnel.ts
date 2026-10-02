@@ -42,6 +42,7 @@ export interface Task {
   logged_hours: string;
   /** Latest % completed the assignee reported (100 when done) */
   progress_pct: number;
+  milestone: number | null;
   tags: string[];
   deliverables: TaskDeliverable[];
   assignee: number;

@@ -16,7 +16,7 @@ import type {
   TaskUpdateKind,
   WorkloadRow,
 } from "../types/personnel";
-import type { Lead, Project, Study } from "../types/research";
+import type { Lead, Milestone, Project, Study } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
@@ -593,7 +593,8 @@ function CreateTaskModal({
   onClose: () => void;
 }) {
   const [studies, setStudies] = useState<Study[]>([]);
-  const [form, setForm] = useState({ title: "", description: "", assignee: "", study: "", priority: "medium", due_date: "", estimated_hours: "", tags: "" });
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [form, setForm] = useState({ title: "", description: "", assignee: "", study: "", milestone: "", priority: "medium", due_date: "", estimated_hours: "", tags: "" });
   const [deliverables, setDeliverables] = useState([""]);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -604,6 +605,10 @@ function CreateTaskModal({
     researchApi
       .getStudies(project.id)
       .then((s) => active && setStudies(s))
+      .catch(() => undefined);
+    researchApi
+      .getMilestones(project.id)
+      .then((m) => active && setMilestones(m))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -621,6 +626,7 @@ function CreateTaskModal({
       const task = await personnelApi.createTask({
         project: project.id,
         study: form.study ? Number(form.study) : null,
+        milestone: form.milestone ? Number(form.milestone) : null,
         title: form.title,
         description: form.description || undefined,
         due_date: form.due_date || undefined,
@@ -673,6 +679,15 @@ function CreateTaskModal({
               <option value="">{people.length ? "— Select team member —" : "No one assigned to this project yet"}</option>
               {people.map((p) => (
                 <option key={p.id} value={p.id}>{p.email}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label-field">Work Plan Milestone</label>
+            <select className={inputCls} style={inputSt} value={form.milestone} onChange={set("milestone")}>
+              <option value="">Not under a milestone</option>
+              {milestones.map((m) => (
+                <option key={m.id} value={m.id}>{m.title} (due {m.target_date})</option>
               ))}
             </select>
           </div>
@@ -1495,6 +1510,7 @@ function TasksContent() {
               const open = projTasks.filter((t) => t.status !== "done").length;
               const critical = projTasks.filter((t) => t.priority === "critical" && t.status !== "done").length;
               const overdue = projTasks.filter((t) => isOverdue(t, now)).length;
+              const donePct = projTasks.length ? Math.round((projTasks.filter((t) => t.status === "done").length / projTasks.length) * 100) : 0;
               return (
                 <div
                   key={proj.id}
@@ -1517,11 +1533,14 @@ function TasksContent() {
                         )}
                       </div>
                       <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>{proj.title}</p>
-                      <p className="text-xs mt-1" style={{ color: "#64748b" }}>PI: {proj.lead_detail.email}</p>
+                      <p className="text-xs mt-1" style={{ color: "#64748b" }}>PI: {proj.lead_detail.full_name || proj.lead_detail.email}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-3xl font-black" style={{ color: "#0d2a5e" }}>{projTasks.length}</p>
                       <p className="text-xs" style={{ color: "#94a3b8" }}>tasks</p>
+                      {projTasks.length > 0 && (
+                        <p className="text-xs font-bold mt-1" style={{ color: donePct === 100 ? "#059669" : "#0891b2" }}>{donePct}% tasks completed</p>
+                      )}
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
