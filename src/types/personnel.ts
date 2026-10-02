@@ -123,6 +123,7 @@ export interface PersonnelChange {
 export interface LeaderLoad {
   user: number;
   email: string;
+  full_name: string;
   role: string;
   active_programs: number;
   program_cap: number;

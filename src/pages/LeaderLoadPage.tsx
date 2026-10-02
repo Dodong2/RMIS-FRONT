@@ -35,7 +35,7 @@ function LeaderLoadContent() {
       .getLeaderLoad()
       .then((data) => {
         if (!active) return;
-        setLeaders([...data].sort((a, b) => b.active_programs + b.active_projects - (a.active_programs + a.active_projects)));
+        setLeaders([...data].sort((a, b) => b.active_projects - a.active_projects));
       })
       .catch(() => {
         if (!active) return;
@@ -47,26 +47,26 @@ function LeaderLoadContent() {
     };
   }, []);
 
-  const atCap = (leaders ?? []).filter((l) => l.active_programs >= l.program_cap || l.active_projects >= l.project_cap).length;
+  // Program is hidden from the UI (client meeting 2026-10-01, #2); the program cap still applies in the backend.
+  const atCap = (leaders ?? []).filter((l) => l.active_projects >= l.project_cap).length;
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <KpiCard label="Leaders" value={leaders === null ? "…" : leaders.length} />
-        <KpiCard label="Active Programs" value={leaders === null ? "…" : leaders.reduce((s, l) => s + l.active_programs, 0)} />
         <KpiCard label="Active Projects" value={leaders === null ? "…" : leaders.reduce((s, l) => s + l.active_projects, 0)} />
         <KpiCard label="At Concurrency Cap" value={leaders === null ? "…" : atCap} color={atCap ? "#dc2626" : "#0d2a5e"} />
       </div>
 
       <div className="rounded-xl p-3 text-xs" style={{ background: "#f0f9ff", border: "1px solid #bae6fd", color: "#0369a1" }}>
-        A leader may lead up to 2 active programs and 3 active projects. Institutional-funded records are stricter: a leader who already
-        leads any active record cannot take on another institutional-funded one.
+        A leader may lead up to 3 active projects. Institutional-funded projects are stricter: a leader who already leads an active
+        project cannot take on another institutional-funded one.
       </div>
 
       {leaders === null ? (
         <SkeletonRows rows={3} />
       ) : leaders.length === 0 ? (
-        <NoActualData hint="Active program and project leaders will appear here." />
+        <NoActualData hint="Active project leaders will appear here." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {leaders.map((l) => (
@@ -76,12 +76,11 @@ function LeaderLoadContent() {
                   {l.email.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-bold text-sm truncate" style={{ color: "#0d2a5e" }}>{l.email}</p>
+                  <p className="font-bold text-sm truncate" style={{ color: "#0d2a5e" }}>{l.full_name || l.email}</p>
                   <p className="text-xs font-semibold mt-0.5" style={{ color: "#0891b2" }}>{ROLE_META[l.role]?.name ?? l.role}</p>
                 </div>
               </div>
               <div className="space-y-3">
-                <LoadBar label="Active Programs" count={l.active_programs} cap={l.program_cap} />
                 <LoadBar label="Active Projects" count={l.active_projects} cap={l.project_cap} />
               </div>
             </div>
