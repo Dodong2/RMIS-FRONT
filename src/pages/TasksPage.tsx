@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { personnelApi } from "../lib/personnelApi";
+import { reportsApi } from "../lib/reportsApi";
+import type { ReportFormat } from "../types/reports";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
@@ -88,6 +90,17 @@ function HoursBar({ estimated, logged }: { estimated: number; logged: number }) 
   );
 }
 
+function ProgressBar({ pct }: { pct: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? "#059669" : "#0891b2" }} />
+      </div>
+      <span className="text-xs font-mono font-bold w-10 text-right" style={{ color: "#0d2a5e" }}>{pct}%</span>
+    </div>
+  );
+}
+
 function Overlay({ children, onClose, width = "max-w-2xl" }: { children: React.ReactNode; onClose: () => void; width?: string }) {
   return createPortal(
     <div
@@ -137,6 +150,7 @@ function TaskDetailModal({
   const [note, setNote] = useState("");
   const [kind, setKind] = useState<TaskUpdateKind>("update");
   const [hours, setHours] = useState("");
+  const [progress, setProgress] = useState("");
   const [posting, setPosting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [remarks, setRemarks] = useState("");
@@ -186,11 +200,16 @@ function TaskDetailModal({
 
   const post = async () => {
     if (!note.trim()) return;
+    if (progress !== "" && !(Number(progress) >= 0 && Number(progress) <= 100)) {
+      notify.error("% completed must be from 0 to 100.");
+      return;
+    }
     setPosting(true);
     try {
-      await personnelApi.postTaskUpdate(task.id, { note: note.trim(), kind, hours: hours || undefined });
+      await personnelApi.postTaskUpdate(task.id, { note: note.trim(), kind, hours: hours || undefined, progress_pct: progress === "" ? undefined : Number(progress) });
       setNote("");
       setHours("");
+      setProgress("");
       await refreshTask();
       setReloadKey((k) => k + 1);
     } catch (err) {
@@ -386,6 +405,7 @@ function TaskDetailModal({
                             <span className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{u.author_email}</span>
                             <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: cm.bg, color: cm.text }}>{cm.label}</span>
                             {num(u.hours) > 0 && <span className="text-xs font-mono" style={{ color: "#0891b2" }}>+{num(u.hours)}h</span>}
+                            {u.progress_pct !== null && <span className="text-xs font-mono font-bold" style={{ color: "#059669" }}>{u.progress_pct}%</span>}
                             {u.new_status && <StatusBadge s={u.new_status} />}
                           </div>
                           <span className="text-xs font-mono shrink-0" style={{ color: "#94a3b8" }}>{u.created_at.slice(0, 10)}</span>
@@ -437,6 +457,17 @@ function TaskDetailModal({
                       style={inputSt}
                       placeholder="Hours worked"
                     />
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={progress}
+                      onChange={(e) => setProgress(e.target.value)}
+                      className={inputCls + " w-32"}
+                      style={inputSt}
+                      placeholder={`% done (now ${task.progress_pct}%)`}
+                      aria-label="% completed"
+                    />
                     <button
                       onClick={post}
                       disabled={!note.trim() || posting}
@@ -469,6 +500,11 @@ function TaskDetailModal({
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Hours</p>
               <HoursBar estimated={num(task.estimated_hours)} logged={num(task.logged_hours)} />
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>% Completed</p>
+              <ProgressBar pct={task.progress_pct} />
             </div>
 
             {canAssign && task.status === "for_review" && (
@@ -743,6 +779,7 @@ function KanbanCard({ task, now, onClick }: { task: Task; now: number; onClick: 
           <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{doneDels}/{task.deliverables.length} deliverables</p>
         </div>
       )}
+      <ProgressBar pct={task.progress_pct} />
       <div className="flex items-center justify-between">
         <HoursBar estimated={num(task.estimated_hours)} logged={num(task.logged_hours)} />
         {task.due_date && (
@@ -761,12 +798,14 @@ function ProjectTaskBoard({
   userId,
   now,
   onBack,
+  initialTaskId = null,
 }: {
   project: Project;
   canAssign: boolean;
   userId: number | undefined;
   now: number;
   onBack: () => void;
+  initialTaskId?: number | null;
 }) {
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [overdueIds, setOverdueIds] = useState<Set<number> | null>(null);
@@ -774,7 +813,7 @@ function ProjectTaskBoard({
   const [workload, setWorkload] = useState<WorkloadRow[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [view, setView] = useState<BoardView>("kanban");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(initialTaskId);
   const [showCreate, setShowCreate] = useState(false);
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
   const [filterMember, setFilterMember] = useState("all");
@@ -1188,6 +1227,166 @@ function ProjectTaskBoard({
   );
 }
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Month grid of task deadlines (client follow-up 2026-10-02: the assignment e-mail links here with ?task=). */
+function TaskCalendar({
+  tasks,
+  projects,
+  highlight,
+  now,
+  onOpen,
+  onBack,
+}: {
+  tasks: Task[];
+  projects: Project[];
+  highlight: number | null;
+  now: number;
+  onOpen: (t: Task) => void;
+  onBack: () => void;
+}) {
+  const highlighted = tasks.find((t) => t.id === highlight);
+  const [month, setMonth] = useState(() => {
+    const base = highlighted?.due_date ? new Date(highlighted.due_date + "T00:00:00") : new Date(now);
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+  // The tasks load after the first render; jump to the linked task's month once it arrives.
+  const [jumped, setJumped] = useState(false);
+  if (!jumped && highlighted?.due_date) {
+    const d = new Date(highlighted.due_date + "T00:00:00");
+    setMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+    setJumped(true);
+  }
+  const code = (t: Task) => projects.find((p) => p.id === t.project)?.project_code ?? "";
+  const first = new Date(month.getFullYear(), month.getMonth(), 1 - month.getDay());
+  const days = Array.from({ length: 42 }, (_, i) => new Date(first.getFullYear(), first.getMonth(), first.getDate() + i));
+  const byDay = new Map<string, Task[]>();
+  tasks.forEach((t) => t.due_date && byDay.set(t.due_date, [...(byDay.get(t.due_date) ?? []), t]));
+  const today = ymd(new Date(now));
+  const undated = tasks.filter((t) => !t.due_date && t.status !== "done");
+  const shift = (n: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1));
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold cursor-pointer" style={{ color: "#0891b2" }}>
+        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+        Projects
+      </button>
+      <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 border-b" style={{ borderColor: "#e2e8f0" }}>
+          <p className="font-black text-lg" style={{ color: "#0d2a5e" }}>
+            📅 {month.toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
+          </p>
+          <div className="flex gap-2">
+            {[
+              ["‹ Prev", () => shift(-1)],
+              ["Today", () => setMonth(new Date(new Date(now).getFullYear(), new Date(now).getMonth(), 1))],
+              ["Next ›", () => shift(1)],
+            ].map(([label, fn]) => (
+              <button
+                key={label as string}
+                onClick={fn as () => void}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors hover:bg-[#c7d8ef]"
+                style={{ background: "#e0eaf7", color: "#0d2a5e" }}
+              >
+                {label as string}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-7 min-w-[700px]">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="px-2 py-1.5 text-xs font-bold text-center" style={{ background: "#f8fafc", color: "#64748b" }}>{d}</div>
+            ))}
+            {days.map((d) => {
+              const key = ymd(d);
+              const inMonth = d.getMonth() === month.getMonth();
+              return (
+                <div key={key} className="min-h-24 p-1.5 border-t border-l space-y-1" style={{ borderColor: "#f1f5f9", background: inMonth ? "white" : "#fafafa" }}>
+                  <p className="text-xs font-bold" style={{ color: key === today ? "#0891b2" : inMonth ? "#334155" : "#cbd5e1" }}>
+                    {key === today ? `● ${d.getDate()}` : d.getDate()}
+                  </p>
+                  {(byDay.get(key) ?? []).map((t) => {
+                    const meta = STATUS_META[t.status];
+                    const late = isOverdue(t, now);
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => onOpen(t)}
+                        title={`${code(t)} · ${t.title} · ${meta.label} · ${t.progress_pct}%`}
+                        className="block w-full text-left px-1.5 py-1 rounded text-[11px] leading-tight cursor-pointer transition-opacity hover:opacity-80"
+                        style={{
+                          background: late ? "#fee2e2" : meta.bg,
+                          color: late ? "#991b1b" : meta.text,
+                          outline: t.id === highlight ? "2px solid #0d2a5e" : undefined,
+                        }}
+                      >
+                        <span className="font-mono font-bold">{code(t)}</span> {t.title}
+                        <span className="block opacity-75">{late ? "Overdue" : meta.label} · {t.progress_pct}%</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {undated.length > 0 && (
+          <div className="px-5 py-3 border-t text-xs" style={{ borderColor: "#e2e8f0", color: "#64748b" }}>
+            <b>No deadline:</b>{" "}
+            {undated.map((t, i) => (
+              <button key={t.id} onClick={() => onOpen(t)} className="cursor-pointer hover:underline" style={{ color: "#0d2a5e" }}>
+                {i ? ", " : ""}
+                {code(t)} {t.title}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Project staff: download the Monthly Accomplishment Report pulled from their task updates. */
+function AccomplishmentDownload() {
+  const [month, setMonth] = useState(() => new Date().toLocaleDateString("en-CA").slice(0, 7));
+  const [fileFormat, setFileFormat] = useState<ReportFormat>("pdf");
+  const [busy, setBusy] = useState(false);
+  const download = async () => {
+    setBusy(true);
+    try {
+      await reportsApi.downloadAccomplishment({ month, file_format: fileFormat });
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not generate the report."));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex items-center gap-1.5 rounded-xl px-2 py-1" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+      <span className="text-xs font-bold" style={{ color: "#64748b" }}>Accomplishment Report</span>
+      <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="text-xs px-1.5 py-1 rounded border" style={{ borderColor: "#e2e8f0" }} />
+      <select value={fileFormat} onChange={(e) => setFileFormat(e.target.value as ReportFormat)} className="text-xs px-1.5 py-1 rounded border" style={{ borderColor: "#e2e8f0" }}>
+        {(["pdf", "docx", "xlsx", "csv"] as ReportFormat[]).map((f) => (
+          <option key={f} value={f}>{f.toUpperCase()}</option>
+        ))}
+      </select>
+      <button
+        onClick={download}
+        disabled={busy || !month}
+        className="px-2.5 py-1 rounded-lg text-xs font-bold text-white cursor-pointer disabled:opacity-60 transition-opacity hover:opacity-90"
+        style={{ background: "#0d2a5e" }}
+      >
+        {busy ? "…" : "⬇"}
+      </button>
+    </div>
+  );
+}
+
 function TasksContent() {
   const { user } = useAuth();
   const canAssign = !!user?.role && TASK_ASSIGNER_CODES.includes(user.role.code);
@@ -1216,7 +1415,28 @@ function TasksContent() {
 
   const selected = projects?.find((p) => p.id === Number(params.get("project")));
   if (selected) {
-    return <ProjectTaskBoard project={selected} canAssign={canAssign} userId={user?.pk} now={now} onBack={() => setParams({})} />;
+    return (
+      <ProjectTaskBoard
+        project={selected}
+        canAssign={canAssign}
+        userId={user?.pk}
+        now={now}
+        onBack={() => setParams({})}
+        initialTaskId={Number(params.get("task")) || null}
+      />
+    );
+  }
+  if (params.get("view") === "calendar") {
+    return (
+      <TaskCalendar
+        tasks={tasks}
+        projects={projects ?? []}
+        highlight={Number(params.get("task")) || null}
+        now={now}
+        onOpen={(t) => setParams({ project: String(t.project), task: String(t.id) })}
+        onBack={() => setParams({})}
+      />
+    );
   }
 
   const eligible = (projects ?? []).filter((p) => canAssign || tasks.some((t) => t.project === p.id));
@@ -1248,11 +1468,21 @@ function TasksContent() {
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <p className="font-black text-lg" style={{ color: "#0d2a5e" }}>{canAssign ? "Select Project" : "Your Assigned Work"}</p>
-          <p className="text-xs" style={{ color: "#94a3b8" }}>
-            {eligible.length} project{eligible.length !== 1 ? "s" : ""}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {user?.role?.code === "project_staff" && <AccomplishmentDownload />}
+            <button
+              onClick={() => setParams({ view: "calendar" })}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors hover:bg-[#c7d8ef]"
+              style={{ background: "#e0eaf7", color: "#0d2a5e" }}
+            >
+              📅 Calendar
+            </button>
+            <p className="text-xs" style={{ color: "#94a3b8" }}>
+              {eligible.length} project{eligible.length !== 1 ? "s" : ""}
+            </p>
+          </div>
         </div>
         <div className="space-y-3">
           {projects === null ? (

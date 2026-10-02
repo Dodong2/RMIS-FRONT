@@ -81,7 +81,7 @@ export const personnelApi = {
   },
   postTaskUpdate: async (
     id: number,
-    payload: { note: string; kind: TaskUpdateKind; hours?: string; new_status?: TaskStatus | "" },
+    payload: { note: string; kind: TaskUpdateKind; hours?: string; progress_pct?: number; new_status?: TaskStatus | "" },
   ): Promise<TaskUpdate> => {
     const { data } = await apiClient.post(`/api/personnel/tasks/${id}/updates/`, payload);
     return data;

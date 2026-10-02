@@ -52,6 +52,9 @@ export const reportsApi = {
     year?: string;
     file_format: ReportFormat;
   }) => downloadReport("/api/reports/projects/", params, `project_list.${params.file_format}`),
+  /** Project staff Monthly Accomplishment Report, pulled from their task updates; month = "YYYY-MM", user defaults to self. */
+  downloadAccomplishment: (params: { month: string; user?: number; file_format: ReportFormat }) =>
+    downloadReport("/api/reports/accomplishment/", params, `accomplishment_${params.month}.${params.file_format}`),
   downloadModule: (
     type: "financial" | "compliance" | "personnel" | "outputs",
     params: { campus?: string; funding_type?: string; file_format: ReportFormat },

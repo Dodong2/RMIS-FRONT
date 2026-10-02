@@ -40,6 +40,8 @@ export interface Task {
   priority: TaskPriority;
   estimated_hours: string | null;
   logged_hours: string;
+  /** Latest % completed the assignee reported (100 when done) */
+  progress_pct: number;
   tags: string[];
   deliverables: TaskDeliverable[];
   assignee: number;
@@ -65,6 +67,7 @@ export interface TaskUpdate {
   note: string;
   kind: TaskUpdateKind;
   hours: string;
+  progress_pct: number | null;
   new_status: TaskStatus | "";
   created_at: string;
 }
