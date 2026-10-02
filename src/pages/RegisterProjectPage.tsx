@@ -163,6 +163,8 @@ function ExcelImport() {
   const [errors, setErrors] = useState<ProjectImportError[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [preview, setPreview] = useState<ProposalData | null>(null);
 
   const handleTemplate = async () => {
     setIsDownloading(true);
@@ -172,6 +174,29 @@ function ExcelImport() {
       notify.error("Could not download the template.");
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const showImportErrors = (err: unknown, fallback: string) => {
+    const data = (err as { response?: { data?: { errors?: ProjectImportError[] } } })?.response?.data;
+    if (data?.errors?.length) {
+      setErrors(data.errors);
+      notify.error(`Nothing was saved. Fix the ${data.errors.length} issue${data.errors.length !== 1 ? "s" : ""} below and upload again.`);
+    } else {
+      notify.error(errorMessage(err, fallback));
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!file) return;
+    setIsPreviewing(true);
+    setErrors([]);
+    try {
+      setPreview(await researchApi.previewImport(file));
+    } catch (err) {
+      showImportErrors(err, "Could not read the workbook.");
+    } finally {
+      setIsPreviewing(false);
     }
   };
 
@@ -187,13 +212,7 @@ function ExcelImport() {
       notify.success(`Project ${project.project_code} registered from Excel.`);
       navigate(`/projects/${project.id}`);
     } catch (err) {
-      const data = (err as { response?: { data?: { errors?: ProjectImportError[] } } })?.response?.data;
-      if (data?.errors?.length) {
-        setErrors(data.errors);
-        notify.error(`Nothing was saved. Fix the ${data.errors.length} issue${data.errors.length !== 1 ? "s" : ""} below and upload again.`);
-      } else {
-        notify.error(errorMessage(err, "Could not import the workbook."));
-      }
+      showImportErrors(err, "Could not import the workbook.");
     } finally {
       setIsUploading(false);
     }
@@ -283,15 +302,26 @@ function ExcelImport() {
         <button onClick={() => navigate("/projects")} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
           Cancel
         </button>
-        <button
-          onClick={handleUpload}
-          disabled={isUploading || !file}
-          className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: file ? "#0d2a5e" : "#94a3b8" }}
-        >
-          {isUploading ? "Importing…" : "Upload & Register Project"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handlePreview}
+            disabled={isPreviewing || isUploading || !file}
+            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors hover:bg-[#c7d8ef] disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: "#e0eaf7", color: "#0d2a5e" }}
+          >
+            {isPreviewing ? "Reading…" : "👁 View as SF-018"}
+          </button>
+          <button
+            onClick={handleUpload}
+            disabled={isUploading || !file}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+            style={{ background: file ? "#0d2a5e" : "#94a3b8" }}
+          >
+            {isUploading ? "Importing…" : "Upload & Register Project"}
+          </button>
+        </div>
       </div>
+      {preview && <ProposalPreview data={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }

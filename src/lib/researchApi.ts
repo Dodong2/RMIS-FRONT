@@ -1,3 +1,4 @@
+import type { ProposalData } from "../components/registration/ProposalPreview";
 import { apiClient } from "./apiClient";
 import { downloadReport } from "./reportsApi";
 import type { Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
@@ -92,6 +93,13 @@ export const researchApi = {
     form.append("file", file);
     const { data } = await apiClient.post("/api/projects/import/", form);
     return data;
+  },
+  /** Same import with ?dry_run=1: nothing is saved, returns the SF-018 preview data (errors come back as a 400 like a real upload). */
+  previewImport: async (file: File): Promise<ProposalData> => {
+    const form = new FormData();
+    form.append("file", file);
+    const { data } = await apiClient.post("/api/projects/import/", form, { params: { dry_run: 1 } });
+    return data.preview;
   },
   getTeamMembers: async (projectId: number): Promise<ProjectTeamMember[]> => {
     const { data } = await apiClient.get("/api/project-team/", { params: { project: projectId } });
