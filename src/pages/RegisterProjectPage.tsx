@@ -9,6 +9,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
+import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser, Role } from "../types/auth";
 import { authApi } from "../lib/authApi";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
@@ -748,7 +749,7 @@ function RegisterProjectContent() {
                       <input type="date" className={inputCls} style={inputSt} value={form.target_end_date} onChange={set("target_end_date")} />
                     </Field>
                     <Field label="Total Project/Study Cost (PHP ₱)">
-                      <input type="number" min="0" step="0.01" className={inputCls} style={inputSt} value={form.total_cost} onChange={set("total_cost")} placeholder="0.00" />
+                      <MoneyInput className={inputCls} style={inputSt} value={form.total_cost} onChange={(v) => setForm((p) => ({ ...p, total_cost: v }))} />
                     </Field>
                     <Field label="REI Thrust">
                       <input className={inputCls} style={inputSt} value={form.rei_thrust} onChange={set("rei_thrust")} placeholder="e.g. Sustainable Agriculture" />
@@ -1037,15 +1038,12 @@ function RegisterProjectContent() {
                               <div key={i} className="flex flex-wrap md:flex-nowrap gap-2 items-start">
                                 <input className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(e) => updateLib(i, { description: e.target.value })} placeholder="Particulars, e.g. Travel Expenses" />
                                 {QUARTERS.map((q, qi) => (
-                                  <input
+                                  <MoneyInput
                                     key={q}
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
                                     className={inputCls + " max-w-28"}
                                     style={inputSt}
                                     value={r[q]}
-                                    onChange={(e) => updateLib(i, { [q]: e.target.value })}
+                                    onChange={(v) => updateLib(i, { [q]: v })}
                                     placeholder={`QTR${qi + 1}`}
                                     aria-label={`QTR${qi + 1}`}
                                   />
