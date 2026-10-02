@@ -1,5 +1,27 @@
 # RMIS Frontend — Current Status
 
+## Client changes 2026-10-01/02 — READ THIS FIRST
+Branch `feat/client-changes-2026-10-01` (20 commits, not merged to `main`), paired with the same branch in rmis-backend.
+Plan, decisions and per-task notes live in rmis-backend `tasks/client-2026-10-01/todo.md`. Carl tests with
+`RMIS_Explainer_and_Testing_Guide.docx` (PART 3) and the BRIDGI files in `dss/Dataset/`.
+- **Option A is REVERSED**: `project_leader` is back in `REGISTRATION_ROLE_CODES`; the Project Leader field is locked
+  to themselves. The 2026-09-29 notes below (registration = admin/CRC/DRD/RIUH only) are history.
+- Program removed from the UI (no Register Program, programs table/tab, Parent Program, Leader Load programs).
+- Register Approved Project wizard: per-step required fields (`STEP_REQUIRED`), duplicate-code toast, campus cards
+  only, `UserPicker` team rows with a free-text fallback, study titles, Annex A endorsers by role, LIB step, 6Ps and
+  work plan rows (step "6Ps, Beneficiaries & Work Plan"), `MoneyInput` for pesos, and `ProposalPreview` (SF-018) in
+  Manual and Excel modes (Excel uses the backend's `?dry_run=1`).
+- Budget: no Funding Source anywhere. Procurement: same table for leaders (read-only Action cell), KPI strip that follows
+  the project filter only.
+- Work Plan: milestones show task progress, expand to their tasks with "+ Add task", Done disabled while tasks are open,
+  names (not e-mails) for Responsible Personnel. Tasks: Milestone select, % completed per update and per task,
+  "N% tasks completed" per project, Calendar view (`/tasks?view=calendar&task=ID`, linked from the assignment e-mail),
+  Monthly Accomplishment Report download (staff: own; leaders: pick a staff member on the board).
+- Monitoring: midterm form has the SF-017 % per objective (Q1–Q4) table. Reports: Appendix E/F follow SF-017/SF-16.
+- Bell: alerts have `kind` ("risk" | "milestone") and `link`; overdue milestones open the work plan.
+- Global hover/pointer for every enabled button lives in `src/index.css` (`@layer base`), not per button.
+- Carl runs the dev servers himself (Vite :5173 against Django :8002); don't start them.
+
 ## Module we're on
 Prototype UI clone (`tasks/plan.md`, `tasks/todo.md`): T1–T29 are done and committed. What's left is human work: the
 browser reviews for Checkpoints D, E and F plus the "Complete" sign-off (see "Next thing to do").
@@ -659,89 +681,12 @@ pattern is pre-clone.
   clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
-2026-09-26, all committed:
-1. **SF-018 registration + Excel upload** (`1d7ccd7`). Synced with rmis-backend `cdbb7d0`/`56d18c8`. Details are in the
-   Module 2 bullet.
-2. **rmis-backend `d3de4be`** (made by me in the backend repo): `USERS_BY_ROLE` widened to every projects.register
-   role, plus migration `accounts/0010`. Without it, DRD/RIUH/leaders got a 403 on the leader picker.
-3. **Mock audit.** 6 mocks were registered. None had a backend endpoint at the time.
-4. **3 mocks replaced with real endpoints** (`1379772`). Carl built rmis-backend `e007e3f`/`634e02d` (P13–P15) in
-   between, and I synced with it:
-   - the Topbar bell uses `risk/alerts/`, and clicking an alert opens its project
-   - the Documents Sharing tab can list, grant (role → user, expiry, reason) and revoke shares
-   - a suspended user's detail can assign or end a temporary replacement
-   - `mocks/users.ts`, `documents.ts` and `notifications.ts` were deleted along with their REGISTRY rows, and
-     `tasks/plan.md` was updated
-   - the stale "college is stored but not enforced" copy was fixed
-5. Handover commits: `95d1226` (after item 1). This file is the second one.
-6. **Pre-deploy auth/RBAC/session testing** (Carl pulled rmis-backend `9347702` + `373df06`):
-   - The backend suite passes 58/58. The stale Supabase `test_postgres` DB needs `python manage.py test --keepdb`.
-   - Scratchpad scripts (not kept) found:
-     - every frontend API call resolves to a backend route that takes that method (194/194)
-     - every frontend write gate matches the DB's role grants (36/36)
-     - no role × page × GET combination returns a 500. The 36 403s are all role-guarded in code.
-     - the real-login session flow passes 13/13
-   - 1 bug fixed: `apiClient` threw away the rotated refresh token, so sessions hard-expired 7 days after login. It
-     now stores `data.refresh`. Proven with a failing repro first.
-7. **All mocks removed** before deploy (see the "Prototype clone status" bullet).
-
-Verification:
-- `npx tsc -b`, eslint on touched files, `npm run build`: all clean
-- rolled-back APIClient tests of every new backend endpoint:
-  - registration and import: success paths, errors, and leader scope
-  - P13: a suspended user plus a replacement means the replacement sees the project, and reactivating ends it
-  - P14: a share lets the grantee see the doc, a staff grant gets 403, and revoking hides the doc again
-  - P15: admin gets 1 critical alert (P77), staff gets 0
-- headless UI run as system_admin on throwaway data (deleted after): the bell showed the P77 alert, a replacement was
-  assigned and ended, and a document was shared and revoked. All of it confirmed in the DB.
-- 2 bugs found this way and fixed:
-  - the bell refetched on every `user` identity change, so it never set its data. It now depends on `user?.pk`.
-  - `as_of` is a date, so it's shown as a date
-
-Things worth knowing:
-- Prettier has no config in this repo. Running it reformats a whole file to 80 cols, so don't.
-- Testing:
-  - A project_leader may lead only 1 active institutional project, so use a fresh leader per test.
-  - The dev server is slow. Screenshots taken ~1s after a click often show the state from before the click, so
-    confirm in the DB.
-  - Headless: `playwright-core@latest` in the session scratchpad, with the cached `chromium_headless_shell-1243`
-    binary.
-- Registration import errors:
-  - A leader importing someone else's project with a filled Budget sheet gets a plain
-    `{"project": ["This project is outside your scope."]}` 400 instead of the `errors` list. It shows as a toast.
-  - `non_field_errors` shows "—" in the error table.
-- Study leaders get risk alerts but the `/risks` RoleGate excludes them, so "View risk management" shows access denied
-  for them.
-- rmis-backend is still on branch `feat/proposal-form-registration` (not merged to main). Its handover's "frontend
-  still uses `sector`" note is stale, since that was fixed in `1d7ccd7`.
-- Still true from 2026-09-25: Deactivate not click-tested, the login shows in the audit log, project leaders can't
-  open `/reports`, and there's the list of deliberate prototype deviations (see `tasks/todo.md` Result notes).
+2026-10-02: every frontend task of the 2026-10-01 client plan and the 2026-10-02 follow-ups is committed on
+`feat/client-changes-2026-10-01` (see the section at the top). Checks per commit: `npx tsc -b`, eslint on touched files,
+`npm run build`. Not browser-tested by me; Carl tests with the guide. Older history (mock removal, P13–P15, the
+2026-09-26 SF-018 registration) is in git log.
 
 ## Next thing to do in this repo
-1. **Human browser reviews** (Carl):
-   - the registration page, both modes, as a leader and as RIUH/DRD. A real template round-trip with BRIDGI's data is a
-     good demo.
-   - the 3 formerly mocked features as their real roles:
-     - bell as a leader, RIUH, and VP/DRD (each gets a different alert band)
-     - sharing as a project leader
-     - replacement on a suspended leader
-   - Checkpoints D (Financial, T13–T17b), E (Research, T18–T22), F (Insights, T23–T25)
-   - "Complete" sign-off, including T26–T28 admin pages
-2. Any fixes that come out of those reviews.
-3. Possible follow-ups (ask first):
-   - show and edit QTR1–QTR4 on BudgetPage
-   - edit/delete team and beneficiary rows on the project page
-   - add study_leader to the `/risks` RoleGate
-   - should leaders really be able to change their own project's status (Closure tab)? That follows from the backend
-     widening `projects.register`.
-4. **Open questions for Carl (unanswered):**
-   - Is the DSS default criteria set OK for a real funding cycle? (It isn't client-confirmed.)
-   - Certify P77's budget 18 in the dev DB for demo data? Don't do it without a go.
-   - Merge rmis-backend `feat/proposal-form-registration` into main?
-   - Build or permanently drop the 3 removed features (work-plan versions, scheduled reports, system info)? If
-     "no mocks in production" is permanent, change the CLAUDE.md data rule to "no endpoint → hide the section".
-   - Keep the pre-deploy test scripts (contract, RBAC parity, page access, session) in `rmis-backend/scripts/`?
-5. **Working rules:**
-   - Never `pkill -f`/`pgrep -f`; kill dev servers by port PID (`ss -ltnp`).
-   - Django runs on :8001 from `../rmis-backend`, Vite on :5173.
-   - The trigger phrase "read mo yung changes sa rmis-backend" means: diff the backend since `634e02d` and sync.
+1. Carl's browser test (guide PART 3, Checkpoints A–D in the backend todo); fix what it finds.
+2. Still open from before: show `error_detail` on the Audit Logs page; `critical` risk level badges; permission
+   matrix + user scope screens (re-verify against `src` first).
