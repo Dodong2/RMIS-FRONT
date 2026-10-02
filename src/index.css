@@ -177,6 +177,36 @@
     font-feature-settings: "cv11", "ss01";
   }
 
+  /* Client meeting 2026-10-01 (#18): every action shows it is clickable. Tailwind v4 no longer gives buttons a
+     pointer cursor, and most buttons here color themselves with inline styles, so the hover is a brightness shift
+     that works on any background instead of a per-button hover class. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  select:not(:disabled),
+  summary,
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+  button:not(:disabled),
+  [role="button"] {
+    transition: filter 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  }
+  button:not(:disabled):hover,
+  [role="button"]:not([aria-disabled="true"]):hover {
+    filter: brightness(0.93);
+  }
+  button:not(:disabled):active {
+    filter: brightness(0.86);
+  }
+
   /* keyboard focus stays visible everywhere — cyan ring on navy and on white */
   :focus-visible {
     outline: 2px solid var(--lspu-cyan);
