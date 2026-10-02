@@ -31,7 +31,7 @@ const STATUS_META = {
   certified: { label: "Certified", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
 } as const;
 
-type LIBTab = "overview" | "line_items" | "funding" | "utilization" | "history";
+type LIBTab = "overview" | "line_items" | "utilization" | "history";
 
 const peso = (n: string | number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 2 }).format(Number(n));
@@ -79,71 +79,6 @@ function DryCapWarning() {
       <div>
         <p className="text-xs font-black" style={{ color: "#92400e" }}>Over the ₱100,000/year institutional dry-research cap</p>
         <p className="text-xs" style={{ color: "#b45309" }}>Warning only (Manual, Article III). The LIB can still be encoded and certified.</p>
-      </div>
-    </div>
-  );
-}
-
-function FundingTab({ budget, summary }: { budget: LineItemBudget; summary: BudgetSummary | null }) {
-  const groups = useMemo(() => {
-    const map = new Map<string, { source: string; amount: number; counterpart: number; items: number }>();
-    budget.line_items.forEach((li) => {
-      const key = li.funding_source.trim() || "Unspecified";
-      const g = map.get(key) ?? { source: key, amount: 0, counterpart: 0, items: 0 };
-      g.amount += Number(li.amount);
-      if (li.is_counterpart) g.counterpart += Number(li.amount);
-      g.items += 1;
-      map.set(key, g);
-    });
-    return [...map.values()].sort((a, b) => b.amount - a.amount);
-  }, [budget]);
-  const total = Number(budget.total_amount) || 1;
-  const actualOf = (source: string) => summary?.by_funding_source.find((f) => (f.funding_source || "Unspecified") === source);
-
-  if (budget.line_items.length === 0) return <NoActualData />;
-  return (
-    <div className="space-y-4">
-      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Funding Sources (from line items)</p>
-      <div className="space-y-3">
-        {groups.map((g) => {
-          const pct = Math.round((g.amount / total) * 100);
-          const isCounterpart = g.counterpart === g.amount;
-          const actual = actualOf(g.source);
-          return (
-            <div key={g.source} className="rounded-2xl p-4" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span
-                      className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={isCounterpart ? { background: "#f0fdf4", color: "#166534" } : { background: "#e0f2fe", color: "#0369a1" }}
-                    >
-                      {isCounterpart ? "Counterpart" : g.counterpart > 0 ? "Primary + Counterpart" : "Primary"}
-                    </span>
-                    <span className="text-xs" style={{ color: "#94a3b8" }}>{g.items} line item{g.items !== 1 ? "s" : ""}</span>
-                  </div>
-                  <p className="font-bold" style={{ color: "#0d2a5e" }}>{g.source}</p>
-                  {actual && (
-                    <p className="text-xs mt-1" style={{ color: "#64748b" }}>
-                      Actual {peso(actual.actual)} · Available {peso(actual.available)}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-xl font-black font-mono" style={{ color: "#0d2a5e" }}>{peso(g.amount)}</p>
-                  <p className="text-xs font-bold" style={{ color: "#64748b" }}>{pct}% of total</p>
-                </div>
-              </div>
-              <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: "#f1f5f9" }}>
-                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: isCounterpart ? "#059669" : "#0891b2" }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="rounded-2xl p-4 flex justify-between" style={{ background: "#0d2a5e" }}>
-        <span className="text-white font-black text-sm">Total Funding</span>
-        <span className="font-black font-mono text-white">{peso(budget.total_amount)}</span>
       </div>
     </div>
   );
@@ -306,24 +241,22 @@ interface WizardItem {
   qty: number;
   unitCost: number;
   fiscalYear: string;
-  fundingSource: string;
   counterpart: boolean;
 }
 
-const blankItem = (unit: string, fy: string, fund: string): WizardItem => ({
+const blankItem = (unit: string, fy: string): WizardItem => ({
   description: "",
   unit,
   qty: 1,
   unitCost: 0,
   fiscalYear: fy,
-  fundingSource: fund,
   counterpart: false,
 });
 
 function LIBWizard({ project, existing, onClose, onDone }: { project: Project; existing: LineItemBudget | null; onClose: () => void; onDone: () => void }) {
   const thisYear = new Date().getFullYear();
   const [step, setStep] = useState(0);
-  const [defaults, setDefaults] = useState({ fiscalYear: String(thisYear), fundingSource: "" });
+  const [defaults, setDefaults] = useState({ fiscalYear: String(thisYear) });
   const [items, setItems] = useState<Record<LineItemCategory, WizardItem[]>>({ ps: [], mooe: [], co: [] });
   const [saving, setSaving] = useState(false);
 
@@ -339,7 +272,6 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
     { label: "At least one line item with an amount", ok: count > 0 },
     { label: "Every item has a description", ok: CATEGORIES.every((c) => items[c].every((i) => lineTotal(i) === 0 || i.description.trim())) },
     { label: "Every item has a fiscal year", ok: CATEGORIES.every((c) => filled(c).every((i) => i.fiscalYear)) },
-    { label: "Every item has a funding source", ok: CATEGORIES.every((c) => filled(c).every((i) => i.fundingSource.trim())) },
   ];
   const allValid = checks.every((c) => c.ok);
   const dryWarning = project.is_dry_research && project.funding_type === "institutional" && existingTotal + grand > 100000;
@@ -360,7 +292,6 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
             description: `${it.description.trim()}${detail}`,
             amount: lineTotal(it).toFixed(2),
             fiscal_year: it.fiscalYear ? Number(it.fiscalYear) : null,
-            funding_source: it.fundingSource.trim(),
             is_counterpart: it.counterpart,
           });
         }
@@ -386,7 +317,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
             <span className="font-black text-sm" style={{ color: cm.color }}>{cm.full} — {cm.label}</span>
           </div>
           <button
-            onClick={() => setItems((p) => ({ ...p, [cat]: [...p[cat], blankItem(unit, defaults.fiscalYear, defaults.fundingSource)] }))}
+            onClick={() => setItems((p) => ({ ...p, [cat]: [...p[cat], blankItem(unit, defaults.fiscalYear)] }))}
             className="text-xs font-bold px-2.5 py-1.5 rounded-xl"
             style={{ background: cm.bg, color: cm.color }}
           >
@@ -416,14 +347,9 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                 <input type="number" min="0" step="0.01" className={INPUT_CLS} style={INPUT_STYLE} value={it.unitCost} onChange={(e) => update(cat, idx, { unitCost: Number(e.target.value) })} />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Fiscal Year">
-                <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={it.fiscalYear} onChange={(e) => update(cat, idx, { fiscalYear: e.target.value })} />
-              </Field>
-              <Field label="Funding Source">
-                <input className={INPUT_CLS} style={INPUT_STYLE} value={it.fundingSource} onChange={(e) => update(cat, idx, { fundingSource: e.target.value })} />
-              </Field>
-            </div>
+            <Field label="Fiscal Year">
+              <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={it.fiscalYear} onChange={(e) => update(cat, idx, { fiscalYear: e.target.value })} />
+            </Field>
             <div className="flex items-center justify-between px-2 py-1.5 rounded-xl" style={{ background: cm.bg }}>
               <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: cm.color }}>
                 <input type="checkbox" checked={it.counterpart} onChange={(e) => update(cat, idx, { counterpart: e.target.checked })} />
@@ -492,15 +418,10 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                   Items will be added to the existing draft LIB v{existing.version_number} ({existing.line_items.length} item(s), {peso(existing.total_amount)}).
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Default Fiscal Year">
-                  <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={defaults.fiscalYear} onChange={(e) => setDefaults({ ...defaults, fiscalYear: e.target.value })} />
-                </Field>
-                <Field label="Default Funding Source">
-                  <input className={INPUT_CLS} style={INPUT_STYLE} value={defaults.fundingSource} onChange={(e) => setDefaults({ ...defaults, fundingSource: e.target.value })} placeholder="e.g. LSPU GAA" />
-                </Field>
-              </div>
-              <p className="text-xs" style={{ color: "#94a3b8" }}>New items start with these defaults; each item can override them.</p>
+              <Field label="Default Fiscal Year">
+                <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={defaults.fiscalYear} onChange={(e) => setDefaults({ ...defaults, fiscalYear: e.target.value })} />
+              </Field>
+              <p className="text-xs" style={{ color: "#94a3b8" }}>New items start with this fiscal year; each item can override it.</p>
             </div>
           )}
           {step === 1 && editor("ps")}
@@ -562,7 +483,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   );
 }
 
-const EMPTY_ITEM = { category: "", description: "", amount: "", fiscal_year: "", funding_source: "", is_counterpart: false };
+const EMPTY_ITEM = { category: "", description: "", amount: "", fiscal_year: "", is_counterpart: false };
 
 function LIBDetail({
   project,
@@ -648,7 +569,6 @@ function LIBDetail({
         description: item.description.trim(),
         amount: item.amount,
         fiscal_year: item.fiscal_year ? Number(item.fiscal_year) : null,
-        funding_source: item.funding_source.trim(),
         is_counterpart: item.is_counterpart,
       });
       setItem(EMPTY_ITEM);
@@ -751,7 +671,6 @@ function LIBDetail({
               [
                 ["overview", "Overview"],
                 ["line_items", "Line Items"],
-                ["funding", "Funding Sources"],
                 ["utilization", "Utilization"],
                 ["history", "Version History"],
               ] as [LIBTab, string][]
@@ -850,10 +769,6 @@ function LIBDetail({
               </div>
             )}
 
-            {tab === "funding" && (
-              <FundingTab budget={budget} summary={summary} />
-            )}
-
             {tab === "utilization" && (
               <UtilizationTab budget={budget} summary={summary} />
             )}
@@ -899,9 +814,6 @@ function LIBDetail({
                       <Field label="Fiscal Year">
                         <input type="number" min="2000" max="2100" className={INPUT_CLS} style={INPUT_STYLE} value={item.fiscal_year} onChange={(e) => setItem({ ...item, fiscal_year: e.target.value })} placeholder="e.g. 2026" />
                       </Field>
-                      <Field label="Funding Source">
-                        <input className={INPUT_CLS} style={INPUT_STYLE} value={item.funding_source} onChange={(e) => setItem({ ...item, funding_source: e.target.value })} placeholder="e.g. LSPU GAA, DOST-PCAARRD" />
-                      </Field>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: "#475569" }}>
@@ -933,7 +845,7 @@ function LIBDetail({
                         <table className="w-full text-sm">
                           <thead>
                             <tr style={{ background: cm.bg }}>
-                              {["#", "Description", "Fiscal Year", "Funding Source", "Amount", ...(canRemove ? [""] : [])].map((h, i) => (
+                              {["#", "Description", "Fiscal Year", "Amount", ...(canRemove ? [""] : [])].map((h, i) => (
                                 <th key={`${h}-${i}`} className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap" style={{ color: cm.color }}>{h}</th>
                               ))}
                             </tr>
@@ -954,7 +866,6 @@ function LIBDetail({
                                   </div>
                                 </td>
                                 <td className="px-3 py-2.5 text-xs font-mono" style={{ color: "#64748b" }}>{li.fiscal_year ?? "—"}</td>
-                                <td className="px-3 py-2.5 text-xs" style={{ color: "#64748b" }}>{li.funding_source || "—"}</td>
                                 <td className="px-3 py-2.5 text-xs font-mono font-black text-right whitespace-nowrap" style={{ color: cm.color }}>{peso(li.amount)}</td>
                                 {canRemove && (
                                   <td className="px-3 py-2.5 text-right">

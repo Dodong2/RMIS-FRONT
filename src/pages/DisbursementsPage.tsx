@@ -386,7 +386,6 @@ function TxnDetailModal({ txn, seq, item, doc, onClose }: { txn: Disbursement; s
           ["Transaction Date", txn.disbursed_on],
           ["Recorded", txn.created_at.slice(0, 10)],
           ["Payee", txn.payee || "—"],
-          ["Funding Source", txn.funding_source || "—"],
         ].map(([l, v]) => (
           <div key={l}>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>{l}</p>
