@@ -671,7 +671,7 @@ function RegisterProjectContent() {
         <span className="text-xs font-semibold" style={{ color: "#64748b" }}>Register Approved Project</span>
       </div>
 
-      <div className="w-full max-w-4xl rounded-2xl shadow-sm overflow-hidden flex flex-col" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+      <div className="w-full rounded-2xl shadow-sm overflow-hidden flex flex-col" style={{ background: "white", border: "1px solid #e2e8f0" }}>
         <div className="px-6 py-4 shrink-0" style={{ background: "#0d2a5e" }}>
           <p className="text-white font-bold text-base">Register Approved Project</p>
           <p className="text-white/50 text-xs mt-0.5">
