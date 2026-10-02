@@ -952,7 +952,8 @@ function ProjectTaskBoard({
           </div>
         </div>
 
-        <div className="flex border-b overflow-x-auto" style={{ borderColor: "#e2e8f0" }}>
+        <div className="flex flex-wrap items-center justify-between border-b" style={{ borderColor: "#e2e8f0" }}>
+          <div className="flex overflow-x-auto">
           {views.map((v) => (
             <button
               key={v.key}
@@ -963,6 +964,12 @@ function ProjectTaskBoard({
               {v.label}
             </button>
           ))}
+          </div>
+          {canAssign && people.length > 0 && (
+            <div className="px-3 py-1.5">
+              <AccomplishmentDownload people={people.filter((p) => p.id !== project.lead_detail.id)} />
+            </div>
+          )}
         </div>
 
         <div className="p-5">
@@ -1366,15 +1373,17 @@ function TaskCalendar({
   );
 }
 
-/** Project staff: download the Monthly Accomplishment Report pulled from their task updates. */
-function AccomplishmentDownload() {
+/** Monthly Accomplishment Report pulled from task updates. Staff download their own; a leader passes `people` and
+ * picks which staff member (the backend limits it to tasks on projects the leader can see). */
+function AccomplishmentDownload({ people }: { people?: Lead[] }) {
   const [month, setMonth] = useState(() => new Date().toLocaleDateString("en-CA").slice(0, 7));
+  const [staff, setStaff] = useState("");
   const [fileFormat, setFileFormat] = useState<ReportFormat>("pdf");
   const [busy, setBusy] = useState(false);
   const download = async () => {
     setBusy(true);
     try {
-      await reportsApi.downloadAccomplishment({ month, file_format: fileFormat });
+      await reportsApi.downloadAccomplishment({ month, file_format: fileFormat, user: staff ? Number(staff) : undefined });
     } catch (err) {
       notify.error(errorMessage(err, "Could not generate the report."));
     } finally {
@@ -1384,6 +1393,14 @@ function AccomplishmentDownload() {
   return (
     <div className="flex items-center gap-1.5 rounded-xl px-2 py-1" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
       <span className="text-xs font-bold" style={{ color: "#64748b" }}>Accomplishment Report</span>
+      {people && (
+        <select value={staff} onChange={(e) => setStaff(e.target.value)} className="text-xs px-1.5 py-1 rounded border max-w-40" style={{ borderColor: "#e2e8f0" }} aria-label="Staff member">
+          <option value="">Staff…</option>
+          {people.map((p) => (
+            <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
+          ))}
+        </select>
+      )}
       <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="text-xs px-1.5 py-1 rounded border" style={{ borderColor: "#e2e8f0" }} />
       <select value={fileFormat} onChange={(e) => setFileFormat(e.target.value as ReportFormat)} className="text-xs px-1.5 py-1 rounded border" style={{ borderColor: "#e2e8f0" }}>
         {(["pdf", "docx", "xlsx", "csv"] as ReportFormat[]).map((f) => (
@@ -1392,7 +1409,7 @@ function AccomplishmentDownload() {
       </select>
       <button
         onClick={download}
-        disabled={busy || !month}
+        disabled={busy || !month || (!!people && !staff)}
         className="px-2.5 py-1 rounded-lg text-xs font-bold text-white cursor-pointer disabled:opacity-60 transition-opacity hover:opacity-90"
         style={{ background: "#0d2a5e" }}
       >
