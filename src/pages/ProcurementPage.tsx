@@ -246,7 +246,7 @@ function ProcurementContent() {
     let active = true;
     const project = projectFilter ? Number(projectFilter) : undefined;
     financialApi
-      .getProcurementRequests({ project, status: statusFilter || undefined, overdue: overdueOnly })
+      .getProcurementRequests({ project })
       .then((r) => active && setRequests(r))
       .catch(() => {
         if (!active) return;
@@ -260,12 +260,14 @@ function ProcurementContent() {
     return () => {
       active = false;
     };
-  }, [projectFilter, statusFilter, overdueOnly, reloadKey]);
+  }, [projectFilter, reloadKey]);
 
   const budgetsById = useMemo(() => new Map(budgets.map((b) => [b.id, b])), [budgets]);
   const itemsById = useMemo(() => new Map(budgets.flatMap((b) => b.line_items.map((li) => [li.id, li] as const))), [budgets]);
   const projectOf = (id: number | undefined) => projects.find((p) => p.id === id);
+  // KPIs count every request of the selected project(s); the status/delayed filters only narrow the table.
   const all = requests ?? [];
+  const shown = all.filter((r) => (!statusFilter || r.status === statusFilter) && (!overdueOnly || overdueIds.has(r.id)));
 
   const move = async (r: ProcurementRequest, status: "processing" | "released" | "cancelled") => {
     setBusy(r.id);
@@ -281,12 +283,12 @@ function ProcurementContent() {
   };
 
   const kpis = [
-    { label: "Requested", val: all.filter((r) => r.status === "requested").length, color: "#0369a1" },
-    { label: "Processing", val: all.filter((r) => r.status === "processing").length, color: "#92400e" },
-    { label: "Released", val: all.filter((r) => r.status === "released").length, color: "#166534" },
-    { label: `Delayed (>${DELAY_DAYS}d)`, val: overdueIds.size, color: "#dc2626" },
+    { label: "Total Requests", val: all.length, color: "#0d2a5e" },
+    { label: "Ongoing", val: all.filter((r) => r.status === "requested" || r.status === "processing").length, color: "#92400e" },
+    { label: "Completed (Released)", val: all.filter((r) => r.status === "released").length, color: "#166534" },
+    { label: "Cancelled", val: all.filter((r) => r.status === "cancelled").length, color: "#64748b" },
+    { label: `Delayed (>${DELAY_DAYS}d)`, val: all.filter((r) => overdueIds.has(r.id)).length, color: "#dc2626" },
     { label: "Open Amount", val: peso(all.filter((r) => r.status === "requested" || r.status === "processing").reduce((s, r) => s + Number(r.amount), 0)), color: "#0d2a5e", mono: true },
-    { label: "APP-Flagged Items", val: appItems?.length ?? "…", color: "#6b21a8" },
   ];
 
   return (
@@ -370,20 +372,20 @@ function ProcurementContent() {
           {tab === "requests" &&
             (requests === null ? (
               <SkeletonRows />
-            ) : all.length === 0 ? (
+            ) : shown.length === 0 ? (
               <NoActualData hint={canRequest ? 'Click "New Request" to file one against a certified LIB item.' : undefined} />
             ) : (
               <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: "#f0f4f8" }}>
-                      {["Ref", "Project / Item", "Description", "Amount", "FY/Q", "Routing", "Status", ...(canUpdate ? ["Action"] : [])].map((h) => (
+                      {["Ref", "Project / Item", "Description", "Amount", "FY/Q", "Routing", "Status", "Action"].map((h) => (
                         <th key={h} className="px-3 py-2.5 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {all.map((r) => {
+                    {shown.map((r) => {
                       const item = itemsById.get(r.line_item);
                       const delayed = overdueIds.has(r.id);
                       return (
@@ -410,6 +412,15 @@ function ProcurementContent() {
                               {delayed && <p className="text-xs font-bold" style={{ color: "#dc2626" }}>⚠ Delayed</p>}
                             </div>
                           </td>
+                          {!canUpdate && (
+                            <td className="px-3 py-2.5 text-xs" style={{ color: "#94a3b8" }}>
+                              {r.status === "requested" || r.status === "processing"
+                                ? "Awaiting Procurement Office"
+                                : r.released_at
+                                  ? `Released ${r.released_at.slice(0, 10)}`
+                                  : "Closed"}
+                            </td>
+                          )}
                           {canUpdate && (
                             <td className="px-3 py-2.5">
                               {r.status === "requested" || r.status === "processing" ? (
