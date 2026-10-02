@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
+import { outputsApi } from "../lib/outputsApi";
+import type { SixPCategory } from "../types/outputs";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
@@ -40,7 +42,7 @@ const WIZARD_STEPS = [
   { label: "Proponents & Team", icon: "👥" },
   { label: "Classification", icon: "🌱" },
   { label: "Proposal Content", icon: "📝" },
-  { label: "Beneficiaries", icon: "🎯" },
+  { label: "6Ps, Beneficiaries & Work Plan", icon: "🎯" },
   { label: "Budget (LIB)", icon: "💰" },
   { label: "Endorsement & Approval", icon: "🔖" },
   { label: "Validate & Register", icon: "✅" },
@@ -58,6 +60,17 @@ const MODES = [
 
 type TeamRow = { member_role: string; name: string; gender: string; user: number | null };
 type BeneficiaryRow = { group: string; description: string; total: string };
+type OutputRow = { category: SixPCategory | ""; description: string; target_count: string };
+type WorkPlanRow = { title: string; start_date: string; target_date: string };
+// Section V uses the form's own 6P wording
+const SIX_P_FORM: [SixPCategory, string][] = [
+  ["publications", "Publications"],
+  ["patents", "Patent"],
+  ["products", "Products"],
+  ["people_services", "People Services"],
+  ["places_partnerships", "Places/Partnerships"],
+  ["policies", "Policy Recommendations"],
+];
 type LibRow = { category: LibCategory; description: string; q1: string; q2: string; q3: string; q4: string };
 type LibCategory = "ps" | "mooe" | "co";
 
@@ -351,6 +364,8 @@ function RegisterProjectContent() {
   const [studyTitles, setStudyTitles] = useState(["", ""]);
   const [team, setTeam] = useState<TeamRow[]>([]);
   const [beneficiaryRows, setBeneficiaryRows] = useState<BeneficiaryRow[]>([{ group: "", description: "", total: "" }]);
+  const [outputRows, setOutputRows] = useState<OutputRow[]>([]);
+  const [workPlanRows, setWorkPlanRows] = useState<WorkPlanRow[]>([]);
   const [approvalDoc, setApprovalDoc] = useState<File[]>([]);
   const [supportingDocs, setSupportingDocs] = useState<File[]>([]);
 
@@ -420,6 +435,8 @@ function RegisterProjectContent() {
   const filledStudies = studyTitles.map((t) => t.trim()).filter(Boolean);
   const filledTeam = team.filter((t) => t.name.trim());
   const filledBeneficiaries = beneficiaryRows.filter((b) => b.group.trim());
+  const filledOutputs = outputRows.filter((o) => o.category && o.description.trim());
+  const filledWorkPlan = workPlanRows.filter((w) => w.title.trim() && w.target_date);
   const filledEndorsers = endorsers.filter((e) => e.name.trim());
   const filledLib = libRows.filter((r) => r.description.trim() && libRowTotal(r) > 0);
   const updateLib = (i: number, patch: Partial<LibRow>) => setLibRows((rows) => rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
@@ -516,10 +533,10 @@ function RegisterProjectContent() {
       study_titles: filledStudies,
       sdgs: form.sdgs.map(Number),
       objectives: filledObjectives,
-      outputs: [],
+      outputs: filledOutputs.map((o) => ({ category: o.category, description: o.description.trim(), target_count: o.target_count || 1 })),
       beneficiaries: filledBeneficiaries,
       budget: filledLib.map((r) => ({ category: r.category, description: r.description, q1: Number(r.q1) || 0, q2: Number(r.q2) || 0, q3: Number(r.q3) || 0, q4: Number(r.q4) || 0 })),
-      work_plan: [],
+      work_plan: filledWorkPlan.map((w) => ({ title: w.title.trim(), start_date: w.start_date || null, target_date: w.target_date })),
       endorsers: filledEndorsers.map((e) => ({ name: e.name, designation: e.designation, signed_on: e.signed_on || null })),
     };
   };
@@ -614,12 +631,18 @@ function RegisterProjectContent() {
         ...filledBeneficiaries.map((b) =>
           researchApi.createBeneficiary({ project: project.id, group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 }),
         ),
+        ...filledOutputs.map((o) =>
+          outputsApi.createExpectedOutput({ project: project.id, category: o.category as SixPCategory, description: o.description.trim(), target_count: Number(o.target_count) || 1 }),
+        ),
+        ...filledWorkPlan.map((w) =>
+          researchApi.createMilestone({ project: project.id, title: w.title.trim(), start_date: w.start_date || undefined, target_date: w.target_date }),
+        ),
         ...[...approvalDoc, ...supportingDocs].map((file) =>
           documentApi.uploadDocument({ project: project.id, document_type: "other", stage: "inception", file }),
         ),
       ]);
       const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed) notify.error(`Project registered, but ${failed} team/study/LIB/endorser/beneficiary/document row(s) failed to save. Add them from the project page.`);
+      if (failed) notify.error(`Project registered, but ${failed} team/study/LIB/endorser/beneficiary/6P/work plan/document row(s) failed to save. Add them from the project page.`);
       else notify.success("Project registered.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
@@ -920,7 +943,7 @@ function RegisterProjectContent() {
 
               {step === 3 && (
                 <div className="space-y-5">
-                  <StepNote>Sections II–IV, VI, VIII, and IX of the form. Section V (6Ps expected outputs) is set under Research Outputs or through the Excel upload; Section X (budget) has its own step.</StepNote>
+                  <StepNote>Sections II–IV, VI, VIII, and IX of the form. Section V (6Ps), VII (beneficiaries) and XI (work plan) are on the next step; Section X (budget) has its own step.</StepNote>
                   <Field label="II. Background of the Study">
                     <textarea rows={6} className={inputCls + " resize-y"} style={inputSt} value={form.background} onChange={set("background")} placeholder="Background and rationale as stated in the approved proposal" />
                   </Field>
@@ -980,7 +1003,33 @@ function RegisterProjectContent() {
 
               {step === 4 && (
                 <div className="space-y-4">
-                  <StepNote>Section VII: one row per beneficiary group with its total. Every row you add needs a group, description, and total.</StepNote>
+                  <StepNote>Section V (6Ps expected outputs) and XI (work plan) are optional here and can be added later. Section VII needs one row per beneficiary group with its total.</StepNote>
+                  <div className="flex items-center justify-between">
+                    <label className="label-field mb-0">V. Quantifiable Expected Outputs (6Ps)</label>
+                    <AddRowButton onClick={() => setOutputRows([...outputRows, { category: "", description: "", target_count: "1" }])}>Add Output</AddRowButton>
+                  </div>
+                  {outputRows.length === 0 ? (
+                    <p className="text-xs" style={{ color: "#94a3b8" }}>No 6Ps yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {outputRows.map((o, i) => {
+                        const update = (patch: Partial<OutputRow>) => setOutputRows(outputRows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+                        return (
+                          <div key={i} className="flex gap-2 items-start">
+                            <select className={inputCls + " max-w-52"} style={inputSt} value={o.category} onChange={(e) => update({ category: e.target.value as SixPCategory })}>
+                              <option value="">Item…</option>
+                              {SIX_P_FORM.map(([code, label]) => (
+                                <option key={code} value={code}>{label}</option>
+                              ))}
+                            </select>
+                            <textarea rows={2} className={inputCls + " flex-1 resize-y"} style={inputSt} value={o.description} onChange={(e) => update({ description: e.target.value })} placeholder="Particulars" />
+                            <input type="number" min="1" className={inputCls + " max-w-24"} style={inputSt} value={o.target_count} onChange={(e) => update({ target_count: e.target.value })} placeholder="Qty" aria-label="Quantity" />
+                            <RemoveButton onClick={() => setOutputRows(outputRows.filter((_, idx) => idx !== i))} label="Remove output" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <label className="label-field mb-0">
                       VII. Target Beneficiaries<span style={{ color: "#dc2626" }}> *</span>
@@ -1006,6 +1055,30 @@ function RegisterProjectContent() {
                     <p className="text-xs font-semibold" style={{ color: "#64748b" }}>
                       Total beneficiaries: {filledBeneficiaries.reduce((sum, b) => sum + (Number(b.total) || 0), 0).toLocaleString("en-PH")}
                     </p>
+                  )}
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="label-field mb-0">XI. Work Plan (activities / milestones)</label>
+                    <AddRowButton onClick={() => setWorkPlanRows([...workPlanRows, { title: "", start_date: "", target_date: "" }])}>Add Activity</AddRowButton>
+                  </div>
+                  {workPlanRows.length === 0 ? (
+                    <p className="text-xs" style={{ color: "#94a3b8" }}>No activities yet. They can also be added later under Work Plan.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {workPlanRows.map((w, i) => {
+                        const update = (patch: Partial<WorkPlanRow>) => setWorkPlanRows(workPlanRows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+                        return (
+                          <div key={i} className="flex flex-wrap md:flex-nowrap gap-2 items-start">
+                            <input className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={w.title} onChange={(e) => update({ title: e.target.value })} placeholder="Activity, e.g. Logistic preparations" />
+                            <input type="date" className={inputCls + " max-w-40"} style={inputSt} value={w.start_date} onChange={(e) => update({ start_date: e.target.value })} aria-label="Start date" />
+                            <input type="date" className={inputCls + " max-w-40"} style={inputSt} value={w.target_date} onChange={(e) => update({ target_date: e.target.value })} aria-label="Target date" />
+                            <RemoveButton onClick={() => setWorkPlanRows(workPlanRows.filter((_, idx) => idx !== i))} label="Remove activity" />
+                          </div>
+                        );
+                      })}
+                      {workPlanRows.some((w) => w.title.trim() && !w.target_date) && (
+                        <p className="text-xs" style={{ color: "#b45309" }}>Activities without a target date are not saved.</p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
