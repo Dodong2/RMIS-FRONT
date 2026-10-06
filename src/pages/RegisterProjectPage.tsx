@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction, type TextareaHTMLAttributes } from "react";
 import { useNavigate } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
 import { outputsApi } from "../lib/outputsApi";
@@ -120,33 +120,86 @@ function InfoCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function FilePick({ label, files, multiple, onChange }: { label: string; files: File[]; multiple?: boolean; onChange: (f: File[]) => void }) {
+/** Grows with its content so pasted proposal text (line breaks, indents, blank lines) shows exactly as copied. */
+function AutoTextarea({ minRows = 1, className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { minRows?: number }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+  }, [props.value]);
+  return <textarea ref={ref} rows={minRows} className={`${className} resize-none overflow-hidden whitespace-pre-wrap`} {...props} />;
+}
+
+type StagedFile = { key: string; file: File; progress: number; status: "uploading" | "done" | "error"; token?: string; error?: string };
+
+function FilePick({ label, files, multiple, onChange }: { label: string; files: StagedFile[]; multiple?: boolean; onChange: Dispatch<SetStateAction<StagedFile[]>> }) {
+  const patch = (key: string, p: Partial<StagedFile>) => onChange((list) => list.map((f) => (f.key === key ? { ...f, ...p } : f)));
+  const upload = (entry: StagedFile) => {
+    patch(entry.key, { status: "uploading", progress: 0, error: undefined });
+    documentApi
+      .stageDocument(entry.file, (progress) => patch(entry.key, { progress }))
+      .then((r) => patch(entry.key, { status: "done", progress: 100, token: r.staged_token }))
+      .catch((err) => patch(entry.key, { status: "error", error: errorMessage(err, "Upload failed.") }));
+  };
+
   return (
-    <label
-      className="rounded-xl p-6 border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors hover:border-[#0891b2]"
-      style={{ borderColor: "#cbd5e1", background: "white" }}
-    >
-      <span className="text-2xl">📄</span>
-      <p className="text-sm font-semibold text-center" style={{ color: "#475569" }}>
-        {files.length ? files.map((f) => f.name).join(", ") : label}
-      </p>
-      <p className="text-xs" style={{ color: "#94a3b8" }}>PDF, Word, or Excel up to 25MB each · uploaded right after registration</p>
-      <input
-        type="file"
-        accept={DOCUMENT_ACCEPT}
-        multiple={multiple}
-        className="hidden"
-        onChange={(e) => {
-          const picked = Array.from(e.target.files ?? []);
-          const tooBig = picked.find((f) => f.size > MAX_UPLOAD_BYTES);
-          if (tooBig) {
-            notify.error(`${tooBig.name} is over 25MB.`);
-            return;
-          }
-          onChange(picked);
-        }}
-      />
-    </label>
+    <div className="space-y-2">
+      <label
+        className="rounded-xl p-6 border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors hover:border-[#0891b2]"
+        style={{ borderColor: "#cbd5e1", background: "white" }}
+      >
+        <span className="text-2xl">📄</span>
+        <p className="text-sm font-semibold text-center" style={{ color: "#475569" }}>{label}</p>
+        <p className="text-xs" style={{ color: "#94a3b8" }}>PDF, Word, or Excel up to 25MB each</p>
+        <input
+          type="file"
+          accept={DOCUMENT_ACCEPT}
+          multiple={multiple}
+          className="hidden"
+          onChange={(e) => {
+            const picked = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            const tooBig = picked.find((f) => f.size > MAX_UPLOAD_BYTES);
+            if (tooBig) {
+              notify.error(`${tooBig.name} is over 25MB.`);
+              return;
+            }
+            const entries = picked.map((file): StagedFile => ({ key: `${file.name}-${Date.now()}-${Math.random()}`, file, progress: 0, status: "uploading" }));
+            onChange((list) => (multiple ? [...list, ...entries] : entries));
+            entries.forEach(upload);
+          }}
+        />
+      </label>
+      {files.map((f) => {
+        const color = f.status === "error" ? "#dc2626" : f.status === "done" ? "#16a34a" : "#0891b2";
+        return (
+          <div key={f.key} className="rounded-lg px-3 py-2" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold flex-1 truncate" style={{ color: "#334155" }}>{f.file.name}</p>
+              <span className="text-xs font-semibold shrink-0" style={{ color }}>
+                {f.status === "done" ? "✓ Uploaded" : f.status === "error" ? "Failed" : f.progress >= 100 ? "Saving…" : `${f.progress}%`}
+              </span>
+              {f.status === "error" && (
+                <button type="button" onClick={() => upload(f)} className="text-xs font-semibold" style={{ color: "#0891b2" }}>
+                  Retry
+                </button>
+              )}
+              <button type="button" onClick={() => onChange((list) => list.filter((x) => x.key !== f.key))} className="text-red-400 hover:text-red-600" aria-label={`Remove ${f.file.name}`}>
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${f.status === "error" ? 100 : f.progress}%`, background: color }} />
+            </div>
+            {f.error && <p className="mt-1 text-xs" style={{ color: "#dc2626" }}>{f.error}</p>}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -366,8 +419,8 @@ function RegisterProjectContent() {
   const [beneficiaryRows, setBeneficiaryRows] = useState<BeneficiaryRow[]>([{ group: "", description: "", total: "" }]);
   const [outputRows, setOutputRows] = useState<OutputRow[]>([]);
   const [workPlanRows, setWorkPlanRows] = useState<WorkPlanRow[]>([]);
-  const [approvalDoc, setApprovalDoc] = useState<File[]>([]);
-  const [supportingDocs, setSupportingDocs] = useState<File[]>([]);
+  const [approvalDoc, setApprovalDoc] = useState<StagedFile[]>([]);
+  const [supportingDocs, setSupportingDocs] = useState<StagedFile[]>([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -431,7 +484,8 @@ function RegisterProjectContent() {
     };
   }, [user]);
 
-  const filledObjectives = objectives.map((o) => o.trim()).filter(Boolean);
+  // Objectives are stored one per line, so a PDF-wrapped objective is joined back into a single line.
+  const filledObjectives = objectives.map((o) => o.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean);
   const filledStudies = studyTitles.map((t) => t.trim()).filter(Boolean);
   const filledTeam = team.filter((t) => t.name.trim());
   const filledBeneficiaries = beneficiaryRows.filter((b) => b.group.trim());
@@ -458,6 +512,7 @@ function RegisterProjectContent() {
     updateEndorser(i, { user: person?.id ?? null, name: person?.full_name ?? "", designation: person?.position || roleName(endorsers[i].role_code) });
   };
   const isContinuing = form.is_continuing === "true";
+  const uploadsPending = [...approvalDoc, ...supportingDocs].some((f) => f.status !== "done");
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
       0: form.project_code.trim() ? [] : ["Project Code"],
@@ -465,7 +520,7 @@ function RegisterProjectContent() {
       2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
       3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
       4: beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim()) ? [] : ["every Target Beneficiaries row"],
-      6: form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"],
+      6: [...(form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"]), ...(uploadsPending ? ["the document uploads"] : [])],
     };
     return missing[i] ?? [];
   };
@@ -487,6 +542,7 @@ function RegisterProjectContent() {
     { label: "LIB line items entered", done: filledLib.length > 0, step: 5 },
     { label: "Approval reference number provided", done: !!form.ntp_number.trim(), required: true, step: 6 },
     { label: "Approval document attached", done: approvalDoc.length > 0, step: 6 },
+    { label: "All document uploads finished", done: !uploadsPending, required: true, step: 6 },
     { label: "Registration certification checked", done: certified, required: true, step: 7 },
   ];
   const canReach = (i: number) => i <= step || Array.from({ length: i }, (_, j) => j).every((j) => stepMissing(j).length === 0);
@@ -497,6 +553,10 @@ function RegisterProjectContent() {
   const bad = (k: keyof typeof form) => showErrors && (Array.isArray(form[k]) ? form[k].length === 0 : !String(form[k]).trim());
 
   const handleNext = async () => {
+    if (step === 6 && uploadsPending) {
+      notify.error("Wait for the document uploads to finish, or retry/remove the failed ones.");
+      return;
+    }
     const missing = stepMissing(step);
     if (missing.length) {
       setTriedSteps((t) => (t.includes(step) ? t : [...t, step]));
@@ -637,8 +697,8 @@ function RegisterProjectContent() {
         ...filledWorkPlan.map((w) =>
           researchApi.createMilestone({ project: project.id, title: w.title.trim(), start_date: w.start_date || undefined, target_date: w.target_date }),
         ),
-        ...[...approvalDoc, ...supportingDocs].map((file) =>
-          documentApi.uploadDocument({ project: project.id, document_type: "other", stage: "inception", file }),
+        ...[...approvalDoc, ...supportingDocs].map((f) =>
+          documentApi.registerStagedDocument({ project: project.id, document_type: "other", stage: "inception", staged_token: f.token! }),
         ),
       ]);
       const failed = results.filter((r) => r.status === "rejected").length;
@@ -727,7 +787,7 @@ function RegisterProjectContent() {
                   <StepNote>Section I of the Research Proposal Form. The internal ID is assigned automatically; the official code is the LSPU Faculty Research Number.</StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Title" required invalid={bad("title")} span>
-                      <input className={inputCls} style={inputSt} value={form.title} onChange={set("title")} placeholder="Full official title of the research project" />
+                      <AutoTextarea className={inputCls} style={inputSt} value={form.title} onChange={set("title")} placeholder="Full official title of the research project" />
                     </Field>
                     <Field label="Project Code (LSPU Faculty Research Number)" required invalid={bad("project_code")}>
                       <input className={inputCls} style={inputSt} value={form.project_code} onChange={set("project_code")} placeholder="e.g. FRN-2026-001" />
@@ -926,7 +986,7 @@ function RegisterProjectContent() {
                       {studyTitles.map((title, i) => (
                         <div key={i} className="flex gap-2 items-start">
                           <span className="mt-2.5 text-xs font-bold shrink-0" style={{ color: "#0891b2", width: "52px" }}>Study {i + 1}</span>
-                          <input
+                          <AutoTextarea
                             value={title}
                             onChange={(e) => setStudyTitles(studyTitles.map((t, idx) => (idx === i ? e.target.value : t)))}
                             className={inputCls + " flex-1"}
@@ -945,7 +1005,7 @@ function RegisterProjectContent() {
                 <div className="space-y-5">
                   <StepNote>Sections II–IV, VI, VIII, and IX of the form. Section V (6Ps), VII (beneficiaries) and XI (work plan) are on the next step; Section X (budget) has its own step.</StepNote>
                   <Field label="II. Background of the Study">
-                    <textarea rows={6} className={inputCls + " resize-y"} style={inputSt} value={form.background} onChange={set("background")} placeholder="Background and rationale as stated in the approved proposal" />
+                    <AutoTextarea minRows={6} className={inputCls} style={inputSt} value={form.background} onChange={set("background")} placeholder="Background and rationale as stated in the approved proposal" />
                   </Field>
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -959,7 +1019,7 @@ function RegisterProjectContent() {
                       {objectives.map((obj, i) => (
                         <div key={i} className="flex gap-2 items-start">
                           <span className="mt-2.5 text-sm font-bold shrink-0" style={{ color: "#0891b2", width: "20px" }}>{i + 1}.</span>
-                          <input
+                          <AutoTextarea
                             value={obj}
                             onChange={(e) => {
                               const n = [...objectives];
@@ -976,26 +1036,26 @@ function RegisterProjectContent() {
                     </div>
                   </div>
                   <Field label="IV. Project Descriptions / Methodology">
-                    <textarea rows={5} className={inputCls + " resize-y"} style={inputSt} value={form.methodology} onChange={set("methodology")} />
+                    <AutoTextarea minRows={5} className={inputCls} style={inputSt} value={form.methodology} onChange={set("methodology")} />
                   </Field>
                   <Field label="VI. Socio-Economic Significance">
-                    <textarea rows={4} className={inputCls + " resize-y"} style={inputSt} value={form.socio_economic_significance} onChange={set("socio_economic_significance")} />
+                    <AutoTextarea minRows={4} className={inputCls} style={inputSt} value={form.socio_economic_significance} onChange={set("socio_economic_significance")} />
                   </Field>
                   <Field label="VIII. Monitoring / Evaluation">
-                    <textarea rows={4} className={inputCls + " resize-y"} style={inputSt} value={form.monitoring_evaluation} onChange={set("monitoring_evaluation")} />
+                    <AutoTextarea minRows={4} className={inputCls} style={inputSt} value={form.monitoring_evaluation} onChange={set("monitoring_evaluation")} />
                   </Field>
                   <Field label="IX. List of References (APA format)">
-                    <textarea rows={4} className={inputCls + " resize-y"} style={inputSt} value={form.references} onChange={set("references")} />
+                    <AutoTextarea minRows={4} className={inputCls} style={inputSt} value={form.references} onChange={set("references")} />
                   </Field>
                   <Field label="Executive Summary (optional)">
-                    <textarea rows={3} className={inputCls + " resize-y"} style={inputSt} value={form.description} onChange={set("description")} placeholder="Short overview shown on the project page" />
+                    <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.description} onChange={set("description")} placeholder="Short overview shown on the project page" />
                   </Field>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Anticipated Outcomes (optional)">
-                      <textarea rows={3} className={inputCls + " resize-none"} style={inputSt} value={form.expected_outcomes} onChange={set("expected_outcomes")} placeholder="One per line" />
+                      <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.expected_outcomes} onChange={set("expected_outcomes")} placeholder="One per line" />
                     </Field>
                     <Field label="Long-term Potential Impacts (optional)">
-                      <textarea rows={3} className={inputCls + " resize-none"} style={inputSt} value={form.expected_impacts} onChange={set("expected_impacts")} placeholder="One per line" />
+                      <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.expected_impacts} onChange={set("expected_impacts")} placeholder="One per line" />
                     </Field>
                   </div>
                 </div>
@@ -1259,7 +1319,7 @@ function RegisterProjectContent() {
                   <div className="grid grid-cols-2 gap-3">
                     <InfoCard label="Project Code" value={form.project_code} />
                     <InfoCard label="Initial Status" value="Ongoing (Approved / Registered)" />
-                    <InfoCard label="Documents to Upload" value={String(approvalDoc.length + supportingDocs.length)} />
+                    <InfoCard label="Documents Uploaded" value={String(approvalDoc.length + supportingDocs.length)} />
                     <InfoCard label="Registration Date" value={new Date().toLocaleDateString("en-PH")} />
                   </div>
 
@@ -1310,11 +1370,11 @@ function RegisterProjectContent() {
               {step < WIZARD_STEPS.length - 1 ? (
                 <button
                   onClick={handleNext}
-                  disabled={isCheckingCode}
+                  disabled={isCheckingCode || (step === 6 && uploadsPending)}
                   className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
                   style={{ background: "#0891b2" }}
                 >
-                  {isCheckingCode ? "Checking code…" : "Next →"}
+                  {isCheckingCode ? "Checking code…" : step === 6 && uploadsPending ? "Waiting for uploads…" : "Next →"}
                 </button>
               ) : (
                 <button

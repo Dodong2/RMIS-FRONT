@@ -82,7 +82,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Text({ value }: { value: string }) {
-  return value.trim() ? <p className="whitespace-pre-line">{value}</p> : <p style={{ color: "#94a3b8" }}>Not provided</p>;
+  return value.trim() ? <p className="whitespace-pre-wrap">{value}</p> : <p style={{ color: "#94a3b8" }}>Not provided</p>;
 }
 
 export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose: () => void }) {

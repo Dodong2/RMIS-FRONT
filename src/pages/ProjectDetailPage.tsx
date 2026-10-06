@@ -626,7 +626,7 @@ function ProjectDetailContent() {
                 .map(([heading, text]) => (
                   <div key={heading}>
                     <SectionHeader>{heading}</SectionHeader>
-                    <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "#334155" }}>{text}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "#334155" }}>{text}</p>
                   </div>
                 ))}
               <div>

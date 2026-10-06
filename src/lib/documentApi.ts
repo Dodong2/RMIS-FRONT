@@ -47,6 +47,19 @@ export const documentApi = {
     const { data } = await apiClient.post("/api/documents/documents/", form);
     return data;
   },
+  /** Upload before the project exists (Register Approved Project); the token is traded for a Document later. */
+  stageDocument: async (file: File, onProgress: (percent: number) => void): Promise<{ staged_token: string }> => {
+    const form = new FormData();
+    form.append("file", file);
+    const { data } = await apiClient.post("/api/documents/documents/staged/", form, {
+      onUploadProgress: (e) => e.total && onProgress(Math.round((e.loaded / e.total) * 100)),
+    });
+    return data;
+  },
+  registerStagedDocument: async (payload: { project: number; document_type: DocumentType; stage?: DocumentStage; staged_token: string }): Promise<ProjectDocument> => {
+    const { data } = await apiClient.post("/api/documents/documents/", payload);
+    return data;
+  },
   archiveDocument: async (id: number): Promise<ProjectDocument> => {
     const { data } = await apiClient.post(`/api/documents/documents/${id}/archive/`);
     return data;
