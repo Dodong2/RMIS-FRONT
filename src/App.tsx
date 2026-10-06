@@ -9,6 +9,7 @@ import PendingUsersPage from "./pages/admin/PendingUsersPage";
 import UsersListPage from "./pages/admin/UsersListPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
+import CollegeUnitsPage from "./pages/admin/CollegeUnitsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import RegisterProjectPage from "./pages/RegisterProjectPage";
@@ -328,6 +329,16 @@ export default function App() {
           <ProtectedRoute>
             <RoleGate allow={["system_admin"]}>
               <AuditLogsPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/college-units"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin"]}>
+              <CollegeUnitsPage />
             </RoleGate>
           </ProtectedRoute>
         }

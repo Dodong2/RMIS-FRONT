@@ -6,7 +6,7 @@ import type { SixPCategory } from "../types/outputs";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import type { FundingType, ProjectImportError } from "../types/research";
+import type { CollegeUnit, FundingType, ProjectImportError } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
@@ -445,7 +445,6 @@ function RegisterProjectContent() {
     research_priority_area: "",
     research_typology: [] as string[],
     campus: "",
-    college: "",
     implementing_unit: "",
     cooperating_agencies: "",
     total_cost: "",
@@ -462,6 +461,7 @@ function RegisterProjectContent() {
     proposal_approved_on: "",
     reviewing_body: "",
   });
+  const [collegeUnits, setCollegeUnits] = useState<CollegeUnit[]>([]);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
   useEffect(() => {
@@ -469,6 +469,10 @@ function RegisterProjectContent() {
     authApi
       .getRoles()
       .then((list) => active && setRoles(list))
+      .catch(() => undefined);
+    researchApi
+      .getCollegeUnits()
+      .then((list) => active && setCollegeUnits(list))
       .catch(() => undefined);
     researchApi
       .getActiveUsers()
@@ -532,7 +536,7 @@ function RegisterProjectContent() {
     { label: "Start and end dates provided", done: !!form.start_date && !!form.target_end_date, step: 0 },
     { label: "Project Leader identified", done: !!form.lead, required: true, step: 1 },
     { label: "Campus selected", done: !!form.campus, required: true, step: 1 },
-    { label: "College and implementing unit specified", done: !!form.college.trim() && !!form.implementing_unit.trim(), step: 1 },
+    { label: "College Unit - Implementing Unit selected", done: !!form.implementing_unit, step: 1 },
     { label: "At least 1 sector selected", done: form.sectors.length > 0 && (!form.sectors.includes("others") || !!form.sector_other.trim()), required: true, step: 2 },
     { label: "At least 1 SDG selected", done: form.sdgs.length > 0, required: true, step: 2 },
     { label: "Background of the study written", done: !!form.background.trim(), step: 3 },
@@ -584,6 +588,7 @@ function RegisterProjectContent() {
     const named = filledTeam.map((t) => ({ name: t.name.trim(), gender: t.gender, role: t.member_role }));
     return {
       ...form,
+      college: form.implementing_unit,
       lead_name: lead?.full_name || lead?.email || "",
       lead_email: lead?.email,
       co_leaders: named.filter((t) => t.role === "co_leader"),
@@ -633,7 +638,8 @@ function RegisterProjectContent() {
         research_priority_area: opt(form.research_priority_area),
         research_typology: form.research_typology,
         campus: opt(form.campus),
-        college: opt(form.college),
+        // One dropdown since client feedback 2026-10-06; stored in both fields so the SF-018 form, reports and lists stay filled.
+        college: opt(form.implementing_unit),
         implementing_unit: opt(form.implementing_unit),
         cooperating_agencies: opt(form.cooperating_agencies),
         total_cost: opt(form.total_cost),
@@ -934,11 +940,13 @@ function RegisterProjectContent() {
                     {showErrors && !form.campus && <p className="mt-1 text-xs font-semibold" style={{ color: "#dc2626" }}>Required</p>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="College Unit">
-                      <input className={inputCls} style={inputSt} value={form.college} onChange={set("college")} placeholder="e.g. CTE" />
-                    </Field>
-                    <Field label="Implementing Unit">
-                      <input className={inputCls} style={inputSt} value={form.implementing_unit} onChange={set("implementing_unit")} placeholder="e.g. Extension and Training Services" />
+                    <Field label="College Unit - Implementing Unit" span>
+                      <select className={inputCls} style={inputSt} value={form.implementing_unit} onChange={set("implementing_unit")}>
+                        <option value="">{collegeUnits.length ? "Select a unit" : "No units yet, ask the System Admin to add them"}</option>
+                        {collegeUnits.map((u) => (
+                          <option key={u.id} value={u.name}>{u.name}</option>
+                        ))}
+                      </select>
                     </Field>
                     <Field label="Cooperating Agency/ies" span>
                       <input className={inputCls} style={inputSt} value={form.cooperating_agencies} onChange={set("cooperating_agencies")} placeholder="e.g. DOST-PCAARRD, LGU of Siniloan" />

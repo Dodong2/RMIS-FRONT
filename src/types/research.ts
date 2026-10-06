@@ -37,6 +37,12 @@ export interface Lead {
   full_name?: string;
 }
 
+export interface CollegeUnit {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
 export interface Program {
   id: number;
   code: string | null;
