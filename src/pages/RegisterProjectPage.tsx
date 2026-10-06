@@ -5,6 +5,7 @@ import { outputsApi } from "../lib/outputsApi";
 import type { SixPCategory } from "../types/outputs";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
+import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { notify } from "../lib/notify";
 import type { AdminChoice, AdminChoiceKind, FundingType, ProjectImportError } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -80,16 +81,7 @@ const LIB_CATEGORIES: { key: LibCategory; label: string }[] = [
   { key: "co", label: "Equipment Outlay / Capital Outlay (CO)" },
 ];
 // Client feedback 2026-10-06: LIB rows are Unit / Qty / Unit Cost instead of per quarter; Total = Qty x Unit Cost.
-const LIB_UNITS = [
-  ["unit", "unit"],
-  ["month", "month"],
-  ["lump_sum", "lump sum"],
-  ["pax", "pax"],
-  ["lot", "lot"],
-  ["set", "set"],
-  ["hr", "hr"],
-] as const;
-const libRowTotal = (r: LibRow) => Math.round((Number(r.quantity) || 0) * (Number(r.unit_cost) || 0) * 100) / 100;
+const libRowTotal = (r: LibRow) => libLineTotal(r.quantity, r.unit_cost);
 const peso = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 type EndorserRow = { role_code: string; user: number | null; name: string; designation: string; signed_on: string };
@@ -627,7 +619,7 @@ function RegisterProjectContent() {
       budget: filledLib.map((r) => ({
         category: r.category,
         description: r.description,
-        unit: LIB_UNITS.find(([code]) => code === r.unit)?.[1] ?? "",
+        unit: libUnitLabel(r.unit),
         quantity: Number(r.quantity) || 0,
         unit_cost: Number(r.unit_cost) || 0,
         total: libRowTotal(r),

@@ -7,6 +7,9 @@ export interface LineItem {
   category: LineItemCategory;
   description: string;
   amount: string;
+  unit: string;
+  quantity: string | null;
+  unit_cost: string | null;
   fiscal_year: number | null;
   funding_source: string;
   is_counterpart: boolean;

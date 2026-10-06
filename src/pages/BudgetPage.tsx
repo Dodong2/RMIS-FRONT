@@ -7,6 +7,8 @@ import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
+import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
+import { MoneyInput } from "../components/common/MoneyInput";
 import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 import type { BudgetSummary } from "../types/financial";
 import type { Project } from "../types/research";
@@ -35,6 +37,21 @@ type LIBTab = "overview" | "line_items" | "utilization" | "history";
 
 const peso = (n: string | number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 2 }).format(Number(n));
+
+function UnitSelect({ value, onChange }: { value: string; onChange: (unit: string) => void }) {
+  return (
+    <select className={INPUT_CLS} style={INPUT_STYLE} value={value} onChange={(e) => onChange(e.target.value)} aria-label="Unit">
+      {LIB_UNITS.map(([code, label]) => (
+        <option key={code} value={code}>{label}</option>
+      ))}
+    </select>
+  );
+}
+
+/** Read-only Total (Qty x Unit Cost), shown like the inputs beside it. */
+function TotalBox({ value }: { value: number }) {
+  return <input readOnly tabIndex={-1} className={INPUT_CLS + " font-mono font-bold text-right"} style={{ ...INPUT_STYLE, background: "#f1f5f9", color: "#0d2a5e" }} value={peso(value)} aria-label="Total" />;
+}
 
 const catTotal = (b: LineItemBudget, cat: LineItemCategory) =>
   b.line_items.filter((i) => i.category === cat).reduce((s, i) => s + Number(i.amount), 0);
@@ -238,8 +255,8 @@ function HistoryTab({ versions }: { versions: LineItemBudget[] }) {
 interface WizardItem {
   description: string;
   unit: string;
-  qty: number;
-  unitCost: number;
+  qty: string;
+  unitCost: string;
   fiscalYear: string;
   counterpart: boolean;
 }
@@ -247,8 +264,8 @@ interface WizardItem {
 const blankItem = (unit: string, fy: string): WizardItem => ({
   description: "",
   unit,
-  qty: 1,
-  unitCost: 0,
+  qty: "1",
+  unitCost: "",
   fiscalYear: fy,
   counterpart: false,
 });
@@ -261,7 +278,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   const [saving, setSaving] = useState(false);
 
   const STEPS = ["Budget Info", "PS Items", "MOOE Items", "CO Items", "Validate & Save"];
-  const lineTotal = (i: WizardItem) => i.qty * i.unitCost;
+  const lineTotal = (i: WizardItem) => libLineTotal(i.qty, i.unitCost);
   const catSum = (cat: LineItemCategory) => items[cat].reduce((s, i) => s + lineTotal(i), 0);
   const filled = (cat: LineItemCategory) => items[cat].filter((i) => i.description.trim() && lineTotal(i) > 0);
   const grand = CATEGORIES.reduce((s, c) => s + filled(c).reduce((a, i) => a + lineTotal(i), 0), 0);
@@ -285,11 +302,13 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
       const budget = existing ?? (await budgetApi.createBudget(project.id));
       for (const cat of CATEGORIES) {
         for (const it of filled(cat)) {
-          const detail = it.qty !== 1 || it.unit ? ` (${it.qty} ${it.unit} × ${peso(it.unitCost)})` : "";
           await budgetApi.createLineItem({
             budget: budget.id,
             category: cat,
-            description: `${it.description.trim()}${detail}`,
+            description: it.description.trim(),
+            unit: it.unit,
+            quantity: it.qty,
+            unit_cost: it.unitCost,
             amount: lineTotal(it).toFixed(2),
             fiscal_year: it.fiscalYear ? Number(it.fiscalYear) : null,
             is_counterpart: it.counterpart,
@@ -336,15 +355,18 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
             <Field label="Description / Particulars">
               <input className={INPUT_CLS} style={INPUT_STYLE} value={it.description} onChange={(e) => update(cat, idx, { description: e.target.value })} placeholder="Describe the line item…" />
             </Field>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Field label="Unit">
-                <input className={INPUT_CLS} style={INPUT_STYLE} value={it.unit} onChange={(e) => update(cat, idx, { unit: e.target.value })} />
+                <UnitSelect value={it.unit} onChange={(unit) => update(cat, idx, { unit })} />
               </Field>
               <Field label="Qty">
-                <input type="number" min="1" className={INPUT_CLS} style={INPUT_STYLE} value={it.qty} onChange={(e) => update(cat, idx, { qty: Number(e.target.value) })} />
+                <input type="number" min="0" step="any" className={INPUT_CLS} style={INPUT_STYLE} value={it.qty} onChange={(e) => update(cat, idx, { qty: e.target.value })} />
               </Field>
               <Field label="Unit Cost (₱)">
-                <input type="number" min="0" step="0.01" className={INPUT_CLS} style={INPUT_STYLE} value={it.unitCost} onChange={(e) => update(cat, idx, { unitCost: Number(e.target.value) })} />
+                <MoneyInput className={INPUT_CLS} style={INPUT_STYLE} value={it.unitCost} onChange={(unitCost) => update(cat, idx, { unitCost })} />
+              </Field>
+              <Field label="Total (₱)">
+                <TotalBox value={lineTotal(it)} />
               </Field>
             </div>
             <Field label="Fiscal Year">
@@ -483,7 +505,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   );
 }
 
-const EMPTY_ITEM = { category: "", description: "", amount: "", fiscal_year: "", is_counterpart: false };
+const EMPTY_ITEM = { category: "", description: "", unit: "unit", quantity: "", unit_cost: "", fiscal_year: "", is_counterpart: false };
 
 function LIBDetail({
   project,
@@ -558,8 +580,8 @@ function LIBDetail({
 
   const addItem = () => {
     setAttempted(true);
-    if (!budget || !item.category || !item.description.trim() || !item.amount) {
-      notify.error("Category, description, and amount are required.");
+    if (!budget || !item.category || !item.description.trim() || libLineTotal(item.quantity, item.unit_cost) <= 0) {
+      notify.error("Category, description, Qty, and Unit Cost are required.");
       return;
     }
     run(async () => {
@@ -567,7 +589,10 @@ function LIBDetail({
         budget: budget.id,
         category: item.category as LineItemCategory,
         description: item.description.trim(),
-        amount: item.amount,
+        unit: item.unit,
+        quantity: item.quantity,
+        unit_cost: item.unit_cost,
+        amount: libLineTotal(item.quantity, item.unit_cost).toFixed(2),
         fiscal_year: item.fiscal_year ? Number(item.fiscal_year) : null,
         is_counterpart: item.is_counterpart,
       });
@@ -799,17 +824,31 @@ function LIBDetail({
                           placeholder="e.g. Research assistant honorarium"
                         />
                       </Field>
-                      <Field label="Amount (₱)" required>
+                      <Field label="Unit" required>
+                        <UnitSelect value={item.unit} onChange={(unit) => setItem({ ...item, unit })} />
+                      </Field>
+                      <Field label="Qty" required>
                         <input
                           type="number"
                           min="0"
-                          step="0.01"
+                          step="any"
                           className={INPUT_CLS}
-                          style={invalidStyle(attempted && !item.amount)}
-                          value={item.amount}
-                          onChange={(e) => setItem({ ...item, amount: e.target.value })}
-                          placeholder="0.00"
+                          style={invalidStyle(attempted && !(Number(item.quantity) > 0))}
+                          value={item.quantity}
+                          onChange={(e) => setItem({ ...item, quantity: e.target.value })}
+                          placeholder="Qty"
                         />
+                      </Field>
+                      <Field label="Unit Cost (₱)" required>
+                        <MoneyInput
+                          className={INPUT_CLS}
+                          style={invalidStyle(attempted && !(Number(item.unit_cost) > 0))}
+                          value={item.unit_cost}
+                          onChange={(unit_cost) => setItem({ ...item, unit_cost })}
+                        />
+                      </Field>
+                      <Field label="Total (₱)">
+                        <TotalBox value={libLineTotal(item.quantity, item.unit_cost)} />
                       </Field>
                       <Field label="Fiscal Year">
                         <input type="number" min="2000" max="2100" className={INPUT_CLS} style={INPUT_STYLE} value={item.fiscal_year} onChange={(e) => setItem({ ...item, fiscal_year: e.target.value })} placeholder="e.g. 2026" />
@@ -845,7 +884,7 @@ function LIBDetail({
                         <table className="w-full text-sm">
                           <thead>
                             <tr style={{ background: cm.bg }}>
-                              {["#", "Description", "Fiscal Year", "Amount", ...(canRemove ? [""] : [])].map((h, i) => (
+                              {["#", "Description", "Unit", "Qty", "Unit Cost", "Fiscal Year", "Total", ...(canRemove ? [""] : [])].map((h, i) => (
                                 <th key={`${h}-${i}`} className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap" style={{ color: cm.color }}>{h}</th>
                               ))}
                             </tr>
@@ -865,6 +904,9 @@ function LIBDetail({
                                     )}
                                   </div>
                                 </td>
+                                <td className="px-3 py-2.5 text-xs" style={{ color: "#64748b" }}>{libUnitLabel(li.unit) || "—"}</td>
+                                <td className="px-3 py-2.5 text-xs font-mono text-right" style={{ color: "#64748b" }}>{li.quantity != null ? Number(li.quantity) : "—"}</td>
+                                <td className="px-3 py-2.5 text-xs font-mono text-right whitespace-nowrap" style={{ color: "#64748b" }}>{li.unit_cost != null ? peso(li.unit_cost) : "—"}</td>
                                 <td className="px-3 py-2.5 text-xs font-mono" style={{ color: "#64748b" }}>{li.fiscal_year ?? "—"}</td>
                                 <td className="px-3 py-2.5 text-xs font-mono font-black text-right whitespace-nowrap" style={{ color: cm.color }}>{peso(li.amount)}</td>
                                 {canRemove && (
@@ -884,7 +926,7 @@ function LIBDetail({
                           </tbody>
                           <tfoot>
                             <tr style={{ background: cm.bg }}>
-                              <td colSpan={4} className="px-3 py-2 text-xs font-black" style={{ color: cm.color }}>Subtotal — {cm.label}</td>
+                              <td colSpan={6} className="px-3 py-2 text-xs font-black" style={{ color: cm.color }}>Subtotal — {cm.label}</td>
                               <td className="px-3 py-2 text-xs font-black font-mono text-right" style={{ color: cm.color }}>{peso(catTotal(budget, cat))}</td>
                               {canRemove && <td />}
                             </tr>

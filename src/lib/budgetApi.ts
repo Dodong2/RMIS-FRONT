@@ -32,6 +32,9 @@ export const budgetApi = {
     category: LineItemCategory;
     description: string;
     amount: string;
+    unit?: string;
+    quantity?: string;
+    unit_cost?: string;
     fiscal_year?: number | null;
     funding_source?: string;
     is_counterpart?: boolean;
