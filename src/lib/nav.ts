@@ -196,6 +196,8 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       { label: "Audit Logs", to: "/admin/audit", icon: "clipboard", tiers: ["system_admin"], ready: true },
       { label: "College Units", to: "/admin/college-units", icon: "settings", tiers: ["system_admin"], ready: true },
+      { label: "REI Thrusts", to: "/admin/rei-thrusts", icon: "settings", tiers: ["system_admin"], ready: true },
+      { label: "Cooperating Agencies", to: "/admin/cooperating-agencies", icon: "settings", tiers: ["system_admin"], ready: true },
       { label: "System Settings", to: "/admin/settings", icon: "settings", tiers: ["system_admin"], ready: true },
     ],
   },

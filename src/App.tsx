@@ -9,7 +9,7 @@ import PendingUsersPage from "./pages/admin/PendingUsersPage";
 import UsersListPage from "./pages/admin/UsersListPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
-import CollegeUnitsPage from "./pages/admin/CollegeUnitsPage";
+import AdminChoicesPage from "./pages/admin/AdminChoicesPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import RegisterProjectPage from "./pages/RegisterProjectPage";
@@ -338,7 +338,27 @@ export default function App() {
         element={
           <ProtectedRoute>
             <RoleGate allow={["system_admin"]}>
-              <CollegeUnitsPage />
+              <AdminChoicesPage kind="college-units" />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/rei-thrusts"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin"]}>
+              <AdminChoicesPage kind="rei-thrusts" />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/cooperating-agencies"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin"]}>
+              <AdminChoicesPage kind="cooperating-agencies" />
             </RoleGate>
           </ProtectedRoute>
         }

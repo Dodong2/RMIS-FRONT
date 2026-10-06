@@ -37,7 +37,10 @@ export interface Lead {
   full_name?: string;
 }
 
-export interface CollegeUnit {
+/** System Admin-managed dropdown choices on Register Approved Project. */
+export type AdminChoiceKind = "college-units" | "rei-thrusts" | "cooperating-agencies";
+
+export interface AdminChoice {
   id: number;
   name: string;
   created_at: string;

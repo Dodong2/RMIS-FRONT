@@ -6,7 +6,7 @@ import type { SixPCategory } from "../types/outputs";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import type { CollegeUnit, FundingType, ProjectImportError } from "../types/research";
+import type { AdminChoice, AdminChoiceKind, FundingType, ProjectImportError } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
@@ -100,6 +100,18 @@ function Field({ label, required, invalid, children, span }: { label: string; re
       {children}
       {invalid && <p className="mt-1 text-xs font-semibold" style={{ color: "#dc2626" }}>Required</p>}
     </div>
+  );
+}
+
+/** Dropdown of System Admin-managed choices (Admin > College Units / REI Thrusts). */
+function ChoiceSelect({ choices, value, onChange, placeholder }: { choices: AdminChoice[]; value: string; onChange: (e: { target: { value: string } }) => void; placeholder: string }) {
+  return (
+    <select className={inputCls} style={inputSt} value={value} onChange={onChange}>
+      <option value="">{choices.length ? placeholder : "No choices yet, ask the System Admin to add them"}</option>
+      {choices.map((c) => (
+        <option key={c.id} value={c.name}>{c.name}</option>
+      ))}
+    </select>
   );
 }
 
@@ -446,7 +458,6 @@ function RegisterProjectContent() {
     research_typology: [] as string[],
     campus: "",
     implementing_unit: "",
-    cooperating_agencies: "",
     total_cost: "",
     background: "",
     methodology: "",
@@ -461,7 +472,8 @@ function RegisterProjectContent() {
     proposal_approved_on: "",
     reviewing_body: "",
   });
-  const [collegeUnits, setCollegeUnits] = useState<CollegeUnit[]>([]);
+  const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rei-thrusts": [], "cooperating-agencies": [] });
+  const [agencies, setAgencies] = useState<string[]>([]);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
   useEffect(() => {
@@ -470,10 +482,12 @@ function RegisterProjectContent() {
       .getRoles()
       .then((list) => active && setRoles(list))
       .catch(() => undefined);
-    researchApi
-      .getCollegeUnits()
-      .then((list) => active && setCollegeUnits(list))
-      .catch(() => undefined);
+    (["college-units", "rei-thrusts", "cooperating-agencies"] as const).forEach((kind) =>
+      researchApi
+        .getChoices(kind)
+        .then((list) => active && setChoices((c) => ({ ...c, [kind]: list })))
+        .catch(() => undefined),
+    );
     researchApi
       .getActiveUsers()
       .then((list) => active && setAccounts(list))
@@ -589,6 +603,7 @@ function RegisterProjectContent() {
     return {
       ...form,
       college: form.implementing_unit,
+      cooperating_agencies: agencies.join(", "),
       lead_name: lead?.full_name || lead?.email || "",
       lead_email: lead?.email,
       co_leaders: named.filter((t) => t.role === "co_leader"),
@@ -641,7 +656,7 @@ function RegisterProjectContent() {
         // One dropdown since client feedback 2026-10-06; stored in both fields so the SF-018 form, reports and lists stay filled.
         college: opt(form.implementing_unit),
         implementing_unit: opt(form.implementing_unit),
-        cooperating_agencies: opt(form.cooperating_agencies),
+        cooperating_agencies: agencies.length ? agencies.join(", ") : undefined,
         total_cost: opt(form.total_cost),
         lead_gender: opt(form.lead_gender),
         contact_number: opt(form.contact_number),
@@ -841,7 +856,7 @@ function RegisterProjectContent() {
                       <MoneyInput className={inputCls} style={inputSt} value={form.total_cost} onChange={(v) => setForm((p) => ({ ...p, total_cost: v }))} />
                     </Field>
                     <Field label="REI Thrust">
-                      <input className={inputCls} style={inputSt} value={form.rei_thrust} onChange={set("rei_thrust")} placeholder="e.g. Sustainable Agriculture" />
+                      <ChoiceSelect choices={choices["rei-thrusts"]} value={form.rei_thrust} onChange={set("rei_thrust")} placeholder="Select an REI thrust" />
                     </Field>
                   </div>
                 </div>
@@ -941,15 +956,15 @@ function RegisterProjectContent() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="College Unit - Implementing Unit" span>
-                      <select className={inputCls} style={inputSt} value={form.implementing_unit} onChange={set("implementing_unit")}>
-                        <option value="">{collegeUnits.length ? "Select a unit" : "No units yet, ask the System Admin to add them"}</option>
-                        {collegeUnits.map((u) => (
-                          <option key={u.id} value={u.name}>{u.name}</option>
-                        ))}
-                      </select>
+                      <ChoiceSelect choices={choices["college-units"]} value={form.implementing_unit} onChange={set("implementing_unit")} placeholder="Select a unit" />
                     </Field>
                     <Field label="Cooperating Agency/ies" span>
-                      <input className={inputCls} style={inputSt} value={form.cooperating_agencies} onChange={set("cooperating_agencies")} placeholder="e.g. DOST-PCAARRD, LGU of Siniloan" />
+                      <MultiSelect
+                        options={choices["cooperating-agencies"].map((a) => ({ value: a.name, label: a.name }))}
+                        value={agencies}
+                        onChange={setAgencies}
+                        placeholder={choices["cooperating-agencies"].length ? "Select one or more agencies" : "No choices yet, ask the System Admin to add them"}
+                      />
                     </Field>
                   </div>
                 </div>
