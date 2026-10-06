@@ -71,7 +71,7 @@ const SIX_P_FORM: [SixPCategory, string][] = [
   ["places_partnerships", "Places/Partnerships"],
   ["policies", "Policy Recommendations"],
 ];
-type LibRow = { category: LibCategory; description: string; q1: string; q2: string; q3: string; q4: string };
+type LibRow = { category: LibCategory; description: string; unit: string; quantity: string; unit_cost: string };
 type LibCategory = "ps" | "mooe" | "co";
 
 const LIB_CATEGORIES: { key: LibCategory; label: string }[] = [
@@ -79,8 +79,17 @@ const LIB_CATEGORIES: { key: LibCategory; label: string }[] = [
   { key: "mooe", label: "Maintenance and Other Operating Expenses (MOOE)" },
   { key: "co", label: "Equipment Outlay / Capital Outlay (CO)" },
 ];
-const QUARTERS = ["q1", "q2", "q3", "q4"] as const;
-const libRowTotal = (r: LibRow) => QUARTERS.reduce((sum, q) => sum + (Number(r[q]) || 0), 0);
+// Client feedback 2026-10-06: LIB rows are Unit / Qty / Unit Cost instead of per quarter; Total = Qty x Unit Cost.
+const LIB_UNITS = [
+  ["unit", "unit"],
+  ["month", "month"],
+  ["lump_sum", "lump sum"],
+  ["pax", "pax"],
+  ["lot", "lot"],
+  ["set", "set"],
+  ["hr", "hr"],
+] as const;
+const libRowTotal = (r: LibRow) => Math.round((Number(r.quantity) || 0) * (Number(r.unit_cost) || 0) * 100) / 100;
 const peso = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 type EndorserRow = { role_code: string; user: number | null; name: string; designation: string; signed_on: string };
@@ -615,7 +624,14 @@ function RegisterProjectContent() {
       objectives: filledObjectives,
       outputs: filledOutputs.map((o) => ({ category: o.category, description: o.description.trim(), target_count: o.target_count || 1 })),
       beneficiaries: filledBeneficiaries,
-      budget: filledLib.map((r) => ({ category: r.category, description: r.description, q1: Number(r.q1) || 0, q2: Number(r.q2) || 0, q3: Number(r.q3) || 0, q4: Number(r.q4) || 0 })),
+      budget: filledLib.map((r) => ({
+        category: r.category,
+        description: r.description,
+        unit: LIB_UNITS.find(([code]) => code === r.unit)?.[1] ?? "",
+        quantity: Number(r.quantity) || 0,
+        unit_cost: Number(r.unit_cost) || 0,
+        total: libRowTotal(r),
+      })),
       work_plan: filledWorkPlan.map((w) => ({ title: w.title.trim(), start_date: w.start_date || null, target_date: w.target_date })),
       endorsers: filledEndorsers.map((e) => ({ name: e.name, designation: e.designation, signed_on: e.signed_on || null })),
     };
@@ -687,10 +703,9 @@ function RegisterProjectContent() {
                   category: r.category,
                   description: r.description.trim(),
                   fiscal_year: Number(libYear) || null,
-                  q1_amount: r.q1 || null,
-                  q2_amount: r.q2 || null,
-                  q3_amount: r.q3 || null,
-                  q4_amount: r.q4 || null,
+                  unit: r.unit,
+                  quantity: r.quantity,
+                  unit_cost: r.unit_cost,
                 })),
               ),
             ]
@@ -1169,7 +1184,7 @@ function RegisterProjectContent() {
               {step === 5 && (
                 <div className="space-y-4">
                   <StepNote>
-                    Section X, Budget Requirements: the approved Line-Item Budget per quarter. It is saved as the project's draft LIB (version 1) for the
+                    Section X, Budget Requirements: the approved Line-Item Budget (Total = Qty × Unit Cost). It is saved as the project's draft LIB (version 1) for the
                     Budget Officer to certify under Budget Management. Optional here; leave it empty to encode the LIB later.
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1184,27 +1199,31 @@ function RegisterProjectContent() {
                       <div key={cat.key} className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
                         <div className="px-3 py-2 flex items-center justify-between" style={{ background: "#f8fafc" }}>
                           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0d2a5e" }}>{cat.label}</p>
-                          <AddRowButton onClick={() => setLibRows([...libRows, { category: cat.key, description: "", q1: "", q2: "", q3: "", q4: "" }])}>Add Item</AddRowButton>
+                          <AddRowButton onClick={() => setLibRows([...libRows, { category: cat.key, description: "", unit: "unit", quantity: "", unit_cost: "" }])}>Add Item</AddRowButton>
                         </div>
                         {rows.length === 0 ? (
                           <p className="px-3 py-2 text-xs" style={{ color: "#94a3b8" }}>No items.</p>
                         ) : (
                           <div className="p-2 space-y-2">
+                            <div className="hidden md:flex gap-2 px-1 text-xs font-semibold" style={{ color: "#64748b" }}>
+                              <span className="flex-1">Description</span>
+                              <span className="w-28">Unit</span>
+                              <span className="w-24">Qty</span>
+                              <span className="w-36">Unit Cost (₱)</span>
+                              <span className="w-36">Total (₱)</span>
+                              <span className="w-4" />
+                            </div>
                             {rows.map(({ r, i }) => (
                               <div key={i} className="flex flex-wrap md:flex-nowrap gap-2 items-start">
-                                <input className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(e) => updateLib(i, { description: e.target.value })} placeholder="Particulars, e.g. Travel Expenses" />
-                                {QUARTERS.map((q, qi) => (
-                                  <MoneyInput
-                                    key={q}
-                                    className={inputCls + " max-w-28"}
-                                    style={inputSt}
-                                    value={r[q]}
-                                    onChange={(v) => updateLib(i, { [q]: v })}
-                                    placeholder={`QTR${qi + 1}`}
-                                    aria-label={`QTR${qi + 1}`}
-                                  />
-                                ))}
-                                <span className="mt-2.5 text-xs font-mono font-bold w-24 text-right shrink-0" style={{ color: "#0d2a5e" }}>₱{peso(libRowTotal(r))}</span>
+                                <input className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(e) => updateLib(i, { description: e.target.value })} placeholder="Description, e.g. Travel Expenses" />
+                                <select className={inputCls + " md:w-28"} style={inputSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
+                                  {LIB_UNITS.map(([code, label]) => (
+                                    <option key={code} value={code}>{label}</option>
+                                  ))}
+                                </select>
+                                <input type="number" min="0" step="any" className={inputCls + " md:w-24"} style={inputSt} value={r.quantity} onChange={(e) => updateLib(i, { quantity: e.target.value })} placeholder="Qty" aria-label="Qty" />
+                                <MoneyInput className={inputCls + " md:w-36"} style={inputSt} value={r.unit_cost} onChange={(v) => updateLib(i, { unit_cost: v })} placeholder="Unit Cost" aria-label="Unit Cost" />
+                                <input readOnly tabIndex={-1} className={inputCls + " md:w-36 font-mono font-bold text-right"} style={{ ...inputSt, background: "#f1f5f9", color: "#0d2a5e" }} value={peso(libRowTotal(r))} aria-label="Total" />
                                 <RemoveButton onClick={() => setLibRows(libRows.filter((_, idx) => idx !== i))} label="Remove item" />
                               </div>
                             ))}

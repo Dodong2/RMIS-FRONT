@@ -37,7 +37,7 @@ export type ProposalData = {
   beneficiaries: { group: string; description: string; total: number | string }[];
   monitoring_evaluation: string;
   references: string;
-  budget: { category: string; description: string; q1: number; q2: number; q3: number; q4: number }[];
+  budget: { category: string; description: string; unit: string; quantity: number | null; unit_cost: number | null; total: number }[];
   work_plan: { title: string; start_date?: string | null; target_date?: string | null }[];
   endorsers: { name: string; designation: string; signed_on: string | null }[];
   proposal_submitted_on: string;
@@ -86,7 +86,7 @@ function Text({ value }: { value: string }) {
 }
 
 export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose: () => void }) {
-  const budgetTotal = data.budget.reduce((s, r) => s + r.q1 + r.q2 + r.q3 + r.q4, 0);
+  const budgetTotal = data.budget.reduce((s, r) => s + r.total, 0);
 
   return (
     <ProtoModal
@@ -263,7 +263,7 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
               <table className="w-full" style={{ borderCollapse: "collapse", fontFamily: "Arial, sans-serif" }}>
                 <thead>
                   <tr style={HEAD}>
-                    {["PARTICULARS", "QTR1", "QTR2", "QTR3", "QTR4", "TOTAL"].map((h) => (
+                    {["DESCRIPTION", "UNIT", "QTY", "UNIT COST", "TOTAL"].map((h) => (
                       <th key={h} className="px-1" style={{ border: BORDER }}>{h}</th>
                     ))}
                   </tr>
@@ -272,28 +272,28 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
                   {BUDGET_GROUPS.map((g) => {
                     const rows = data.budget.filter((r) => r.category === g.key);
                     if (!rows.length) return null;
-                    const subtotal = rows.reduce((s, r) => s + r.q1 + r.q2 + r.q3 + r.q4, 0);
+                    const subtotal = rows.reduce((s, r) => s + r.total, 0);
                     return [
                       <tr key={g.key} style={HEAD}>
-                        <td colSpan={6} className="px-1 font-bold" style={{ border: BORDER }}>{g.label}</td>
+                        <td colSpan={5} className="px-1 font-bold" style={{ border: BORDER }}>{g.label}</td>
                       </tr>,
                       ...rows.map((r, i) => (
                         <tr key={`${g.key}${i}`}>
                           <td className="px-1 pl-4" style={{ border: BORDER }}>{r.description}</td>
-                          {[r.q1, r.q2, r.q3, r.q4].map((q, qi) => (
-                            <td key={qi} className="px-1 text-right" style={{ border: BORDER }}>{peso(q)}</td>
-                          ))}
-                          <td className="px-1 text-right font-bold" style={{ border: BORDER }}>{peso(r.q1 + r.q2 + r.q3 + r.q4)}</td>
+                          <td className="px-1 text-center" style={{ border: BORDER }}>{r.unit}</td>
+                          <td className="px-1 text-right" style={{ border: BORDER }}>{r.quantity ?? ""}</td>
+                          <td className="px-1 text-right" style={{ border: BORDER }}>{r.unit_cost != null ? peso(r.unit_cost) : ""}</td>
+                          <td className="px-1 text-right font-bold" style={{ border: BORDER }}>{peso(r.total)}</td>
                         </tr>
                       )),
                       <tr key={`${g.key}-sub`} style={{ background: "#e2e8f0" }}>
-                        <td colSpan={5} className="px-1 text-right font-bold" style={{ border: BORDER }}>SUBTOTAL</td>
+                        <td colSpan={4} className="px-1 text-right font-bold" style={{ border: BORDER }}>SUBTOTAL</td>
                         <td className="px-1 text-right font-bold" style={{ border: BORDER }}>{peso(subtotal)}</td>
                       </tr>,
                     ];
                   })}
                   <tr style={{ background: "#fecaca" }}>
-                    <td colSpan={5} className="px-1 text-right font-bold" style={{ border: BORDER }}>GRAND TOTAL</td>
+                    <td colSpan={4} className="px-1 text-right font-bold" style={{ border: BORDER }}>GRAND TOTAL</td>
                     <td className="px-1 text-right font-bold" style={{ border: BORDER }}>{peso(budgetTotal)}</td>
                   </tr>
                 </tbody>

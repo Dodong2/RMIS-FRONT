@@ -136,10 +136,9 @@ export const researchApi = {
       category: string;
       description: string;
       fiscal_year: number | null;
-      q1_amount: string | null;
-      q2_amount: string | null;
-      q3_amount: string | null;
-      q4_amount: string | null;
+      unit: string;
+      quantity: string;
+      unit_cost: string;
     }[],
   ): Promise<LineItemBudget> => {
     const { data } = await apiClient.post(`/api/projects/${projectId}/lib/`, { line_items: lineItems });
