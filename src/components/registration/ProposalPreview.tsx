@@ -81,6 +81,79 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const GANTT_FILL = "#fde047";
+const monthName = (d?: string | null) => (d ? MONTHS[Number(d.split("-")[1]) - 1] : "");
+
+/**
+ * Section XI as on the client's sample (XI.Work Plan.png): activity + start/end month take 1/4 of the width, a monthly
+ * Gantt chart the other 3/4. Year 1 is the calendar year of the earliest project/activity date, and the chart runs
+ * to the last year with a date, labelled 1Q1-1Q4, 2Q1-2Q4, ... with Jan-Dec under each year.
+ */
+function WorkPlanGantt({ items, projectStart, projectEnd }: { items: ProposalData["work_plan"]; projectStart: string; projectEnd: string }) {
+  const ym = (d: string) => {
+    const [y, m] = d.split("-").map(Number);
+    return { y, m: m - 1 };
+  };
+  const dates = [projectStart, projectEnd, ...items.flatMap((w) => [w.start_date, w.target_date])].filter((d): d is string => !!d);
+  const firstYear = dates.length ? Math.min(...dates.map((d) => ym(d).y)) : new Date().getFullYear();
+  const lastYear = dates.length ? Math.max(...dates.map((d) => ym(d).y)) : firstYear;
+  const years = Math.max(1, lastYear - firstYear + 1);
+  const months = years * 12;
+  // Month index from Jan of year 1; an activity with only one date fills just that month
+  const index = (d: string) => (ym(d).y - firstYear) * 12 + ym(d).m;
+  const span = (w: ProposalData["work_plan"][number]) => {
+    const from = w.start_date ?? w.target_date;
+    const to = w.target_date ?? w.start_date;
+    return from && to ? [index(from), index(to)] : null;
+  };
+  const cell = { border: BORDER, padding: 0 };
+  const monthLabel = (m: number) => (years > 2 ? MONTHS[m][0] : MONTHS[m]);
+
+  return (
+    <table className="w-full" style={{ borderCollapse: "collapse", tableLayout: "fixed", fontFamily: "Arial, sans-serif", fontSize: "8px" }}>
+      <colgroup>
+        <col style={{ width: "15%" }} />
+        <col style={{ width: "5%" }} />
+        <col style={{ width: "5%" }} />
+        {Array.from({ length: months }, (_, i) => (
+          <col key={i} style={{ width: `${75 / months}%` }} />
+        ))}
+      </colgroup>
+      <thead>
+        <tr>
+          <th rowSpan={2} className="px-1 text-left font-bold" style={{ ...cell, padding: "0 4px", fontSize: "9px" }}>Workplan</th>
+          <th rowSpan={2} className="font-bold" style={cell}>Start</th>
+          <th rowSpan={2} className="font-bold" style={cell}>End</th>
+          {Array.from({ length: years * 4 }, (_, q) => (
+            <th key={q} colSpan={3} className="font-bold" style={cell}>{`${Math.floor(q / 4) + 1}Q${(q % 4) + 1}`}</th>
+          ))}
+        </tr>
+        <tr>
+          {Array.from({ length: months }, (_, i) => (
+            <th key={i} className="font-normal" style={cell}>{monthLabel(i % 12)}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((w, i) => {
+          const range = span(w);
+          return (
+            <tr key={i}>
+              <td className="font-bold" style={{ ...cell, padding: "1px 4px", overflowWrap: "anywhere" }}>{`${i + 1}. ${w.title}`}</td>
+              <td className="font-bold" style={{ ...cell, padding: "1px 2px", overflowWrap: "anywhere" }}>{monthName(w.start_date)}</td>
+              <td className="font-bold" style={{ ...cell, padding: "1px 2px", overflowWrap: "anywhere" }}>{monthName(w.target_date)}</td>
+              {Array.from({ length: months }, (_, m) => (
+                <td key={m} style={{ ...cell, background: range && m >= range[0] && m <= range[1] ? GANTT_FILL : undefined }} />
+              ))}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 function Text({ value }: { value: string }) {
   return value.trim() ? <p className="whitespace-pre-wrap">{value}</p> : <p style={{ color: "#94a3b8" }}>Not provided</p>;
 }
@@ -302,14 +375,7 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
           </Section>
           <Section title="XI. Work Plan">
             {data.work_plan.length ? (
-              <ol className="list-decimal pl-6">
-                {data.work_plan.map((w, i) => (
-                  <li key={i}>
-                    {w.title}
-                    {w.start_date || w.target_date ? ` (${[fmtDate(w.start_date), fmtDate(w.target_date)].filter(Boolean).join(" – ")})` : ""}
-                  </li>
-                ))}
-              </ol>
+              <WorkPlanGantt items={data.work_plan} projectStart={data.start_date} projectEnd={data.target_end_date} />
             ) : (
               <p style={{ color: "#94a3b8" }}>Set under Work Plan after registration, or through the Excel upload.</p>
             )}
