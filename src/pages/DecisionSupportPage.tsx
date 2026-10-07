@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { decisionSupportApi } from "../lib/decisionSupportApi";
-import { researchApi } from "../lib/researchApi";
+import { useProjects } from "../lib/queries";
 import { authApi } from "../lib/authApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
@@ -574,7 +574,8 @@ function DecisionSupportContent() {
   const [criteria, setCriteria] = useState<DecisionCriterion[]>([]);
   const [ahpRuns, setAhpRuns] = useState<AHPMatrixRun[]>([]);
   const [recRuns, setRecRuns] = useState<FundingRecommendationRun[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const projectsQ = useProjects();
+  const projects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
   const [users, setUsers] = useState<AdminUser[]>([]);
 
   const [activeModelId, setActiveModelId] = useState<number | null>(null);
@@ -599,13 +600,12 @@ function DecisionSupportContent() {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([decisionSupportApi.getCriteria(), decisionSupportApi.getAHPRuns(), decisionSupportApi.getRecommendationRuns(), researchApi.getProjects()])
-      .then(([c, a, r, p]) => {
+    Promise.all([decisionSupportApi.getCriteria(), decisionSupportApi.getAHPRuns(), decisionSupportApi.getRecommendationRuns()])
+      .then(([c, a, r]) => {
         if (!alive) return;
         setCriteria(c);
         setAhpRuns(a);
         setRecRuns(r);
-        setProjects(p);
         const firstUsable = a.find((x) => x.status === "finalized" && x.is_consistent) ?? a[0];
         if (firstUsable) {
           setActiveModelId(firstUsable.id);
@@ -635,6 +635,10 @@ function DecisionSupportContent() {
   }, [activeRecId]);
 
   const criteriaById = useMemo(() => new Map(criteria.map((c) => [c.id, c])), [criteria]);
+  useEffect(() => {
+    if (projectsQ.isError) notify.error("Could not load decision support data. Check your connection and refresh.");
+  }, [projectsQ.isError]);
+
   const projectsById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const campuses = useMemo(() => [...new Set(projects.map((p) => p.campus).filter(Boolean))].sort(), [projects]);
 
@@ -711,7 +715,7 @@ function DecisionSupportContent() {
   const selCls = "px-3 py-2 rounded-xl border text-xs outline-none";
   const selSt = { borderColor: "#e2e8f0", background: "white", color: "#334155" };
 
-  if (isLoading) {
+  if (isLoading || projectsQ.isPending) {
     return (
       <div className="rounded-2xl" style={{ background: "white", border: "1px solid #e2e8f0" }}>
         <SkeletonRows rows={5} />

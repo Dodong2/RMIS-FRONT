@@ -5,6 +5,7 @@ import { personnelApi } from "../lib/personnelApi";
 import { reportsApi } from "../lib/reportsApi";
 import type { ReportFormat } from "../types/reports";
 import { researchApi } from "../lib/researchApi";
+import { useProjects } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { initialsFrom, personName } from "../lib/roles";
@@ -1424,27 +1425,31 @@ function TasksContent() {
   const { user } = useAuth();
   const canAssign = !!user?.role && TASK_ASSIGNER_CODES.includes(user.role.code);
   const [params, setParams] = useSearchParams();
-  const [projects, setProjects] = useState<Project[] | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const projectsQ = useProjects();
+  const [taskList, setTaskList] = useState<Task[] | null>(null);
   const [now] = useState(() => Date.now());
 
   useEffect(() => {
     let active = true;
-    Promise.all([researchApi.getProjects(), personnelApi.getTasks()])
-      .then(([p, t]) => {
-        if (!active) return;
-        setProjects(p);
-        setTasks(t);
-      })
+    personnelApi
+      .getTasks()
+      .then((t) => active && setTaskList(t))
       .catch(() => {
         if (!active) return;
-        setProjects([]);
+        setTaskList([]);
         notify.error("Could not load tasks. Check your connection and refresh.");
       });
     return () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (projectsQ.isError) notify.error("Could not load tasks. Check your connection and refresh.");
+  }, [projectsQ.isError]);
+
+  const tasks = taskList ?? [];
+  const projects: Project[] | null = projectsQ.isError ? [] : taskList === null ? null : (projectsQ.data ?? null);
 
   const selected = projects?.find((p) => p.id === Number(params.get("project")));
   if (selected) {

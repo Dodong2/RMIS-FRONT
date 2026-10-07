@@ -35,13 +35,19 @@ Files: `src/pages/ProjectsPage.tsx`. Depends on: T2.
 
 ## Phase 2: Shared reads
 
-### T4: getProjects/getBudgets consumers, batch 1 (M)
-- [ ] ~4 pages switch to `useProjects`/`useBudgets`, with the same states and toasts
+### T4: getProjects consumers, batch 1 (M)
+- [x] ~4 pages switch to `useProjects`, with the same states and toasts
 Depends on: T3.
+**Result:** TasksPage (project list), StaffPage, PersonnelChangesPage and DecisionSupportPage. Only the projects call
+moved; each page's other calls stay in their effect. Skeletons wait for both, and a projects failure shows the page's
+same toast (two identical toasts if both calls fail). PersonnelChanges invalidates `projects` after a save, because an
+approved lead change alters `lead_detail`.
 
 ### T5: getProjects/getBudgets consumers, batch 2 (M)
-- [ ] The remaining consumers
+- [ ] DashboardPage, BudgetPage, ProcurementPage, DisbursementsPage (projects + budgets). The last three use `reloadKey`,
+  so their budget refresh must invalidate `budgets`.
 Depends on: T4.
+
 
 ### T6: Roles and users (S)
 - [ ] RegisterPage, GoogleChooseRolePage and admin pages use `useRoles`/`useUsers`; role-gated reads use `enabled`

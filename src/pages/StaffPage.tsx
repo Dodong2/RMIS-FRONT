@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
+import { useProjects } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import type { CollaborationRow, ProjectAssignment, StaffProfile } from "../types/personnel";
-import type { Lead, Project, Study } from "../types/research";
+import type { Lead, Study } from "../types/research";
 import { initialsFrom, personName } from "../lib/roles";
 import { UserSelect } from "../components/common/UserPicker";
 import type { AdminUser } from "../types/auth";
@@ -72,11 +73,13 @@ function StaffContent() {
 
   const [profiles, setProfiles] = useState<StaffProfile[]>([]);
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const projectsQ = useProjects();
+  const projects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
   const [collab, setCollab] = useState<CollaborationRow[] | null>(null);
   const [crossOnly, setCrossOnly] = useState(false);
   const [staffUsers, setStaffUsers] = useState<AdminUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [recordsLoading, setIsLoading] = useState(true);
+  const isLoading = recordsLoading || projectsQ.isPending;
   const [reloadKey, setReloadKey] = useState(0);
   const [view, setView] = useState<View>("personnel");
   const [search, setSearch] = useState("");
@@ -94,12 +97,11 @@ function StaffContent() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([personnelApi.getStaffProfiles(), personnelApi.getAssignments(), researchApi.getProjects()])
-      .then(([p, a, pr]) => {
+    Promise.all([personnelApi.getStaffProfiles(), personnelApi.getAssignments()])
+      .then(([p, a]) => {
         if (!active) return;
         setProfiles(p);
         setAssignments(a);
-        setProjects(pr);
       })
       .catch(() => active && notify.error("Could not load staff records. Check your connection and refresh."))
       .finally(() => active && setIsLoading(false));
@@ -113,6 +115,10 @@ function StaffContent() {
       active = false;
     };
   }, [canManage, reloadKey]);
+
+  useEffect(() => {
+    if (projectsQ.isError) notify.error("Could not load staff records. Check your connection and refresh.");
+  }, [projectsQ.isError]);
 
   useEffect(() => {
     let active = true;

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { personnelApi } from "../lib/personnelApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { researchApi } from "../lib/researchApi";
+import { queryKeys, useProjects } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
 import type {
   ChangeStatus,
@@ -8,7 +10,7 @@ import type {
   PersonnelChange,
   ProjectAssignment,
 } from "../types/personnel";
-import type { Program, Project, Study } from "../types/research";
+import type { Program, Study } from "../types/research";
 import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
@@ -65,11 +67,14 @@ function PersonnelChangesContent() {
 
   const [changes, setChanges] = useState<PersonnelChange[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const queryClient = useQueryClient();
+  const projectsQ = useProjects();
+  const projects = projectsQ.data ?? [];
   const [studies, setStudies] = useState<Study[]>([]);
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
   const [candidates, setCandidates] = useState<AdminUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [recordsLoading, setIsLoading] = useState(true);
+  const isLoading = recordsLoading || projectsQ.isPending;
   const [attempted, setAttempted] = useState(false);
 
   const [form, setForm] = useState(EMPTY_FORM);
@@ -94,16 +99,18 @@ function PersonnelChangesContent() {
   };
 
   const [reloadKey, setReloadKey] = useState(0);
-  const load = () => setReloadKey((k) => k + 1);
+  const load = () => {
+    setReloadKey((k) => k + 1);
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+  };
 
   useEffect(() => {
     let active = true;
-    Promise.all([personnelApi.getChanges(), researchApi.getPrograms(), researchApi.getProjects()])
-      .then(([changeList, programList, projectList]) => {
+    Promise.all([personnelApi.getChanges(), researchApi.getPrograms()])
+      .then(([changeList, programList]) => {
         if (!active) return;
         setChanges(changeList);
         setPrograms(programList);
-        setProjects(projectList);
       })
       .catch(() => active && notify.error("Could not load personnel changes. Check your connection and refresh."))
       .finally(() => active && setIsLoading(false));
