@@ -708,6 +708,15 @@ function ProjectDetailContent() {
               <div className="space-y-3">
                 {[
                   { key: "lead", name: personName(project.lead_detail), role: "Project Leader", sub: "Lead proponent", color: "#0d2a5e" },
+                  ...formTeam
+                    .filter((m) => m.user === null || !team.some((a) => a.user === m.user))
+                    .map((m) => ({
+                      key: `form-${m.id}`,
+                      name: m.name,
+                      role: m.member_role === "co_leader" ? "Co-Project Leader" : "Project Staff",
+                      sub: "Named at project registration",
+                      color: m.member_role === "co_leader" ? "#1a3f7a" : "#0891b2",
+                    })),
                   ...team.map((a) => ({
                     key: String(a.id),
                     name: personName(a.user_detail),
