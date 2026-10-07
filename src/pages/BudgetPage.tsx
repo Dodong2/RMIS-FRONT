@@ -506,7 +506,8 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   );
 }
 
-const EMPTY_ITEM = { category: "", description: "", unit: "unit", quantity: "", unit_cost: "", fiscal_year: "", is_counterpart: false };
+const EMPTY_ROW = { description: "", unit: "unit", quantity: "", unit_cost: "", justification: "" };
+type NewRow = typeof EMPTY_ROW;
 
 function LIBDetail({
   project,
@@ -531,8 +532,9 @@ function LIBDetail({
   const summary: BudgetSummary | null = certifiedId > 0 ? (summaryQ.data ?? null) : null;
   const [showWizard, setShowWizard] = useState(false);
   const [tab, setTab] = useState<LIBTab>("overview");
-  const [item, setItem] = useState(EMPTY_ITEM);
-  const [attempted, setAttempted] = useState(false);
+  const [rows, setRows] = useState<Record<LineItemCategory, NewRow>>({ ps: EMPTY_ROW, mooe: EMPTY_ROW, co: EMPTY_ROW });
+  const [attemptedCat, setAttemptedCat] = useState<LineItemCategory | null>(null);
+  const setRow = (cat: LineItemCategory, patch: Partial<NewRow>) => setRows((r) => ({ ...r, [cat]: { ...r[cat], ...patch } }));
 
   useEffect(() => {
     if (budgetsQ.isError) notify.error("Could not load the budget for this project.");
@@ -555,33 +557,31 @@ function LIBDetail({
       onError: (err) => notify.error(errorMessage(err, "The change could not be saved.")),
     });
 
-  const addItem = () => {
-    setAttempted(true);
-    if (!budget || !item.category || !item.description.trim() || libLineTotal(item.quantity, item.unit_cost) <= 0) {
-      notify.error("Category, description, Qty, and Unit Cost are required.");
+  const addItem = (cat: LineItemCategory) => {
+    const row = rows[cat];
+    setAttemptedCat(cat);
+    if (!budget || !row.description.trim() || libLineTotal(row.quantity, row.unit_cost) <= 0) {
+      notify.error("Description, Qty, and Unit Cost are required.");
       return;
     }
     run(async () => {
       await budgetApi.createLineItem({
         budget: budget.id,
-        category: item.category as LineItemCategory,
-        description: item.description.trim(),
-        unit: item.unit,
-        quantity: item.quantity,
-        unit_cost: item.unit_cost,
-        amount: libLineTotal(item.quantity, item.unit_cost).toFixed(2),
-        fiscal_year: item.fiscal_year ? Number(item.fiscal_year) : null,
-        is_counterpart: item.is_counterpart,
+        category: cat,
+        description: row.description.trim(),
+        unit: row.unit,
+        quantity: row.quantity,
+        unit_cost: row.unit_cost,
+        amount: libLineTotal(row.quantity, row.unit_cost).toFixed(2),
+        fiscal_year: budget.line_items.find((i) => i.fiscal_year != null)?.fiscal_year ?? null,
+        justification: row.justification.trim(),
       });
-      setItem(EMPTY_ITEM);
-      setAttempted(false);
+      setRow(cat, EMPTY_ROW);
+      setAttemptedCat(null);
     }, "Line item added.");
   };
 
-  const years = useMemo(() => {
-    const ys = new Set<number | null>((budget?.line_items ?? []).map((i) => i.fiscal_year));
-    return [...ys].sort((a, b) => (a ?? 9999) - (b ?? 9999));
-  }, [budget]);
+  const years = [...new Set<number | null>((budget?.line_items ?? []).map((i) => i.fiscal_year))].sort((a, b) => (a ?? 9999) - (b ?? 9999));
 
   const isDraft = budget?.status === "draft";
 
@@ -780,76 +780,16 @@ function LIBDetail({
             {tab === "line_items" && (
               <div className="space-y-5">
                 {budget.exceeds_dry_cap && <DryCapWarning />}
-                {canManage && isDraft && (
-                  <div className="rounded-2xl p-4 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Add a Line Item</p>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      <Field label="Category" required>
-                        <select className={INPUT_CLS} style={invalidStyle(attempted && !item.category)} value={item.category} onChange={(e) => setItem({ ...item, category: e.target.value })}>
-                          <option value="">Select category</option>
-                          {CATEGORIES.map((c) => (
-                            <option key={c} value={c}>{CATEGORY_META[c].full} ({CATEGORY_META[c].label})</option>
-                          ))}
-                        </select>
-                      </Field>
-                      <Field label="Description" required className="lg:col-span-2">
-                        <input
-                          className={INPUT_CLS}
-                          style={invalidStyle(attempted && !item.description.trim())}
-                          value={item.description}
-                          onChange={(e) => setItem({ ...item, description: e.target.value })}
-                          placeholder="e.g. Research assistant honorarium"
-                        />
-                      </Field>
-                      <Field label="Unit" required>
-                        <UnitSelect value={item.unit} onChange={(unit) => setItem({ ...item, unit })} />
-                      </Field>
-                      <Field label="Qty" required>
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          className={INPUT_CLS}
-                          style={invalidStyle(attempted && !(Number(item.quantity) > 0))}
-                          value={item.quantity}
-                          onChange={(e) => setItem({ ...item, quantity: e.target.value })}
-                          placeholder="Qty"
-                        />
-                      </Field>
-                      <Field label="Unit Cost (₱)" required>
-                        <MoneyInput
-                          className={INPUT_CLS}
-                          style={invalidStyle(attempted && !(Number(item.unit_cost) > 0))}
-                          value={item.unit_cost}
-                          onChange={(unit_cost) => setItem({ ...item, unit_cost })}
-                        />
-                      </Field>
-                      <Field label="Total (₱)">
-                        <TotalBox value={libLineTotal(item.quantity, item.unit_cost)} />
-                      </Field>
-                      <Field label="Fiscal Year">
-                        <input type="number" min="2000" max="2100" className={INPUT_CLS} style={INPUT_STYLE} value={item.fiscal_year} onChange={(e) => setItem({ ...item, fiscal_year: e.target.value })} placeholder="e.g. 2026" />
-                      </Field>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: "#475569" }}>
-                        <input type="checkbox" checked={item.is_counterpart} onChange={(e) => setItem({ ...item, is_counterpart: e.target.checked })} />
-                        Counterpart funding
-                      </label>
-                      <button onClick={addItem} disabled={busy} className="px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
-                        {busy ? "Saving…" : "+ Add Item"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {budget.line_items.length === 0 && <NoActualData />}
+                {budget.line_items.length === 0 && !(canManage && isDraft) && <NoActualData />}
 
                 {CATEGORIES.map((cat) => {
                   const items = budget.line_items.filter((i) => i.category === cat);
-                  if (items.length === 0) return null;
+                  const canEdit = canManage && isDraft;
+                  if (items.length === 0 && !canEdit) return null;
                   const cm = CATEGORY_META[cat];
-                  const canRemove = canManage && isDraft;
+                  const row = rows[cat];
+                  const tried = attemptedCat === cat;
+                  const cellInput = INPUT_CLS + " text-xs";
                   return (
                     <div key={cat}>
                       <div className="flex items-center gap-2 mb-3">
@@ -858,11 +798,11 @@ function LIBDetail({
                         <span className="text-xs font-bold font-mono ml-auto" style={{ color: cm.color }}>{peso(catTotal(budget, cat))}</span>
                       </div>
                       <div className="rounded-2xl overflow-x-auto" style={{ border: `1px solid ${cm.bg}` }}>
-                        <table className="w-full text-sm">
+                        <table className="w-full text-sm min-w-[900px]">
                           <thead>
                             <tr style={{ background: cm.bg }}>
-                              {["#", "Description", "Unit", "Qty", "Unit Cost", "Fiscal Year", "Total", ...(canRemove ? [""] : [])].map((h, i) => (
-                                <th key={`${h}-${i}`} className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap" style={{ color: cm.color }}>{h}</th>
+                              {["#", "Description", "Unit", "Qty", "Unit Cost", "Total", "Justification / Action"].map((h) => (
+                                <th key={h} className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap" style={{ color: cm.color }}>{h}</th>
                               ))}
                             </tr>
                           </thead>
@@ -884,28 +824,98 @@ function LIBDetail({
                                 <td className="px-3 py-2.5 text-xs" style={{ color: "#64748b" }}>{libUnitLabel(li.unit) || "—"}</td>
                                 <td className="px-3 py-2.5 text-xs font-mono text-right" style={{ color: "#64748b" }}>{li.quantity != null ? Number(li.quantity) : "—"}</td>
                                 <td className="px-3 py-2.5 text-xs font-mono text-right whitespace-nowrap" style={{ color: "#64748b" }}>{li.unit_cost != null ? peso(li.unit_cost) : "—"}</td>
-                                <td className="px-3 py-2.5 text-xs font-mono" style={{ color: "#64748b" }}>{li.fiscal_year ?? "—"}</td>
                                 <td className="px-3 py-2.5 text-xs font-mono font-black text-right whitespace-nowrap" style={{ color: cm.color }}>{peso(li.amount)}</td>
-                                {canRemove && (
-                                  <td className="px-3 py-2.5 text-right">
-                                    <button
-                                      onClick={() => run(() => budgetApi.deleteLineItem(li.id), "Line item removed.")}
-                                      disabled={busy}
-                                      className="text-xs font-bold px-2 py-1 rounded-lg"
-                                      style={{ background: "#fee2e2", color: "#dc2626" }}
-                                    >
-                                      Remove
-                                    </button>
-                                  </td>
-                                )}
+                                <td className="px-3 py-2.5 text-xs" style={{ color: "#64748b" }}>
+                                  <div className="flex items-start gap-3">
+                                    <span className="flex-1">{li.justification || "—"}</span>
+                                    {canEdit && (
+                                      <button
+                                        onClick={() => run(() => budgetApi.deleteLineItem(li.id), "Line item removed.")}
+                                        disabled={busy}
+                                        aria-label="Remove line item"
+                                        title="Remove"
+                                        className="shrink-0 disabled:opacity-50"
+                                        style={{ color: "#dc2626" }}
+                                      >
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
                               </tr>
                             ))}
+                            {canEdit && (
+                              <tr className="border-t" style={{ borderColor: "#f1f5f9", background: "#fafbfc" }}>
+                                <td className="px-3 py-2 text-xs" style={{ color: "#94a3b8" }}>New</td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    className={cellInput}
+                                    style={invalidStyle(tried && !row.description.trim())}
+                                    value={row.description}
+                                    onChange={(e) => setRow(cat, { description: e.target.value })}
+                                    onKeyDown={(e) => e.key === "Enter" && addItem(cat)}
+                                    placeholder="Item description"
+                                    aria-label={`New ${cm.label} item description`}
+                                  />
+                                </td>
+                                <td className="px-3 py-2 w-28">
+                                  <UnitSelect value={row.unit} onChange={(unit) => setRow(cat, { unit })} />
+                                </td>
+                                <td className="px-3 py-2 w-24">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    className={cellInput}
+                                    style={invalidStyle(tried && !(Number(row.quantity) > 0))}
+                                    value={row.quantity}
+                                    onChange={(e) => setRow(cat, { quantity: e.target.value })}
+                                    placeholder="Qty"
+                                    aria-label={`New ${cm.label} item quantity`}
+                                  />
+                                </td>
+                                <td className="px-3 py-2 w-36">
+                                  <MoneyInput
+                                    className={cellInput}
+                                    style={invalidStyle(tried && !(Number(row.unit_cost) > 0))}
+                                    value={row.unit_cost}
+                                    onChange={(unit_cost) => setRow(cat, { unit_cost })}
+                                  />
+                                </td>
+                                <td className="px-3 py-2 text-xs font-mono font-black text-right whitespace-nowrap" style={{ color: cm.color }}>
+                                  {peso(libLineTotal(row.quantity, row.unit_cost))}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      className={cellInput}
+                                      style={INPUT_STYLE}
+                                      value={row.justification}
+                                      onChange={(e) => setRow(cat, { justification: e.target.value })}
+                                      onKeyDown={(e) => e.key === "Enter" && addItem(cat)}
+                                      placeholder="Justification"
+                                      aria-label={`New ${cm.label} item justification`}
+                                    />
+                                    <button
+                                      onClick={() => addItem(cat)}
+                                      disabled={busy}
+                                      className="px-4 py-2 rounded-lg text-xs font-bold text-white shrink-0 disabled:opacity-60"
+                                      style={{ background: cm.color }}
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
                           </tbody>
                           <tfoot>
                             <tr style={{ background: cm.bg }}>
-                              <td colSpan={6} className="px-3 py-2 text-xs font-black" style={{ color: cm.color }}>Subtotal — {cm.label}</td>
+                              <td colSpan={5} className="px-3 py-2 text-xs font-black" style={{ color: cm.color }}>Subtotal — {cm.label}</td>
                               <td className="px-3 py-2 text-xs font-black font-mono text-right" style={{ color: cm.color }}>{peso(catTotal(budget, cat))}</td>
-                              {canRemove && <td />}
+                              <td />
                             </tr>
                           </tfoot>
                         </table>

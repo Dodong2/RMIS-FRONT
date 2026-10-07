@@ -13,6 +13,7 @@ export interface LineItem {
   fiscal_year: number | null;
   funding_source: string;
   is_counterpart: boolean;
+  justification: string;
   q1_amount: string | null;
   q2_amount: string | null;
   q3_amount: string | null;
