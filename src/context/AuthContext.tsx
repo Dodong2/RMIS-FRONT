@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import type { User, LoginPayload, RegisterPayload } from "../types/auth";
 import { authApi } from "../lib/authApi";
 import { getAccessToken, setTokens, clearTokens } from "../lib/tokenStorage";
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const refreshUser = async () => {
     const token = getAccessToken();
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (payload: LoginPayload) => {
     const tokens = await authApi.login(payload);
     setTokens(tokens.access, tokens.refresh);
+    queryClient.clear();
     const currentUser = await authApi.getCurrentUser();
     setUser(currentUser);
     navigate(getLandingPath(currentUser.role?.code));
@@ -65,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authApi.logout();
     } catch {}
     clearTokens();
+    queryClient.clear();
     setUser(null);
     navigate("/login");
   };
@@ -83,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const tokens = await authApi.googleExchange(supabaseAccessToken);
       setTokens(tokens.access, tokens.refresh);
+      queryClient.clear();
       const currentUser = await authApi.getCurrentUser();
       setUser(currentUser);
       navigate(getLandingPath(currentUser.role?.code));
