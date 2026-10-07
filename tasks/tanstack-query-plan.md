@@ -18,7 +18,9 @@ fewer duplicate requests (the project list is fetched by 8 files and budgets by 
 
 ## Architecture Decisions
 - QueryClient defaults keep today's behavior: `retry: false` (no slow, repeated 403/404s), `refetchOnWindowFocus: false`
-  (no new requests), short `staleTime`. These can be loosened per query later, on purpose.
+  (no new requests), and `staleTime: 0`. Every mount still refetches like today, but cached data shows at once. A
+  longer `staleTime` is only safe for a key once every page that writes it invalidates it (Phase 3); otherwise a
+  project created in one page would be missing from another page's list.
 - The cache is cleared on login and logout so one account never sees another account's role-scoped data.
 - One file, `src/lib/queries.ts`, holds the query key factory and thin hooks (`useProjects`, `useBudgets`, ...) that
   call the existing `*Api` functions. Split it per domain only if it grows too large.

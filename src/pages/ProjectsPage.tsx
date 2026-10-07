@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { researchApi } from "../lib/researchApi";
-import { personnelApi } from "../lib/personnelApi";
-import { monitoringApi } from "../lib/monitoringApi";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { assignmentsQuery, milestonesQuery, monitoringStatusQuery, useProjects } from "../lib/queries";
 import { RESEARCH_TYPE_LABELS } from "../lib/projectOptions";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
-import type { Milestone, Project, FundingType, RecordStatus } from "../types/research";
-import type { ProjectAssignment } from "../types/personnel";
-import type { ProjectMonitoringStatus } from "../types/monitoring";
+import type { FundingType, RecordStatus } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
@@ -56,43 +53,22 @@ function ProjectsContent() {
   const { user } = useAuth();
   const canRegister = !!user?.role && REGISTRATION_ROLE_CODES.includes(user.role.code);
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
-  const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
-  const [statuses, setStatuses] = useState<Record<number, ProjectMonitoringStatus | null>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const projectsResult = useProjects();
+  const projects = projectsResult.data ?? [];
+  const isLoading = projectsResult.isPending;
+  const milestones = useQuery(milestonesQuery).data ?? [];
+  const assignments = useQuery(assignmentsQuery({ active: true })).data ?? [];
+  const statusResults = useQueries({ queries: projects.map((p) => monitoringStatusQuery(p.id)) });
+  const statuses = Object.fromEntries(
+    projects.map((p, i) => [p.id, statusResults[i]?.isError ? null : statusResults[i]?.data]),
+  );
   const [filterStatus, setFilterStatus] = useState<RecordStatus | "all">("all");
   const [filterType, setFilterType] = useState<FundingType | "all">("all");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    let active = true;
-    researchApi
-      .getProjects()
-      .then((projectList) => {
-        if (!active) return;
-        setProjects(projectList);
-        projectList.forEach((p) =>
-          monitoringApi
-            .getProjectStatus(p.id)
-            .then((st) => active && setStatuses((s) => ({ ...s, [p.id]: st })))
-            .catch(() => active && setStatuses((s) => ({ ...s, [p.id]: null }))),
-        );
-      })
-      .catch(() => active && notify.error("Could not load projects. Check your connection and refresh."))
-      .finally(() => active && setIsLoading(false));
-    researchApi
-      .getMilestones()
-      .then((m) => active && setMilestones(m))
-      .catch(() => undefined);
-    personnelApi
-      .getAssignments({ active: true })
-      .then((a) => active && setAssignments(a))
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (projectsResult.isError) notify.error("Could not load projects. Check your connection and refresh.");
+  }, [projectsResult.isError]);
 
   const counts = projects.reduce<Record<string, number>>((acc, p) => {
     acc[p.status] = (acc[p.status] ?? 0) + 1;

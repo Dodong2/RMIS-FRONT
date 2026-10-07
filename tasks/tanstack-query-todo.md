@@ -9,7 +9,8 @@ Per-task verification: `npx tsc -b`, eslint on touched files, `npm run build`. C
 - [x] `queryClient.clear()` on login, Google login and logout
 - [x] No change in the network tab, since nothing uses queries yet
 Files: `src/providers/AppProviders.tsx`, `src/context/AuthContext.tsx`. Depends on: none.
-**Result:** `staleTime` 30s. `tsc -b` and build are clean. The 3 eslint errors in `AuthContext.tsx` (set-state-in-effect,
+**Result:** `staleTime` was 30s, then set back to the default 0 in T3 (see plan: a stale list after a save in an
+unmigrated page). `tsc -b` and build are clean. The 3 eslint errors in `AuthContext.tsx` (set-state-in-effect,
 no-empty, only-export-components) were already there before T1 and are left alone.
 
 ### T2: Query key factory + shared read hooks (S)
@@ -21,10 +22,12 @@ invalidation. `queryKeys.budgets()` = `["budgets"]`, so invalidating it also ref
 list. Hooks take `{ enabled }` for role-gated reads.
 
 ### T3: Pilot: ProjectsPage (S)
-- [ ] `useProjects` + `useQueries` for the per-project statuses
-- [ ] Same skeleton, empty state and error toast as before
-- [ ] Coming back to the page uses the cache, with no full reload of every status
+- [x] `useProjects` + `useQueries` for the per-project statuses
+- [x] Same skeleton, empty state and error toast as before
+- [x] Coming back to the page shows the cached list and statuses at once, then refetches in the background
 Files: `src/pages/ProjectsPage.tsx`. Depends on: T2.
+**Result:** milestones, assignments and monitoring status also moved to `queries.ts`. Status `undefined` = loading
+("…"), `null` = failed ("—"), same as before. The error toast fires from an effect on `isError`.
 
 ### Checkpoint A
 - [ ] Build + lint clean
