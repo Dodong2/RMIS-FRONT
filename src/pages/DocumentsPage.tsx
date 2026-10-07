@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { complianceApi } from "../lib/complianceApi";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { monitoringApi } from "../lib/monitoringApi";
-import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { assignmentsQuery, documentSharesQuery, documentsQuery, queryKeys, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { UserSelect } from "../components/common/UserPicker";
 import { ROLE_META, personName } from "../lib/roles";
@@ -277,29 +278,35 @@ function UploadModal({ projects, preset, onClose, onSaved }: { projects: Project
 type LinkedRecord = { module: string; description: string };
 
 function SharingTab({ doc }: { doc: ProjectDocument }) {
-  const [shares, setShares] = useState<DocumentShare[] | null>(null);
-  const [forbidden, setForbidden] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
+  const queryClient = useQueryClient();
+  const sharesQ = useQuery(documentSharesQuery(doc.id));
+  const shares: DocumentShare[] | null = sharesQ.isError ? [] : (sharesQ.data ?? null);
+  const forbidden = (sharesQ.error as { response?: { status?: number } } | null)?.response?.status === 403;
   const [roleCode, setRoleCode] = useState("");
   const [candidates, setCandidates] = useState<AdminUser[]>([]);
   const [form, setForm] = useState({ user: "", expires_on: "", reason: "" });
   const [attempted, setAttempted] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const reloadShares = () => queryClient.invalidateQueries({ queryKey: queryKeys.documentShares(doc.id) });
 
-  useEffect(() => {
-    let active = true;
-    documentApi
-      .getShares(doc.id)
-      .then((r) => active && setShares(r))
-      .catch((err) => {
-        if (!active) return;
-        setForbidden((err as { response?: { status?: number } })?.response?.status === 403);
-        setShares([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [doc.id, reloadKey]);
+  const grantMutation = useMutation({
+    mutationFn: () => documentApi.createShare(doc.id, { user: Number(form.user), expires_on: form.expires_on, reason: form.reason.trim() || undefined }),
+    onSuccess: () => {
+      notify.success("Document shared.");
+      setForm({ user: "", expires_on: "", reason: "" });
+      setAttempted(false);
+      reloadShares();
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not share the document.")),
+  });
+  const revokeMutation = useMutation({
+    mutationFn: (id: number) => documentApi.revokeShare(id),
+    onSuccess: () => {
+      notify.success("Share revoked.");
+      reloadShares();
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not revoke the share.")),
+  });
+  const busy = grantMutation.isPending || revokeMutation.isPending;
 
   useEffect(() => {
     if (!roleCode) return;
@@ -313,38 +320,16 @@ function SharingTab({ doc }: { doc: ProjectDocument }) {
     };
   }, [roleCode]);
 
-  const grant = async () => {
+  const grant = () => {
     setAttempted(true);
     if (!form.user || !form.expires_on) {
       notify.error("Choose a user and an expiry date.");
       return;
     }
-    setBusy(true);
-    try {
-      await documentApi.createShare(doc.id, { user: Number(form.user), expires_on: form.expires_on, reason: form.reason.trim() || undefined });
-      notify.success("Document shared.");
-      setForm({ user: "", expires_on: "", reason: "" });
-      setAttempted(false);
-      setReloadKey((k) => k + 1);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not share the document."));
-    } finally {
-      setBusy(false);
-    }
+    grantMutation.mutate();
   };
 
-  const revoke = async (id: number) => {
-    setBusy(true);
-    try {
-      await documentApi.revokeShare(id);
-      notify.success("Share revoked.");
-      setReloadKey((k) => k + 1);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not revoke the share."));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const revoke = (id: number) => revokeMutation.mutate(id);
 
   if (shares === null) return <SkeletonRows rows={2} />;
   if (forbidden)
@@ -453,7 +438,6 @@ function DetailModal({
   const [versions, setVersions] = useState<ProjectDocument[] | null>(null);
   const [links, setLinks] = useState<LinkedRecord[] | null>(null);
   const [remarks, setRemarks] = useState("");
-  const [busy, setBusy] = useState(false);
   const am = ACCESS_META[doc.sensitivity];
   const status = statusOf(doc);
 
@@ -492,18 +476,16 @@ function DetailModal({
     };
   }, [tab, links, doc]);
 
-  const act = async (fn: () => Promise<unknown>, ok: string) => {
-    setBusy(true);
-    try {
-      await fn();
-      notify.success(ok);
-      onChanged();
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not update this document."));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const actMutation = useMutation({ mutationFn: (fn: () => Promise<unknown>) => fn() });
+  const busy = actMutation.isPending;
+  const act = (fn: () => Promise<unknown>, ok: string) =>
+    actMutation.mutate(fn, {
+      onSuccess: () => {
+        notify.success(ok);
+        onChanged();
+      },
+      onError: (err) => notify.error(errorMessage(err, "Could not update this document.")),
+    });
 
   return (
     <ProtoModal
@@ -670,11 +652,22 @@ function DocumentsContent() {
   const { user } = useAuth();
   const canManage = MANAGE_ROLE_CODES.includes(user?.role?.code ?? "");
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [names, setNames] = useState<Map<number, string>>(new Map());
-  const [docs, setDocs] = useState<ProjectDocument[] | null>(null);
+  const queryClient = useQueryClient();
+  const projectsQ = useProjects();
+  const projects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
+  const assignments = useQuery(assignmentsQuery({ active: true })).data;
+  const names = useMemo(
+    () =>
+      new Map<number, string>([
+        ...projects.map((x) => [x.lead_detail.id, personName(x.lead_detail)] as [number, string]),
+        ...(assignments ?? []).map((x) => [x.user_detail.id, personName(x.user_detail)] as [number, string]),
+      ]),
+    [projects, assignments],
+  );
   const [showSuperseded, setShowSuperseded] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
+  const docsQ = useQuery(documentsQuery({ current_only: !showSuperseded }));
+  const docs = useMemo<ProjectDocument[] | null>(() => (docsQ.isError ? [] : (docsQ.data ?? null)), [docsQ.isError, docsQ.data]);
+  const reloadDocs = () => queryClient.invalidateQueries({ queryKey: queryKeys.documentsAll });
 
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [typeFilter, setTypeFilter] = useState<DocumentType | "all">("all");
@@ -685,38 +678,12 @@ function DocumentsContent() {
   const [upload, setUpload] = useState<UploadPreset | null>(null);
 
   useEffect(() => {
-    let active = true;
-    researchApi
-      .getProjects()
-      .then((p) => {
-        if (!active) return;
-        setProjects(p);
-        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, personName(x.lead_detail)] as [number, string])]));
-      })
-      .catch(() => active && notify.error("Could not load projects."));
-    personnelApi
-      .getAssignments({ active: true })
-      .then((a) => active && setNames((m) => new Map([...m, ...a.map((x) => [x.user_detail.id, personName(x.user_detail)] as [number, string])])))
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (projectsQ.isError) notify.error("Could not load projects.");
+  }, [projectsQ.isError]);
 
   useEffect(() => {
-    let active = true;
-    documentApi
-      .getDocuments({ current_only: !showSuperseded })
-      .then((d) => active && setDocs(d))
-      .catch(() => {
-        if (!active) return;
-        setDocs([]);
-        notify.error("Could not load documents.");
-      });
-    return () => {
-      active = false;
-    };
-  }, [showSuperseded, reloadKey]);
+    if (docsQ.isError) notify.error("Could not load documents.");
+  }, [docsQ.isError]);
 
   const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? personName(user) : names.get(id) ?? `User #${id}`);
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
@@ -845,10 +812,7 @@ function DocumentsContent() {
             <input
               type="checkbox"
               checked={showSuperseded}
-              onChange={(e) => {
-                setDocs(null);
-                setShowSuperseded(e.target.checked);
-              }}
+              onChange={(e) => setShowSuperseded(e.target.checked)}
             />
             Show superseded versions
           </label>
@@ -908,7 +872,7 @@ function DocumentsContent() {
           nameOf={nameOf}
           canManage={canManage}
           onClose={() => setSelectedId(null)}
-          onChanged={() => setReloadKey((k) => k + 1)}
+          onChanged={reloadDocs}
           onNewVersion={() => setUpload({ project: String(selected.project), document_type: selected.document_type, study: selected.study ? String(selected.study) : "" })}
         />
       )}
@@ -920,7 +884,7 @@ function DocumentsContent() {
           onSaved={() => {
             setUpload(null);
             setSelectedId(null);
-            setReloadKey((k) => k + 1);
+            reloadDocs();
           }}
         />
       )}

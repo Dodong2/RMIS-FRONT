@@ -19,7 +19,9 @@ export const queryKeys = {
   budgetSummary: (budget: number) => ["budget-summary", budget] as const,
   financialAll: ["financial"] as const,
   financial: (budget?: number) => ["financial", budget ?? "all"] as const,
+  documentsAll: ["documents"] as const,
   documents: (params: DocumentParams = {}) => ["documents", params] as const,
+  documentShares: (doc: number) => ["document-shares", doc] as const,
 };
 
 type AssignmentParams = Parameters<typeof personnelApi.getAssignments>[0];
@@ -59,6 +61,9 @@ export const financialRecordsQuery = (budget?: number) =>
 
 export const documentsQuery = (params: DocumentParams = {}) =>
   queryOptions({ queryKey: queryKeys.documents(params), queryFn: () => documentApi.getDocuments(params) });
+
+export const documentSharesQuery = (doc: number) =>
+  queryOptions({ queryKey: queryKeys.documentShares(doc), queryFn: () => documentApi.getShares(doc) });
 
 type Gate = { enabled?: boolean };
 

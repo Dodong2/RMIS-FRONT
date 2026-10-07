@@ -72,7 +72,12 @@ Its `run()` is a `useMutation`, so `busy` = `isPending`. The Disbursements board
 invalidates `financial`, `budgets`, `budget-summary` and `projects`, so the outer lists refresh too. Record/Realign
 modals keep their own submit code and call the same invalidation through `onSaved`. Keys: the all-records list is
 `["financial","all"]`, separate from a per-budget `["financial",id]`.
-### T8: Documents (M)
+### T8: Documents (M) ✅
+**Result:** no `reloadKey` now. The list reads `documentsQuery({current_only})`, `useProjects` and active assignments (for
+names). Approve/return/archive (`act`), share grant and revoke are `useMutation`. Uploads and detail changes
+invalidate the `["documents"]` prefix, which also refreshes the Disbursements board's documents. Sharing keeps the
+403 → "forbidden" message. Toggling "Show superseded" still shows the skeleton, as before (new key, no placeholder).
+The Versions/Linked tabs keep their lazy per-modal effects.
 ### T9: Staff + Personnel Changes (M)
 ### T10: Tasks (M/L, most complex, last)
 For each task:
