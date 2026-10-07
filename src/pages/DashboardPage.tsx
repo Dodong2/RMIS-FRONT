@@ -6,13 +6,12 @@ import { AppShell } from "../components/layout/AppShell";
 import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
 import { authApi } from "../lib/authApi";
-import { budgetApi } from "../lib/budgetApi";
 import { dashboardApi } from "../lib/dashboardApi";
 import { exportPdf, exportXlsx, type ExportSection } from "../lib/exportFiles";
 import { monitoringApi } from "../lib/monitoringApi";
 import { notify } from "../lib/notify";
+import { useBudgets, useProjects } from "../lib/queries";
 import { personnelApi } from "../lib/personnelApi";
-import { researchApi } from "../lib/researchApi";
 import { riskApi } from "../lib/riskApi";
 import { visibleSections } from "../lib/nav";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
@@ -1095,7 +1094,14 @@ function DashboardContent() {
   const navTargets = visibleSections(tier).flatMap((s) => s.items.filter((i) => i.ready).map((i) => i.to));
   const canOpen = (to: string) => navTargets.includes(to);
 
-  const [data, setData] = useState<DashData>({});
+  const [rawData, setData] = useState<DashData>({});
+  const projectsQ = useProjects({ enabled: hasRole });
+  const budgetsQ = useBudgets(undefined, { enabled: hasRole });
+  const data: DashData = {
+    ...rawData,
+    projects: projectsQ.isError ? null : projectsQ.data,
+    budgets: budgetsQ.isError ? null : budgetsQ.data,
+  };
   const [domainTab, setDomainTab] = useState<DomainTab>("projects");
   const [scope, setScope] = useState<Scope>({ level: "institution", campus: null, projectId: null });
   const [showReport, setShowReport] = useState(false);
@@ -1109,11 +1115,9 @@ function DashboardContent() {
       settle(dashboardApi.getOutputDashboard()),
       settle(dashboardApi.getFundingAllocationDashboard()),
       settle(dashboardApi.getTaskDashboard()),
-      settle(researchApi.getProjects()),
-      settle(budgetApi.getBudgets()),
-    ]).then(([complianceDash, outputDash, fundingDash, taskDash, projects, budgets]) => {
+    ]).then(([complianceDash, outputDash, fundingDash, taskDash]) => {
       if (!active) return;
-      setData((d) => ({ ...d, complianceDash, outputDash, fundingDash, taskDash, projects, budgets }));
+      setData((d) => ({ ...d, complianceDash, outputDash, fundingDash, taskDash }));
     });
     if (canSeeWorkload) {
       settle(personnelApi.getWorkload()).then((workload) => active && setData((d) => ({ ...d, workload })));

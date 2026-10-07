@@ -3,10 +3,11 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
-import { researchApi } from "../lib/researchApi";
 import { documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import type { LineItemBudget, LineItemCategory } from "../types/budget";
 import type { BudgetRealignment, BudgetSummary, Disbursement, LineItemBalance, RealignmentStatus, RealignmentTier } from "../types/financial";
@@ -975,31 +976,40 @@ function DisbursementsContent() {
   const canRequest = REALIGNMENT_REQUEST_ROLE_CODES.includes(code);
   const canReviewTier = (t: RealignmentTier) => (t === "bor" ? REALIGNMENT_BOR_REVIEW_ROLE_CODES : REALIGNMENT_MAJOR_REVIEW_ROLE_CODES).includes(code);
   const [params, setParams] = useSearchParams();
-  const [projects, setProjects] = useState<Project[] | null>(null);
-  const [budgets, setBudgets] = useState<LineItemBudget[]>([]);
+  const queryClient = useQueryClient();
+  const projectsQ = useProjects();
+  const budgetsQ = useBudgets();
   const [disbursements, setDisbursements] = useState<Disbursement[]>([]);
   const [realignments, setRealignments] = useState<BudgetRealignment[]>([]);
+  const [records, setRecords] = useState<"loading" | "ok" | "error">("loading");
   const [reloadKey, setReloadKey] = useState(0);
+  const failed = projectsQ.isError || budgetsQ.isError || records === "error";
+  const projects: Project[] | null = failed ? [] : projectsQ.data && budgetsQ.data && records === "ok" ? projectsQ.data : null;
+  const budgets = budgetsQ.data ?? [];
+  const reload = () => {
+    setReloadKey((k) => k + 1);
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+  };
 
   useEffect(() => {
     let active = true;
-    Promise.all([researchApi.getProjects(), budgetApi.getBudgets(), financialApi.getDisbursements(), financialApi.getRealignments()])
-      .then(([p, b, d, r]) => {
+    Promise.all([financialApi.getDisbursements(), financialApi.getRealignments()])
+      .then(([d, r]) => {
         if (!active) return;
-        setProjects(p);
-        setBudgets(b);
         setDisbursements(d);
         setRealignments(r);
+        setRecords("ok");
       })
-      .catch(() => {
-        if (!active) return;
-        setProjects([]);
-        notify.error("Could not load financial records. Check your connection and refresh.");
-      });
+      .catch(() => active && setRecords("error"));
     return () => {
       active = false;
     };
   }, [reloadKey]);
+
+  useEffect(() => {
+    if (failed) notify.error("Could not load financial records. Check your connection and refresh.");
+  }, [failed]);
 
   const selected = projects?.find((p) => p.id === Number(params.get("project")));
   if (selected) {
@@ -1010,7 +1020,7 @@ function DisbursementsContent() {
         canRequest={canRequest}
         canReviewTier={canReviewTier}
         onBack={() => setParams({})}
-        onChanged={() => setReloadKey((k) => k + 1)}
+        onChanged={reload}
       />
     );
   }

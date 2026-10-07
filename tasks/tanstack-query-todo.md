@@ -44,9 +44,13 @@ same toast (two identical toasts if both calls fail). PersonnelChanges invalidat
 approved lead change alters `lead_detail`.
 
 ### T5: getProjects/getBudgets consumers, batch 2 (M)
-- [ ] DashboardPage, BudgetPage, ProcurementPage, DisbursementsPage (projects + budgets). The last three use `reloadKey`,
+- [x] DashboardPage, BudgetPage, ProcurementPage, DisbursementsPage (projects + budgets). The last three use `reloadKey`,
   so their budget refresh must invalidate `budgets`.
 Depends on: T4.
+**Result:** a `reload()` on Budget, Disbursements and Procurement invalidates `projects` + `budgets()` (and still bumps
+`reloadKey` for the page's own records), so a save refreshes the same data as before. Budget and Disbursements keep
+`projects === null` until everything has loaded. Each page fires one error toast, the same text as before. Dashboard
+merges the two queries into `data` (`undefined` loading, `null` failed, same as `settle`).
 
 
 ### T6: Roles and users (S)

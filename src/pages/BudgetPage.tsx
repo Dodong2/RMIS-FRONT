@@ -4,9 +4,10 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
-import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
@@ -963,28 +964,21 @@ function BudgetContent() {
   const canManage = MANAGE_ROLE_CODES.includes(code);
   const canCertify = CERTIFY_ROLE_CODES.includes(code);
   const [params, setParams] = useSearchParams();
-  const [projects, setProjects] = useState<Project[] | null>(null);
-  const [budgets, setBudgets] = useState<LineItemBudget[]>([]);
-  const [reloadKey, setReloadKey] = useState(0);
+  const queryClient = useQueryClient();
+  const projectsQ = useProjects();
+  const budgetsQ = useBudgets();
+  const failed = projectsQ.isError || budgetsQ.isError;
+  const projects: Project[] | null = failed ? [] : projectsQ.data && budgetsQ.data ? projectsQ.data : null;
+  const budgets = budgetsQ.data ?? [];
+  const reload = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+  };
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    Promise.all([researchApi.getProjects(), budgetApi.getBudgets()])
-      .then(([p, b]) => {
-        if (!active) return;
-        setProjects(p);
-        setBudgets(b);
-      })
-      .catch(() => {
-        if (!active) return;
-        setProjects([]);
-        notify.error("Could not load budgets. Check your connection and refresh.");
-      });
-    return () => {
-      active = false;
-    };
-  }, [reloadKey]);
+    if (failed) notify.error("Could not load budgets. Check your connection and refresh.");
+  }, [failed]);
 
   const current = budgets.filter((b) => b.is_current);
   const selected = projects?.find((p) => p.id === Number(params.get("project")));
@@ -996,7 +990,7 @@ function BudgetContent() {
         canCertify={canCertify}
         isStudyLeader={code === "study_leader"}
         onBack={() => setParams({})}
-        onChanged={() => setReloadKey((k) => k + 1)}
+        onChanged={reload}
       />
     );
   }

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
-import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 import type { ProcurementRequest, ProcurementStatus } from "../types/financial";
@@ -210,8 +211,12 @@ function ProcurementContent() {
   const canRequest = REQUEST_ROLE_CODES.includes(code);
   const canUpdate = UPDATE_ROLE_CODES.includes(code);
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [budgets, setBudgets] = useState<LineItemBudget[]>([]);
+  const queryClient = useQueryClient();
+  const projectsQ = useProjects();
+  const budgetsQ = useBudgets();
+  const projects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
+  const budgets = useMemo(() => budgetsQ.data ?? [], [budgetsQ.data]);
+  const listsFailed = projectsQ.isError || budgetsQ.isError;
   const [requests, setRequests] = useState<ProcurementRequest[] | null>(null);
   const [appItems, setAppItems] = useState<LineItem[] | null>(null);
   const [overdueIds, setOverdueIds] = useState<Set<number>>(new Set());
@@ -226,13 +231,6 @@ function ProcurementContent() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([researchApi.getProjects(), budgetApi.getBudgets()])
-      .then(([p, b]) => {
-        if (!active) return;
-        setProjects(p);
-        setBudgets(b);
-      })
-      .catch(() => active && notify.error("Could not load projects or budgets."));
     financialApi
       .getProcurementRequests({ overdue: true })
       .then((r) => active && setOverdueIds(new Set(r.map((x) => x.id))))
@@ -241,6 +239,16 @@ function ProcurementContent() {
       active = false;
     };
   }, [reloadKey]);
+
+  useEffect(() => {
+    if (listsFailed) notify.error("Could not load projects or budgets.");
+  }, [listsFailed]);
+
+  const reload = () => {
+    setReloadKey((k) => k + 1);
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+  };
 
   useEffect(() => {
     let active = true;
@@ -274,7 +282,7 @@ function ProcurementContent() {
     try {
       await financialApi.updateProcurementStatus(r.id, status, remarks[r.id]?.trim() || undefined);
       notify.success(`Request moved to ${STATUS_META[status].label}.`);
-      setReloadKey((k) => k + 1);
+      reload();
     } catch (err) {
       notify.error(errorMessage(err, "Could not update the request."));
     } finally {
@@ -509,7 +517,7 @@ function ProcurementContent() {
           onClose={() => setShowNew(false)}
           onSaved={() => {
             setShowNew(false);
-            setReloadKey((k) => k + 1);
+            reload();
           }}
         />
       )}
