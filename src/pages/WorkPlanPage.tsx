@@ -575,9 +575,17 @@ function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: M
     };
   }, [milestone.id, milestone.project, reload]);
 
+  const minDate = milestone.start_date ?? undefined;
+  const maxDate = milestone.target_date;
+  const outOfRange = !!form.due_date && ((!!minDate && form.due_date < minDate) || form.due_date > maxDate);
+
   const save = async () => {
     if (!form.title.trim() || !form.assignee) {
       notify.error("Task title and assignee are required.");
+      return;
+    }
+    if (outOfRange) {
+      notify.error(`The due date must be within the activity's planned dates (${minDate ?? "start"} to ${maxDate}).`);
       return;
     }
     setSaving(true);
@@ -641,7 +649,19 @@ function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: M
               <option key={p.id} value={p.id}>{nameOf(p)}</option>
             ))}
           </select>
-          <input type="date" className={inputCls} style={inputSt} value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+          <input
+            type="date"
+            className={inputCls}
+            style={{ ...inputSt, borderColor: outOfRange ? "#dc2626" : "#e2e8f0" }}
+            value={form.due_date}
+            min={minDate}
+            max={maxDate}
+            onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+            aria-label="Due date"
+          />
+          <p className="md:col-span-4 text-xs" style={{ color: outOfRange ? "#dc2626" : "#94a3b8" }}>
+            Due date must be within the planned dates: {minDate ?? "—"} → {maxDate}
+          </p>
           <div className="md:col-span-4 flex justify-end gap-2">
             <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer" style={{ background: "#f1f5f9", color: "#64748b" }}>Cancel</button>
             <button onClick={save} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white cursor-pointer disabled:opacity-60" style={{ background: "#0d2a5e" }}>

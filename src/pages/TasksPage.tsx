@@ -702,7 +702,15 @@ function CreateTaskModal({
           </div>
           <div>
             <label className="label-field">Due Date</label>
-            <input type="date" className={inputCls} style={inputSt} value={form.due_date} onChange={set("due_date")} />
+            <input
+              type="date"
+              className={inputCls}
+              style={inputSt}
+              value={form.due_date}
+              min={milestones.find((m) => String(m.id) === form.milestone)?.start_date ?? undefined}
+              max={milestones.find((m) => String(m.id) === form.milestone)?.target_date}
+              onChange={set("due_date")}
+            />
           </div>
           <div>
             <label className="label-field">Estimated Hours</label>
