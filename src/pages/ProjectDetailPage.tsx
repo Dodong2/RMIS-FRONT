@@ -183,50 +183,71 @@ function LifecyclePipeline({ project, terminal }: { project: Project; terminal: 
   );
 }
 
+const QUARTER_PX = 120;
+
 function GanttChart({ project, milestones, now }: { project: Project; milestones: Milestone[]; now: number }) {
   if (milestones.length === 0) return <p className="text-sm py-4 text-center" style={{ color: "#94a3b8" }}>No milestones defined yet.</p>;
-  const dates = milestones.flatMap((m) => [m.start_date, m.target_date]).filter(Boolean) as string[];
-  const start = new Date(project.start_date ?? dates.sort()[0]);
-  const end = new Date(project.target_end_date ?? dates.sort().slice(-1)[0]);
-  const totalMs = Math.max(1, end.getTime() - start.getTime());
-  const toPercent = (d: string) => Math.max(0, Math.min(100, ((new Date(d).getTime() - start.getTime()) / totalMs) * 100));
-  const todayPct = Math.max(0, Math.min(100, ((now - start.getTime()) / totalMs) * 100));
+  const dates = [project.start_date, project.target_end_date, ...milestones.flatMap((m) => [m.start_date, m.target_date])].filter((d): d is string => !!d);
+  const yearsSeen = dates.map((d) => Number(d.slice(0, 4)));
+  const firstYear = Math.min(...yearsSeen);
+  const years = Math.max(...yearsSeen) - firstYear + 1;
+  const quarters = years * 4;
+  const start = new Date(firstYear, 0, 1).getTime();
+  const totalMs = new Date(firstYear + years, 0, 1).getTime() - start;
+  const pctOf = (t: number) => Math.max(0, Math.min(100, ((t - start) / totalMs) * 100));
+  const toPercent = (d: string) => {
+    const [y, m, day] = d.split("-").map(Number);
+    return pctOf(new Date(y, m - 1, day).getTime());
+  };
+  const todayPct = pctOf(now);
+  const showToday = now >= start && now <= start + totalMs;
+  const quarterLines = {
+    backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${QUARTER_PX - 1}px, #e2e8f0 ${QUARTER_PX - 1}px, #e2e8f0 ${QUARTER_PX}px)`,
+  };
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[700px]">
+      <div style={{ width: 208 + quarters * QUARTER_PX }}>
         <div className="flex text-xs mb-2" style={{ color: "#94a3b8" }}>
-          <div className="w-52 shrink-0" />
-          <div className="flex-1 relative h-5">
-            {["Q1", "Q2", "Q3", "Q4"].map((q, i) => (
-              <span key={q} className="absolute font-semibold" style={{ left: `${i * 25}%`, transform: "translateX(-50%)" }}>{q}</span>
+          <div className="w-52 shrink-0 sticky left-0 z-20" style={{ background: "#f8fafc" }} />
+          <div className="flex">
+            {Array.from({ length: quarters }, (_, q) => (
+              <span
+                key={q}
+                className="text-center font-semibold"
+                style={{ width: QUARTER_PX, borderLeft: q % 4 === 0 && q > 0 ? "2px solid #cbd5e1" : undefined }}
+              >
+                {`${Math.floor(q / 4) + 1}Q${(q % 4) + 1}`}
+              </span>
             ))}
           </div>
         </div>
         {milestones.map((ms) => {
           const left = toPercent(ms.start_date ?? ms.target_date);
-          const width = Math.max(1, toPercent(ms.target_date) - left);
+          const width = Math.max(0.5, toPercent(ms.target_date) - left);
           const c = MILESTONE_COLORS[ms.status];
           return (
             <div key={ms.id} className="flex items-center mb-1.5">
-              <div className="w-52 shrink-0 pr-4">
+              <div className="w-52 shrink-0 pr-4 sticky left-0 z-20" style={{ background: "#f8fafc" }}>
                 <p className="text-xs font-medium truncate" style={{ color: "#334155" }}>{ms.title}</p>
               </div>
-              <div className="flex-1 relative h-6 rounded" style={{ background: "#f1f5f9" }}>
+              <div className="relative h-6 rounded" style={{ width: quarters * QUARTER_PX, background: "#f1f5f9", ...quarterLines }}>
                 <div className="absolute top-1 bottom-1 rounded" style={{ left: `${left}%`, width: `${width}%`, background: c.bar }} />
-                <div className="absolute top-0 bottom-0 w-px z-10" style={{ left: `${todayPct}%`, background: "#ef4444", opacity: 0.7 }} />
+                {showToday && <div className="absolute top-0 bottom-0 w-px z-10" style={{ left: `${todayPct}%`, background: "#ef4444", opacity: 0.7 }} />}
               </div>
             </div>
           );
         })}
-        <div className="flex">
-          <div className="w-52 shrink-0" />
-          <div className="flex-1 relative h-4">
-            <div className="absolute flex items-center" style={{ left: `${todayPct}%`, transform: "translateX(-50%)" }}>
-              <span className="text-xs font-semibold" style={{ color: "#ef4444" }}>Today</span>
+        {showToday && (
+          <div className="flex">
+            <div className="w-52 shrink-0" />
+            <div className="relative h-4" style={{ width: quarters * QUARTER_PX }}>
+              <div className="absolute flex items-center" style={{ left: `${todayPct}%`, transform: "translateX(-50%)" }}>
+                <span className="text-xs font-semibold" style={{ color: "#ef4444" }}>Today</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -417,7 +438,26 @@ function ProjectDetailContent() {
 
   const libTotal = budgets.filter((b) => b.is_current).reduce((s, b) => s + Number(b.total_amount), 0);
   const duration = monthsBetween(project.start_date, project.target_end_date);
-  const teamSize = team.length + 1;
+  const teamRows = [
+    { key: "lead", name: personName(project.lead_detail), role: "Project Leader", sub: "Lead proponent", color: "#0d2a5e" },
+    ...formTeam
+      .filter((m) => m.user === null || !team.some((a) => a.user === m.user))
+      .map((m) => ({
+        key: `form-${m.id}`,
+        name: m.name,
+        role: m.member_role === "co_leader" ? "Co-Project Leader" : "Project Staff",
+        sub: "Named at project registration",
+        color: m.member_role === "co_leader" ? "#1a3f7a" : "#0891b2",
+      })),
+    ...team.map((a) => ({
+      key: String(a.id),
+      name: personName(a.user_detail),
+      role: a.role_label || "Project Staff",
+      sub: [a.department, a.study ? studies.find((s) => s.id === a.study)?.title : null, `since ${a.start_date}`].filter(Boolean).join(" · "),
+      color: "#0891b2",
+    })),
+  ];
+  const teamSize = teamRows.length;
   const phys = status?.deliverables_pct ?? null;
   const fin = status?.budget_used_pct ?? null;
   const recordedOutcomes = outcomes.filter((o) => o.kind === "outcome").map((o) => o.description);
@@ -706,27 +746,7 @@ function ProjectDetailContent() {
             <div className="space-y-4">
               <SectionHeader>Project Team Members</SectionHeader>
               <div className="space-y-3">
-                {[
-                  { key: "lead", name: personName(project.lead_detail), role: "Project Leader", sub: "Lead proponent", color: "#0d2a5e" },
-                  ...formTeam
-                    .filter((m) => m.user === null || !team.some((a) => a.user === m.user))
-                    .map((m) => ({
-                      key: `form-${m.id}`,
-                      name: m.name,
-                      role: m.member_role === "co_leader" ? "Co-Project Leader" : "Project Staff",
-                      sub: "Named at project registration",
-                      color: m.member_role === "co_leader" ? "#1a3f7a" : "#0891b2",
-                    })),
-                  ...team.map((a) => ({
-                    key: String(a.id),
-                    name: personName(a.user_detail),
-                    role: a.role_label || "Project Staff",
-                    sub: [a.department, a.study ? studies.find((s) => s.id === a.study)?.title : null, `since ${a.start_date}`]
-                      .filter(Boolean)
-                      .join(" · "),
-                    color: "#0891b2",
-                  })),
-                ].map((m) => (
+                {teamRows.map((m) => (
                   <div key={m.key} className="rounded-xl p-4 flex items-start gap-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ background: m.color }}>
                       {initialsFrom(m.name)}
