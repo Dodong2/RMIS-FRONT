@@ -20,11 +20,12 @@ const REQUEST_ROLE_CODES = ["system_admin", "program_leader", "project_leader"];
 const UPDATE_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
 const DELAY_DAYS = 30;
 
-const CATEGORY_META: Record<LineItemCategory, { label: string; color: string; bg: string; icon: string }> = {
-  ps: { label: "PS", color: "#0d2a5e", bg: "#e0eaf7", icon: "👤" },
-  mooe: { label: "MOOE", color: "#0891b2", bg: "#e0f2fe", icon: "🧾" },
-  co: { label: "CO", color: "#059669", bg: "#d1fae5", icon: "🏗️" },
+const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: string }> = {
+  ps: { label: "PS", full: "Personal Services", color: "#0d2a5e", bg: "#e0eaf7", icon: "👤" },
+  mooe: { label: "MOOE", full: "Maintenance & Other Operating Expenses", color: "#0891b2", bg: "#e0f2fe", icon: "🧾" },
+  co: { label: "CO", full: "Capital Outlay", color: "#059669", bg: "#d1fae5", icon: "🏗️" },
 };
+const CATEGORIES = Object.keys(CATEGORY_META) as LineItemCategory[];
 
 const STATUS_META: Record<ProcurementStatus, { label: string; bg: string; color: string; dot: string }> = {
   requested: { label: "Requested", bg: "#e0f2fe", color: "#0369a1", dot: "#0891b2" },
@@ -113,6 +114,9 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const lib = certified.find((b) => String(b.project) === form.project);
+  const firstCategory = (b?: LineItemBudget) => CATEGORIES.find((c) => b?.line_items.some((li) => li.category === c)) ?? "mooe";
+  const [cat, setCat] = useState<LineItemCategory>(() => firstCategory(lib));
+  const catItems = (lib?.line_items ?? []).filter((li) => li.category === cat);
   const amount = parseFloat(form.amount) || 0;
 
   const save = async () => {
@@ -159,17 +163,41 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
       ) : (
         <>
           <Field label="Project" required>
-            <select className={INPUT_CLS} style={INPUT_STYLE} value={form.project} onChange={(e) => setForm((f) => ({ ...f, project: e.target.value, line_item: "" }))}>
+            <select
+              className={INPUT_CLS}
+              style={INPUT_STYLE}
+              value={form.project}
+              onChange={(e) => {
+                const project = e.target.value;
+                setForm((f) => ({ ...f, project, line_item: "" }));
+                setCat(firstCategory(certified.find((b) => String(b.project) === project)));
+              }}
+            >
               {eligible.map((p) => (
                 <option key={p.id} value={p.id}>{p.project_code} — {p.title}</option>
               ))}
             </select>
           </Field>
-          <Field label="LIB Line Item" required>
+          <Field label="Expense Category" required>
+            <select
+              className={INPUT_CLS}
+              style={INPUT_STYLE}
+              value={cat}
+              onChange={(e) => {
+                setCat(e.target.value as LineItemCategory);
+                setForm((f) => ({ ...f, line_item: "" }));
+              }}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{CATEGORY_META[c].icon} {CATEGORY_META[c].label} — {CATEGORY_META[c].full}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Link to LIB Item" required>
             <select className={INPUT_CLS} style={invalidStyle(attempted && !form.line_item)} value={form.line_item} onChange={set("line_item")}>
-              <option value="">Select line item</option>
-              {(lib?.line_items ?? []).map((li) => (
-                <option key={li.id} value={li.id}>{CATEGORY_META[li.category].label} — {li.description} ({peso(li.amount)})</option>
+              <option value="">{catItems.length ? "— Select LIB line item —" : `No ${CATEGORY_META[cat].label} items in this LIB`}</option>
+              {catItems.map((li) => (
+                <option key={li.id} value={li.id}>{li.description} · {peso(li.amount)}</option>
               ))}
             </select>
           </Field>
