@@ -54,8 +54,11 @@ merges the two queries into `data` (`undefined` loading, `null` failed, same as 
 
 
 ### T6: Roles and users (S)
-- [ ] RegisterPage, GoogleChooseRolePage and admin pages use `useRoles`/`useUsers`; role-gated reads use `enabled`
+- [x] RegisterPage, GoogleChooseRolePage and admin pages use `useRoles`/`useUsers`; role-gated reads use `enabled`
 Depends on: T2.
+**Result:** RegisterPage, GoogleChooseRolePage, SettingsPage, AuditLogsPage (actor filter) and DecisionSupportPage
+(users, `enabled` for system_admin only). Same loading states and toast text. UsersListPage, PendingUsersPage and the
+Dashboard Accounts card are left for Phase 3, because they change the users/pending lists locally after each action.
 
 ### Checkpoint B
 - [ ] Build + lint clean; Carl browser check of the touched pages

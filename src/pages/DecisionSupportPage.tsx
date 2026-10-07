@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { decisionSupportApi } from "../lib/decisionSupportApi";
-import { useProjects } from "../lib/queries";
-import { authApi } from "../lib/authApi";
+import { useProjects, useUsers } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { PROJECT_STATUS_LABELS } from "../lib/projectStatus";
@@ -17,7 +16,6 @@ import type {
   SensitivityAnalysisResult,
 } from "../types/decisionSupport";
 import type { Project } from "../types/research";
-import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
@@ -576,7 +574,8 @@ function DecisionSupportContent() {
   const [recRuns, setRecRuns] = useState<FundingRecommendationRun[]>([]);
   const projectsQ = useProjects();
   const projects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const usersQ = useUsers({ enabled: roleCode === "system_admin" });
+  const users = useMemo(() => usersQ.data ?? [], [usersQ.data]);
 
   const [activeModelId, setActiveModelId] = useState<number | null>(null);
   const [activeRecId, setActiveRecId] = useState<number | null>(null);
@@ -614,9 +613,6 @@ function DecisionSupportContent() {
       })
       .catch(() => alive && notify.error("Could not load decision support data. Check your connection and refresh."))
       .finally(() => alive && setIsLoading(false));
-    if (roleCode === "system_admin") {
-      authApi.getUsers().then((u) => alive && setUsers(u)).catch(() => undefined);
-    }
     return () => {
       alive = false;
     };

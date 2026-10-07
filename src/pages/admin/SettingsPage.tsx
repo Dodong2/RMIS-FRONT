@@ -3,8 +3,9 @@ import { initialsFrom } from "../../lib/roles";
 import { Link } from "react-router-dom";
 import { authApi } from "../../lib/authApi";
 import { notify } from "../../lib/notify";
+import { useRoles, useUsers } from "../../lib/queries";
 import { protoRoleStyle } from "../../lib/protoRole";
-import type { AdminUser, PermissionMatrix, Role } from "../../types/auth";
+import type { AdminUser, PermissionMatrix } from "../../types/auth";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { AppShell } from "../../components/layout/AppShell";
 import { SkeletonRows } from "../../components/common/proto";
@@ -31,8 +32,9 @@ const moduleLabel = (m: string) => MODULE_LABELS[m] ?? m.replace(/_/g, " ");
 
 function SettingsContent() {
   const [matrix, setMatrix] = useState<PermissionMatrix | null>(null);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const roles = useRoles().data ?? [];
+  const usersQ = useUsers();
+  const users: AdminUser[] | null = usersQ.isError ? [] : (usersQ.data ?? null);
   const [matrixFailed, setMatrixFailed] = useState(false);
 
   useEffect(() => {
@@ -43,15 +45,11 @@ function SettingsContent() {
         setMatrixFailed(true);
         notify.error("Could not load the permission matrix.");
       });
-    authApi.getRoles().then(setRoles).catch(() => undefined);
-    authApi
-      .getUsers()
-      .then(setUsers)
-      .catch(() => {
-        setUsers([]);
-        notify.error("Could not load the user list.");
-      });
   }, []);
+
+  useEffect(() => {
+    if (usersQ.isError) notify.error("Could not load the user list.");
+  }, [usersQ.isError]);
 
   const modules = useMemo(() => (matrix ? [...new Set(matrix.permissions.map((p) => p.module))] : []), [matrix]);
   const roleName = (code: string) => roles.find((r) => r.code === code)?.name ?? code;

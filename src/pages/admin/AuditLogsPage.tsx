@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { authApi } from "../../lib/authApi";
 import { exportXlsx } from "../../lib/exportFiles";
 import { notify } from "../../lib/notify";
-import type { AdminUser, AuditLog } from "../../types/auth";
+import { useUsers } from "../../lib/queries";
+import type { AuditLog } from "../../types/auth";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { AppShell } from "../../components/layout/AppShell";
 import { SkeletonRows } from "../../components/common/proto";
@@ -106,7 +107,8 @@ const fmtStamp = (iso: string) => {
 
 function AuditLogsContent() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const usersQ = useUsers();
+  const users = useMemo(() => usersQ.data ?? [], [usersQ.data]);
   const [isLoading, setIsLoading] = useState(true);
   const [actor, setActor] = useState("");
   const [method, setMethod] = useState("");
@@ -123,12 +125,12 @@ function AuditLogsContent() {
   );
 
   useEffect(() => {
-    authApi
-      .getUsers()
-      .then(setUsers)
-      .catch(() => notify.error("Could not load the user list for the actor filter."));
     fetchLogs("", "");
   }, [fetchLogs]);
+
+  useEffect(() => {
+    if (usersQ.isError) notify.error("Could not load the user list for the actor filter.");
+  }, [usersQ.isError]);
 
   const applyFilters = (nextActor: string, nextMethod: string) => {
     setIsLoading(true);

@@ -1,8 +1,6 @@
 import { useState, useEffect, type SyntheticEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { authApi } from "../lib/authApi";
-import type { Role } from "../types/auth";
 import { AuthShell } from "../components/auth/AuthShell";
 import { GoogleButton } from "../components/auth/GoogleButton";
 import {
@@ -22,11 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { notify } from "../lib/notify";
+import { useRoles } from "../lib/queries";
 
 export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuth();
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [rolesLoading, setRolesLoading] = useState(true);
+  const rolesQ = useRoles();
+  const roles = rolesQ.data ?? [];
+  const rolesLoading = rolesQ.isPending;
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -39,25 +39,8 @@ export default function RegisterPage() {
   const [isGooglePending, setIsGooglePending] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    authApi
-      .getRoles()
-      .then((data) => {
-        if (!active) return;
-        setRoles(data);
-      })
-      .catch(() => {
-        if (!active) return;
-        setRoles([]);
-        notify.info("The role list could not be loaded. Reload the page to try again.");
-      })
-      .finally(() => {
-        if (active) setRolesLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (rolesQ.isError) notify.info("The role list could not be loaded. Reload the page to try again.");
+  }, [rolesQ.isError]);
 
   const passwordsMatch = password === password2;
 

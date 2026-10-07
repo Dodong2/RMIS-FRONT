@@ -2,7 +2,6 @@ import { useState, useEffect, type SyntheticEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../lib/authApi";
 import { supabase } from "../lib/supabaseClient";
-import type { Role } from "../types/auth";
 import { AuthShell } from "../components/auth/AuthShell";
 import { AUTH_SELECT_TRIGGER, AuthHint, AuthInput, AuthLabel, AuthSubmit } from "../components/auth/AuthFields";
 import {
@@ -13,11 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { notify } from "../lib/notify";
+import { useRoles } from "../lib/queries";
 
 export default function GoogleChooseRolePage() {
   const navigate = useNavigate();
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [rolesLoading, setRolesLoading] = useState(true);
+  const rolesQ = useRoles();
+  const roles = rolesQ.data ?? [];
+  const rolesLoading = rolesQ.isPending;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [requestedRole, setRequestedRole] = useState("");
@@ -25,20 +26,8 @@ export default function GoogleChooseRolePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    authApi
-      .getRoles()
-      .then((data) => active && setRoles(data))
-      .catch(() => {
-        if (!active) return;
-        setRoles([]);
-        notify.error("The role list could not be loaded. Reload the page to try again.");
-      })
-      .finally(() => active && setRolesLoading(false));
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (rolesQ.isError) notify.error("The role list could not be loaded. Reload the page to try again.");
+  }, [rolesQ.isError]);
 
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
