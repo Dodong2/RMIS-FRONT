@@ -5,12 +5,12 @@ import { personnelApi } from "../lib/personnelApi";
 import { reportsApi } from "../lib/reportsApi";
 import type { ReportFormat } from "../types/reports";
 import { researchApi } from "../lib/researchApi";
-import { useProjects } from "../lib/queries";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { assignmentsQuery, queryKeys, taskUpdatesQuery, tasksQuery, useProjects, workloadQuery } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { initialsFrom, personName } from "../lib/roles";
 import type {
-  ProjectAssignment,
   Task,
   TaskPriority,
   TaskStatus,
@@ -136,25 +136,22 @@ function TaskDetailModal({
   task,
   canAssign,
   isAssignee,
-  onChanged,
   onDeleted,
   onClose,
 }: {
   task: Task;
   canAssign: boolean;
   isAssignee: boolean;
-  onChanged: (t: Task) => void;
   onDeleted: (id: number) => void;
   onClose: () => void;
 }) {
-  const [updates, setUpdates] = useState<TaskUpdate[] | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
+  const queryClient = useQueryClient();
+  const updatesQ = useQuery(taskUpdatesQuery(task.id));
+  const updates: TaskUpdate[] | null = updatesQ.isError ? [] : (updatesQ.data ?? null);
   const [note, setNote] = useState("");
   const [kind, setKind] = useState<TaskUpdateKind>("update");
   const [hours, setHours] = useState("");
   const [progress, setProgress] = useState("");
-  const [posting, setPosting] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [newDeliverable, setNewDeliverable] = useState("");
   const [editing, setEditing] = useState(false);
@@ -170,55 +167,56 @@ function TaskDetailModal({
   const allowedStatuses = canAssign ? (Object.keys(STATUS_META) as TaskStatus[]) : ASSIGNEE_STATUSES;
   const doneDels = task.deliverables.filter((d) => d.done).length;
 
-  useEffect(() => {
-    let active = true;
-    personnelApi
-      .getTaskUpdates(task.id)
-      .then((u) => active && setUpdates(u))
-      .catch(() => active && setUpdates([]));
-    return () => {
-      active = false;
-    };
-  }, [task.id, reloadKey]);
+  const refreshTask = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasksAll }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.taskUpdates(task.id) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.workloadAll }),
+    ]);
 
-  const refreshTask = async () => {
-    const [fresh] = await personnelApi.getTasks({ project: task.project }).then((ts) => ts.filter((t) => t.id === task.id));
-    if (fresh) onChanged(fresh);
-  };
-
-  const run = async (fn: () => Promise<unknown>, ok?: string) => {
-    setBusy(true);
-    try {
+  const runMutation = useMutation({
+    mutationFn: async (fn: () => Promise<unknown>) => {
       await fn();
       await refreshTask();
-      setReloadKey((k) => k + 1);
-      if (ok) notify.success(ok);
-    } catch (err) {
-      notify.error(errorMessage(err, "The change could not be saved."));
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+  });
+  const run = (fn: () => Promise<unknown>, ok?: string) =>
+    runMutation.mutate(fn, {
+      onSuccess: () => {
+        if (ok) notify.success(ok);
+      },
+      onError: (err) => notify.error(errorMessage(err, "The change could not be saved.")),
+    });
 
-  const post = async () => {
-    if (!note.trim()) return;
-    if (progress !== "" && !(Number(progress) >= 0 && Number(progress) <= 100)) {
-      notify.error("% completed must be from 0 to 100.");
-      return;
-    }
-    setPosting(true);
-    try {
+  const postMutation = useMutation({
+    mutationFn: async () => {
       await personnelApi.postTaskUpdate(task.id, { note: note.trim(), kind, hours: hours || undefined, progress_pct: progress === "" ? undefined : Number(progress) });
       setNote("");
       setHours("");
       setProgress("");
       await refreshTask();
-      setReloadKey((k) => k + 1);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not post the update."));
-    } finally {
-      setPosting(false);
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not post the update.")),
+  });
+  const posting = postMutation.isPending;
+
+  const deleteMutation = useMutation({
+    mutationFn: () => personnelApi.deleteTask(task.id),
+    onSuccess: () => {
+      notify.success("Task deleted.");
+      onDeleted(task.id);
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not delete the task.")),
+  });
+  const busy = runMutation.isPending || deleteMutation.isPending;
+
+  const post = () => {
+    if (!note.trim()) return;
+    if (progress !== "" && !(Number(progress) >= 0 && Number(progress) <= 100)) {
+      notify.error("% completed must be from 0 to 100.");
+      return;
     }
+    postMutation.mutate();
   };
 
   const saveEdit = () =>
@@ -237,17 +235,7 @@ function TaskDetailModal({
       setEditing(false);
     }, "Task updated.");
 
-  const remove = async () => {
-    setBusy(true);
-    try {
-      await personnelApi.deleteTask(task.id);
-      notify.success("Task deleted.");
-      onDeleted(task.id);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not delete the task."));
-      setBusy(false);
-    }
-  };
+  const remove = () => deleteMutation.mutate();
 
   return (
     <Overlay onClose={onClose}>
@@ -599,7 +587,6 @@ function CreateTaskModal({
   const [form, setForm] = useState({ title: "", description: "", assignee: "", study: "", milestone: "", priority: "medium", due_date: "", estimated_hours: "", tags: "" });
   const [deliverables, setDeliverables] = useState([""]);
   const [attempted, setAttempted] = useState(false);
-  const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
@@ -617,14 +604,8 @@ function CreateTaskModal({
     };
   }, [project.id]);
 
-  const create = async () => {
-    setAttempted(true);
-    if (!form.title.trim() || !form.assignee) {
-      notify.error("Task title and assignee are required.");
-      return;
-    }
-    setSaving(true);
-    try {
+  const createMutation = useMutation({
+    mutationFn: async () => {
       const task = await personnelApi.createTask({
         project: project.id,
         study: form.study ? Number(form.study) : null,
@@ -641,13 +622,22 @@ function CreateTaskModal({
           .filter(Boolean),
       });
       await Promise.all(deliverables.map((d) => d.trim()).filter(Boolean).map((d) => personnelApi.addTaskDeliverable(task.id, d)));
+    },
+    onSuccess: () => {
       notify.success("Task assigned.");
       onCreated();
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not create the task."));
-    } finally {
-      setSaving(false);
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not create the task.")),
+  });
+  const saving = createMutation.isPending;
+
+  const create = () => {
+    setAttempted(true);
+    if (!form.title.trim() || !form.assignee) {
+      notify.error("Task title and assignee are required.");
+      return;
     }
+    createMutation.mutate();
   };
 
   return (
@@ -824,11 +814,18 @@ function ProjectTaskBoard({
   onBack: () => void;
   initialTaskId?: number | null;
 }) {
-  const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [overdueIds, setOverdueIds] = useState<Set<number> | null>(null);
-  const [team, setTeam] = useState<ProjectAssignment[]>([]);
-  const [workload, setWorkload] = useState<WorkloadRow[] | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
+  const queryClient = useQueryClient();
+  const tasksQ = useQuery(tasksQuery({ project: project.id }));
+  const tasks = useMemo<Task[] | null>(() => (tasksQ.isError ? [] : (tasksQ.data ?? null)), [tasksQ.isError, tasksQ.data]);
+  const teamData = useQuery(assignmentsQuery({ project: project.id, active: true })).data;
+  const team = useMemo(() => teamData ?? [], [teamData]);
+  const workloadQ = useQuery({ ...workloadQuery(project.id), enabled: canAssign });
+  const workload: WorkloadRow[] | null = workloadQ.isError ? [] : (workloadQ.data ?? null);
+  const reload = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.tasksAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.workloadAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.assignmentsAll });
+  };
   const [view, setView] = useState<BoardView>("kanban");
   const [selectedId, setSelectedId] = useState<number | null>(initialTaskId);
   const [showCreate, setShowCreate] = useState(false);
@@ -837,38 +834,11 @@ function ProjectTaskBoard({
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    personnelApi
-      .getTasks({ project: project.id })
-      .then((t) => active && setTasks(t))
-      .catch(() => active && setTasks([]));
-    personnelApi
-      .getAssignments({ project: project.id, active: true })
-      .then((a) => active && setTeam(a))
-      .catch(() => undefined);
-    if (canAssign) {
-      personnelApi
-        .getWorkload({ project: project.id })
-        .then((w) => active && setWorkload(w))
-        .catch(() => active && setWorkload([]));
-    }
-    return () => {
-      active = false;
-    };
-  }, [project.id, canAssign, reloadKey]);
-
-  useEffect(() => {
-    if (!overdueOnly) return;
-    let active = true;
-    personnelApi
-      .getTasks({ project: project.id, overdue: true })
-      .then((t) => active && setOverdueIds(new Set(t.map((x) => x.id))))
-      .catch(() => active && setOverdueIds(new Set()));
-    return () => {
-      active = false;
-    };
-  }, [overdueOnly, project.id, reloadKey]);
+  const overdueQ = useQuery({ ...tasksQuery({ project: project.id, overdue: true }), enabled: overdueOnly });
+  const overdueIds = useMemo(
+    () => (overdueQ.isError ? new Set<number>() : overdueQ.data ? new Set(overdueQ.data.map((x) => x.id)) : null),
+    [overdueQ.isError, overdueQ.data],
+  );
 
   const people = useMemo(() => {
     const list: Lead[] = [...team.map((a) => a.user_detail), ...(tasks ?? []).map((t) => t.assignee_detail)];
@@ -1227,11 +1197,10 @@ function ProjectTaskBoard({
           task={selected}
           canAssign={canAssign}
           isAssignee={selected.assignee === userId}
-          onChanged={(t) => setTasks((prev) => (prev ?? []).map((x) => (x.id === t.id ? t : x)))}
           onDeleted={(id) => {
             setSelectedId(null);
-            setTasks((prev) => (prev ?? []).filter((x) => x.id !== id));
-            setReloadKey((k) => k + 1);
+            queryClient.setQueryData<Task[]>(queryKeys.tasks({ project: project.id }), (prev) => prev?.filter((x) => x.id !== id));
+            reload();
           }}
           onClose={() => setSelectedId(null)}
         />
@@ -1242,7 +1211,7 @@ function ProjectTaskBoard({
           people={[project.lead_detail, ...people.filter((p) => p.id !== project.lead_detail.id)]}
           onCreated={() => {
             setShowCreate(false);
-            setReloadKey((k) => k + 1);
+            reload();
           }}
           onClose={() => setShowCreate(false)}
         />
@@ -1426,27 +1395,14 @@ function TasksContent() {
   const canAssign = !!user?.role && TASK_ASSIGNER_CODES.includes(user.role.code);
   const [params, setParams] = useSearchParams();
   const projectsQ = useProjects();
-  const [taskList, setTaskList] = useState<Task[] | null>(null);
+  const taskListQ = useQuery(tasksQuery());
+  const taskList: Task[] | null = taskListQ.isError ? [] : (taskListQ.data ?? null);
   const [now] = useState(() => Date.now());
+  const listFailed = projectsQ.isError || taskListQ.isError;
 
   useEffect(() => {
-    let active = true;
-    personnelApi
-      .getTasks()
-      .then((t) => active && setTaskList(t))
-      .catch(() => {
-        if (!active) return;
-        setTaskList([]);
-        notify.error("Could not load tasks. Check your connection and refresh.");
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (projectsQ.isError) notify.error("Could not load tasks. Check your connection and refresh.");
-  }, [projectsQ.isError]);
+    if (listFailed) notify.error("Could not load tasks. Check your connection and refresh.");
+  }, [listFailed]);
 
   const tasks = taskList ?? [];
   const projects: Project[] | null = projectsQ.isError ? [] : taskList === null ? null : (projectsQ.data ?? null);

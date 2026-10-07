@@ -85,7 +85,12 @@ changes, programs, active assignments and role candidates (keeps the old list wh
 level, assign, clearance and complete are `useMutation`. Local in-place updates (end assignment, change level, edit
 department, clearance) now use `setQueryData`. Completing a change invalidates assignments + projects, since the
 leader or staff changed. Study lookups on project pick stay one-shot calls.
-### T10: Tasks (M/L, most complex, last)
+### T10: Tasks (M/L, most complex, last) ✅
+**Result:** no `reloadKey` and no `onChanged` now. The outer list and board read tasks, the overdue filter, the active team
+and workload from queries. The detail modal reads `taskUpdatesQuery`. `run`, post update, delete and create are
+`useMutation`. `run`/post await the refetch of tasks + updates + workload before clearing `busy`, like the old
+`refreshTask`. Delete removes the row through `setQueryData`, then invalidates. The Accomplishment Report download stays
+a plain call (file download).
 For each task:
 - [ ] Saves use `useMutation` + `invalidateQueries`; `reloadKey` is removed from the page
 - [ ] Success/error toasts unchanged; the list refreshes after create/update

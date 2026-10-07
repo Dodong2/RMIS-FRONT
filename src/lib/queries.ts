@@ -29,10 +29,16 @@ export const queryKeys = {
   collaboration: (crossOnly: boolean) => ["collaboration", crossOnly] as const,
   personnelChanges: ["personnel-changes"] as const,
   programs: ["programs"] as const,
+  tasksAll: ["tasks"] as const,
+  tasks: (params: TaskParams = {}) => ["tasks", params] as const,
+  taskUpdates: (task: number) => ["task-updates", task] as const,
+  workloadAll: ["workload"] as const,
+  workload: (project?: number) => ["workload", project ?? "all"] as const,
 };
 
 type AssignmentParams = Parameters<typeof personnelApi.getAssignments>[0];
 type DocumentParams = Parameters<typeof documentApi.getDocuments>[0];
+type TaskParams = Parameters<typeof personnelApi.getTasks>[0];
 
 export const projectsQuery = queryOptions({ queryKey: queryKeys.projects, queryFn: researchApi.getProjects });
 
@@ -83,6 +89,15 @@ export const collaborationQuery = (crossOnly: boolean) =>
 export const personnelChangesQuery = queryOptions({ queryKey: queryKeys.personnelChanges, queryFn: () => personnelApi.getChanges() });
 
 export const programsQuery = queryOptions({ queryKey: queryKeys.programs, queryFn: () => researchApi.getPrograms() });
+
+export const tasksQuery = (params: TaskParams = {}) =>
+  queryOptions({ queryKey: queryKeys.tasks(params), queryFn: () => personnelApi.getTasks(params) });
+
+export const taskUpdatesQuery = (task: number) =>
+  queryOptions({ queryKey: queryKeys.taskUpdates(task), queryFn: () => personnelApi.getTaskUpdates(task) });
+
+export const workloadQuery = (project?: number) =>
+  queryOptions({ queryKey: queryKeys.workload(project), queryFn: () => personnelApi.getWorkload(project ? { project } : {}) });
 
 type Gate = { enabled?: boolean };
 
