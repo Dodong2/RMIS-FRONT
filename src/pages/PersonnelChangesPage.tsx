@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
 import { personnelApi } from "../lib/personnelApi";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { researchApi } from "../lib/researchApi";
-import { queryKeys, useProjects } from "../lib/queries";
+import { assignmentsQuery, personnelChangesQuery, programsQuery, queryKeys, usersByRoleQuery, useProjects } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
 import type {
   ChangeStatus,
   ChangeType,
   PersonnelChange,
-  ProjectAssignment,
 } from "../types/personnel";
-import type { Program, Study } from "../types/research";
-import type { AdminUser } from "../types/auth";
+import type { Study } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
@@ -65,24 +63,26 @@ function PersonnelChangesContent() {
   const canManage = !!user?.role && MANAGE_CODES.includes(user.role.code);
   const canClear = !!user?.role && CLEARANCE_CODES.includes(user.role.code);
 
-  const [changes, setChanges] = useState<PersonnelChange[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
   const queryClient = useQueryClient();
+  const changesQ = useQuery(personnelChangesQuery);
+  const programsQ = useQuery(programsQuery);
   const projectsQ = useProjects();
+  const changes = changesQ.data ?? [];
+  const programs = programsQ.data ?? [];
   const projects = projectsQ.data ?? [];
   const [studies, setStudies] = useState<Study[]>([]);
-  const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
-  const [candidates, setCandidates] = useState<AdminUser[]>([]);
-  const [recordsLoading, setIsLoading] = useState(true);
-  const isLoading = recordsLoading || projectsQ.isPending;
+  const assignments = useQuery({ ...assignmentsQuery({ active: true }), enabled: canManage }).data ?? [];
+  const isLoading = changesQ.isPending || programsQ.isPending || projectsQ.isPending;
+  const loadFailed = changesQ.isError || programsQ.isError || projectsQ.isError;
   const [attempted, setAttempted] = useState(false);
 
   const [form, setForm] = useState(EMPTY_FORM);
-  const [isCreating, setIsCreating] = useState(false);
+  const candidateRole = form.change_type === "staff" ? "project_staff" : LEAD_ROLE_BY_RECORD[form.record_type];
+  const candidatesQ = useQuery({ ...usersByRoleQuery(candidateRole), enabled: canManage, placeholderData: keepPreviousData });
+  const candidates = candidatesQ.isError ? [] : (candidatesQ.data ?? []);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [clearanceForm, setClearanceForm] = useState({ items: "", par_number: "", remarks: "" });
-  const [isSaving, setIsSaving] = useState(false);
   const [attemptedSignOff, setAttemptedSignOff] = useState(false);
 
   const selected = changes.find((c) => c.id === selectedId) ?? null;
@@ -98,49 +98,16 @@ function PersonnelChangesContent() {
     return `Assignment #${c.assignment}`;
   };
 
-  const [reloadKey, setReloadKey] = useState(0);
   const load = () => {
-    setReloadKey((k) => k + 1);
+    queryClient.invalidateQueries({ queryKey: queryKeys.personnelChanges });
+    queryClient.invalidateQueries({ queryKey: queryKeys.programs });
+    queryClient.invalidateQueries({ queryKey: queryKeys.assignmentsAll });
     queryClient.invalidateQueries({ queryKey: queryKeys.projects });
   };
 
   useEffect(() => {
-    let active = true;
-    Promise.all([personnelApi.getChanges(), researchApi.getPrograms()])
-      .then(([changeList, programList]) => {
-        if (!active) return;
-        setChanges(changeList);
-        setPrograms(programList);
-      })
-      .catch(() => active && notify.error("Could not load personnel changes. Check your connection and refresh."))
-      .finally(() => active && setIsLoading(false));
-    if (canManage) {
-      personnelApi
-        .getAssignments({ active: true })
-        .then((a) => active && setAssignments(a))
-        .catch(() => active && setAssignments([]));
-    }
-    return () => {
-      active = false;
-    };
-  }, [canManage, reloadKey]);
-
-  useEffect(() => {
-    if (!canManage) return;
-    const code = form.change_type === "staff" ? "project_staff" : LEAD_ROLE_BY_RECORD[form.record_type];
-    let cancelled = false;
-    researchApi
-      .getUsersByRole(code)
-      .then((users) => {
-        if (!cancelled) setCandidates(users);
-      })
-      .catch(() => {
-        if (!cancelled) setCandidates([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [canManage, form.change_type, form.record_type]);
+    if (loadFailed) notify.error("Could not load personnel changes. Check your connection and refresh.");
+  }, [loadFailed]);
 
   const handleProjectPick = async (value: string) => {
     setForm((f) => ({ ...f, project: value, study: "" }));
@@ -158,7 +125,30 @@ function PersonnelChangesContent() {
     return studies.find((s) => String(s.id) === form.study)?.lead;
   };
 
-  const handleCreate = async () => {
+  const createMutation = useMutation({
+    mutationFn: (outgoing: number) =>
+      personnelApi.createChange({
+        change_type: form.change_type,
+        program: form.change_type === "leader" && form.record_type === "program" ? Number(form.program) : null,
+        project: form.change_type === "leader" && form.record_type === "project" ? Number(form.project) : null,
+        study: form.change_type === "leader" && form.record_type === "study" ? Number(form.study) : null,
+        assignment: form.change_type === "staff" ? Number(form.assignment) : null,
+        outgoing,
+        incoming: Number(form.incoming),
+        reason: form.reason,
+      }),
+    onSuccess: () => {
+      setAttempted(false);
+      notify.success("Personnel change initiated. Property clearance is now required.");
+      setForm(EMPTY_FORM);
+      setStudies([]);
+      load();
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not initiate the personnel change.")),
+  });
+  const isCreating = createMutation.isPending;
+
+  const handleCreate = () => {
     setAttempted(true);
     if (!form.incoming || !form.reason.trim()) {
       notify.error("Incoming person and reason are required.");
@@ -180,28 +170,7 @@ function PersonnelChangesContent() {
       }
     }
 
-    setIsCreating(true);
-    try {
-      await personnelApi.createChange({
-        change_type: form.change_type,
-        program: form.change_type === "leader" && form.record_type === "program" ? Number(form.program) : null,
-        project: form.change_type === "leader" && form.record_type === "project" ? Number(form.project) : null,
-        study: form.change_type === "leader" && form.record_type === "study" ? Number(form.study) : null,
-        assignment: form.change_type === "staff" ? Number(form.assignment) : null,
-        outgoing,
-        incoming: Number(form.incoming),
-        reason: form.reason,
-      });
-      setAttempted(false);
-      notify.success("Personnel change initiated. Property clearance is now required.");
-      setForm(EMPTY_FORM);
-      setStudies([]);
-      load();
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not initiate the personnel change."));
-    } finally {
-      setIsCreating(false);
-    }
+    createMutation.mutate(outgoing);
   };
 
   const handleSelect = (c: PersonnelChange) => {
@@ -215,43 +184,40 @@ function PersonnelChangesContent() {
   };
 
   const replaceChange = (updated: PersonnelChange) =>
-    setChanges((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    queryClient.setQueryData<PersonnelChange[]>(queryKeys.personnelChanges, (prev) => prev?.map((c) => (c.id === updated.id ? updated : c)));
 
-  const handleClearance = async (acknowledge: boolean) => {
+  const clearanceMutation = useMutation({
+    mutationFn: (v: { id: number; acknowledge: boolean }) => personnelApi.updateClearance(v.id, { ...clearanceForm, acknowledge: v.acknowledge }),
+    onSuccess: (updated, v) => {
+      replaceChange(updated);
+      notify.success(v.acknowledge ? "Clearance signed off." : "Clearance details saved.");
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not update the clearance.")),
+  });
+  const completeMutation = useMutation({
+    mutationFn: (id: number) => personnelApi.completeChange(id),
+    onSuccess: (updated) => {
+      replaceChange(updated);
+      notify.success("Personnel change completed.");
+      load();
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not complete the personnel change.")),
+  });
+  const isSaving = clearanceMutation.isPending || completeMutation.isPending;
+
+  const handleClearance = (acknowledge: boolean) => {
     if (!selected) return;
     setAttemptedSignOff(acknowledge);
     if (acknowledge && !clearanceForm.par_number.trim()) {
       notify.error("PAR number is required to sign off the clearance.");
       return;
     }
-    setIsSaving(true);
-    try {
-      const updated = await personnelApi.updateClearance(selected.id, {
-        ...clearanceForm,
-        acknowledge,
-      });
-      replaceChange(updated);
-      notify.success(acknowledge ? "Clearance signed off." : "Clearance details saved.");
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not update the clearance."));
-    } finally {
-      setIsSaving(false);
-    }
+    clearanceMutation.mutate({ id: selected.id, acknowledge });
   };
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     if (!selected) return;
-    setIsSaving(true);
-    try {
-      const updated = await personnelApi.completeChange(selected.id);
-      replaceChange(updated);
-      notify.success("Personnel change completed.");
-      load();
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not complete the personnel change."));
-    } finally {
-      setIsSaving(false);
-    }
+    completeMutation.mutate(selected.id);
   };
 
   const clearanceLocked = selected?.status === "cleared" || selected?.status === "completed";

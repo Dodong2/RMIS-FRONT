@@ -22,6 +22,13 @@ export const queryKeys = {
   documentsAll: ["documents"] as const,
   documents: (params: DocumentParams = {}) => ["documents", params] as const,
   documentShares: (doc: number) => ["document-shares", doc] as const,
+  assignmentsAll: ["assignments"] as const,
+  staffProfiles: ["staff-profiles"] as const,
+  usersByRole: (code: string) => ["users-by-role", code] as const,
+  collaborationAll: ["collaboration"] as const,
+  collaboration: (crossOnly: boolean) => ["collaboration", crossOnly] as const,
+  personnelChanges: ["personnel-changes"] as const,
+  programs: ["programs"] as const,
 };
 
 type AssignmentParams = Parameters<typeof personnelApi.getAssignments>[0];
@@ -64,6 +71,18 @@ export const documentsQuery = (params: DocumentParams = {}) =>
 
 export const documentSharesQuery = (doc: number) =>
   queryOptions({ queryKey: queryKeys.documentShares(doc), queryFn: () => documentApi.getShares(doc) });
+
+export const staffProfilesQuery = queryOptions({ queryKey: queryKeys.staffProfiles, queryFn: () => personnelApi.getStaffProfiles() });
+
+export const usersByRoleQuery = (code: string) =>
+  queryOptions({ queryKey: queryKeys.usersByRole(code), queryFn: () => researchApi.getUsersByRole(code) });
+
+export const collaborationQuery = (crossOnly: boolean) =>
+  queryOptions({ queryKey: queryKeys.collaboration(crossOnly), queryFn: () => personnelApi.getCollaboration({ cross_only: crossOnly }) });
+
+export const personnelChangesQuery = queryOptions({ queryKey: queryKeys.personnelChanges, queryFn: () => personnelApi.getChanges() });
+
+export const programsQuery = queryOptions({ queryKey: queryKeys.programs, queryFn: () => researchApi.getPrograms() });
 
 type Gate = { enabled?: boolean };
 

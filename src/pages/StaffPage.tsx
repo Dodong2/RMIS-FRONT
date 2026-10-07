@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
-import { useProjects } from "../lib/queries";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { assignmentsQuery, collaborationQuery, queryKeys, staffProfilesQuery, usersByRoleQuery, useProjects } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import type { CollaborationRow, ProjectAssignment, StaffProfile } from "../types/personnel";
 import type { Lead, Study } from "../types/research";
 import { initialsFrom, personName } from "../lib/roles";
 import { UserSelect } from "../components/common/UserPicker";
-import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { Field, KpiCard, Pill, SectionCard, SkeletonRows, TableHead } from "../components/common/proto";
@@ -71,16 +71,29 @@ function StaffContent() {
   const { user } = useAuth();
   const canManage = !!user?.role && MANAGE_CODES.includes(user.role.code);
 
-  const [profiles, setProfiles] = useState<StaffProfile[]>([]);
-  const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
+  const queryClient = useQueryClient();
+  const profilesQ = useQuery(staffProfilesQuery);
+  const assignmentsQ = useQuery(assignmentsQuery());
+  const profiles = useMemo(() => profilesQ.data ?? [], [profilesQ.data]);
+  const assignments = useMemo(() => assignmentsQ.data ?? [], [assignmentsQ.data]);
   const projectsQ = useProjects();
   const projects = useMemo(() => projectsQ.data ?? [], [projectsQ.data]);
-  const [collab, setCollab] = useState<CollaborationRow[] | null>(null);
   const [crossOnly, setCrossOnly] = useState(false);
-  const [staffUsers, setStaffUsers] = useState<AdminUser[]>([]);
-  const [recordsLoading, setIsLoading] = useState(true);
-  const isLoading = recordsLoading || projectsQ.isPending;
-  const [reloadKey, setReloadKey] = useState(0);
+  const collabQ = useQuery({ ...collaborationQuery(crossOnly), placeholderData: keepPreviousData });
+  const collab: CollaborationRow[] | null = collabQ.isError ? [] : (collabQ.data ?? null);
+  const staffUsersQ = useQuery({ ...usersByRoleQuery("project_staff"), enabled: canManage });
+  const staffUsers = useMemo(() => (canManage ? (staffUsersQ.data ?? []) : []), [canManage, staffUsersQ.data]);
+  const isLoading = profilesQ.isPending || assignmentsQ.isPending || projectsQ.isPending;
+  const loadFailed = profilesQ.isError || assignmentsQ.isError || projectsQ.isError;
+  const reload = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.staffProfiles });
+    queryClient.invalidateQueries({ queryKey: queryKeys.assignmentsAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.collaborationAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.usersByRole("project_staff") });
+  };
+  const patchAssignment = (updated: ProjectAssignment) => {
+    queryClient.setQueryData<ProjectAssignment[]>(queryKeys.assignments(), (prev) => prev?.map((x) => (x.id === updated.id ? updated : x)));
+  };
   const [view, setView] = useState<View>("personnel");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -92,44 +105,11 @@ function StaffContent() {
   const [assignForm, setAssignForm] = useState({ user: "", target: "project", project: "", study: "", role_label: "", department: "", start_date: today() });
   const [studies, setStudies] = useState<Study[]>([]);
   const [attempted, setAttempted] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [editingDept, setEditingDept] = useState<{ id: number; value: string } | null>(null);
 
   useEffect(() => {
-    let active = true;
-    Promise.all([personnelApi.getStaffProfiles(), personnelApi.getAssignments()])
-      .then(([p, a]) => {
-        if (!active) return;
-        setProfiles(p);
-        setAssignments(a);
-      })
-      .catch(() => active && notify.error("Could not load staff records. Check your connection and refresh."))
-      .finally(() => active && setIsLoading(false));
-    if (canManage) {
-      researchApi
-        .getUsersByRole("project_staff")
-        .then((u) => active && setStaffUsers(u))
-        .catch(() => active && setStaffUsers([]));
-    }
-    return () => {
-      active = false;
-    };
-  }, [canManage, reloadKey]);
-
-  useEffect(() => {
-    if (projectsQ.isError) notify.error("Could not load staff records. Check your connection and refresh.");
-  }, [projectsQ.isError]);
-
-  useEffect(() => {
-    let active = true;
-    personnelApi
-      .getCollaboration({ cross_only: crossOnly })
-      .then((c) => active && setCollab(c))
-      .catch(() => active && setCollab([]));
-    return () => {
-      active = false;
-    };
-  }, [crossOnly, reloadKey]);
+    if (loadFailed) notify.error("Could not load staff records. Check your connection and refresh.");
+  }, [loadFailed]);
 
   const projectTitle = (id: number | null) => projects.find((p) => p.id === id)?.title ?? `#${id}`;
   const projectCode = (id: number | null) => projects.find((p) => p.id === id)?.project_code ?? `#${id}`;
@@ -166,68 +146,71 @@ function StaffContent() {
     }
   };
 
-  const saveLevel = async () => {
-    setAttempted(true);
-    if (!levelForm.user || !levelForm.staff_level) {
-      notify.error("Select a staff member and a level.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await personnelApi.createStaffProfile({ user: Number(levelForm.user), staff_level: Number(levelForm.staff_level) });
+  const levelMutation = useMutation({
+    mutationFn: () => personnelApi.createStaffProfile({ user: Number(levelForm.user), staff_level: Number(levelForm.staff_level) }),
+    onSuccess: () => {
       notify.success("Staff level saved.");
       setShowLevel(false);
       setLevelForm({ user: "", staff_level: "" });
-      setReloadKey((k) => k + 1);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not save the staff level."));
-    } finally {
-      setSaving(false);
-    }
-  };
+      reload();
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not save the staff level.")),
+  });
 
-  const changeLevel = async (profile: StaffProfile, level: number) => {
-    try {
-      const updated = await personnelApi.updateStaffProfile(profile.id, level);
-      setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not update the staff level."));
-    }
-  };
-
-  const assign = async () => {
-    setAttempted(true);
-    const targetId = assignForm.target === "project" ? assignForm.project : assignForm.study;
-    if (!assignForm.user || !targetId || !assignForm.start_date) {
-      notify.error("Staff member, project or study, and start date are required.");
-      return;
-    }
-    setSaving(true);
-    try {
-      await personnelApi.createAssignment({
+  const assignMutation = useMutation({
+    mutationFn: (targetId: string) =>
+      personnelApi.createAssignment({
         user: Number(assignForm.user),
         project: assignForm.target === "project" ? Number(targetId) : null,
         study: assignForm.target === "study" ? Number(targetId) : null,
         role_label: assignForm.role_label || undefined,
         department: assignForm.department || undefined,
         start_date: assignForm.start_date,
-      });
+      }),
+    onSuccess: () => {
       notify.success("Staff assigned.");
       setShowAssign(false);
       setAssignForm({ user: "", target: "project", project: "", study: "", role_label: "", department: "", start_date: today() });
       setStudies([]);
-      setReloadKey((k) => k + 1);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not create the assignment."));
-    } finally {
-      setSaving(false);
+      reload();
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not create the assignment.")),
+  });
+
+  const saving = levelMutation.isPending || assignMutation.isPending;
+
+  const saveLevel = () => {
+    setAttempted(true);
+    if (!levelForm.user || !levelForm.staff_level) {
+      notify.error("Select a staff member and a level.");
+      return;
     }
+    levelMutation.mutate();
+  };
+
+  const changeLevel = async (profile: StaffProfile, level: number) => {
+    try {
+      const updated = await personnelApi.updateStaffProfile(profile.id, level);
+      queryClient.setQueryData<StaffProfile[]>(queryKeys.staffProfiles, (prev) => prev?.map((p) => (p.id === updated.id ? updated : p)));
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not update the staff level."));
+    }
+  };
+
+  const assign = () => {
+    setAttempted(true);
+    const targetId = assignForm.target === "project" ? assignForm.project : assignForm.study;
+    if (!assignForm.user || !targetId || !assignForm.start_date) {
+      notify.error("Staff member, project or study, and start date are required.");
+      return;
+    }
+    assignMutation.mutate(targetId);
   };
 
   const endAssignment = async (a: ProjectAssignment) => {
     try {
       const updated = await personnelApi.updateAssignment(a.id, { end_date: today() });
-      setAssignments((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      patchAssignment(updated);
       notify.success("Assignment ended.");
     } catch (err) {
       notify.error(errorMessage(err, "Could not end the assignment."));
@@ -238,9 +221,9 @@ function StaffContent() {
     if (!editingDept) return;
     try {
       const updated = await personnelApi.updateAssignment(editingDept.id, { department: editingDept.value });
-      setAssignments((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      patchAssignment(updated);
       setEditingDept(null);
-      setReloadKey((k) => k + 1);
+      reload();
     } catch (err) {
       notify.error(errorMessage(err, "Could not update the department."));
     }

@@ -78,7 +78,13 @@ names). Approve/return/archive (`act`), share grant and revoke are `useMutation`
 invalidate the `["documents"]` prefix, which also refreshes the Disbursements board's documents. Sharing keeps the
 403 → "forbidden" message. Toggling "Show superseded" still shows the skeleton, as before (new key, no placeholder).
 The Versions/Linked tabs keep their lazy per-modal effects.
-### T9: Staff + Personnel Changes (M)
+### T9: Staff + Personnel Changes (M) ✅
+**Result:** neither page has `reloadKey` now. Staff reads staff profiles, all assignments, collaboration (keeps the old list
+while switching "cross only", as before) and `users-by-role` (managers only) from queries. Personnel Changes reads
+changes, programs, active assignments and role candidates (keeps the old list while switching type, as before). Create,
+level, assign, clearance and complete are `useMutation`. Local in-place updates (end assignment, change level, edit
+department, clearance) now use `setQueryData`. Completing a change invalidates assignments + projects, since the
+leader or staff changed. Study lookups on project pick stay one-shot calls.
 ### T10: Tasks (M/L, most complex, last)
 For each task:
 - [ ] Saves use `useMutation` + `invalidateQueries`; `reloadKey` is removed from the page
