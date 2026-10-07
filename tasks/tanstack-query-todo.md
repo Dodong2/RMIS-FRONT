@@ -13,9 +13,12 @@ Files: `src/providers/AppProviders.tsx`, `src/context/AuthContext.tsx`. Depends 
 no-empty, only-export-components) were already there before T1 and are left alone.
 
 ### T2: Query key factory + shared read hooks (S)
-- [ ] `src/lib/queries.ts` with `queryKeys` and `useProjects`, `useBudgets`, `useRoles`, `useUsers`
-- [ ] Hooks only wrap the existing `*Api` functions; no page changes
+- [x] `src/lib/queries.ts` with `queryKeys` and `useProjects`, `useBudgets`, `useRoles`, `useUsers`
+- [x] Hooks only wrap the existing `*Api` functions; no page changes
 Files: `src/lib/queries.ts`. Depends on: T1.
+**Result:** v5 `queryOptions` objects (`projectsQuery`, `budgetsQuery(project)`, ...) shared by hooks, `useQueries` and
+invalidation. `queryKeys.budgets()` = `["budgets"]`, so invalidating it also refreshes every per-project budget
+list. Hooks take `{ enabled }` for role-gated reads.
 
 ### T3: Pilot: ProjectsPage (S)
 - [ ] `useProjects` + `useQueries` for the per-project statuses
