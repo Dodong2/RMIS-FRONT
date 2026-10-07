@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { personnelApi } from "../lib/personnelApi";
-import { ROLE_META } from "../lib/roles";
+import { ROLE_META, initialsFrom } from "../lib/roles";
 import { notify } from "../lib/notify";
 import type { LeaderLoad } from "../types/personnel";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -73,10 +73,10 @@ function LeaderLoadContent() {
             <div key={l.user} className="rounded-xl p-5" style={{ background: "white", border: "1px solid #e2e8f0" }}>
               <div className="flex items-start gap-3 mb-4">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ background: "#1a3f7a" }}>
-                  {l.email.slice(0, 2).toUpperCase()}
+                  {initialsFrom(l.full_name)}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-bold text-sm truncate" style={{ color: "#0d2a5e" }}>{l.full_name || l.email}</p>
+                  <p className="font-bold text-sm truncate" style={{ color: "#0d2a5e" }}>{l.full_name}</p>
                   <p className="text-xs font-semibold mt-0.5" style={{ color: "#0891b2" }}>{ROLE_META[l.role]?.name ?? l.role}</p>
                 </div>
               </div>

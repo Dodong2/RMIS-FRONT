@@ -4,7 +4,7 @@ import { authApi } from "../lib/authApi";
 import { supabase } from "../lib/supabaseClient";
 import type { Role } from "../types/auth";
 import { AuthShell } from "../components/auth/AuthShell";
-import { AUTH_SELECT_TRIGGER, AuthHint, AuthLabel, AuthSubmit } from "../components/auth/AuthFields";
+import { AUTH_SELECT_TRIGGER, AuthHint, AuthInput, AuthLabel, AuthSubmit } from "../components/auth/AuthFields";
 import {
   Select,
   SelectContent,
@@ -18,6 +18,8 @@ export default function GoogleChooseRolePage() {
   const navigate = useNavigate();
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [requestedRole, setRequestedRole] = useState("");
   const [attempted, setAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,14 +49,14 @@ export default function GoogleChooseRolePage() {
       return;
     }
     setAttempted(true);
-    if (!requestedRole) {
-      notify.error("Choose the role you are requesting before you submit.");
+    if (!firstName.trim() || !lastName.trim() || !requestedRole) {
+      notify.error("Fill in your first and last name and choose the role you are requesting before you submit.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await authApi.googleRequestRole(token, Number(requestedRole));
+      await authApi.googleRequestRole(token, Number(requestedRole), { first_name: firstName.trim(), last_name: lastName.trim() });
       sessionStorage.removeItem("pending_google_token");
       await supabase.auth.signOut();
       navigate("/registration-pending");
@@ -66,8 +68,34 @@ export default function GoogleChooseRolePage() {
   };
 
   return (
-    <AuthShell title="One More Step" subtitle="Tell us which role you need so an administrator can review it">
+    <AuthShell title="One More Step" subtitle="Tell us your name and the role you need so an administrator can review it">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <AuthLabel htmlFor="first_name" required>First Name</AuthLabel>
+            <AuthInput
+              id="first_name"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="e.g. Aimee Concepcion"
+              required
+              invalid={attempted && !firstName.trim()}
+            />
+          </div>
+          <div>
+            <AuthLabel htmlFor="last_name" required>Last Name</AuthLabel>
+            <AuthInput
+              id="last_name"
+              autoComplete="family-name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="e.g. Chavez"
+              required
+              invalid={attempted && !lastName.trim()}
+            />
+          </div>
+        </div>
         <div>
           <AuthLabel htmlFor="role" required>Role You Are Requesting</AuthLabel>
           {rolesLoading ? (
@@ -86,7 +114,7 @@ export default function GoogleChooseRolePage() {
               </SelectContent>
             </Select>
           )}
-          <AuthHint>Your Google account is already verified. Only the role is still needed.</AuthHint>
+          <AuthHint>Your Google account is already verified. Only your name and role are still needed.</AuthHint>
         </div>
 
         <AuthSubmit busy={isSubmitting} busyLabel="Submitting…" disabled={rolesLoading}>

@@ -39,6 +39,7 @@ export interface RegisterPayload {
 export interface PendingUser {
   id: number;
   email: string;
+  full_name: string;
   registration_method: "email" | "google";
   requested_role: Role | null;
   date_joined: string;
@@ -82,6 +83,7 @@ export interface AuditLog {
   id: number;
   actor: number | null;
   actor_email: string | null;
+  actor_name: string | null;
   method: "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
   status_code: number;
@@ -94,6 +96,7 @@ export interface TemporaryReplacement {
   suspended_user_email: string;
   replacement: number;
   replacement_email: string;
+  replacement_name: string;
   designation: string;
   coverage: string;
   start_date: string;

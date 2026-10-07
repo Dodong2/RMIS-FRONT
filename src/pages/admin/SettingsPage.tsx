@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { initialsFrom } from "../../lib/roles";
 import { Link } from "react-router-dom";
 import { authApi } from "../../lib/authApi";
 import { notify } from "../../lib/notify";
@@ -147,9 +148,9 @@ function SettingsContent() {
               const st = protoRoleStyle(u.role);
               return (
                 <div key={u.id} className="px-5 py-3 flex items-center gap-4 hover:bg-slate-50">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: st.color }}>{u.email.slice(0, 2).toUpperCase()}</div>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: st.color }}>{initialsFrom(u.full_name)}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: "#0d2a5e" }}>{u.email}</p>
+                    <p className="text-sm font-semibold truncate" style={{ color: "#0d2a5e" }}>{u.full_name}</p>
                     <p className="text-xs truncate" style={{ color: "#94a3b8" }}>{[u.position, u.office].filter(Boolean).join(" · ") || "No office on file"}</p>
                   </div>
                   <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0" style={{ background: st.bg, color: st.color }}>{u.role?.name ?? "No role"}</span>

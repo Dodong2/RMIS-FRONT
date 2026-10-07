@@ -125,6 +125,11 @@ export function roleScopeLine(role?: { code?: string } | null): string {
   return ROLE_META[role.code]?.scopeLine ?? "";
 }
 
+export function personName(u?: { email: string; full_name?: string; first_name?: string; last_name?: string } | null): string {
+  if (!u) return "";
+  return u.full_name || `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email;
+}
+
 /** Two-letter monogram for the avatar, from the email or full name. */
 export function initialsFrom(value?: string | null): string {
   if (!value) return "??";

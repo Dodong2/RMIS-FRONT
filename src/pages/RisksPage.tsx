@@ -3,6 +3,7 @@ import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { riskApi } from "../lib/riskApi";
 import { notify } from "../lib/notify";
+import { personName } from "../lib/roles";
 import { ALERT_ROUTING, CAT_META, FLAG_LABELS, FLAG_ORDER, LEVEL_META, STATUS_META } from "../lib/riskMeta";
 import type { ProjectAssignment } from "../types/personnel";
 import type { ProjectRisk, RiskCategory, RiskDashboard, RiskLevel, RiskRegisterStatus } from "../types/risk";
@@ -97,10 +98,10 @@ function RisksContent() {
 
   const names = useMemo(() => {
     const m = new Map<number, string>();
-    projects?.forEach((p) => m.set(p.lead_detail.id, p.lead_detail.email));
-    assignments.forEach((a) => m.set(a.user_detail.id, a.user_detail.email));
-    risks?.forEach((r) => m.set(r.owner, r.owner_email));
-    if (user) m.set(user.pk, user.email);
+    projects?.forEach((p) => m.set(p.lead_detail.id, personName(p.lead_detail)));
+    assignments.forEach((a) => m.set(a.user_detail.id, personName(a.user_detail)));
+    risks?.forEach((r) => m.set(r.owner, r.owner_name));
+    if (user) m.set(user.pk, personName(user));
     return m;
   }, [projects, assignments, risks, user]);
   const nameOf = (id: number) => names.get(id) ?? `User #${id}`;
@@ -108,9 +109,9 @@ function RisksContent() {
   const ownerOptions = (projectId: number) => {
     const m = new Map<number, string>();
     const p = projects?.find((x) => x.id === projectId);
-    if (p) m.set(p.lead_detail.id, `${p.lead_detail.email} · Project Leader`);
-    assignments.filter((a) => a.project === projectId).forEach((a) => m.has(a.user_detail.id) || m.set(a.user_detail.id, `${a.user_detail.email}${a.role_label ? ` · ${a.role_label}` : ""}`));
-    if (user && !m.has(user.pk)) m.set(user.pk, `${user.email} · You`);
+    if (p) m.set(p.lead_detail.id, `${personName(p.lead_detail)} · Project Leader`);
+    assignments.filter((a) => a.project === projectId).forEach((a) => m.has(a.user_detail.id) || m.set(a.user_detail.id, `${personName(a.user_detail)}${a.role_label ? ` · ${a.role_label}` : ""}`));
+    if (user && !m.has(user.pk)) m.set(user.pk, `${personName(user)} · You`);
     return [...m].map(([id, label]) => ({ id, label }));
   };
 

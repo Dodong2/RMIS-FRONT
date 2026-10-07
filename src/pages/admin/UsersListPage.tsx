@@ -5,6 +5,8 @@ import { researchApi } from "../../lib/researchApi";
 import { errorMessage } from "../../lib/errorMessage";
 import { notify } from "../../lib/notify";
 import { protoRoleStyle } from "../../lib/protoRole";
+import { initialsFrom } from "../../lib/roles";
+import { UserSelect } from "../../components/common/UserPicker";
 import { BTN_GHOST_STYLE, BTN_PRIMARY, BTN_PRIMARY_STYLE, INPUT_CLS, INPUT_STYLE } from "../../lib/protoStyles";
 import type { AccountStatus, AdminUser, AuditLog, PermissionMatrix, Role, TemporaryReplacement } from "../../types/auth";
 import { ProtectedRoute } from "../../components/ProtectedRoute";
@@ -36,7 +38,8 @@ const RESPONSIBILITY_LABELS: Record<string, [string, string]> = {
   assignments: ["project assignment", "project assignments"],
 };
 
-const initials = (email: string) => email.slice(0, 2).toUpperCase();
+const initials = initialsFrom;
+const nameAndEmail = (u: AdminUser) => (u.full_name !== u.email ? `${u.full_name} · ${u.email}` : u.email);
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("en-PH", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
@@ -65,7 +68,7 @@ function ScopePill({ user }: { user: AdminUser }) {
 function Avatar({ user, size = "w-8 h-8 text-xs" }: { user: AdminUser; size?: string }) {
   return (
     <div className={`${size} rounded-xl flex items-center justify-center text-white font-black shrink-0`} style={{ background: protoRoleStyle(user.role).color }}>
-      {initials(user.email)}
+      {initials(user.full_name)}
     </div>
   );
 }
@@ -147,7 +150,7 @@ function ProfileModal({ user, onSaved, onClose }: { user: AdminUser; onSaved: (u
   return (
     <ProtoModal
       title="Edit Profile"
-      subtitle={user.email}
+      subtitle={nameAndEmail(user)}
       onClose={onClose}
       width="max-w-md"
       footer={
@@ -202,7 +205,7 @@ function ScopeModal({ user, campuses, onSaved, onClose }: { user: AdminUser; cam
   return (
     <ProtoModal
       title="Campus / College Scope — UAM-03"
-      subtitle={user.email}
+      subtitle={nameAndEmail(user)}
       onClose={onClose}
       width="max-w-md"
       footer={
@@ -236,7 +239,7 @@ function ConfirmDeactivateModal({ user, isWorking, onConfirm, onClose }: { user:
   return (
     <ProtoModal
       title="Deactivate Account — UAM-06"
-      subtitle={user.email}
+      subtitle={nameAndEmail(user)}
       onClose={onClose}
       width="max-w-md"
       footer={
@@ -321,7 +324,7 @@ function ReplacementCard({ user, users }: { user: AdminUser; users: AdminUser[] 
         <p className="text-xs" style={{ color: "#92400e" }}>Loading…</p>
       ) : current ? (
         <>
-          <p className="text-sm font-bold break-all" style={{ color: "#78350f" }}>{current.replacement_email}</p>
+          <p className="text-sm font-bold break-all" style={{ color: "#78350f" }}>{current.replacement_name}</p>
           {current.designation && <p className="text-xs" style={{ color: "#92400e" }}>{current.designation}</p>}
           {current.coverage && <p className="text-xs mt-1" style={{ color: "#78350f" }}>Covers: {current.coverage}</p>}
           <p className="text-xs mt-1" style={{ color: "#92400e" }}>
@@ -343,12 +346,13 @@ function ReplacementCard({ user, users }: { user: AdminUser; users: AdminUser[] 
       ) : (
         <div className="space-y-2">
           <Field label="Replacement" required>
-            <select className={INPUT_CLS} style={{ ...INPUT_STYLE, borderColor: attempted && !form.replacement ? "#dc2626" : "#e2e8f0" }} value={form.replacement} onChange={set("replacement")}>
-              <option value="">Select an active account…</option>
-              {candidates.map((u) => (
-                <option key={u.id} value={u.id}>{u.email} · {u.role?.name}</option>
-              ))}
-            </select>
+            <UserSelect
+              users={candidates}
+              value={form.replacement}
+              onChange={(replacement) => setForm((f) => ({ ...f, replacement }))}
+              placeholder="Search an active account by name or e-mail"
+              invalid={attempted && !form.replacement}
+            />
           </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Designation">
@@ -472,7 +476,7 @@ function AssignmentRows({
               <div className="flex items-center gap-2">
                 <Avatar user={u} size="w-7 h-7 text-xs" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold truncate" style={{ color: "#0d2a5e" }}>{u.email}</p>
+                  <p className="text-xs font-semibold truncate" style={{ color: "#0d2a5e" }}>{u.full_name}</p>
                   <p className="text-xs truncate" style={{ color: "#94a3b8" }}>{[u.position, u.office].filter(Boolean).join(" · ") || "—"}</p>
                 </div>
               </div>
@@ -588,7 +592,7 @@ function UsersListContent() {
     try {
       const res = await authApi.setAccountStatus(u.id, action);
       patchUser({ ...u, account_status: res.account_status, is_active: res.is_active });
-      notify.success(`${u.email} is now ${ACCOUNT_STATUS_META[res.account_status].label.toLowerCase()}.`);
+      notify.success(`${u.full_name} is now ${ACCOUNT_STATUS_META[res.account_status].label.toLowerCase()}.`);
       setConfirmDeactivate(null);
     } catch (err) {
       const data = (err as { response?: { data?: { detail?: string; active?: Record<string, number> } } })?.response?.data;
@@ -719,7 +723,8 @@ function UsersListContent() {
                         <div className="flex items-center gap-2">
                           <Avatar user={u} />
                           <div className="min-w-0">
-                            <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{u.email}{isMe ? " (you)" : ""}</p>
+                            <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{u.full_name}{isMe ? " (you)" : ""}</p>
+                            {u.full_name !== u.email && <p className="text-xs truncate" style={{ color: "#94a3b8" }}>{u.email}</p>}
                           </div>
                         </div>
                       </td>
@@ -781,9 +786,9 @@ function UsersListContent() {
               return (
                 <div key={u.id} className="rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer" style={{ background: "white", border: "1px solid #e2e8f0" }} onClick={() => setSelectedId(u.id)}>
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-lg font-black shrink-0" style={{ background: `linear-gradient(135deg, ${st.color}, ${st.color}cc)` }}>{initials(u.email)}</div>
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-lg font-black shrink-0" style={{ background: `linear-gradient(135deg, ${st.color}, ${st.color}cc)` }}>{initials(u.full_name)}</div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-black text-sm leading-tight truncate" style={{ color: "#0d2a5e" }}>{u.email}</p>
+                      <p className="font-black text-sm leading-tight truncate" style={{ color: "#0d2a5e" }}>{u.full_name}</p>
                       <p className="text-xs mt-0.5 font-semibold" style={{ color: st.color }}>{u.role?.name ?? "No role"}</p>
                       <p className="text-xs truncate mt-0.5" style={{ color: "#94a3b8" }}>{u.position || "No position on file"}</p>
                       <div className="mt-1"><StatusDot status={u.account_status} /></div>
@@ -908,7 +913,7 @@ function UsersListContent() {
                         <td className="px-4 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{fmtDateTime(log.created_at)}</td>
                         <td className="px-4 py-2.5"><span className="text-xs font-mono font-bold px-2 py-0.5 rounded" style={{ background: mm.bg, color: mm.text }}>{log.method}</span></td>
                         <td className="px-4 py-2.5 text-xs font-mono" style={{ color: "#334155" }}>{log.path}</td>
-                        <td className="px-4 py-2.5 text-xs font-semibold whitespace-nowrap" style={{ color: "#475569" }}>{log.actor_email ?? "—"}</td>
+                        <td className="px-4 py-2.5 text-xs font-semibold whitespace-nowrap" style={{ color: "#475569" }}>{log.actor_name ?? "—"}</td>
                         <td className="px-4 py-2.5 text-xs font-mono" style={{ color: "#94a3b8" }}>{log.ip_address ?? "—"}</td>
                         <td className="px-4 py-2.5">
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: ok ? "#d1fae5" : "#fee2e2", color: ok ? "#166534" : "#991b1b" }}>{log.status_code}</span>

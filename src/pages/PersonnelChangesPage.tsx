@@ -26,6 +26,8 @@ import {
   invalidStyle,
 } from "../lib/protoStyles";
 import { notify } from "../lib/notify";
+import { personName } from "../lib/roles";
+import { UserSelect } from "../components/common/UserPicker";
 
 const MANAGE_CODES = ["system_admin", "crc_chair", "drd", "riuh"];
 const CLEARANCE_CODES = [...MANAGE_CODES, "procurement_officer_lib"];
@@ -298,7 +300,7 @@ function PersonnelChangesContent() {
                     <select className={INPUT_CLS} style={invalidStyle(attempted && !form.program)} value={form.program} onChange={(e) => setForm((f) => ({ ...f, program: e.target.value }))}>
                       <option value="">{programs.length ? "Select program" : "No programs registered yet"}</option>
                       {programs.map((p) => (
-                        <option key={p.id} value={p.id}>{p.title} — {p.lead_detail.email}</option>
+                        <option key={p.id} value={p.id}>{p.title} — {personName(p.lead_detail)}</option>
                       ))}
                     </select>
                   </Field>
@@ -307,7 +309,7 @@ function PersonnelChangesContent() {
                     <select className={INPUT_CLS} style={invalidStyle(attempted && !form.project)} value={form.project} onChange={(e) => handleProjectPick(e.target.value)}>
                       <option value="">{projects.length ? "Select project" : "No projects registered yet"}</option>
                       {projects.map((p) => (
-                        <option key={p.id} value={p.id}>{p.project_code} — {p.lead_detail.email}</option>
+                        <option key={p.id} value={p.id}>{p.project_code} — {personName(p.lead_detail)}</option>
                       ))}
                     </select>
                   </Field>
@@ -323,7 +325,7 @@ function PersonnelChangesContent() {
                     >
                       <option value="">{studies.length ? "Select study" : "No studies for this project"}</option>
                       {studies.map((s) => (
-                        <option key={s.id} value={s.id}>{s.title} — {s.lead_detail?.email ?? "no study leader"}</option>
+                        <option key={s.id} value={s.id}>{s.title} — {s.lead_detail ? personName(s.lead_detail) : "no study leader"}</option>
                       ))}
                     </select>
                   </Field>
@@ -334,19 +336,20 @@ function PersonnelChangesContent() {
                 <select className={INPUT_CLS} style={invalidStyle(attempted && !form.assignment)} value={form.assignment} onChange={(e) => setForm((f) => ({ ...f, assignment: e.target.value }))}>
                   <option value="">Select assignment</option>
                   {assignments.map((a) => (
-                    <option key={a.id} value={a.id}>{a.user_detail.email} — {a.project ? projectTitle(a.project) : `Study #${a.study}`}</option>
+                    <option key={a.id} value={a.id}>{personName(a.user_detail)} — {a.project ? projectTitle(a.project) : `Study #${a.study}`}</option>
                   ))}
                 </select>
               </Field>
             )}
 
             <Field label="Incoming" required>
-              <select className={INPUT_CLS} style={invalidStyle(attempted && !form.incoming)} value={form.incoming} onChange={(e) => setForm((f) => ({ ...f, incoming: e.target.value }))}>
-                <option value="">{candidates.length ? "Select replacement" : "No eligible users available"}</option>
-                {candidates.map((u) => (
-                  <option key={u.id} value={u.id}>{u.email}</option>
-                ))}
-              </select>
+              <UserSelect
+                users={candidates}
+                value={form.incoming}
+                onChange={(incoming) => setForm((f) => ({ ...f, incoming }))}
+                placeholder={candidates.length ? "Search replacement by name or e-mail" : "No eligible users available"}
+                invalid={attempted && !form.incoming}
+              />
             </Field>
             <Field label="Reason" required className="sm:col-span-2">
               <input
@@ -385,8 +388,8 @@ function PersonnelChangesContent() {
                   >
                     <td className="px-4 py-2.5 capitalize font-semibold" style={{ color: "#0d2a5e" }}>{c.change_type}</td>
                     <td className="px-4 py-2.5" style={{ color: "#334155" }}>{targetLabel(c)}</td>
-                    <td className="px-4 py-2.5" style={{ color: "#475569" }}>{c.outgoing_detail.email}</td>
-                    <td className="px-4 py-2.5" style={{ color: "#475569" }}>{c.incoming_detail.email}</td>
+                    <td className="px-4 py-2.5" style={{ color: "#475569" }}>{personName(c.outgoing_detail)}</td>
+                    <td className="px-4 py-2.5" style={{ color: "#475569" }}>{personName(c.incoming_detail)}</td>
                     <td className="px-4 py-2.5">{statusPill(c.status)}</td>
                     <td className="px-4 py-2.5 text-right">
                       <button className={BTN_SOFT} style={BTN_SOFT_STYLE}>View</button>

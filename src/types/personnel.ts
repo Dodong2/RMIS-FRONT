@@ -65,6 +65,7 @@ export interface TaskUpdate {
   task: number;
   author: number;
   author_email: string;
+  author_name: string;
   note: string;
   kind: TaskUpdateKind;
   hours: string;
@@ -76,6 +77,7 @@ export interface TaskUpdate {
 export interface WorkloadRow {
   assignee: number;
   email: string;
+  full_name: string;
   open: number;
   overdue: number;
   done: number;

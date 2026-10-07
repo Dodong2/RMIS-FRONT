@@ -153,7 +153,7 @@ function AuditLogsContent() {
       notify.error("Nothing to export with the current filters.");
       return;
     }
-    const actorEmail = users.find((u) => String(u.id) === actor)?.email;
+    const actorEmail = users.find((u) => String(u.id) === actor)?.full_name;
     exportXlsx({
       title: "Audit Logs",
       scope: [actorEmail, method, moduleFilter !== "all" ? moduleFilter : ""].filter(Boolean).join(" ") || "All",
@@ -161,7 +161,7 @@ function AuditLogsContent() {
         {
           heading: "Activity Log",
           head: ["Timestamp", "Actor", "Action", "Module", "Method", "Endpoint", "Status", "IP"],
-          body: visible.map(({ log, action, module }) => [fmtStamp(log.created_at), log.actor_email ?? "—", action, module, log.method, log.path, log.status_code, log.ip_address ?? "—"]),
+          body: visible.map(({ log, action, module }) => [fmtStamp(log.created_at), log.actor_name ?? "—", action, module, log.method, log.path, log.status_code, log.ip_address ?? "—"]),
         },
       ],
     });
@@ -209,7 +209,7 @@ function AuditLogsContent() {
         >
           <option value="">All users</option>
           {users.map((u) => (
-            <option key={u.id} value={u.id}>{u.email}</option>
+            <option key={u.id} value={u.id}>{u.full_name}{u.full_name !== u.email ? ` (${u.email})` : ""}</option>
           ))}
         </select>
         <select
@@ -255,7 +255,7 @@ function AuditLogsContent() {
                   <div className="font-mono text-xs mt-0.5 shrink-0" style={{ color: "#94a3b8", width: "150px" }}>{fmtStamp(log.created_at)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-xs" style={{ color: "#0d2a5e" }}>{log.actor_email ?? "Deleted user"}</span>
+                      <span className="font-semibold text-xs" style={{ color: "#0d2a5e" }}>{log.actor_name ?? "Deleted user"}</span>
                       <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: ac + "20", color: ac }}>{action}</span>
                       <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: mc + "15", color: mc }}>{module}</span>
                       {failed && (

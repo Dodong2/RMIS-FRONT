@@ -7,7 +7,8 @@ import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
-import { ROLE_META } from "../lib/roles";
+import { UserSelect } from "../components/common/UserPicker";
+import { ROLE_META, personName } from "../lib/roles";
 import type { DocumentReviewStatus, DocumentSensitivity, DocumentShare, DocumentStage, DocumentType, ProjectDocument } from "../types/document";
 import type { AdminUser } from "../types/auth";
 import type { Project, Study } from "../types/research";
@@ -375,12 +376,13 @@ function SharingTab({ doc }: { doc: ProjectDocument }) {
             </select>
           </Field>
           <Field label="User" required>
-            <select className={INPUT_CLS} style={invalidStyle(attempted && !form.user)} value={form.user} disabled={!roleCode} onChange={(e) => setForm((p) => ({ ...p, user: e.target.value }))}>
-              <option value="">{roleCode ? (candidates.length ? "Select a user…" : "No active users with this role") : "Pick a role first"}</option>
-              {candidates.map((u) => (
-                <option key={u.id} value={u.id}>{u.email}</option>
-              ))}
-            </select>
+            <UserSelect
+              users={candidates}
+              value={form.user}
+              onChange={(user) => setForm((p) => ({ ...p, user }))}
+              placeholder={roleCode ? (candidates.length ? "Search by name or e-mail" : "No active users with this role") : "Pick a role first"}
+              invalid={attempted && !form.user}
+            />
           </Field>
           <Field label="Expires On" required>
             <input type="date" className={INPUT_CLS} style={invalidStyle(attempted && !form.expires_on)} value={form.expires_on} onChange={(e) => setForm((p) => ({ ...p, expires_on: e.target.value }))} />
@@ -404,9 +406,9 @@ function SharingTab({ doc }: { doc: ProjectDocument }) {
             <div key={sh.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", opacity: sh.is_active ? 1 : 0.6 }}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: "#faf5ff" }}>🔑</div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold break-all" style={{ color: "#0d2a5e" }}>{sh.user_email}</p>
+                <p className="text-xs font-bold break-all" style={{ color: "#0d2a5e" }}>{sh.user_name}</p>
                 <p className="text-xs" style={{ color: "#94a3b8" }}>
-                  {sh.user_role} · shared by {sh.granted_by_email} on {sh.granted_at.slice(0, 10)}
+                  {sh.user_role} · shared by {sh.granted_by_name} on {sh.granted_at.slice(0, 10)}
                   {sh.reason ? ` · ${sh.reason}` : ""}
                 </p>
               </div>
@@ -689,12 +691,12 @@ function DocumentsContent() {
       .then((p) => {
         if (!active) return;
         setProjects(p);
-        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, x.lead_detail.email] as [number, string])]));
+        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, personName(x.lead_detail)] as [number, string])]));
       })
       .catch(() => active && notify.error("Could not load projects."));
     personnelApi
       .getAssignments({ active: true })
-      .then((a) => active && setNames((m) => new Map([...m, ...a.map((x) => [x.user_detail.id, x.user_detail.email] as [number, string])])))
+      .then((a) => active && setNames((m) => new Map([...m, ...a.map((x) => [x.user_detail.id, personName(x.user_detail)] as [number, string])])))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -716,7 +718,7 @@ function DocumentsContent() {
     };
   }, [showSuperseded, reloadKey]);
 
-  const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? user.email : names.get(id) ?? `User #${id}`);
+  const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? personName(user) : names.get(id) ?? `User #${id}`);
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const projectLabel = (id: number) => projectById.get(id)?.project_code ?? `Project #${id}`;
 

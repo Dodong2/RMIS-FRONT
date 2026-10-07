@@ -16,7 +16,7 @@ import { researchApi } from "../lib/researchApi";
 import { riskApi } from "../lib/riskApi";
 import { visibleSections } from "../lib/nav";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
-import { resolveTier, type RoleTier } from "../lib/roles";
+import { resolveTier, type RoleTier, initialsFrom, personName } from "../lib/roles";
 import type {
   BudgetDashboard,
   ComplianceDashboard,
@@ -701,10 +701,10 @@ function PersonnelPanel({ data, canSeeWorkload, ids }: { data: DashData; canSeeW
           {workload.map((w) => (
             <div key={w.assignee} className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
               <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white text-xs shrink-0" style={{ background: "#0d2a5e" }}>
-                {w.email.slice(0, 2).toUpperCase()}
+                {initialsFrom(w.full_name)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{w.email}</p>
+                <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{w.full_name}</p>
                 <p className="text-xs" style={{ color: "#94a3b8" }}>
                   {w.logged_hours}h logged / {w.estimated_hours}h estimated
                 </p>
@@ -852,10 +852,10 @@ function DrillPanel({
       </div>
       <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "white", border: "1px solid #e2e8f0" }}>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white text-xs shrink-0" style={{ background: "#0d2a5e" }}>
-          {proj.lead_detail.email.slice(0, 2).toUpperCase()}
+          {initialsFrom(personName(proj.lead_detail))}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{proj.lead_detail.email}</p>
+          <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{personName(proj.lead_detail)}</p>
           <p className="text-xs" style={{ color: "#0891b2" }}>Project Leader</p>
         </div>
       </div>
@@ -890,7 +890,7 @@ function buildSections(type: ReportType, data: DashData, scoped: Project[], ids:
       p.campus || "—",
       p.start_date ?? "—",
       p.target_end_date ?? "—",
-      p.lead_detail.email,
+      personName(p.lead_detail),
     ]),
   };
   const budgetRows: ExportSection = {

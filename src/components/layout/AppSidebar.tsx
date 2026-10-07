@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NavIcon } from "./NavIcon";
 import { visibleSections } from "../../lib/nav";
-import { initialsFrom, resolveTier, roleLabel } from "../../lib/roles";
+import { initialsFrom, personName, resolveTier, roleLabel } from "../../lib/roles";
 import { protoRoleStyle } from "../../lib/protoRole";
 import type { User } from "../../types/auth";
 
@@ -117,10 +117,10 @@ export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebar
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
               style={{ background: roleStyle.color }}
             >
-              {initialsFrom(user?.email)}
+              {initialsFrom(personName(user))}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-white text-xs font-bold truncate">{user?.email ?? "—"}</p>
+              <p className="text-white text-xs font-bold truncate">{personName(user) || "—"}</p>
               <p className="text-xs truncate" style={{ color: "rgba(168,196,232,0.55)" }}>{roleLabel(user?.role)}</p>
             </div>
           </div>

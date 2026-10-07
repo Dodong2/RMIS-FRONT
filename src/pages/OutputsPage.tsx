@@ -4,6 +4,7 @@ import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { personName } from "../lib/roles";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { FAMILY_META, INDEXING_LABELS, IP_STATUS_LABELS, IP_TYPE_LABELS, PUBLICATION_TYPE_LABELS, SIX_P_META, type OutputFamily } from "../lib/outputsMeta";
 import type {
@@ -749,12 +750,12 @@ function OutputsContent() {
       .then((p) => {
         if (!active) return;
         setProjects(p);
-        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, x.lead_detail.email] as [number, string])]));
+        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, personName(x.lead_detail)] as [number, string])]));
       })
       .catch(() => active && notify.error("Could not load projects."));
     personnelApi
       .getAssignments({ active: true })
-      .then((a) => active && setNames((m) => new Map([...m, ...a.map((x) => [x.user_detail.id, x.user_detail.email] as [number, string])])))
+      .then((a) => active && setNames((m) => new Map([...m, ...a.map((x) => [x.user_detail.id, personName(x.user_detail)] as [number, string])])))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -786,7 +787,7 @@ function OutputsContent() {
     };
   }, [reloadKey]);
 
-  const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? user.email : names.get(id) ?? `User #${id}`);
+  const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? personName(user) : names.get(id) ?? `User #${id}`);
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const projectLabel = (id: number) => projectById.get(id)?.project_code ?? `Project #${id}`;
   const senseName = (id: number | null) => senses.find((s) => s.id === id)?.name ?? "—";

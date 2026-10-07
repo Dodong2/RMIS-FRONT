@@ -4,6 +4,7 @@ import { outputsApi } from "../lib/outputsApi";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { notify } from "../lib/notify";
+import { personName } from "../lib/roles";
 import type { EscalationStatus, ProjectEvaluation, ProjectMonitoringStatus } from "../types/monitoring";
 import type { ExpectedVsActual } from "../types/outputs";
 import type { Project } from "../types/research";
@@ -240,7 +241,7 @@ function MonitoringContent() {
         if (!alive) return;
         setProjects(p);
         setProjectId((cur) => cur ?? p[0]?.id ?? null);
-        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, x.lead_detail.email] as [number, string])]));
+        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, personName(x.lead_detail)] as [number, string])]));
       })
       .catch(() => {
         if (!alive) return;
@@ -249,7 +250,7 @@ function MonitoringContent() {
       });
     personnelApi
       .getAssignments({ active: true })
-      .then((a) => alive && setNames((m) => new Map([...m, ...a.map((x) => [x.user_detail.id, x.user_detail.email] as [number, string])])))
+      .then((a) => alive && setNames((m) => new Map([...m, ...a.map((x) => [x.user_detail.id, personName(x.user_detail)] as [number, string])])))
       .catch(() => undefined);
     return () => {
       alive = false;
@@ -276,7 +277,7 @@ function MonitoringContent() {
     };
   }, [projectId, reloadKey]);
 
-  const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? user.email : names.get(id) ?? `User #${id}`);
+  const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? personName(user) : names.get(id) ?? `User #${id}`);
   const project = projects?.find((p) => p.id === projectId) ?? null;
   const indicators = useMemo(() => (status && status.project === projectId ? buildIndicators(status, eva) : []), [status, eva, projectId]);
   const loaded = !!status && status.project === projectId;

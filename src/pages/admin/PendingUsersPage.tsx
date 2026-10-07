@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { initialsFrom } from "../../lib/roles";
 import { Link } from "react-router-dom";
 import { authApi } from "../../lib/authApi";
 import { errorMessage } from "../../lib/errorMessage";
@@ -107,11 +108,11 @@ function PendingUsersContent() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shrink-0" style={{ background: "#f59e0b" }}>
-                          {u.email.slice(0, 2).toUpperCase()}
+                          {initialsFrom(u.full_name)}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{u.email}</p>
-                          <p className="text-xs" style={{ color: "#94a3b8" }}>Registered {fmtDate(u.date_joined)}</p>
+                          <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{u.full_name}</p>
+                          <p className="text-xs" style={{ color: "#94a3b8" }}>{u.full_name !== u.email ? `${u.email} · ` : ""}Registered {fmtDate(u.date_joined)}</p>
                         </div>
                       </div>
                     </td>
@@ -126,7 +127,7 @@ function PendingUsersContent() {
                         value={selectedRoles[u.id] ?? ""}
                         onChange={(e) => setSelectedRoles((prev) => ({ ...prev, [u.id]: e.target.value }))}
                         disabled={assigningId !== null}
-                        aria-label={`Role for ${u.email}`}
+                        aria-label={`Role for ${u.full_name}`}
                         className="w-full px-3 py-2 rounded-xl text-xs border outline-none disabled:opacity-60"
                         style={{ borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155", minWidth: "200px" }}
                       >

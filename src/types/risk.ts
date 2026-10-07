@@ -90,6 +90,7 @@ export interface ProjectRisk {
   level: RiskLevel;
   owner: number;
   owner_email: string;
+  owner_name: string;
   mitigation: string;
   status: RiskRegisterStatus;
   created_by: number;
@@ -104,6 +105,7 @@ export interface RiskUpdate {
   new_status: RiskRegisterStatus | "";
   author: number;
   author_email: string;
+  author_name: string;
   created_at: string;
 }
 

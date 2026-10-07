@@ -9,6 +9,7 @@ import { runServerReport, type ReportParams } from "../lib/reportRunner";
 import { DOMAIN_META, FORMAT_META, FUNDING_TYPE_LABELS, PARAM_LABELS, REPORT_DEFINITIONS, STATUS_LABELS, type ReportDefinition, type ReportDomain, type ReportParam } from "../lib/reportCatalog";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { personName } from "../lib/roles";
 import type { GeneratedReportLog } from "../types/reports";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -71,7 +72,7 @@ function ReportsContent() {
       .then((p) => {
         if (!alive) return;
         setProjects(p);
-        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, x.lead_detail.email] as [number, string])]));
+        setNames((m) => new Map([...m, ...p.map((x) => [x.lead_detail.id, personName(x.lead_detail)] as [number, string])]));
       })
       .catch(() => {
         if (!alive) return;
@@ -93,7 +94,7 @@ function ReportsContent() {
     if (code === "system_admin") {
       authApi
         .getUsers()
-        .then((u) => alive && setNames((m) => new Map([...m, ...u.map((x) => [x.id, x.email] as [number, string])])))
+        .then((u) => alive && setNames((m) => new Map([...m, ...u.map((x) => [x.id, personName(x)] as [number, string])])))
         .catch(() => undefined);
     }
     return () => {
@@ -113,7 +114,7 @@ function ReportsContent() {
     };
   }, [canViewLogs, logsKey]);
 
-  const nameOf = (id: number) => (id === user?.pk ? user.email : names.get(id) ?? `User #${id}`);
+  const nameOf = (id: number) => (id === user?.pk ? personName(user) : names.get(id) ?? `User #${id}`);
   const projectCode = (id: number) => projects?.find((p) => p.id === id)?.project_code ?? `Project #${id}`;
   const defOf = (id: string) => REPORT_DEFINITIONS.find((d) => d.id === id);
 

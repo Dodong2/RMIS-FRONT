@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { initialsFrom, resolveTier, roleLabel, roleScopeLine } from "../../lib/roles";
+import { initialsFrom, personName, resolveTier, roleLabel, roleScopeLine } from "../../lib/roles";
 import { protoRoleStyle } from "../../lib/protoRole";
 import { riskApi } from "../../lib/riskApi";
 import type { User } from "../../types/auth";
@@ -154,11 +154,11 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
               className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
               style={{ background: roleStyle.color }}
             >
-              {initialsFrom(user?.email)}
+              {initialsFrom(personName(user))}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold leading-tight truncate max-w-[180px]" style={{ color: "#0d2a5e" }}>
-                {user?.email ?? "—"}
+                {personName(user) || "—"}
               </p>
               <p className="text-xs leading-tight font-semibold" style={{ color: roleStyle.color }}>
                 {user?.role ? roleLabel(user.role) : "Role pending"}

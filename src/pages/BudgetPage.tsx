@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { personName } from "../lib/roles";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
@@ -432,7 +433,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                 <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "#64748b" }}>Project</p>
                 <p className="font-bold" style={{ color: "#0d2a5e" }}>{project.title}</p>
                 <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>
-                  {project.implementing_unit || "—"} · PI: {project.lead_detail.email} · {project.start_date ?? "—"} – {project.target_end_date ?? "—"}
+                  {project.implementing_unit || "—"} · PI: {personName(project.lead_detail)} · {project.start_date ?? "—"} – {project.target_end_date ?? "—"}
                 </p>
               </div>
               {existing && (
@@ -1089,7 +1090,7 @@ function BudgetContent() {
                       </div>
                       <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>{project.title}</p>
                       <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>
-                        PI: {project.lead_detail.email} · {b.line_items.length} line item{b.line_items.length !== 1 ? "s" : ""}
+                        PI: {personName(project.lead_detail)} · {b.line_items.length} line item{b.line_items.length !== 1 ? "s" : ""}
                       </p>
                     </div>
                     <div className="text-right shrink-0">

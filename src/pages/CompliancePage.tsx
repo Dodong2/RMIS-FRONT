@@ -5,6 +5,7 @@ import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { personName } from "../lib/roles";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import type { ComplianceRequirement } from "../types/compliance";
 import type { ProjectDocument } from "../types/document";
@@ -152,7 +153,7 @@ function DefineModal({ projects, onClose, onSaved }: { projects: Project[]; onCl
           <select className={INPUT_CLS} style={invalidStyle(attempted && !form.responsible)} value={form.responsible} onChange={set("responsible")}>
             <option value="">Select person</option>
             {people.map((p) => (
-              <option key={p.id} value={p.id}>{p.email}</option>
+              <option key={p.id} value={p.id}>{personName(p)}{personName(p) !== p.email ? ` (${p.email})` : ""}</option>
             ))}
           </select>
         </Field>
@@ -540,9 +541,9 @@ function ComplianceContent() {
 
   const names = useMemo(() => {
     const m = new Map<number, string>();
-    projects.forEach((p) => m.set(p.lead_detail.id, p.lead_detail.email));
-    assignments.forEach((a) => m.set(a.user_detail.id, a.user_detail.email));
-    if (user) m.set(user.pk, user.email);
+    projects.forEach((p) => m.set(p.lead_detail.id, personName(p.lead_detail)));
+    assignments.forEach((a) => m.set(a.user_detail.id, personName(a.user_detail)));
+    if (user) m.set(user.pk, personName(user));
     return m;
   }, [projects, assignments, user]);
   const nameOf = (id: number | null) => (id === null ? "—" : names.get(id) ?? `User #${id}`);

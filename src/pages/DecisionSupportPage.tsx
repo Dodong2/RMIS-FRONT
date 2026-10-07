@@ -700,7 +700,7 @@ function DecisionSupportContent() {
 
   const deciderName = (id: number) => {
     if (id === user?.pk) return "You";
-    return usersById.get(id)?.email ?? `User #${id}`;
+    return usersById.get(id)?.full_name ?? `User #${id}`;
   };
 
   const totals = scores.map((s) => to100(s.composite_score));

@@ -449,7 +449,7 @@ export function RiskDetailModal({
           <div className="space-y-3">
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Update History · {updates.length + 1} entries</p>
             {[
-              ...updates.map((u) => ({ id: `u${u.id}`, date: u.created_at, by: u.author_email, note: u.note, status: u.new_status })),
+              ...updates.map((u) => ({ id: `u${u.id}`, date: u.created_at, by: u.author_name, note: u.note, status: u.new_status })),
               { id: "identified", date: risk.created_at, by: nameOf(risk.created_by), note: "Risk identified and registered.", status: "" as const },
             ].map((u, i, all) => (
               <div key={u.id} className="flex gap-3">

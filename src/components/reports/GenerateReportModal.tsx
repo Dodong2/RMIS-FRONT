@@ -30,7 +30,7 @@ async function runClientReport(def: ReportDefinition, p: Params, format: Catalog
         {
           heading: `Risk Register (${risks.length})`,
           head: ["ID", "Project", "Risk", "Category", "L", "I", "Score", "Level", "Owner", "Status", "Mitigation", "Updated"],
-          body: risks.map((r) => [`R-${r.id}`, code(r.project), r.description, CAT_META[r.category].label, r.likelihood, r.impact, r.score, LEVEL_META[r.level].label, r.owner_email, RISK_STATUS_META[r.status].label, r.mitigation || "—", r.updated_at.slice(0, 10)]),
+          body: risks.map((r) => [`R-${r.id}`, code(r.project), r.description, CAT_META[r.category].label, r.likelihood, r.impact, r.score, LEVEL_META[r.level].label, r.owner_name, RISK_STATUS_META[r.status].label, r.mitigation || "—", r.updated_at.slice(0, 10)]),
         },
       ],
     };

@@ -39,10 +39,15 @@ export const authApi = {
     });
     return data;
   },
-  googleRequestRole: async (supabaseAccessToken: string, requestedRoleId: number): Promise<void> => {
+  googleRequestRole: async (
+    supabaseAccessToken: string,
+    requestedRoleId: number,
+    name: { first_name: string; last_name: string },
+  ): Promise<void> => {
     await apiClient.post("/api/auth/google/request/", {
       supabase_access_token: supabaseAccessToken,
       requested_role: requestedRoleId,
+      ...name,
     });
   },
   getPendingUsers: async (): Promise<PendingUser[]> => {

@@ -5,7 +5,9 @@ import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import type { CollaborationRow, ProjectAssignment, StaffProfile } from "../types/personnel";
-import type { Project, Study } from "../types/research";
+import type { Lead, Project, Study } from "../types/research";
+import { initialsFrom, personName } from "../lib/roles";
+import { UserSelect } from "../components/common/UserPicker";
 import type { AdminUser } from "../types/auth";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
@@ -34,6 +36,7 @@ const today = () => new Date().toLocaleDateString("en-CA");
 interface Person {
   id: number;
   email: string;
+  name: string;
   level: number | undefined;
   profile: StaffProfile | undefined;
   assignments: ProjectAssignment[];
@@ -127,22 +130,22 @@ function StaffContent() {
 
   const people = useMemo<Person[]>(() => {
     const map = new Map<number, Person>();
-    const add = (id: number, email: string) => {
-      if (!map.has(id)) map.set(id, { id, email, level: undefined, profile: undefined, assignments: [] });
+    const add = (id: number, user: Lead) => {
+      if (!map.has(id)) map.set(id, { id, email: user.email, name: personName(user), level: undefined, profile: undefined, assignments: [] });
       return map.get(id)!;
     };
     profiles.forEach((p) => {
-      const person = add(p.user, p.user_detail.email);
+      const person = add(p.user, p.user_detail);
       person.profile = p;
       person.level = p.staff_level;
     });
-    assignments.forEach((a) => add(a.user, a.user_detail.email).assignments.push(a));
-    return [...map.values()].sort((a, b) => a.email.localeCompare(b.email));
+    assignments.forEach((a) => add(a.user, a.user_detail).assignments.push(a));
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [profiles, assignments]);
 
   const q = search.toLowerCase();
   const filtered = people.filter(
-    (p) => p.email.toLowerCase().includes(q) || p.assignments.some((a) => (a.role_label + a.department).toLowerCase().includes(q)),
+    (p) => (p.name + " " + p.email).toLowerCase().includes(q) || p.assignments.some((a) => (a.role_label + a.department).toLowerCase().includes(q)),
   );
   const selected = people.find((p) => p.id === selectedId) ?? null;
   const unprofiled = staffUsers.filter((u) => !profiles.some((p) => p.user === u.id));
@@ -352,17 +355,18 @@ function StaffContent() {
                   className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white shrink-0"
                   style={{ background: LEVEL_COLORS[selected.level ?? 3] }}
                 >
-                  {selected.email.slice(0, 2).toUpperCase()}
+                  {initialsFrom(selected.name)}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <h2 className="text-xl font-bold break-all" style={{ color: "#0d2a5e" }}>{selected.email}</h2>
+                    <h2 className="text-xl font-bold break-all" style={{ color: "#0d2a5e" }}>{selected.name}</h2>
                     {selected.assignments.some((a) => a.is_active) ? (
                       <Pill bg="#d1fae5" color="#166534">Active</Pill>
                     ) : (
                       <Pill>No active assignment</Pill>
                     )}
                   </div>
+                  {selected.name !== selected.email && <p className="text-xs break-all" style={{ color: "#94a3b8" }}>{selected.email}</p>}
                   <p className="text-sm font-semibold mt-1" style={{ color: "#0891b2" }}>
                     {selected.level ? `Staff Level ${selected.level}` : "No staff level set"}
                   </p>
@@ -441,11 +445,11 @@ function StaffContent() {
                       className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
                       style={{ background: LEVEL_COLORS[person.level ?? 3] }}
                     >
-                      {person.email.slice(0, 2).toUpperCase()}
+                      {initialsFrom(person.name)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-bold text-sm truncate" style={{ color: "#0d2a5e" }}>{person.email}</p>
+                        <p className="font-bold text-sm truncate" style={{ color: "#0d2a5e" }}>{person.name}</p>
                       </div>
                       <p className="text-xs font-semibold mt-0.5" style={{ color: "#0891b2" }}>
                         {person.level ? `Staff Level ${person.level}` : "No level set"}
@@ -491,12 +495,12 @@ function StaffContent() {
                 <TableHead cols={["Staff", "Level", "Assigned To", "Role", "Department", "Period", ...(canManage ? [""] : [])]} />
                 <tbody>
                   {visibleAssignments
-                    .filter((a) => a.user_detail.email.toLowerCase().includes(q))
+                    .filter((a) => (personName(a.user_detail) + " " + a.user_detail.email).toLowerCase().includes(q))
                     .map((a) => {
                       const level = profiles.find((p) => p.user === a.user)?.staff_level;
                       return (
                         <tr key={a.id} className="border-t hover:bg-slate-50" style={{ borderColor: "#f1f5f9" }}>
-                          <td className="px-4 py-2.5 font-semibold" style={{ color: "#0d2a5e" }}>{a.user_detail.email}</td>
+                          <td className="px-4 py-2.5 font-semibold" style={{ color: "#0d2a5e" }}>{personName(a.user_detail)}</td>
                           <td className="px-4 py-2.5" style={{ color: "#475569" }}>{level ? `Level ${level}` : "—"}</td>
                           <td className="px-4 py-2.5" style={{ color: "#334155" }}>{assignmentTarget(a)}</td>
                           <td className="px-4 py-2.5" style={{ color: "#475569" }}>{a.role_label || "—"}</td>
@@ -577,12 +581,13 @@ function StaffContent() {
           }
         >
           <Field label="Project Staff" required>
-            <select className={INPUT_CLS} style={invalidStyle(attempted && !levelForm.user)} value={levelForm.user} onChange={(e) => setLevelForm((f) => ({ ...f, user: e.target.value }))}>
-              <option value="">{unprofiled.length ? "Select staff without a level" : "All visible project staff already have a level"}</option>
-              {unprofiled.map((u) => (
-                <option key={u.id} value={u.id}>{u.email}</option>
-              ))}
-            </select>
+            <UserSelect
+              users={unprofiled}
+              value={levelForm.user}
+              onChange={(user) => setLevelForm((f) => ({ ...f, user }))}
+              placeholder={unprofiled.length ? "Search staff without a level" : "All visible project staff already have a level"}
+              invalid={attempted && !levelForm.user}
+            />
           </Field>
           <Field label="Level" required>
             <select className={INPUT_CLS} style={invalidStyle(attempted && !levelForm.staff_level)} value={levelForm.staff_level} onChange={(e) => setLevelForm((f) => ({ ...f, staff_level: e.target.value }))}>
@@ -607,12 +612,13 @@ function StaffContent() {
           }
         >
           <Field label="Project Staff" required>
-            <select className={INPUT_CLS} style={invalidStyle(attempted && !assignForm.user)} value={assignForm.user} onChange={(e) => setAssignForm((f) => ({ ...f, user: e.target.value }))}>
-              <option value="">{staffUsers.length ? "Select staff" : "No project staff available to you"}</option>
-              {staffUsers.map((u) => (
-                <option key={u.id} value={u.id}>{u.email}</option>
-              ))}
-            </select>
+            <UserSelect
+              users={staffUsers}
+              value={assignForm.user}
+              onChange={(user) => setAssignForm((f) => ({ ...f, user }))}
+              placeholder={staffUsers.length ? "Search staff by name or e-mail" : "No project staff available to you"}
+              invalid={attempted && !assignForm.user}
+            />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Assign To">

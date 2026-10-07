@@ -7,7 +7,7 @@ import { outputsApi } from "../lib/outputsApi";
 import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { PROJECT_EDIT_ROLE_CODES, REGISTRATION_ROLE_CODES } from "../lib/roles";
+import { PROJECT_EDIT_ROLE_CODES, REGISTRATION_ROLE_CODES, initialsFrom, personName } from "../lib/roles";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
 import {
   PRIORITY_AREA_LABELS,
@@ -533,7 +533,7 @@ function ProjectDetailContent() {
                 </p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <InfoCard label="Project Leader / PI" value={project.lead_detail.email} />
+                <InfoCard label="Project Leader / PI" value={personName(project.lead_detail)} />
                 <InfoCard label="Funding Type" value={FUNDING_LABELS[project.funding_type]} />
                 <InfoCard label="Cooperating Agencies" value={project.cooperating_agencies} />
                 {program && <InfoCard label="Research Program" value={program.title} />}
@@ -566,7 +566,7 @@ function ProjectDetailContent() {
                       <div key={s.id} className="rounded-xl p-3 flex items-center gap-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate" style={{ color: "#0d2a5e" }}>{s.title}</p>
-                          <p className="text-xs" style={{ color: "#94a3b8" }}>Study Leader: {s.lead_detail?.email ?? "Not assigned"}</p>
+                          <p className="text-xs" style={{ color: "#94a3b8" }}>Study Leader: {s.lead_detail ? personName(s.lead_detail) : "Not assigned"}</p>
                         </div>
                         <StatusBadge status={s.status} />
                       </div>
@@ -707,10 +707,10 @@ function ProjectDetailContent() {
               <SectionHeader>Project Team Members</SectionHeader>
               <div className="space-y-3">
                 {[
-                  { key: "lead", email: project.lead_detail.email, role: "Project Leader", sub: "Lead proponent", color: "#0d2a5e" },
+                  { key: "lead", name: personName(project.lead_detail), role: "Project Leader", sub: "Lead proponent", color: "#0d2a5e" },
                   ...team.map((a) => ({
                     key: String(a.id),
-                    email: a.user_detail.email,
+                    name: personName(a.user_detail),
                     role: a.role_label || "Project Staff",
                     sub: [a.department, a.study ? studies.find((s) => s.id === a.study)?.title : null, `since ${a.start_date}`]
                       .filter(Boolean)
@@ -720,11 +720,11 @@ function ProjectDetailContent() {
                 ].map((m) => (
                   <div key={m.key} className="rounded-xl p-4 flex items-start gap-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ background: m.color }}>
-                      {m.email.slice(0, 2).toUpperCase()}
+                      {initialsFrom(m.name)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold text-sm truncate" style={{ color: "#0d2a5e" }}>{m.email}</p>
+                        <p className="font-bold text-sm truncate" style={{ color: "#0d2a5e" }}>{m.name}</p>
                         <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: m.color + "20", color: m.color }}>{m.role}</span>
                       </div>
                       <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{m.sub}</p>
@@ -783,7 +783,7 @@ function ProjectDetailContent() {
                         <div className="flex flex-wrap gap-4 mt-2 text-xs" style={{ color: "#94a3b8" }}>
                           <span>Start: <strong style={{ color: "#475569" }}>{ms.start_date ?? "—"}</strong></span>
                           <span>Due: <strong style={{ color: "#475569" }}>{ms.target_date}</strong></span>
-                          <span>Responsible: <strong style={{ color: "#475569" }}>{ms.responsible_detail?.email ?? "—"}</strong></span>
+                          <span>Responsible: <strong style={{ color: "#475569" }}>{ms.responsible_detail ? personName(ms.responsible_detail) : "—"}</strong></span>
                         </div>
                         {ms.deliverable && (
                           <div className="mt-2 p-2.5 rounded-lg text-xs" style={{ background: "#f0f9ff", color: "#0369a1" }}>
@@ -888,7 +888,7 @@ function ProjectDetailContent() {
                       title: PROJECT_STATUS_LABELS[h.to_status],
                       date: h.changed_at.slice(0, 10),
                       remarks: h.remarks,
-                      actor: h.changed_by_email,
+                      actor: h.changed_by_name,
                     })),
                     {
                       id: "created",
@@ -1034,7 +1034,7 @@ function ProjectDetailContent() {
                 <SelectContent>
                   {studyLeaders.length === 0 && <EmptyOption message="No active study leaders yet" />}
                   {studyLeaders.map((u) => (
-                    <SelectItem key={u.id} value={String(u.id)}>{u.email}</SelectItem>
+                    <SelectItem key={u.id} value={String(u.id)}>{u.full_name}{u.full_name !== u.email ? ` (${u.email})` : ""}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

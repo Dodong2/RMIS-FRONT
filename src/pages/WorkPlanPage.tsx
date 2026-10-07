@@ -842,7 +842,7 @@ function WorkPlanContent() {
                     </div>
                     <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>{proj.title}</p>
                     <p className="text-xs mt-1" style={{ color: "#64748b" }}>
-                      PI: {proj.lead_detail.email}
+                      PI: {nameOf(proj.lead_detail)}
                       {proj.implementing_unit ? ` · ${proj.implementing_unit}` : ""}
                     </p>
                   </div>

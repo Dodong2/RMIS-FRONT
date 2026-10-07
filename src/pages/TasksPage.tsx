@@ -7,6 +7,7 @@ import type { ReportFormat } from "../types/reports";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { initialsFrom, personName } from "../lib/roles";
 import type {
   ProjectAssignment,
   Task,
@@ -53,7 +54,7 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = { critical: 0, high: 1, med
 const inputCls = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-all focus:border-[#0891b2]";
 const inputSt = { borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" };
 
-const initials = (email: string) => email.slice(0, 2).toUpperCase();
+const initials = initialsFrom;
 const num = (v: string | number | null | undefined) => Number(v ?? 0);
 
 function isOverdue(t: Task, now: number) {
@@ -400,9 +401,9 @@ function TaskDetailModal({
                         <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0" style={{ background: "#0d2a5e" }}>
-                              {initials(u.author_email)}
+                              {initials(u.author_name)}
                             </div>
-                            <span className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{u.author_email}</span>
+                            <span className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{u.author_name}</span>
                             <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: cm.bg, color: cm.text }}>{cm.label}</span>
                             {num(u.hours) > 0 && <span className="text-xs font-mono" style={{ color: "#0891b2" }}>+{num(u.hours)}h</span>}
                             {u.progress_pct !== null && <span className="text-xs font-mono font-bold" style={{ color: "#059669" }}>{u.progress_pct}%</span>}
@@ -485,7 +486,7 @@ function TaskDetailModal({
           <div className="p-5 space-y-4" style={{ background: "#f8fafc" }}>
             <div className="space-y-3">
               {[
-                { label: "Assigned To", val: task.assignee_detail.email },
+                { label: "Assigned To", val: personName(task.assignee_detail) },
                 { label: "Due Date", val: task.due_date ?? "—" },
                 { label: "Started", val: task.started_at?.slice(0, 10) ?? "—" },
                 { label: "Completed", val: task.completed_at?.slice(0, 10) ?? "—" },
@@ -678,7 +679,7 @@ function CreateTaskModal({
             <select className={inputCls} style={{ ...inputSt, borderColor: attempted && !form.assignee ? "#dc2626" : "#e2e8f0" }} value={form.assignee} onChange={set("assignee")}>
               <option value="">{people.length ? "— Select team member —" : "No one assigned to this project yet"}</option>
               {people.map((p) => (
-                <option key={p.id} value={p.id}>{p.email}</option>
+                <option key={p.id} value={p.id}>{personName(p)}{personName(p) !== p.email ? ` (${p.email})` : ""}</option>
               ))}
             </select>
           </div>
@@ -778,9 +779,9 @@ function KanbanCard({ task, now, onClick }: { task: Task; now: number; onClick: 
       <p className="text-xs font-bold leading-snug mb-2" style={{ color: "#0d2a5e" }}>{task.title}</p>
       <div className="flex items-center gap-2 flex-wrap mb-2.5">
         <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-black shrink-0" style={{ background: "#0d2a5e", fontSize: "9px" }}>
-          {initials(task.assignee_detail.email)}
+          {initials(personName(task.assignee_detail))}
         </div>
-        <span className="text-xs truncate" style={{ color: "#64748b" }}>{task.assignee_detail.email.split("@")[0]}</span>
+        <span className="text-xs truncate" style={{ color: "#64748b" }}>{personName(task.assignee_detail)}</span>
         {overdue && <span className="text-xs font-bold ml-auto" style={{ color: "#dc2626" }}>⚠ Overdue</span>}
       </div>
       {task.deliverables.length > 0 && (
@@ -1009,7 +1010,7 @@ function ProjectTaskBoard({
                 >
                   <option value="all">All Members</option>
                   {people.map((p) => (
-                    <option key={p.id} value={p.id}>{p.email}</option>
+                    <option key={p.id} value={p.id}>{personName(p)}{personName(p) !== p.email ? ` (${p.email})` : ""}</option>
                   ))}
                 </select>
               )}
@@ -1084,7 +1085,7 @@ function ProjectTaskBoard({
                                     ))}
                                   </div>
                                 </td>
-                                <td className="px-3 py-2.5 text-xs font-semibold" style={{ color: "#475569" }}>{task.assignee_detail.email}</td>
+                                <td className="px-3 py-2.5 text-xs font-semibold" style={{ color: "#475569" }}>{personName(task.assignee_detail)}</td>
                                 <td className="px-3 py-2.5 whitespace-nowrap">
                                   <span className="text-xs font-bold" style={{ color: pm.text }}>{pm.icon} {pm.label}</span>
                                 </td>
@@ -1133,9 +1134,9 @@ function ProjectTaskBoard({
                         <div key={w.assignee} className="rounded-2xl p-4" style={{ background: "white", border: "1px solid #e2e8f0" }}>
                           <div className="flex items-start gap-3 mb-3">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-sm shrink-0" style={{ background: "#0d2a5e" }}>
-                              {initials(w.email)}
+                              {initials(w.full_name)}
                             </div>
-                            <p className="flex-1 min-w-0 text-sm font-bold truncate" style={{ color: "#0d2a5e" }}>{w.email}</p>
+                            <p className="flex-1 min-w-0 text-sm font-bold truncate" style={{ color: "#0d2a5e" }}>{w.full_name}</p>
                             <div className="text-right shrink-0">
                               <p className="text-xl font-black font-mono" style={{ color: "#0d2a5e" }}>{w.open + w.done}</p>
                               <p className="text-xs" style={{ color: "#94a3b8" }}>tasks</p>
@@ -1175,8 +1176,8 @@ function ProjectTaskBoard({
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Project Personnel</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
-                      { id: project.lead_detail.id, email: project.lead_detail.email, role: "Project Leader", dept: project.implementing_unit },
-                      ...team.map((a) => ({ id: a.user_detail.id, email: a.user_detail.email, role: a.role_label || "Project Staff", dept: a.department })),
+                      { id: project.lead_detail.id, email: project.lead_detail.email, name: personName(project.lead_detail), role: "Project Leader", dept: project.implementing_unit },
+                      ...team.map((a) => ({ id: a.user_detail.id, email: a.user_detail.email, name: personName(a.user_detail), role: a.role_label || "Project Staff", dept: a.department })),
                     ].map((m, i) => {
                       const mine = all.filter((t) => t.assignee === m.id);
                       const logged = mine.reduce((s, t) => s + num(t.logged_hours), 0);
@@ -1187,10 +1188,10 @@ function ProjectTaskBoard({
                               className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white text-sm shrink-0"
                               style={{ background: "linear-gradient(135deg, #0d2a5e, #1a3f7a)" }}
                             >
-                              {initials(m.email)}
+                              {initials(m.name)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold truncate" style={{ color: "#0d2a5e" }}>{m.email}</p>
+                              <p className="text-sm font-bold truncate" style={{ color: "#0d2a5e" }}>{m.name}</p>
                               <p className="text-xs font-semibold" style={{ color: "#0891b2" }}>{m.role}</p>
                               {m.dept && <p className="text-xs truncate" style={{ color: "#94a3b8" }}>{m.dept}</p>}
                             </div>
@@ -1397,7 +1398,7 @@ function AccomplishmentDownload({ people }: { people?: Lead[] }) {
         <select value={staff} onChange={(e) => setStaff(e.target.value)} className="text-xs px-1.5 py-1 rounded border max-w-40" style={{ borderColor: "#e2e8f0" }} aria-label="Staff member">
           <option value="">Staff…</option>
           {people.map((p) => (
-            <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
+            <option key={p.id} value={p.id}>{personName(p)}</option>
           ))}
         </select>
       )}

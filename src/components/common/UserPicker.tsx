@@ -77,3 +77,36 @@ export function UserPicker({
     </div>
   );
 }
+
+export function UserSelect({
+  users,
+  value,
+  onChange,
+  placeholder = "Search by name or e-mail",
+  invalid,
+  className,
+}: {
+  users: AdminUser[];
+  value: string;
+  onChange: (id: string) => void;
+  placeholder?: string;
+  invalid?: boolean;
+  className?: string;
+}) {
+  const [typed, setTyped] = useState("");
+  const picked = users.find((u) => String(u.id) === value);
+  return (
+    <UserPicker
+      users={users}
+      value={{ user: picked?.id ?? null, name: picked ? picked.full_name : typed }}
+      onChange={(next) => {
+        setTyped(next.name);
+        onChange(next.user ? String(next.user) : "");
+      }}
+      placeholder={placeholder}
+      allowFreeText={false}
+      invalid={invalid}
+      className={className}
+    />
+  );
+}

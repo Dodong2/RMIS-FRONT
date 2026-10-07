@@ -44,11 +44,13 @@ export interface DocumentShare {
   document: number;
   user: number;
   user_email: string;
+  user_name: string;
   user_role: string;
   reason: string;
   expires_on: string;
   granted_by: number;
   granted_by_email: string;
+  granted_by_name: string;
   granted_at: string;
   revoked_by: number | null;
   revoked_at: string | null;

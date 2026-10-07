@@ -13,7 +13,7 @@ import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { notify } from "../lib/notify";
-import { REGISTRATION_ROLE_CODES } from "../lib/roles";
+import { REGISTRATION_ROLE_CODES, personName } from "../lib/roles";
 
 const FUNDING_LABELS: Record<FundingType, string> = {
   institutional: "Institutional (LSPU-Funded)",
@@ -236,7 +236,7 @@ function ProjectsContent() {
                     <h3 className="font-bold text-sm leading-snug" style={{ color: "#0d2a5e" }}>{proj.title}</h3>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs" style={{ color: "#64748b" }}>
                       <span>
-                        PI: <strong>{proj.lead_detail.email}</strong>
+                        PI: <strong>{personName(proj.lead_detail)}</strong>
                       </span>
                       {proj.implementing_unit && (
                         <>

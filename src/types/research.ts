@@ -158,6 +158,7 @@ export interface ProjectStatusHistory {
   remarks: string;
   changed_by: number;
   changed_by_email: string;
+  changed_by_name: string;
   changed_at: string;
 }
 
