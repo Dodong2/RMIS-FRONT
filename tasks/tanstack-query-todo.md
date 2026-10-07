@@ -65,7 +65,13 @@ Dashboard Accounts card are left for Phase 3, because they change the users/pend
 
 ## Phase 3: Mutations (replace `reloadKey`), one page per task
 
-### T7: Budget + Disbursements (M)
+### T7: Budget + Disbursements (M) ✅
+**Result:** neither page has `reloadKey`/`onChanged` now. The LIB detail reads `useBudgets(project)` + `budgetSummaryQuery`.
+Its `run()` is a `useMutation`, so `busy` = `isPending`. The Disbursements board reads budgets, `financialRecordsQuery(budget)`
+(disbursements + realignments), the summary and current documents. Realignment review is a `useMutation`. A save
+invalidates `financial`, `budgets`, `budget-summary` and `projects`, so the outer lists refresh too. Record/Realign
+modals keep their own submit code and call the same invalidation through `onSaved`. Keys: the all-records list is
+`["financial","all"]`, separate from a per-budget `["financial",id]`.
 ### T8: Documents (M)
 ### T9: Staff + Personnel Changes (M)
 ### T10: Tasks (M/L, most complex, last)

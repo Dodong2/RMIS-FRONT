@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
-import { documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys, useBudgets, useProjects } from "../lib/queries";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { budgetSummaryQuery, documentsQuery, financialRecordsQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import type { LineItemBudget, LineItemCategory } from "../types/budget";
 import type { BudgetRealignment, BudgetSummary, Disbursement, LineItemBalance, RealignmentStatus, RealignmentTier } from "../types/financial";
@@ -414,84 +412,65 @@ function ProjectBoard({
   canRequest,
   canReviewTier,
   onBack,
-  onChanged,
 }: {
   project: Project;
   canDisburse: boolean;
   canRequest: boolean;
   canReviewTier: (t: RealignmentTier) => boolean;
   onBack: () => void;
-  onChanged: () => void;
 }) {
-  const [budget, setBudget] = useState<LineItemBudget | null | undefined>(undefined);
-  const [summary, setSummary] = useState<BudgetSummary | null>(null);
-  const [disbursements, setDisbursements] = useState<Disbursement[]>([]);
-  const [realignments, setRealignments] = useState<BudgetRealignment[]>([]);
-  const [documents, setDocuments] = useState<ProjectDocument[]>([]);
-  const [reloadKey, setReloadKey] = useState(0);
+  const queryClient = useQueryClient();
+  const budgetsQ = useBudgets(project.id);
+  const current = budgetsQ.data?.find((b) => b.is_current) ?? null;
+  const budget: LineItemBudget | null | undefined = budgetsQ.isError ? null : budgetsQ.data ? current : undefined;
+  const budgetId = current?.id ?? 0;
+  const certifiedId = current?.status === "certified" ? current.id : 0;
+  const recordsQ = useQuery({ ...financialRecordsQuery(budgetId), enabled: budgetId > 0 });
+  const summaryQ = useQuery({ ...budgetSummaryQuery(certifiedId), enabled: certifiedId > 0 });
+  const records = budgetId > 0 ? recordsQ.data : undefined;
+  const disbursements = useMemo(() => records?.disbursements ?? [], [records]);
+  const realignments = useMemo(() => records?.realignments ?? [], [records]);
+  const summary: BudgetSummary | null = certifiedId > 0 ? (summaryQ.data ?? null) : null;
+  const documents = useQuery(documentsQuery({ project: project.id, current_only: true })).data ?? [];
+  const recordsFailed = recordsQ.isError || summaryQ.isError;
   const [tab, setTab] = useState<BoardTab>("ledger");
   const [catFilter, setCatFilter] = useState<LineItemCategory | "all">("all");
   const [showRecord, setShowRecord] = useState(false);
   const [showRealign, setShowRealign] = useState(false);
   const [selectedTxn, setSelectedTxn] = useState<number | null>(null);
   const [bor, setBor] = useState<Record<number, string>>({});
-  const [reviewing, setReviewing] = useState<number | null>(null);
 
   useEffect(() => {
-    let active = true;
-    budgetApi
-      .getBudgets(project.id)
-      .then((list) => {
-        if (!active) return;
-        const current = list.find((b) => b.is_current) ?? null;
-        setBudget(current);
-        if (!current) return;
-        Promise.all([
-          financialApi.getDisbursements({ budget: current.id }),
-          financialApi.getRealignments(current.id),
-          current.status === "certified" ? financialApi.getBudgetSummary(current.id) : Promise.resolve(null),
-        ])
-          .then(([d, r, s]) => {
-            if (!active) return;
-            setDisbursements(d);
-            setRealignments(r);
-            setSummary(s);
-          })
-          .catch(() => active && notify.error("Could not load financial records for this project."));
-      })
-      .catch(() => active && setBudget(null));
-    documentApi
-      .getDocuments({ project: project.id, current_only: true })
-      .then((d) => active && setDocuments(d))
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [project.id, reloadKey]);
+    if (recordsFailed) notify.error("Could not load financial records for this project.");
+  }, [recordsFailed]);
 
   const reload = () => {
-    setReloadKey((k) => k + 1);
-    onChanged();
+    queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
   };
 
-  const review = async (r: BudgetRealignment, decision: "approved" | "rejected") => {
+  const reviewMutation = useMutation({
+    mutationFn: (v: { r: BudgetRealignment; decision: "approved" | "rejected" }) =>
+      financialApi.reviewRealignment(v.r.id, {
+        decision: v.decision,
+        bor_resolution_number: v.decision === "approved" && v.r.tier === "bor" ? bor[v.r.id].trim() : undefined,
+      }),
+    onSuccess: (_, v) => {
+      notify.success(v.decision === "approved" ? "Realignment approved." : "Realignment rejected.");
+      reload();
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not review the realignment.")),
+  });
+  const reviewing = reviewMutation.isPending ? (reviewMutation.variables?.r.id ?? null) : null;
+
+  const review = (r: BudgetRealignment, decision: "approved" | "rejected") => {
     if (decision === "approved" && r.tier === "bor" && !bor[r.id]?.trim()) {
       notify.error("Enter the BOR resolution number before approving.");
       return;
     }
-    setReviewing(r.id);
-    try {
-      await financialApi.reviewRealignment(r.id, {
-        decision,
-        bor_resolution_number: decision === "approved" && r.tier === "bor" ? bor[r.id].trim() : undefined,
-      });
-      notify.success(decision === "approved" ? "Realignment approved." : "Realignment rejected.");
-      reload();
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not review the realignment."));
-    } finally {
-      setReviewing(null);
-    }
+    reviewMutation.mutate({ r, decision });
   };
 
   const items = budget?.line_items ?? [];
@@ -976,36 +955,14 @@ function DisbursementsContent() {
   const canRequest = REALIGNMENT_REQUEST_ROLE_CODES.includes(code);
   const canReviewTier = (t: RealignmentTier) => (t === "bor" ? REALIGNMENT_BOR_REVIEW_ROLE_CODES : REALIGNMENT_MAJOR_REVIEW_ROLE_CODES).includes(code);
   const [params, setParams] = useSearchParams();
-  const queryClient = useQueryClient();
   const projectsQ = useProjects();
   const budgetsQ = useBudgets();
-  const [disbursements, setDisbursements] = useState<Disbursement[]>([]);
-  const [realignments, setRealignments] = useState<BudgetRealignment[]>([]);
-  const [records, setRecords] = useState<"loading" | "ok" | "error">("loading");
-  const [reloadKey, setReloadKey] = useState(0);
-  const failed = projectsQ.isError || budgetsQ.isError || records === "error";
-  const projects: Project[] | null = failed ? [] : projectsQ.data && budgetsQ.data && records === "ok" ? projectsQ.data : null;
+  const recordsQ = useQuery(financialRecordsQuery());
+  const disbursements = recordsQ.data?.disbursements ?? [];
+  const realignments = recordsQ.data?.realignments ?? [];
+  const failed = projectsQ.isError || budgetsQ.isError || recordsQ.isError;
+  const projects: Project[] | null = failed ? [] : projectsQ.data && budgetsQ.data && recordsQ.data ? projectsQ.data : null;
   const budgets = budgetsQ.data ?? [];
-  const reload = () => {
-    setReloadKey((k) => k + 1);
-    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
-    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
-  };
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([financialApi.getDisbursements(), financialApi.getRealignments()])
-      .then(([d, r]) => {
-        if (!active) return;
-        setDisbursements(d);
-        setRealignments(r);
-        setRecords("ok");
-      })
-      .catch(() => active && setRecords("error"));
-    return () => {
-      active = false;
-    };
-  }, [reloadKey]);
 
   useEffect(() => {
     if (failed) notify.error("Could not load financial records. Check your connection and refresh.");
@@ -1020,7 +977,6 @@ function DisbursementsContent() {
         canRequest={canRequest}
         canReviewTier={canReviewTier}
         onBack={() => setParams({})}
-        onChanged={reload}
       />
     );
   }

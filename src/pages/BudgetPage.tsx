@@ -3,11 +3,10 @@ import { personName } from "../lib/roles";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
-import { financialApi } from "../lib/financialApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys, useBudgets, useProjects } from "../lib/queries";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { budgetSummaryQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
@@ -515,70 +514,46 @@ function LIBDetail({
   canCertify,
   isStudyLeader,
   onBack,
-  onChanged,
 }: {
   project: Project;
   canManage: boolean;
   canCertify: boolean;
   isStudyLeader: boolean;
   onBack: () => void;
-  onChanged: () => void;
 }) {
-  const [budget, setBudget] = useState<LineItemBudget | null | undefined>(undefined);
-  const [versions, setVersions] = useState<LineItemBudget[]>([]);
+  const queryClient = useQueryClient();
+  const budgetsQ = useBudgets(project.id);
+  const versions = useMemo(() => budgetsQ.data ?? [], [budgetsQ.data]);
+  const current = versions.find((b) => b.is_current) ?? null;
+  const budget: LineItemBudget | null | undefined = budgetsQ.isError ? null : budgetsQ.data ? current : undefined;
+  const certifiedId = current?.status === "certified" ? current.id : 0;
+  const summaryQ = useQuery({ ...budgetSummaryQuery(certifiedId), enabled: certifiedId > 0 });
+  const summary: BudgetSummary | null = certifiedId > 0 ? (summaryQ.data ?? null) : null;
   const [showWizard, setShowWizard] = useState(false);
-  const [summary, setSummary] = useState<BudgetSummary | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
   const [tab, setTab] = useState<LIBTab>("overview");
   const [item, setItem] = useState(EMPTY_ITEM);
   const [attempted, setAttempted] = useState(false);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    budgetApi
-      .getBudgets(project.id)
-      .then((list) => {
-        if (!active) return;
-        const current = list.find((b) => b.is_current) ?? null;
-        setBudget(current);
-        setVersions(list);
-        if (current?.status === "certified") {
-          financialApi
-            .getBudgetSummary(current.id)
-            .then((s) => active && setSummary(s))
-            .catch(() => active && setSummary(null));
-        } else {
-          setSummary(null);
-        }
-      })
-      .catch(() => {
-        if (!active) return;
-        setBudget(null);
-        notify.error("Could not load the budget for this project.");
-      });
-    return () => {
-      active = false;
-    };
-  }, [project.id, reloadKey]);
+    if (budgetsQ.isError) notify.error("Could not load the budget for this project.");
+  }, [budgetsQ.isError]);
 
   const reload = () => {
-    setReloadKey((k) => k + 1);
-    onChanged();
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
+    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
   };
 
-  const run = async (fn: () => Promise<unknown>, ok: string) => {
-    setBusy(true);
-    try {
-      await fn();
-      notify.success(ok);
-      reload();
-    } catch (err) {
-      notify.error(errorMessage(err, "The change could not be saved."));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const save = useMutation({ mutationFn: (fn: () => Promise<unknown>) => fn() });
+  const busy = save.isPending;
+  const run = (fn: () => Promise<unknown>, ok: string) =>
+    save.mutate(fn, {
+      onSuccess: () => {
+        notify.success(ok);
+        reload();
+      },
+      onError: (err) => notify.error(errorMessage(err, "The change could not be saved.")),
+    });
 
   const addItem = () => {
     setAttempted(true);
@@ -964,16 +939,11 @@ function BudgetContent() {
   const canManage = MANAGE_ROLE_CODES.includes(code);
   const canCertify = CERTIFY_ROLE_CODES.includes(code);
   const [params, setParams] = useSearchParams();
-  const queryClient = useQueryClient();
   const projectsQ = useProjects();
   const budgetsQ = useBudgets();
   const failed = projectsQ.isError || budgetsQ.isError;
   const projects: Project[] | null = failed ? [] : projectsQ.data && budgetsQ.data ? projectsQ.data : null;
   const budgets = budgetsQ.data ?? [];
-  const reload = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
-    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
-  };
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
@@ -990,7 +960,6 @@ function BudgetContent() {
         canCertify={canCertify}
         isStudyLeader={code === "study_leader"}
         onBack={() => setParams({})}
-        onChanged={reload}
       />
     );
   }
