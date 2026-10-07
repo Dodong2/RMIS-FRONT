@@ -7,6 +7,7 @@ import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { notify } from "../lib/notify";
+import { clearDraft, loadDraft, saveDraft } from "../lib/formDraft";
 import type { AdminChoice, AdminChoiceKind, FundingType, ProjectImportError } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
@@ -406,75 +407,115 @@ function ExcelImport() {
   );
 }
 
-function RegisterProjectContent() {
+const DRAFT_VERSION = 1;
+
+const blankForm = (lead: string) => ({
+  title: "",
+  project_code: "",
+  funding_type: "",
+  lead,
+  lead_gender: "",
+  contact_number: "",
+  ntp_number: "",
+  ntp_date: "",
+  toe_signed_date: "",
+  is_dry_research: "true",
+  start_date: "",
+  target_end_date: "",
+  rei_thrust: "",
+  sdgs: [] as string[],
+  sectors: [] as string[],
+  sector_other: "",
+  is_continuing: "false",
+  continuing_year: "",
+  research_type: "",
+  research_priority_area: "",
+  research_typology: [] as string[],
+  campus: "",
+  implementing_unit: "",
+  total_cost: "",
+  background: "",
+  methodology: "",
+  socio_economic_significance: "",
+  monitoring_evaluation: "",
+  references: "",
+  description: "",
+  expected_outcomes: "",
+  expected_impacts: "",
+  proposal_submitted_on: "",
+  proposal_reviewed_on: "",
+  proposal_approved_on: "",
+  reviewing_body: "",
+});
+
+type RegisterDraft = {
+  form: ReturnType<typeof blankForm>;
+  agencies: string[];
+  objectives: string[];
+  studyTitles: string[];
+  team: TeamRow[];
+  beneficiaryRows: BeneficiaryRow[];
+  outputRows: OutputRow[];
+  workPlanRows: WorkPlanRow[];
+  libRows: LibRow[];
+  libYear: string;
+  endorsers: EndorserRow[];
+  step: number;
+};
+
+const blankDraft = (lead: string): RegisterDraft => ({
+  form: blankForm(lead),
+  agencies: [],
+  objectives: [""],
+  studyTitles: ["", ""],
+  team: [],
+  beneficiaryRows: [{ group: "", description: "", total: "" }],
+  outputRows: [],
+  workPlanRows: [],
+  libRows: [],
+  libYear: String(new Date().getFullYear()),
+  endorsers: [],
+  step: 0,
+});
+
+function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isProjectLeader = user?.role?.code === "project_leader";
   const selfName = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() || user?.email || "";
+  const draftKey = `rmis:draft:register-project:${user?.pk ?? "anon"}`;
+  const [blank] = useState(() => blankDraft(isProjectLeader && user ? String(user.pk) : ""));
+  const [restored] = useState(() => loadDraft<RegisterDraft>(draftKey, DRAFT_VERSION));
+  const init: RegisterDraft = restored
+    ? { ...blank, ...restored.data, form: { ...blank.form, ...restored.data.form, ...(isProjectLeader ? { lead: blank.form.lead } : {}) } }
+    : blank;
   const [projectLeaders, setProjectLeaders] = useState<{ id: number; email: string; full_name?: string }[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [leadersBlocked, setLeadersBlocked] = useState(false);
   const [accounts, setAccounts] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [endorsers, setEndorsers] = useState<EndorserRow[]>([]);
-  const [libRows, setLibRows] = useState<LibRow[]>([]);
-  const [libYear, setLibYear] = useState(String(new Date().getFullYear()));
+  const [endorsers, setEndorsers] = useState<EndorserRow[]>(init.endorsers);
+  const [libRows, setLibRows] = useState<LibRow[]>(init.libRows);
+  const [libYear, setLibYear] = useState(init.libYear);
   const [mode, setMode] = useState<"manual" | "excel">("manual");
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(init.step);
   const [attempted, setAttempted] = useState(false);
   const [triedSteps, setTriedSteps] = useState<number[]>([]);
   const [isCheckingCode, setIsCheckingCode] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [certified, setCertified] = useState(false);
-  const [objectives, setObjectives] = useState([""]);
-  const [studyTitles, setStudyTitles] = useState(["", ""]);
-  const [team, setTeam] = useState<TeamRow[]>([]);
-  const [beneficiaryRows, setBeneficiaryRows] = useState<BeneficiaryRow[]>([{ group: "", description: "", total: "" }]);
-  const [outputRows, setOutputRows] = useState<OutputRow[]>([]);
-  const [workPlanRows, setWorkPlanRows] = useState<WorkPlanRow[]>([]);
+  const [objectives, setObjectives] = useState(init.objectives);
+  const [studyTitles, setStudyTitles] = useState(init.studyTitles);
+  const [team, setTeam] = useState<TeamRow[]>(init.team);
+  const [beneficiaryRows, setBeneficiaryRows] = useState<BeneficiaryRow[]>(init.beneficiaryRows);
+  const [outputRows, setOutputRows] = useState<OutputRow[]>(init.outputRows);
+  const [workPlanRows, setWorkPlanRows] = useState<WorkPlanRow[]>(init.workPlanRows);
   const [approvalDoc, setApprovalDoc] = useState<StagedFile[]>([]);
   const [supportingDocs, setSupportingDocs] = useState<StagedFile[]>([]);
 
-  const [form, setForm] = useState({
-    title: "",
-    project_code: "",
-    funding_type: "",
-    lead: isProjectLeader && user ? String(user.pk) : "",
-    lead_gender: "",
-    contact_number: "",
-    ntp_number: "",
-    ntp_date: "",
-    toe_signed_date: "",
-    is_dry_research: "true",
-    start_date: "",
-    target_end_date: "",
-    rei_thrust: "",
-    sdgs: [] as string[],
-    sectors: [] as string[],
-    sector_other: "",
-    is_continuing: "false",
-    continuing_year: "",
-    research_type: "",
-    research_priority_area: "",
-    research_typology: [] as string[],
-    campus: "",
-    implementing_unit: "",
-    total_cost: "",
-    background: "",
-    methodology: "",
-    socio_economic_significance: "",
-    monitoring_evaluation: "",
-    references: "",
-    description: "",
-    expected_outcomes: "",
-    expected_impacts: "",
-    proposal_submitted_on: "",
-    proposal_reviewed_on: "",
-    proposal_approved_on: "",
-    reviewing_body: "",
-  });
+  const [form, setForm] = useState(init.form);
   const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rei-thrusts": [], "cooperating-agencies": [] });
-  const [agencies, setAgencies] = useState<string[]>([]);
+  const [agencies, setAgencies] = useState<string[]>(init.agencies);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
   useEffect(() => {
@@ -502,6 +543,35 @@ function RegisterProjectContent() {
       active = false;
     };
   }, [user]);
+
+  const submittedRef = useRef(false);
+  const [savedAt, setSavedAt] = useState<string | null>(restored?.savedAt ?? null);
+  const [blankJson] = useState(() => JSON.stringify(blank));
+  const draftJson = JSON.stringify({ form, agencies, objectives, studyTitles, team, beneficiaryRows, outputRows, workPlanRows, libRows, libYear, endorsers, step } satisfies RegisterDraft);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (submittedRef.current) return;
+      if (draftJson === blankJson) {
+        clearDraft(draftKey);
+        setSavedAt(null);
+        return;
+      }
+      setSavedAt(saveDraft(draftKey, DRAFT_VERSION, JSON.parse(draftJson) as RegisterDraft));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [draftJson, blankJson, draftKey]);
+
+  const discardDraft = () => {
+    submittedRef.current = true;
+    clearDraft(draftKey);
+  };
+
+  const startOver = () => {
+    if (!window.confirm("Clear everything you've entered and start a new registration?")) return;
+    discardDraft();
+    onStartOver();
+  };
 
   // Objectives are stored one per line, so a PDF-wrapped objective is joined back into a single line.
   const filledObjectives = objectives.map((o) => o.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean);
@@ -729,6 +799,7 @@ function RegisterProjectContent() {
           documentApi.registerStagedDocument({ project: project.id, document_type: "other", stage: "inception", staged_token: f.token! }),
         ),
       ]);
+      discardDraft();
       const failed = results.filter((r) => r.status === "rejected").length;
       if (failed) notify.error(`Project registered, but ${failed} team/study/LIB/endorser/beneficiary/6P/work plan/document row(s) failed to save. Add them from the project page.`);
       else notify.success("Project registered.");
@@ -765,6 +836,7 @@ function RegisterProjectContent() {
           <p className="text-white/50 text-xs mt-0.5">
             Research Proposal Form (LSPU-RDO-SF-018) ·{" "}
             {mode === "manual" ? `Step ${step + 1}/${WIZARD_STEPS.length} — ${WIZARD_STEPS[step].label}` : "Upload via Excel"}
+            {mode === "manual" && savedAt && ` · Draft saved ${new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
           </p>
         </div>
 
@@ -785,6 +857,17 @@ function RegisterProjectContent() {
 
         {mode === "manual" && (
           <>
+            {restored && (
+              <div className="mx-5 mt-4 px-4 py-3 rounded-xl flex items-start gap-3 flex-wrap" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+                <p className="text-xs flex-1 min-w-60" style={{ color: "#92400e" }}>
+                  <span className="font-bold">Draft restored</span> from {new Date(restored.savedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}. Uploaded
+                  documents and the certification checkbox aren't kept in a draft, so attach and check them again.
+                </p>
+                <button onClick={startOver} className="text-xs font-bold px-3 py-1.5 rounded-lg shrink-0" style={{ background: "white", color: "#92400e", border: "1px solid #fde68a" }}>
+                  Start over
+                </button>
+              </div>
+            )}
             <div className="px-5 py-3 mt-4 border-y shrink-0 overflow-x-auto" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
               <div className="flex items-center gap-1 min-w-max">
                 {WIZARD_STEPS.map((s, i) => (
@@ -1433,10 +1516,11 @@ function RegisterProjectContent() {
 }
 
 export default function RegisterProjectPage() {
+  const [resetKey, setResetKey] = useState(0);
   return (
     <ProtectedRoute>
       <AppShell title="Register Approved Project">
-        <RegisterProjectContent />
+        <RegisterProjectContent key={resetKey} onStartOver={() => setResetKey((k) => k + 1)} />
       </AppShell>
     </ProtectedRoute>
   );
