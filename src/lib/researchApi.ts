@@ -1,7 +1,7 @@
 import type { ProposalData } from "../components/registration/ProposalPreview";
 import { apiClient } from "./apiClient";
 import { downloadReport } from "./reportsApi";
-import type { AdminChoice, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
+import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
 import type { AdminUser } from "../types/auth";
 import type { LineItemBudget } from "../types/budget";
 
@@ -10,12 +10,12 @@ export const researchApi = {
     const { data } = await apiClient.get(`/api/${kind}/`);
     return data;
   },
-  createChoice: async (kind: AdminChoiceKind, name: string): Promise<AdminChoice> => {
-    const { data } = await apiClient.post(`/api/${kind}/`, { name });
+  createChoice: async (kind: AdminChoiceKind, input: AdminChoiceInput): Promise<AdminChoice> => {
+    const { data } = await apiClient.post(`/api/${kind}/`, input);
     return data;
   },
-  updateChoice: async (kind: AdminChoiceKind, id: number, name: string): Promise<AdminChoice> => {
-    const { data } = await apiClient.patch(`/api/${kind}/${id}/`, { name });
+  updateChoice: async (kind: AdminChoiceKind, id: number, input: AdminChoiceInput): Promise<AdminChoice> => {
+    const { data } = await apiClient.patch(`/api/${kind}/${id}/`, input);
     return data;
   },
   deleteChoice: async (kind: AdminChoiceKind, id: number): Promise<void> => {

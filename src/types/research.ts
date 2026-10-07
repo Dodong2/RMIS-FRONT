@@ -42,9 +42,14 @@ export type AdminChoiceKind = "college-units" | "rei-thrusts" | "cooperating-age
 
 export interface AdminChoice {
   id: number;
+  /** College Units and REI Thrusts only; `name` is built from them. Blank on entries made before the split. */
+  code?: string;
+  title?: string;
   name: string;
   created_at: string;
 }
+
+export type AdminChoiceInput = { name: string } | { code: string; title: string };
 
 export interface Program {
   id: number;
