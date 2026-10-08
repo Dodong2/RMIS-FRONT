@@ -971,7 +971,11 @@ function LIBDetail({
                                 <td className="px-3 py-2.5 text-xs font-mono font-bold whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(r.amount)}</td>
                                 <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                                   <span className="font-bold px-2 py-0.5 rounded-full" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
-                                  {r.reviewed_at && <p className="mt-1" style={{ color: "#94a3b8" }}>Reviewed {r.reviewed_at.slice(0, 10)}</p>}
+                                  {r.reviewed_at && (
+                                    <p className="mt-1" style={{ color: "#94a3b8" }}>
+                                      by {r.reviewed_by_name ?? "—"} · {r.reviewed_at.slice(0, 10)}
+                                    </p>
+                                  )}
                                 </td>
                                 <td className="px-3 py-2.5 text-xs" style={{ color: "#475569" }}>{r.justification}</td>
                               </tr>

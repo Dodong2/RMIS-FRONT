@@ -35,6 +35,7 @@ export interface BudgetRealignment {
   justification: string;
   requested_by: number;
   reviewed_by: number | null;
+  reviewed_by_name: string | null;
   reviewed_at: string | null;
   bor_resolution_number: string;
   created_at: string;

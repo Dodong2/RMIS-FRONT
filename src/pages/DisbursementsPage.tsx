@@ -822,7 +822,7 @@ function ProjectBoard({
                                 ) : pending ? (
                                   <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting {r.tier === "bor" ? "System Admin (BOR)" : "University Admin"}</span>
                                 ) : (
-                                  <span className="text-xs" style={{ color: "#94a3b8" }}>{r.reviewed_at ? `Reviewed ${r.reviewed_at.slice(0, 10)}` : "Auto-implemented"}</span>
+                                  <span className="text-xs" style={{ color: "#94a3b8" }}>{r.reviewed_at ? `Reviewed by ${r.reviewed_by_name ?? "—"} · ${r.reviewed_at.slice(0, 10)}` : "Auto-implemented"}</span>
                                 )}
                               </td>
                             </tr>
