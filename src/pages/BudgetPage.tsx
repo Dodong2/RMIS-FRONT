@@ -6,6 +6,7 @@ import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { financialApi } from "../lib/financialApi";
 import { budgetSummaryQuery, financialRecordsQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { REALIGNMENT_STATUS_META } from "../lib/realignment";
 import { RealignModal } from "./DisbursementsPage";
@@ -13,7 +14,7 @@ import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
-import type { BudgetSummary } from "../types/financial";
+import type { BudgetRealignment, BudgetSummary, RealignmentTier } from "../types/financial";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
@@ -24,6 +25,8 @@ import { AppShell } from "../components/layout/AppShell";
 const MANAGE_ROLE_CODES = ["system_admin", "finance_budget", "procurement_officer_lib", "program_leader", "project_leader"];
 const CERTIFY_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
+const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "university_admin"];
+const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin"];
 const CATEGORIES: LineItemCategory[] = ["ps", "mooe", "co"];
 
 const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: string }> = {
@@ -37,7 +40,7 @@ const STATUS_META = {
   certified: { label: "Certified", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
 } as const;
 
-type LIBTab = "overview" | "line_items" | "utilization" | "history";
+type LIBTab = "overview" | "line_items" | "utilization" | "realignment" | "history";
 
 const peso = (n: string | number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 2 }).format(Number(n));
@@ -509,6 +512,142 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   );
 }
 
+function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudget; roleCode: string; onChanged: () => void }) {
+  const certified = budget.status === "certified";
+  const recordsQ = useQuery({ ...financialRecordsQuery(budget.id), enabled: certified });
+  const realignments = recordsQ.data?.realignments ?? [];
+  const [showRequest, setShowRequest] = useState(false);
+  const [bor, setBor] = useState<Record<number, string>>({});
+  const canRequest = certified && REALIGNMENT_REQUEST_ROLE_CODES.includes(roleCode);
+  const canReviewTier = (t: RealignmentTier) => (t === "bor" ? REALIGNMENT_BOR_REVIEW_ROLE_CODES : REALIGNMENT_MAJOR_REVIEW_ROLE_CODES).includes(roleCode);
+  const itemName = (id: number | null) => budget.line_items.find((i) => i.id === id);
+
+  useEffect(() => {
+    if (recordsQ.isError) notify.error("Could not load the realignment requests.");
+  }, [recordsQ.isError]);
+
+  const reviewMutation = useMutation({
+    mutationFn: (v: { r: BudgetRealignment; decision: "approved" | "rejected" }) =>
+      financialApi.reviewRealignment(v.r.id, {
+        decision: v.decision,
+        bor_resolution_number: v.decision === "approved" && v.r.tier === "bor" ? bor[v.r.id].trim() : undefined,
+      }),
+    onSuccess: (_, v) => {
+      notify.success(v.decision === "approved" ? "Realignment approved." : "Realignment rejected.");
+      onChanged();
+    },
+    onError: (err) => notify.error(errorMessage(err, "Could not review the realignment.")),
+  });
+  const reviewing = reviewMutation.isPending ? (reviewMutation.variables?.r.id ?? null) : null;
+
+  const review = (r: BudgetRealignment, decision: "approved" | "rejected") => {
+    if (decision === "approved" && r.tier === "bor" && !bor[r.id]?.trim()) {
+      notify.error("Enter the BOR resolution number before approving.");
+      return;
+    }
+    reviewMutation.mutate({ r, decision });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Budget Realignment Requests</p>
+        {canRequest && (
+          <button onClick={() => setShowRequest(true)} className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#2563eb" }}>
+            + Request Realignment
+          </button>
+        )}
+      </div>
+      {!certified ? (
+        <div className="rounded-xl px-4 py-3 text-xs" style={{ background: "#fef3c7", border: "1px solid #fde68a", color: "#92400e" }}>
+          Realignment opens once the Budget Officer certifies this LIB. Until then, line items can still be edited directly.
+        </div>
+      ) : recordsQ.isPending ? (
+        <SkeletonRows rows={3} />
+      ) : realignments.length === 0 ? (
+        <NoActualData />
+      ) : (
+        <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
+          <table className="w-full text-sm min-w-[900px]">
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                {["Date", "From (Source)", "To (Destination)", "Amount", "Justification", "Status", "Action"].map((h) => (
+                  <th key={h} className={`px-4 py-3 text-xs font-bold whitespace-nowrap ${h === "Amount" ? "text-right" : "text-left"}`} style={{ color: "#64748b" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {realignments.map((r) => {
+                const sm = REALIGNMENT_STATUS_META[r.status];
+                const from = itemName(r.from_line_item);
+                const to = r.to_line_item ? itemName(r.to_line_item) : null;
+                const pending = r.status === "pending_approval" || r.status === "pending_bor";
+                return (
+                  <tr key={r.id} className="border-t align-top" style={{ borderColor: "#f1f5f9" }}>
+                    <td className="px-4 py-3 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{r.created_at.slice(0, 10)}</td>
+                    <td className="px-4 py-3 text-xs font-semibold" style={{ color: "#0d2a5e" }}>
+                      {from ? `${from.description} (${CATEGORY_META[from.category].label})` : `#${r.from_line_item}`}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-semibold" style={{ color: "#0d2a5e" }}>
+                      {r.to_line_item
+                        ? to ? `${to.description} (${CATEGORY_META[to.category].label})` : `#${r.to_line_item}`
+                        : `New: ${r.new_item_description}${r.new_item_category ? ` (${CATEGORY_META[r.new_item_category].label})` : ""}`}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-mono font-bold text-right whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(r.amount)}</td>
+                    <td className="px-4 py-3 text-xs" style={{ color: "#475569", maxWidth: "280px" }}>{r.justification}</td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap">
+                      <span className="font-bold px-2 py-0.5 rounded-full" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
+                      {r.bor_resolution_number && <p className="mt-1 font-mono" style={{ color: "#6b21a8" }}>BOR Res. {r.bor_resolution_number}</p>}
+                      {r.reviewed_at && (
+                        <p className="mt-1" style={{ color: "#94a3b8" }}>
+                          by {r.reviewed_by_name ?? "—"} · {r.reviewed_at.slice(0, 10)}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {pending && canReviewTier(r.tier) ? (
+                        <div className="space-y-1.5 min-w-40">
+                          {r.tier === "bor" && (
+                            <input
+                              className={INPUT_CLS + " py-1.5 text-xs"}
+                              style={INPUT_STYLE}
+                              placeholder="BOR resolution no."
+                              value={bor[r.id] ?? ""}
+                              onChange={(e) => setBor((b) => ({ ...b, [r.id]: e.target.value }))}
+                            />
+                          )}
+                          <div className="flex gap-1.5">
+                            <button disabled={reviewing === r.id} onClick={() => review(r, "approved")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ background: "#059669" }}>Approve</button>
+                            <button disabled={reviewing === r.id} onClick={() => review(r, "rejected")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#fee2e2", color: "#dc2626" }}>Reject</button>
+                          </div>
+                        </div>
+                      ) : pending ? (
+                        <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting {r.tier === "bor" ? "System Admin (BOR)" : "University Admin"}</span>
+                      ) : (
+                        <span className="text-xs" style={{ color: "#94a3b8" }}>{r.reviewed_at ? "—" : "Auto-implemented (≤33%)"}</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {showRequest && (
+        <RealignModal
+          budget={budget}
+          onClose={() => setShowRequest(false)}
+          onSaved={() => {
+            setShowRequest(false);
+            onChanged();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 const EMPTY_ROW = { description: "", unit: "unit", quantity: "", unit_cost: "", justification: "" };
 type NewRow = typeof EMPTY_ROW;
 
@@ -516,14 +655,14 @@ function LIBDetail({
   project,
   canManage,
   canCertify,
-  canRequestRealign,
+  roleCode,
   isStudyLeader,
   onBack,
 }: {
   project: Project;
   canManage: boolean;
   canCertify: boolean;
-  canRequestRealign: boolean;
+  roleCode: string;
   isStudyLeader: boolean;
   onBack: () => void;
 }) {
@@ -535,9 +674,6 @@ function LIBDetail({
   const certifiedId = current?.status === "certified" ? current.id : 0;
   const summaryQ = useQuery({ ...budgetSummaryQuery(certifiedId), enabled: certifiedId > 0 });
   const summary: BudgetSummary | null = certifiedId > 0 ? (summaryQ.data ?? null) : null;
-  const realignmentsQ = useQuery({ ...financialRecordsQuery(certifiedId), enabled: certifiedId > 0 });
-  const realignments = certifiedId > 0 ? (realignmentsQ.data?.realignments ?? []) : [];
-  const [showRealign, setShowRealign] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [tab, setTab] = useState<LIBTab>("overview");
   const [rows, setRows] = useState<Record<LineItemCategory, NewRow>>({ ps: EMPTY_ROW, mooe: EMPTY_ROW, co: EMPTY_ROW });
@@ -683,6 +819,7 @@ function LIBDetail({
                 ["overview", "Overview"],
                 ["line_items", "Line Items"],
                 ["utilization", "Utilization"],
+                ["realignment", "Realignment"],
                 ["history", "Version History"],
               ] as [LIBTab, string][]
             ).map(([key, label]) => (
@@ -784,6 +921,8 @@ function LIBDetail({
               <UtilizationTab budget={budget} summary={summary} />
             )}
 
+            {tab === "realignment" && <RealignmentTab budget={budget} roleCode={roleCode} onChanged={reload} />}
+
             {tab === "history" && <HistoryTab versions={versions} />}
 
             {tab === "line_items" && (
@@ -793,13 +932,11 @@ function LIBDetail({
                 {budget.status === "certified" && (
                   <div className="rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap" style={{ background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
                     <p className="text-xs flex-1 min-w-60" style={{ color: "#5b21b6" }}>
-                      This LIB is certified, so its line items are locked. To move funds between items or into a new item, file a Request for Reallocation. New items are added only once the request is approved.
+                      This LIB is certified, so its line items are locked. To move funds between items or into a new item, file a request on the Realignment tab. New items are added only once the request is approved.
                     </p>
-                    {canRequestRealign && (
-                      <button onClick={() => setShowRealign(true)} className="px-3 py-2 rounded-xl text-xs font-bold text-white shrink-0" style={{ background: "#7c3aed" }}>
-                        Request for Reallocation
-                      </button>
-                    )}
+                    <button onClick={() => setTab("realignment")} className="px-3 py-2 rounded-xl text-xs font-bold text-white shrink-0" style={{ background: "#7c3aed" }}>
+                      Go to Realignment
+                    </button>
                   </div>
                 )}
 
@@ -944,62 +1081,10 @@ function LIBDetail({
                     </div>
                   );
                 })}
-
-                {realignments.length > 0 && (
-                  <div>
-                    <p className="font-black text-sm mb-3" style={{ color: "#5b21b6" }}>Reallocation Requests</p>
-                    <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #ddd6fe" }}>
-                      <table className="w-full text-sm min-w-[700px]">
-                        <thead>
-                          <tr style={{ background: "#f5f3ff" }}>
-                            {["Date", "From → To", "Amount", "Status", "Justification"].map((h) => (
-                              <th key={h} className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#5b21b6" }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {realignments.map((r) => {
-                            const itemName = (id: number | null) => budget.line_items.find((i) => i.id === id)?.description ?? `#${id}`;
-                            const sm = REALIGNMENT_STATUS_META[r.status];
-                            return (
-                              <tr key={r.id} className="border-t align-top" style={{ borderColor: "#f1f5f9" }}>
-                                <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{r.created_at.slice(0, 10)}</td>
-                                <td className="px-3 py-2.5 text-xs">
-                                  <p style={{ color: "#dc2626" }}>{itemName(r.from_line_item)}</p>
-                                  <p style={{ color: "#059669" }}>→ {r.to_line_item ? itemName(r.to_line_item) : `New: ${r.new_item_description}`}</p>
-                                </td>
-                                <td className="px-3 py-2.5 text-xs font-mono font-bold whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(r.amount)}</td>
-                                <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                                  <span className="font-bold px-2 py-0.5 rounded-full" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
-                                  {r.reviewed_at && (
-                                    <p className="mt-1" style={{ color: "#94a3b8" }}>
-                                      by {r.reviewed_by_name ?? "—"} · {r.reviewed_at.slice(0, 10)}
-                                    </p>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2.5 text-xs" style={{ color: "#475569" }}>{r.justification}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
         </div>
-      )}
-      {showRealign && budget && (
-        <RealignModal
-          budget={budget}
-          onClose={() => setShowRealign(false)}
-          onSaved={() => {
-            setShowRealign(false);
-            reload();
-          }}
-        />
       )}
       {showWizard && (
         <LIBWizard
@@ -1041,7 +1126,7 @@ function BudgetContent() {
         project={selected}
         canManage={canManage}
         canCertify={canCertify}
-        canRequestRealign={REALIGNMENT_REQUEST_ROLE_CODES.includes(code)}
+        roleCode={code}
         isStudyLeader={code === "study_leader"}
         onBack={() => setParams({})}
       />
