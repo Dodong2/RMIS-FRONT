@@ -58,6 +58,8 @@ const ALL_RESEARCH: RoleTier[] = [
   "execution",
 ];
 
+const ALL_RESEARCH_BUT_STAFF = ALL_RESEARCH.filter((t) => t !== "execution");
+
 const OVERSIGHT: RoleTier[] = [
   "system_admin",
   "institution_oversight",
@@ -136,9 +138,10 @@ export const NAV_SECTIONS: NavSection[] = [
         tiers: [...OVERSIGHT, "project_management", "study_management"],
         ready: true,
       },
-      { label: "Document and Records Management", to: "/documents", icon: "file", tiers: ALL_RESEARCH, ready: true },
-      { label: "Research Outputs", to: "/outputs", icon: "book", tiers: ALL_RESEARCH, ready: true },
+      { label: "Document and Records Management", to: "/documents", icon: "file", tiers: ALL_RESEARCH_BUT_STAFF, ready: true },
+      { label: "Research Outputs", to: "/outputs", icon: "book", tiers: ALL_RESEARCH_BUT_STAFF, ready: true },
       { label: "Monitoring & Evaluation", to: "/monitoring", icon: "activity", tiers: ALL_RESEARCH, ready: true },
+      { label: "Accomplishment Report", to: "/accomplishment", icon: "clipboard", tiers: ["execution"], ready: true },
       {
         label: "Risk Management",
         to: "/risks",

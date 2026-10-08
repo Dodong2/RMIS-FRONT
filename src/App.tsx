@@ -24,6 +24,7 @@ import CompliancePage from "./pages/CompliancePage";
 import DocumentsPage from "./pages/DocumentsPage";
 import OutputsPage from "./pages/OutputsPage";
 import MonitoringPage from "./pages/MonitoringPage";
+import AccomplishmentPage from "./pages/AccomplishmentPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BudgetForecastPage from "./pages/BudgetForecastPage";
 import DecisionSupportPage from "./pages/DecisionSupportPage";
@@ -60,6 +61,16 @@ export default function App() {
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/outputs" element={<OutputsPage />} />
       <Route path="/monitoring" element={<MonitoringPage />} />
+      <Route
+        path="/accomplishment"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["project_staff"]}>
+              <AccomplishmentPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/analytics"
         element={
