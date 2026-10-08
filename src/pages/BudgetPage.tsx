@@ -6,7 +6,9 @@ import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { budgetSummaryQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
+import { budgetSummaryQuery, financialRecordsQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
+import { REALIGNMENT_STATUS_META } from "../lib/realignment";
+import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
@@ -21,6 +23,7 @@ import { AppShell } from "../components/layout/AppShell";
 
 const MANAGE_ROLE_CODES = ["system_admin", "finance_budget", "procurement_officer_lib", "program_leader", "project_leader"];
 const CERTIFY_ROLE_CODES = ["system_admin", "finance_budget"];
+const REALIGNMENT_REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
 const CATEGORIES: LineItemCategory[] = ["ps", "mooe", "co"];
 
 const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: string }> = {
@@ -513,12 +516,14 @@ function LIBDetail({
   project,
   canManage,
   canCertify,
+  canRequestRealign,
   isStudyLeader,
   onBack,
 }: {
   project: Project;
   canManage: boolean;
   canCertify: boolean;
+  canRequestRealign: boolean;
   isStudyLeader: boolean;
   onBack: () => void;
 }) {
@@ -530,6 +535,9 @@ function LIBDetail({
   const certifiedId = current?.status === "certified" ? current.id : 0;
   const summaryQ = useQuery({ ...budgetSummaryQuery(certifiedId), enabled: certifiedId > 0 });
   const summary: BudgetSummary | null = certifiedId > 0 ? (summaryQ.data ?? null) : null;
+  const realignmentsQ = useQuery({ ...financialRecordsQuery(certifiedId), enabled: certifiedId > 0 });
+  const realignments = certifiedId > 0 ? (realignmentsQ.data?.realignments ?? []) : [];
+  const [showRealign, setShowRealign] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [tab, setTab] = useState<LIBTab>("overview");
   const [rows, setRows] = useState<Record<LineItemCategory, NewRow>>({ ps: EMPTY_ROW, mooe: EMPTY_ROW, co: EMPTY_ROW });
@@ -544,6 +552,7 @@ function LIBDetail({
     queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
     queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
     queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+    queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
   };
 
   const save = useMutation({ mutationFn: (fn: () => Promise<unknown>) => fn() });
@@ -781,6 +790,18 @@ function LIBDetail({
               <div className="space-y-5">
                 {budget.exceeds_dry_cap && <DryCapWarning />}
                 {budget.line_items.length === 0 && !(canManage && isDraft) && <NoActualData />}
+                {budget.status === "certified" && (
+                  <div className="rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap" style={{ background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
+                    <p className="text-xs flex-1 min-w-60" style={{ color: "#5b21b6" }}>
+                      This LIB is certified, so its line items are locked. To move funds between items or into a new item, file a Request for Reallocation. New items are added only once the request is approved.
+                    </p>
+                    {canRequestRealign && (
+                      <button onClick={() => setShowRealign(true)} className="px-3 py-2 rounded-xl text-xs font-bold text-white shrink-0" style={{ background: "#7c3aed" }}>
+                        Request for Reallocation
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {CATEGORIES.map((cat) => {
                   const items = budget.line_items.filter((i) => i.category === cat);
@@ -923,10 +944,58 @@ function LIBDetail({
                     </div>
                   );
                 })}
+
+                {realignments.length > 0 && (
+                  <div>
+                    <p className="font-black text-sm mb-3" style={{ color: "#5b21b6" }}>Reallocation Requests</p>
+                    <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #ddd6fe" }}>
+                      <table className="w-full text-sm min-w-[700px]">
+                        <thead>
+                          <tr style={{ background: "#f5f3ff" }}>
+                            {["Date", "From → To", "Amount", "Status", "Justification"].map((h) => (
+                              <th key={h} className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#5b21b6" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {realignments.map((r) => {
+                            const itemName = (id: number | null) => budget.line_items.find((i) => i.id === id)?.description ?? `#${id}`;
+                            const sm = REALIGNMENT_STATUS_META[r.status];
+                            return (
+                              <tr key={r.id} className="border-t align-top" style={{ borderColor: "#f1f5f9" }}>
+                                <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{r.created_at.slice(0, 10)}</td>
+                                <td className="px-3 py-2.5 text-xs">
+                                  <p style={{ color: "#dc2626" }}>{itemName(r.from_line_item)}</p>
+                                  <p style={{ color: "#059669" }}>→ {r.to_line_item ? itemName(r.to_line_item) : `New: ${r.new_item_description}`}</p>
+                                </td>
+                                <td className="px-3 py-2.5 text-xs font-mono font-bold whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(r.amount)}</td>
+                                <td className="px-3 py-2.5 text-xs whitespace-nowrap">
+                                  <span className="font-bold px-2 py-0.5 rounded-full" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
+                                  {r.reviewed_at && <p className="mt-1" style={{ color: "#94a3b8" }}>Reviewed {r.reviewed_at.slice(0, 10)}</p>}
+                                </td>
+                                <td className="px-3 py-2.5 text-xs" style={{ color: "#475569" }}>{r.justification}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
+      )}
+      {showRealign && budget && (
+        <RealignModal
+          budget={budget}
+          onClose={() => setShowRealign(false)}
+          onSaved={() => {
+            setShowRealign(false);
+            reload();
+          }}
+        />
       )}
       {showWizard && (
         <LIBWizard
@@ -968,6 +1037,7 @@ function BudgetContent() {
         project={selected}
         canManage={canManage}
         canCertify={canCertify}
+        canRequestRealign={REALIGNMENT_REQUEST_ROLE_CODES.includes(code)}
         isStudyLeader={code === "study_leader"}
         onBack={() => setParams({})}
       />

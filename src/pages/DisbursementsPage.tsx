@@ -7,6 +7,7 @@ import { notify } from "../lib/notify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { budgetSummaryQuery, documentsQuery, financialRecordsQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
+import { REALIGNMENT_STATUS_META as STATUS_META } from "../lib/realignment";
 import type { LineItemBudget, LineItemCategory } from "../types/budget";
 import type { BudgetRealignment, BudgetSummary, Disbursement, LineItemBalance, RealignmentStatus, RealignmentTier } from "../types/financial";
 import type { ProjectDocument } from "../types/document";
@@ -33,15 +34,6 @@ const TIER_META: Record<RealignmentTier, { label: string; bg: string; color: str
   minor: { label: "Minor (≤33%)", bg: "#e0f2fe", color: "#0369a1" },
   major: { label: "Major (33–100%)", bg: "#fef3c7", color: "#92400e" },
   bor: { label: "Board of Regents", bg: "#faf5ff", color: "#6b21a8" },
-};
-
-const STATUS_META: Record<RealignmentStatus, { label: string; bg: string; color: string }> = {
-  implemented: { label: "Implemented", bg: "#d1fae5", color: "#166534" },
-  pending_approval: { label: "Pending University Admin", bg: "#fef3c7", color: "#92400e" },
-  approved: { label: "Approved", bg: "#d1fae5", color: "#166534" },
-  pending_bor: { label: "Pending Board of Regents", bg: "#faf5ff", color: "#6b21a8" },
-  bor_approved: { label: "BOR Approved", bg: "#d1fae5", color: "#166534" },
-  rejected: { label: "Rejected", bg: "#fee2e2", color: "#991b1b" },
 };
 
 type FlagType = "over_utilization" | "near_limit" | "under_utilization" | "significant_variance";
@@ -262,7 +254,7 @@ function RecordModal({
   );
 }
 
-function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBudget; onClose: () => void; onSaved: () => void }) {
+export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBudget; onClose: () => void; onSaved: () => void }) {
   const [target, setTarget] = useState<"existing" | "new">("existing");
   const [form, setForm] = useState({ from_line_item: "", to_line_item: "", new_item_category: "", new_item_description: "", amount: "", justification: "" });
   const [attempted, setAttempted] = useState(false);
