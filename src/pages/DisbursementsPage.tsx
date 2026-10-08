@@ -20,8 +20,8 @@ import { AppShell } from "../components/layout/AppShell";
 
 const DISBURSEMENT_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
-const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "university_admin"];
-const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin"];
+const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
+const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 
 const CATEGORIES: LineItemCategory[] = ["ps", "mooe", "co"];
 const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: string }> = {
@@ -820,7 +820,7 @@ function ProjectBoard({
                                     </div>
                                   </div>
                                 ) : pending ? (
-                                  <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting {r.tier === "bor" ? "System Admin (BOR)" : "University Admin"}</span>
+                                  <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting Budget Officer{r.tier === "bor" ? " (BOR resolution)" : ""}</span>
                                 ) : (
                                   <span className="text-xs" style={{ color: "#94a3b8" }}>{r.reviewed_at ? `Reviewed by ${r.reviewed_by_name ?? "—"} · ${r.reviewed_at.slice(0, 10)}` : "Auto-implemented"}</span>
                                 )}

@@ -25,8 +25,8 @@ import { AppShell } from "../components/layout/AppShell";
 const MANAGE_ROLE_CODES = ["system_admin", "finance_budget", "procurement_officer_lib", "program_leader", "project_leader"];
 const CERTIFY_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
-const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "university_admin"];
-const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin"];
+const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
+const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 const CATEGORIES: LineItemCategory[] = ["ps", "mooe", "co"];
 
 const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: string }> = {
@@ -622,7 +622,7 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
                           </div>
                         </div>
                       ) : pending ? (
-                        <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting {r.tier === "bor" ? "System Admin (BOR)" : "University Admin"}</span>
+                        <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting Budget Officer{r.tier === "bor" ? " (BOR resolution)" : ""}</span>
                       ) : (
                         <span className="text-xs" style={{ color: "#94a3b8" }}>{r.reviewed_at ? "—" : "Auto-implemented (≤33%)"}</span>
                       )}
