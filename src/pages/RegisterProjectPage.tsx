@@ -602,6 +602,10 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
   };
   const isContinuing = form.is_continuing === "true";
   const uploadsPending = [...approvalDoc, ...supportingDocs].some((f) => f.status !== "done");
+  const approvedBudget = Number(form.total_cost) || 0;
+  const libGrandTotal = libRows.reduce((sum, r) => sum + libRowTotal(r), 0);
+  const libDifference = Math.round((libGrandTotal - approvedBudget) * 100) / 100;
+  const libMatchesBudget = approvedBudget === 0 || filledLib.length === 0 || libDifference === 0;
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
       0: form.project_code.trim() ? [] : ["Project Code"],
@@ -609,6 +613,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
       2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
       3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
       4: beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim()) ? [] : ["every Target Beneficiaries row"],
+      5: libMatchesBudget ? [] : [`a Grand Total equal to the approved budget (₱${peso(approvedBudget)})`],
       6: [...(form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"]), ...(uploadsPending ? ["the document uploads"] : [])],
     };
     return missing[i] ?? [];
@@ -629,6 +634,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
     { label: "Methodology written", done: !!form.methodology.trim(), step: 3 },
     { label: "Every target beneficiary row complete", done: stepMissing(4).length === 0, required: true, step: 4 },
     { label: "LIB line items entered", done: filledLib.length > 0, step: 5 },
+    { label: "LIB Grand Total equals the approved budget", done: libMatchesBudget, required: true, step: 5 },
     { label: "Approval reference number provided", done: !!form.ntp_number.trim(), required: true, step: 6 },
     { label: "Approval document attached", done: approvalDoc.length > 0, step: 6 },
     { label: "All document uploads finished", done: !uploadsPending, required: true, step: 6 },
@@ -649,7 +655,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
     const missing = stepMissing(step);
     if (missing.length) {
       setTriedSteps((t) => (t.includes(step) ? t : [...t, step]));
-      notify.error(`Fill in ${missing.join(", ")} before going to the next step.`);
+      notify.error(step === 5 ? `Grand total must equal approved budget (₱${peso(approvedBudget)}). Difference: ₱${peso(libDifference)}.` : `Fill in ${missing.join(", ")} before going to the next step.`);
       return;
     }
     if (step === 0) {
@@ -1308,9 +1314,23 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                       </div>
                     );
                   })}
-                  <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: "#fef2f2", border: "1px solid #fecaca" }}>
-                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#991b1b" }}>Grand Total</p>
-                    <p className="text-sm font-mono font-black" style={{ color: "#991b1b" }}>₱{peso(libRows.reduce((sum, r) => sum + libRowTotal(r), 0))}</p>
+                  {approvedBudget > 0 && libDifference !== 0 && (
+                    <div className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
+                      Grand total must equal approved budget (₱{peso(approvedBudget)}). The approved budget can't be changed here; adjust the line items, or use a
+                      Realignment after the project is registered.
+                    </div>
+                  )}
+                  <div className="rounded-xl px-4 py-3" style={{ background: approvedBudget > 0 && libDifference !== 0 ? "#991b1b" : "#1e3a8a" }}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold" style={{ color: "white" }}>Grand Total</p>
+                      <p className="text-lg font-mono font-black" style={{ color: "white" }}>₱{peso(libGrandTotal)}</p>
+                    </div>
+                    {approvedBudget > 0 && (
+                      <div className="mt-2 pt-2 flex items-center justify-between text-xs font-semibold" style={{ borderTop: "1px solid rgba(255,255,255,0.25)", color: libDifference === 0 ? "#bfdbfe" : "#fecaca" }}>
+                        <span>Difference from Approved Budget (₱{peso(approvedBudget)}):</span>
+                        <span className="font-mono">{libDifference > 0 ? "+" : libDifference < 0 ? "-" : ""}₱{peso(Math.abs(libDifference))}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
