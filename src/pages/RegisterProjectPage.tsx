@@ -289,7 +289,9 @@ function ExcelImport() {
     setErrors([]);
     try {
       const project = await researchApi.importProject(file);
+      const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
       notify.success(`Project ${project.project_code} registered from Excel.`);
+      if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
       showImportErrors(err, "Could not import the workbook.");
@@ -790,10 +792,12 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
           documentApi.registerStagedDocument({ project: project.id, document_type: "other", stage: "inception", staged_token: f.token! }),
         ),
       ]);
+      const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
       discardDraft();
       const failed = results.filter((r) => r.status === "rejected").length;
       if (failed) notify.error(`Project registered, but ${failed} team/study/LIB/endorser/beneficiary/6P/work plan/document row(s) failed to save. Add them from the project page.`);
-      else notify.success("Project registered.");
+      else notify.success("Project registered. The Research Proposal Form is saved under Document Management.");
+      if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
       const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;

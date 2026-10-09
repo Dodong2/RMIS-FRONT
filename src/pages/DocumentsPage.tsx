@@ -3,6 +3,7 @@ import { complianceApi } from "../lib/complianceApi";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { monitoringApi } from "../lib/monitoringApi";
 import { researchApi } from "../lib/researchApi";
+import { reportsApi } from "../lib/reportsApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ const DOC_TYPE_META: Record<DocumentType, { label: string; icon: string; color: 
   midterm_report: { label: "Midterm Report", icon: "📊", color: "#0d2a5e", bg: "#e0eaf7" },
   terminal_report: { label: "Terminal Report", icon: "🏁", color: "#166534", bg: "#d1fae5" },
   accomplishment_report: { label: "Accomplishment Report", icon: "📈", color: "#0369a1", bg: "#e0f2fe" },
+  proposal_form: { label: "Research Proposal Form", icon: "📝", color: "#92400e", bg: "#fef3c7" },
   thesis: { label: "Thesis", icon: "🎓", color: "#7c3aed", bg: "#fdf4ff" },
   dissertation: { label: "Dissertation", icon: "📚", color: "#7c3aed", bg: "#fdf4ff" },
   dataset: { label: "Research Dataset", icon: "🗃", color: "#c2410c", bg: "#fff7ed" },
@@ -571,10 +573,25 @@ function DetailModal({
           </div>
 
           <div className="flex gap-2 pt-1 flex-wrap">
-            <button onClick={() => openDownload(doc.id)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              Download
-            </button>
+            {doc.document_type === "proposal_form" ? (
+              (["pdf", "docx", "xlsx"] as const).map((fmt) => (
+                <button
+                  key={fmt}
+                  disabled={busy}
+                  onClick={() => reportsApi.downloadProposalForm(doc.project, fmt).catch((err) => notify.error(errorMessage(err, "Could not download the form.")))}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60"
+                  style={{ background: "#0d2a5e" }}
+                >
+                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  {{ pdf: "PDF", docx: "Word", xlsx: "Excel" }[fmt]}
+                </button>
+              ))
+            ) : (
+              <button onClick={() => openDownload(doc.id)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Download
+              </button>
+            )}
             {!doc.is_archived && (
               <button onClick={onNewVersion} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold" style={{ background: "#e0f2fe", color: "#0369a1" }}>
                 <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>

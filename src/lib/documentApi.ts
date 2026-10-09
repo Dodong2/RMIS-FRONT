@@ -60,6 +60,11 @@ export const documentApi = {
     const { data } = await apiClient.post("/api/documents/documents/", payload);
     return data;
   },
+  /** Saves the project's Research Proposal Form (SF-018) as a PDF document; Register Project calls it last. */
+  saveProposalForm: async (project: number): Promise<ProjectDocument> => {
+    const { data } = await apiClient.post("/api/documents/documents/proposal-form/", { project });
+    return data;
+  },
   archiveDocument: async (id: number): Promise<ProjectDocument> => {
     const { data } = await apiClient.post(`/api/documents/documents/${id}/archive/`);
     return data;

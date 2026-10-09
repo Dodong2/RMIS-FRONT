@@ -5,6 +5,7 @@ export type DocumentType =
   | "midterm_report"
   | "terminal_report"
   | "accomplishment_report"
+  | "proposal_form"
   | "thesis"
   | "dissertation"
   | "dataset"

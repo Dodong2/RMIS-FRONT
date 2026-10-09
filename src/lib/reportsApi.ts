@@ -52,6 +52,9 @@ export const reportsApi = {
     year?: string;
     file_format: ReportFormat;
   }) => downloadReport("/api/reports/projects/", params, `project_list.${params.file_format}`),
+  /** LSPU-RDO-SF-018 Research Proposal Form, laid out like the registration preview. */
+  downloadProposalForm: (projectId: number, fileFormat: ReportFormat) =>
+    downloadReport(`/api/reports/proposal-form/${projectId}/`, { file_format: fileFormat }, `research_proposal_form.${fileFormat}`),
   /** Project staff Monthly Accomplishment Report, pulled from their task updates; month = "YYYY-MM", user defaults to self. */
   downloadAccomplishment: (params: { month: string; user?: number; file_format: ReportFormat }) =>
     downloadReport("/api/reports/accomplishment/", params, `accomplishment_${params.month}.${params.file_format}`),
