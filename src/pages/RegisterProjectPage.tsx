@@ -590,7 +590,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
   const approvedBudget = Number(form.total_cost) || 0;
   const libGrandTotal = libRows.reduce((sum, r) => sum + libRowTotal(r), 0);
   const libDifference = Math.round((libGrandTotal - approvedBudget) * 100) / 100;
-  const libMatchesBudget = approvedBudget === 0 || filledLib.length === 0 || libDifference === 0;
+  const libMatchesBudget = approvedBudget === 0 || libDifference === 0;
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
       0: form.project_code.trim() ? [] : ["Project Code"],
@@ -1251,7 +1251,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                 <div className="space-y-4">
                   <StepNote>
                     Section X, Budget Requirements: the approved Line-Item Budget (Total = Qty × Unit Cost). It is saved as the project's draft LIB (version 1) for the
-                    Budget Officer to certify under Budget Management. Optional here; leave it empty to encode the LIB later.
+                    Budget Officer to certify under Budget Management. Its Grand Total must equal the Total Project/Study Cost from Project Details before you can go on.
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <Field label="Fiscal Year">
