@@ -375,6 +375,16 @@ export default function App() {
         }
       />
       <Route
+        path="/admin/endorsers"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin"]}>
+              <AdminChoicesPage kind="endorsers" />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/settings"
         element={
           <ProtectedRoute>

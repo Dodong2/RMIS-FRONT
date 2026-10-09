@@ -14,8 +14,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
 import { MoneyInput } from "../components/common/MoneyInput";
-import type { AdminUser, Role } from "../types/auth";
-import { authApi } from "../lib/authApi";
+import type { AdminUser } from "../types/auth";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -493,7 +492,6 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
   const [showPreview, setShowPreview] = useState(false);
   const [leadersBlocked, setLeadersBlocked] = useState(false);
   const [accounts, setAccounts] = useState<AdminUser[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
   const [endorsers, setEndorsers] = useState<EndorserRow[]>(init.endorsers);
   const [libRows, setLibRows] = useState<LibRow[]>(init.libRows);
   const [libYear, setLibYear] = useState(init.libYear);
@@ -514,17 +512,13 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
   const [supportingDocs, setSupportingDocs] = useState<StagedFile[]>([]);
 
   const [form, setForm] = useState(init.form);
-  const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rei-thrusts": [], "cooperating-agencies": [] });
+  const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rei-thrusts": [], "cooperating-agencies": [], endorsers: [] });
   const [agencies, setAgencies] = useState<string[]>(init.agencies);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
   useEffect(() => {
     let active = true;
-    authApi
-      .getRoles()
-      .then((list) => active && setRoles(list))
-      .catch(() => undefined);
-    (["college-units", "rei-thrusts", "cooperating-agencies"] as const).forEach((kind) =>
+    (["college-units", "rei-thrusts", "cooperating-agencies", "endorsers"] as const).forEach((kind) =>
       researchApi
         .getChoices(kind)
         .then((list) => active && setChoices((c) => ({ ...c, [kind]: list })))
@@ -583,23 +577,14 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
   const filledEndorsers = endorsers.filter((e) => e.name.trim());
   const filledLib = libRows.filter((r) => r.description.trim() && libRowTotal(r) > 0);
   const updateLib = (i: number, patch: Partial<LibRow>) => setLibRows((rows) => rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
-  const roleName = (code: string) => roles.find((r) => r.code === code)?.name ?? "";
-  const peopleWithRole = (code: string) => accounts.filter((a) => a.role?.code === code);
   const updateEndorser = (i: number, patch: Partial<EndorserRow>) => setEndorsers((rows) => rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
-  const pickEndorserRole = (i: number, code: string) => {
-    const people = code ? peopleWithRole(code) : [];
-    const only = people.length === 1 ? people[0] : null;
-    updateEndorser(i, {
-      role_code: code,
-      user: only?.id ?? null,
-      name: only?.full_name ?? "",
-      designation: only?.position || roleName(code),
-    });
-  };
-  const pickEndorserUser = (i: number, id: string) => {
-    const person = accounts.find((a) => String(a.id) === id);
-    updateEndorser(i, { user: person?.id ?? null, name: person?.full_name ?? "", designation: person?.position || roleName(endorsers[i].role_code) });
-  };
+  const pickEndorser = (i: number, name: string) =>
+    updateEndorser(i, { role_code: "", user: null, name, designation: choices.endorsers.find((c) => c.name === name)?.designation ?? "" });
+  const reloadEndorserChoices = () =>
+    researchApi
+      .getChoices("endorsers")
+      .then((list) => setChoices((c) => ({ ...c, endorsers: list })))
+      .catch(() => notify.error("Could not load the endorser list."));
   const isContinuing = form.is_continuing === "true";
   const uploadsPending = [...approvalDoc, ...supportingDocs].some((f) => f.status !== "done");
   const approvedBudget = Number(form.total_cost) || 0;
@@ -1369,38 +1354,30 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                     <AddRowButton onClick={() => setEndorsers([...endorsers, { role_code: "", user: null, name: "", designation: "", signed_on: "" }])}>Add Endorser</AddRowButton>
                   </div>
                   <p className="text-xs" style={{ color: "#94a3b8" }}>
-                    Pick the endorser's role, then the person. With one account in that role the name fills in by itself. Signatories without an
-                    account (e.g. the Dean) use "Not a system role" and a typed name.
+                    Pick the endorser's name; the designation fills in by itself. Add Endorser again for every other signatory. The list is kept by the
+                    System Admin under Administration &gt; Endorsers.
+                    {user?.role?.code === "system_admin" && (
+                      <>
+                        {" "}
+                        <a href="/admin/endorsers" target="_blank" rel="noreferrer" className="font-semibold" style={{ color: "#0891b2" }}>Manage the list</a>
+                        {" · "}
+                        <button type="button" onClick={reloadEndorserChoices} className="font-semibold" style={{ color: "#0891b2" }}>Reload</button>
+                      </>
+                    )}
                   </p>
                   {endorsers.length === 0 && <p className="text-xs" style={{ color: "#94a3b8" }}>No endorsers added.</p>}
                   <div className="space-y-2">
                     {endorsers.map((e, i) => {
-                      const people = e.role_code ? peopleWithRole(e.role_code) : [];
+                      const listed = choices.endorsers.some((c) => c.name === e.name);
                       return (
-                        <div key={i} className="rounded-xl p-3 grid grid-cols-1 md:grid-cols-2 gap-2 relative" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                          <select className={inputCls} style={inputSt} value={e.role_code} onChange={(ev) => pickEndorserRole(i, ev.target.value)}>
-                            <option value="">Not a system role (type the name)</option>
-                            {roles.map((r) => (
-                              <option key={r.code} value={r.code}>{r.name}</option>
+                        <div key={i} className="rounded-xl p-3 grid grid-cols-1 md:grid-cols-3 gap-2 relative" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                          <select className={inputCls} style={inputSt} value={e.name} onChange={(ev) => pickEndorser(i, ev.target.value)} aria-label="Endorser">
+                            <option value="">{choices.endorsers.length ? "Select the endorser..." : "No endorsers yet, ask the System Admin to add them"}</option>
+                            {e.name && !listed && <option value={e.name}>{e.name}</option>}
+                            {choices.endorsers.map((c) => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
                             ))}
                           </select>
-                          {people.length > 1 ? (
-                            <select className={inputCls} style={inputSt} value={e.user ?? ""} onChange={(ev) => pickEndorserUser(i, ev.target.value)}>
-                              <option value="">Select who signed ({people.length} with this role)...</option>
-                              {people.map((u) => (
-                                <option key={u.id} value={u.id}>{u.full_name}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              className={inputCls}
-                              style={inputSt}
-                              value={e.name}
-                              readOnly={!!e.user}
-                              onChange={(ev) => updateEndorser(i, { name: ev.target.value })}
-                              placeholder={e.role_code ? "No account with this role yet, type the name" : "Full name, e.g. Adriel G. Roman"}
-                            />
-                          )}
                           <input className={inputCls} style={inputSt} value={e.designation} onChange={(ev) => updateEndorser(i, { designation: ev.target.value })} placeholder="Designation, e.g. Dean/Associate Dean" />
                           <div className="flex gap-2 items-start">
                             <input type="date" className={inputCls} style={inputSt} value={e.signed_on} onChange={(ev) => updateEndorser(i, { signed_on: ev.target.value })} aria-label="Date signed" />

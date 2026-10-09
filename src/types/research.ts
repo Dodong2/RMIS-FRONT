@@ -38,7 +38,7 @@ export interface Lead {
 }
 
 /** System Admin-managed dropdown choices on Register Approved Project. */
-export type AdminChoiceKind = "college-units" | "rei-thrusts" | "cooperating-agencies";
+export type AdminChoiceKind = "college-units" | "rei-thrusts" | "cooperating-agencies" | "endorsers";
 
 export interface AdminChoice {
   id: number;
@@ -46,10 +46,12 @@ export interface AdminChoice {
   code?: string;
   title?: string;
   name: string;
+  /** Endorsers only. */
+  designation?: string;
   created_at: string;
 }
 
-export type AdminChoiceInput = { name: string } | { code: string; title: string };
+export type AdminChoiceInput = { name: string; designation?: string } | { code: string; title: string };
 
 export interface Program {
   id: number;
