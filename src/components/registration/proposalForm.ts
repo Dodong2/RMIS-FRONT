@@ -1,4 +1,4 @@
-/** Look of the LSPU-RDO-SF-018 form, shared by ProposalPreview and ProposalEditor. */
+/** Look of the LSPU-RDO-SF-018 form used by ProposalPreview. */
 export const HEAD = { background: "#e7dfc6", color: "#1e293b" };
 export const BORDER = "1px solid #94a3b8";
 export const SIX_P_LABELS: Record<string, string> = {

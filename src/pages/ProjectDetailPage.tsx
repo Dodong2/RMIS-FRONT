@@ -7,7 +7,6 @@ import { outputsApi } from "../lib/outputsApi";
 import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { ProposalEditor } from "../components/registration/ProposalEditor";
 import { PROJECT_EDIT_ROLE_CODES, REGISTRATION_ROLE_CODES, initialsFrom, personName } from "../lib/roles";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
 import {
@@ -296,7 +295,6 @@ function ProjectDetailContent() {
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
   const [updatingMilestone, setUpdatingMilestone] = useState<number | null>(null);
 
-  const [editingProposal, setEditingProposal] = useState(false);
   const [closureStatus, setClosureStatus] = useState<RecordStatus | "">("");
   const [closureRemarks, setClosureRemarks] = useState("");
   const [isClosing, setIsClosing] = useState(false);
@@ -478,17 +476,6 @@ function ProjectDetailContent() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {editingProposal && (
-        <ProposalEditor
-          project={project}
-          canEditCode={roleCode === "system_admin"}
-          onClose={() => setEditingProposal(false)}
-          onSaved={() => {
-            setEditingProposal(false);
-            load();
-          }}
-        />
-      )}
       <div className="flex items-center gap-3 flex-wrap">
         <button onClick={() => navigate("/projects")} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "#0891b2" }}>
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -524,7 +511,7 @@ function ProjectDetailContent() {
             </div>
             <div className="flex items-center gap-2">
               {canEditProposal && (
-                <button onClick={() => setEditingProposal(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "white" }}>
+                <button onClick={() => navigate(`/projects/${project.id}/edit`)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "white" }}>
                   ✏️ Edit Registration
                 </button>
               )}

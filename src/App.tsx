@@ -12,7 +12,7 @@ import SettingsPage from "./pages/admin/SettingsPage";
 import AdminChoicesPage from "./pages/admin/AdminChoicesPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
-import RegisterProjectPage from "./pages/RegisterProjectPage";
+import RegisterProjectPage, { EditProjectPage } from "./pages/RegisterProjectPage";
 import TasksPage from "./pages/TasksPage";
 import WorkPlanPage from "./pages/WorkPlanPage";
 import PersonnelChangesPage from "./pages/PersonnelChangesPage";
@@ -57,6 +57,16 @@ export default function App() {
         }
       />
       <Route path="/projects/:id" element={<ProjectDetailPage />} />
+      <Route
+        path="/projects/:id/edit"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin", "project_leader"]}>
+              <EditProjectPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
       <Route path="/tasks" element={<TasksPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/outputs" element={<OutputsPage />} />

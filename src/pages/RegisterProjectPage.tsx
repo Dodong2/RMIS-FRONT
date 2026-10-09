@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction, type TextareaHTMLAttributes } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
 import { outputsApi } from "../lib/outputsApi";
 import type { SixPCategory } from "../types/outputs";
@@ -8,7 +8,9 @@ import { errorMessage } from "../lib/errorMessage";
 import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { notify } from "../lib/notify";
 import { clearDraft, loadDraft, saveDraft } from "../lib/formDraft";
-import type { AdminChoice, AdminChoiceKind, FundingType, ProjectImportError } from "../types/research";
+import type { AdminChoice, AdminChoiceKind, FundingType, Project, ProjectImportError } from "../types/research";
+import { budgetApi } from "../lib/budgetApi";
+import { NoActualData } from "../components/common/NoActualData";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
@@ -54,15 +56,22 @@ const GENDERS = [
   { value: "female", label: "Female" },
 ];
 
+// Add Member lists the registered accounts that fit the row (client 2026-10-09); a typed name still works for people or groups without one
+const TEAM_ROLE_CODES: Record<string, string[]> = {
+  co_leader: ["project_leader", "study_leader", "program_leader"],
+  member: ["project_staff"],
+};
+
 const MODES = [
   ["manual", "✍️ Manual Entry"],
   ["excel", "📊 Upload via Excel"],
 ] as const;
 
-type TeamRow = { member_role: string; name: string; gender: string; user: number | null };
-type BeneficiaryRow = { group: string; description: string; total: string };
-type OutputRow = { category: SixPCategory | ""; description: string; target_count: string };
-type WorkPlanRow = { title: string; start_date: string; target_date: string };
+// `id` is set on rows loaded from a registered project (Edit Registered Project)
+type TeamRow = { id?: number; member_role: string; name: string; gender: string; user: number | null };
+type BeneficiaryRow = { id?: number; group: string; description: string; total: string };
+type OutputRow = { id?: number; category: SixPCategory | ""; description: string; target_count: string };
+type WorkPlanRow = { id?: number; title: string; start_date: string; target_date: string; tasks?: number };
 // Section V uses the form's own 6P wording
 const SIX_P_FORM: [SixPCategory, string][] = [
   ["publications", "Publications"],
@@ -84,7 +93,7 @@ const LIB_CATEGORIES: { key: LibCategory; label: string }[] = [
 const libRowTotal = (r: LibRow) => libLineTotal(r.quantity, r.unit_cost);
 const peso = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-type EndorserRow = { role_code: string; user: number | null; name: string; designation: string; signed_on: string };
+type EndorserRow = { id?: number; role_code: string; user: number | null; name: string; designation: string; signed_on: string };
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -479,15 +488,27 @@ const blankDraft = (lead: string): RegisterDraft => ({
   step: 0,
 });
 
-function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
+/** A registered project loaded into the wizard for Edit Registered Project (client request 2026-10-09). */
+type EditSource = {
+  project: Project;
+  draft: RegisterDraft;
+  studyIds: number[];
+  originalIds: Record<"team" | "outputs" | "beneficiaries" | "workPlan" | "endorsers", number[]>;
+};
+
+function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void; edit?: EditSource }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isEdit = !!edit;
   const isProjectLeader = user?.role?.code === "project_leader";
+  const codeLocked = isEdit && user?.role?.code !== "system_admin";
   const selfName = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() || user?.email || "";
   const draftKey = `rmis:draft:register-project:${user?.pk ?? "anon"}`;
   const [blank] = useState(() => blankDraft(isProjectLeader && user ? String(user.pk) : ""));
-  const [restored] = useState(() => loadDraft<RegisterDraft>(draftKey, DRAFT_VERSION));
-  const init: RegisterDraft = restored
+  const [restored] = useState(() => (edit ? null : loadDraft<RegisterDraft>(draftKey, DRAFT_VERSION)));
+  const init: RegisterDraft = edit
+    ? edit.draft
+    : restored
     ? { ...blank, ...restored.data, form: { ...blank.form, ...restored.data.form, ...(isProjectLeader ? { lead: blank.form.lead } : {}) } }
     : blank;
   const [projectLeaders, setProjectLeaders] = useState<{ id: number; email: string; full_name?: string }[]>([]);
@@ -546,6 +567,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
   const draftJson = JSON.stringify({ form, agencies, objectives, studyTitles, team, beneficiaryRows, outputRows, workPlanRows, libRows, libYear, endorsers, step } satisfies RegisterDraft);
 
   useEffect(() => {
+    if (isEdit) return;
     const timer = setTimeout(() => {
       if (submittedRef.current) return;
       if (draftJson === blankJson) {
@@ -556,7 +578,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
       setSavedAt(saveDraft(draftKey, DRAFT_VERSION, JSON.parse(draftJson) as RegisterDraft));
     }, 400);
     return () => clearTimeout(timer);
-  }, [draftJson, blankJson, draftKey]);
+  }, [draftJson, blankJson, draftKey, isEdit]);
 
   const discardDraft = () => {
     submittedRef.current = true;
@@ -592,7 +614,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
   const approvedBudget = Number(form.total_cost) || 0;
   const libGrandTotal = libRows.reduce((sum, r) => sum + libRowTotal(r), 0);
   const libDifference = Math.round((libGrandTotal - approvedBudget) * 100) / 100;
-  const libMatchesBudget = approvedBudget === 0 || libDifference === 0;
+  const libMatchesBudget = isEdit || approvedBudget === 0 || libDifference === 0;
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
       0: form.project_code.trim() ? [] : ["Project Code"],
@@ -645,7 +667,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
       notify.error(step === 5 ? `Grand total must equal approved budget (₱${peso(approvedBudget)}). Difference: ₱${peso(libDifference)}.` : `Fill in ${missing.join(", ")} before going to the next step.`);
       return;
     }
-    if (step === 0) {
+    if (step === 0 && form.project_code.trim() !== edit?.project.project_code) {
       setIsCheckingCode(true);
       try {
         if (!(await researchApi.isProjectCodeAvailable(form.project_code.trim()))) {
@@ -692,6 +714,111 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
     };
   };
 
+  const handleSave = async (source: EditSource) => {
+    const id = source.project.id;
+    const date = (v: string) => v || null;
+    setIsCreating(true);
+    try {
+      await researchApi.updateProject(id, {
+        title: form.title.trim(),
+        ...(codeLocked ? {} : { project_code: form.project_code.trim() }),
+        funding_type: form.funding_type as FundingType,
+        ntp_number: form.ntp_number.trim(),
+        ntp_date: date(form.ntp_date),
+        toe_signed_date: date(form.toe_signed_date),
+        is_dry_research: form.is_dry_research === "true",
+        start_date: date(form.start_date),
+        target_end_date: date(form.target_end_date),
+        rei_thrust: form.rei_thrust,
+        sdgs: form.sdgs.map(Number),
+        sectors: form.sectors as Project["sectors"],
+        sector_other: form.sectors.includes("others") ? form.sector_other.trim() : "",
+        is_continuing: isContinuing,
+        continuing_year: isContinuing ? Number(form.continuing_year) : null,
+        research_type: form.research_type as Project["research_type"],
+        research_priority_area: form.research_priority_area as Project["research_priority_area"],
+        research_typology: form.research_typology as Project["research_typology"],
+        campus: form.campus,
+        college: form.implementing_unit,
+        implementing_unit: form.implementing_unit,
+        cooperating_agencies: agencies.join(", "),
+        lead_gender: form.lead_gender as Project["lead_gender"],
+        contact_number: form.contact_number.trim(),
+        background: form.background,
+        objectives: filledObjectives.map((o, i) => `${i + 1}. ${o}`).join("\n"),
+        methodology: form.methodology,
+        socio_economic_significance: form.socio_economic_significance,
+        monitoring_evaluation: form.monitoring_evaluation,
+        references: form.references,
+        description: form.description,
+        expected_outcomes: form.expected_outcomes,
+        expected_impacts: form.expected_impacts,
+        proposal_submitted_on: date(form.proposal_submitted_on),
+        proposal_reviewed_on: date(form.proposal_reviewed_on),
+        proposal_approved_on: date(form.proposal_approved_on),
+        reviewing_body: form.reviewing_body,
+      });
+      const removed = (key: keyof EditSource["originalIds"], rows: { id?: number }[]) => source.originalIds[key].filter((oid) => !rows.some((r) => r.id === oid));
+      const results = await Promise.allSettled([
+        ...removed("team", filledTeam).map((x) => researchApi.deleteTeamMember(x)),
+        ...filledTeam.map((t) => {
+          const row = { member_role: t.member_role, name: t.name.trim(), gender: t.gender, user: t.user };
+          return t.id ? researchApi.updateTeamMember(t.id, row) : researchApi.createTeamMember({ project: id, ...row });
+        }),
+        // Registered studies can't be removed here (client 2026-10-09), so the first rows are always the saved ones
+        ...studyTitles.map((title, i) =>
+          i < source.studyIds.length
+            ? title.trim()
+              ? researchApi.updateStudy(source.studyIds[i], { title: title.trim() })
+              : Promise.resolve()
+            : title.trim()
+              ? researchApi.createStudy({ project: id, title: title.trim() })
+              : Promise.resolve(),
+        ),
+        ...removed("outputs", filledOutputs).map((x) => outputsApi.deleteExpectedOutput(x)),
+        ...filledOutputs.map((o) => {
+          const row = { category: o.category as SixPCategory, description: o.description.trim(), target_count: Number(o.target_count) || 1 };
+          return o.id ? outputsApi.updateExpectedOutput(o.id, row) : outputsApi.createExpectedOutput({ project: id, ...row });
+        }),
+        ...removed("beneficiaries", filledBeneficiaries).map((x) => researchApi.deleteBeneficiary(x)),
+        ...filledBeneficiaries.map((b) => {
+          const row = { group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 };
+          return b.id ? researchApi.updateBeneficiary(b.id, row) : researchApi.createBeneficiary({ project: id, ...row });
+        }),
+        ...removed("workPlan", filledWorkPlan).map((x) => researchApi.deleteMilestone(x)),
+        ...filledWorkPlan.map((w) =>
+          w.id
+            ? researchApi.updateMilestone(w.id, { title: w.title.trim(), start_date: w.start_date || null, target_date: w.target_date })
+            : researchApi.createMilestone({ project: id, title: w.title.trim(), start_date: w.start_date || undefined, target_date: w.target_date }),
+        ),
+        ...removed("endorsers", filledEndorsers).map((x) => researchApi.deleteEndorser(x)),
+        // Annex A is listed in id order, so new endorsers are added one after another
+        filledEndorsers.reduce(
+          (chain, e) =>
+            chain.then(() =>
+              e.id
+                ? researchApi.updateEndorser(e.id, { name: e.name.trim(), designation: e.designation.trim(), signed_on: e.signed_on || null })
+                : researchApi.createEndorser({ project: id, role_code: e.role_code, user: e.user, name: e.name.trim(), designation: e.designation.trim(), signed_on: e.signed_on || null }),
+            ),
+          Promise.resolve() as Promise<unknown>,
+        ),
+        ...[...approvalDoc, ...supportingDocs].map((f) =>
+          documentApi.registerStagedDocument({ project: id, document_type: "other", stage: "inception", staged_token: f.token! }),
+        ),
+      ]);
+      const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+      const formSaved = await documentApi.saveProposalForm(id).then(() => true, () => false);
+      if (failed.length) notify.error(`Project saved, but ${failed.length} row(s) could not be saved: ${errorMessage(failed[0].reason, "")}`);
+      else notify.success("Changes saved. A new version of the Research Proposal Form is under Document Management.");
+      if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
+      navigate(`/projects/${id}`);
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not save the changes."));
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const handleCreate = async () => {
     setAttempted(true);
     if (missingRequired.length) {
@@ -699,6 +826,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
       setStep(missingRequired[0].step);
       return;
     }
+    if (edit) return handleSave(edit);
     setIsCreating(true);
     const opt = (v: string) => v.trim() || undefined;
     try {
@@ -822,20 +950,21 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
           Project List
         </button>
         <span style={{ color: "#cbd5e1" }}>/</span>
-        <span className="text-xs font-semibold" style={{ color: "#64748b" }}>Register Approved Project</span>
+        <span className="text-xs font-semibold" style={{ color: "#64748b" }}>{edit ? `Edit ${edit.project.project_code}` : "Register Approved Project"}</span>
       </div>
 
       <div className="w-full rounded-2xl shadow-sm overflow-hidden flex flex-col" style={{ background: "white", border: "1px solid #e2e8f0" }}>
         <div className="px-6 py-4 shrink-0" style={{ background: "#0d2a5e" }}>
-          <p className="text-white font-bold text-base">Register Approved Project</p>
+          <p className="text-white font-bold text-base">{edit ? "Edit Registered Project" : "Register Approved Project"}</p>
           <p className="text-white/50 text-xs mt-0.5">
             Research Proposal Form (LSPU-RDO-SF-018) ·{" "}
             {mode === "manual" ? `Step ${step + 1}/${WIZARD_STEPS.length} — ${WIZARD_STEPS[step].label}` : "Upload via Excel"}
-            {mode === "manual" && savedAt && ` · Draft saved ${new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
+            {edit && " · The Line-Item Budget and the approved Total Project/Study Cost can't be changed here"}
+            {mode === "manual" && !edit && savedAt && ` · Draft saved ${new Date(savedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`}
           </p>
         </div>
 
-        <div className="px-5 pt-4 flex flex-wrap gap-2">
+        <div className="px-5 pt-4 flex flex-wrap gap-2" hidden={isEdit}>
           {MODES.map(([m, label]) => (
             <button
               key={m}
@@ -896,7 +1025,15 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                       <AutoTextarea className={inputCls} style={inputSt} value={form.title} onChange={set("title")} placeholder="Full official title of the research project" />
                     </Field>
                     <Field label="Project Code (LSPU Faculty Research Number)" required invalid={bad("project_code")}>
-                      <input className={inputCls} style={inputSt} value={form.project_code} onChange={set("project_code")} placeholder="e.g. FRN-2026-001" />
+                      <input
+                        className={inputCls + " read-only:opacity-70"}
+                        style={inputSt}
+                        value={form.project_code}
+                        onChange={set("project_code")}
+                        readOnly={codeLocked}
+                        title={codeLocked ? "Only the System Admin can change the code of a registered project" : undefined}
+                        placeholder="e.g. FRN-2026-001"
+                      />
                     </Field>
                     <Field label="Funding Type" required invalid={bad("funding_type")}>
                       <select className={inputCls} style={inputSt} value={form.funding_type} onChange={set("funding_type")}>
@@ -938,7 +1075,11 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                       <input type="date" className={inputCls} style={inputSt} value={form.target_end_date} onChange={set("target_end_date")} />
                     </Field>
                     <Field label="Total Project/Study Cost (PHP ₱)">
-                      <MoneyInput className={inputCls} style={inputSt} value={form.total_cost} onChange={(v) => setForm((p) => ({ ...p, total_cost: v }))} />
+                      {isEdit ? (
+                        <input readOnly className={inputCls + " opacity-70"} style={inputSt} value={form.total_cost ? `₱${peso(Number(form.total_cost))}` : "—"} title="Approved budget; changes go through Realignment" />
+                      ) : (
+                        <MoneyInput className={inputCls} style={inputSt} value={form.total_cost} onChange={(v) => setForm((p) => ({ ...p, total_cost: v }))} />
+                      )}
                     </Field>
                     <Field label="REI Thrust">
                       <ChoiceSelect choices={choices["rei-thrusts"]} value={form.rei_thrust} onChange={set("rei_thrust")} placeholder="Select an REI thrust" />
@@ -955,7 +1096,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Project Leader" required invalid={bad("lead")} span>
-                      <select className={inputCls + " disabled:opacity-80"} style={inputSt} value={form.lead} onChange={set("lead")} disabled={isProjectLeader}>
+                      <select className={inputCls + " disabled:opacity-80"} style={inputSt} value={form.lead} onChange={set("lead")} disabled={isProjectLeader || isEdit}>
                         <option value="">
                           {projectLeaders.length || isProjectLeader
                             ? "Select project leader..."
@@ -963,7 +1104,12 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                               ? "Leader list isn't available for your role, use Upload via Excel"
                               : "No active project leaders yet"}
                         </option>
-                        {(isProjectLeader && user ? [{ id: user.pk, email: user.email, full_name: selfName }] : projectLeaders).map((u) => (
+                        {(edit
+                          ? [{ id: edit.project.lead, email: edit.project.lead_detail?.email ?? "", full_name: edit.project.lead_detail?.full_name }]
+                          : isProjectLeader && user
+                            ? [{ id: user.pk, email: user.email, full_name: selfName }]
+                            : projectLeaders
+                        ).map((u) => (
                           <option key={u.id} value={u.id}>{u.full_name && u.full_name !== u.email ? `${u.full_name} (${u.email})` : u.email}</option>
                         ))}
                       </select>
@@ -1000,7 +1146,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                               </select>
                               <UserPicker
                                 className="flex-1"
-                                users={accounts.filter((a) => String(a.id) !== form.lead)}
+                                users={accounts.filter((a) => String(a.id) !== form.lead && (TEAM_ROLE_CODES[t.member_role] ?? []).includes(a.role?.code ?? ""))}
                                 value={{ user: t.user, name: t.name }}
                                 onChange={(picked) => update(picked)}
                                 placeholder="Search an account, or type a name/group (e.g. EIU Coordinators)"
@@ -1101,7 +1247,9 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                             style={inputSt}
                             placeholder={`Title of Study ${i + 1}`}
                           />
-                          {studyTitles.length > 1 && <RemoveButton onClick={() => setStudyTitles(studyTitles.filter((_, idx) => idx !== i))} label="Remove study" />}
+                          {studyTitles.length > 1 && i >= (edit?.studyIds.length ?? 0) && (
+                            <RemoveButton onClick={() => setStudyTitles(studyTitles.filter((_, idx) => idx !== i))} label="Remove study" />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1239,7 +1387,13 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                             <input className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={w.title} onChange={(e) => update({ title: e.target.value })} placeholder="Activity, e.g. Logistic preparations" />
                             <input type="date" className={inputCls + " max-w-40"} style={inputSt} value={w.start_date} onChange={(e) => update({ start_date: e.target.value })} aria-label="Start date" />
                             <input type="date" className={inputCls + " max-w-40"} style={inputSt} value={w.target_date} onChange={(e) => update({ target_date: e.target.value })} aria-label="Target date" />
-                            <RemoveButton onClick={() => setWorkPlanRows(workPlanRows.filter((_, idx) => idx !== i))} label="Remove activity" />
+                            {w.tasks ? (
+                              <span className="mt-2 text-xs shrink-0" style={{ color: "#94a3b8" }} title="Move or delete its tasks on the Tasks page first">
+                                {w.tasks} task{w.tasks !== 1 ? "s" : ""}
+                              </span>
+                            ) : (
+                              <RemoveButton onClick={() => setWorkPlanRows(workPlanRows.filter((_, idx) => idx !== i))} label="Remove activity" />
+                            )}
                           </div>
                         );
                       })}
@@ -1252,7 +1406,12 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
               )}
 
               {step === 5 && (
-                <div className="space-y-4">
+                <fieldset disabled={isEdit} className="space-y-4 min-w-0">
+                  {edit && (
+                    <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
+                      🔒 The LIB of a registered project is locked. Changes go through a Realignment under Budget Management.
+                    </div>
+                  )}
                   <StepNote>
                     Section X, Budget Requirements: the approved Line-Item Budget (Total = Qty × Unit Cost). It is saved as the project's draft LIB (version 1) for the
                     Budget Officer to certify under Budget Management. Its Grand Total must equal the Total Project/Study Cost from Project Details before you can go on.
@@ -1321,7 +1480,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                       </div>
                     )}
                   </div>
-                </div>
+                </fieldset>
               )}
 
               {step === 6 && (
@@ -1438,7 +1597,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                     <InfoCard label="Project Code" value={form.project_code} />
                     <InfoCard label="Initial Status" value="Ongoing (Approved / Registered)" />
                     <InfoCard label="Documents Uploaded" value={String(approvalDoc.length + supportingDocs.length)} />
-                    <InfoCard label="Registration Date" value={new Date().toLocaleDateString("en-PH")} />
+                    <InfoCard label={edit ? "Edited On" : "Registration Date"} value={new Date().toLocaleDateString("en-PH")} />
                   </div>
 
                   <button
@@ -1474,7 +1633,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
 
             <div className="px-6 py-4 border-t flex items-center justify-between gap-3 shrink-0" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
               <button
-                onClick={() => (step > 0 ? setStep(step - 1) : navigate("/projects"))}
+                onClick={() => (step > 0 ? setStep(step - 1) : navigate(edit ? `/projects/${edit.project.id}` : "/projects"))}
                 className="px-4 py-2 rounded-lg text-sm font-medium"
                 style={{ background: "#f1f5f9", color: "#64748b" }}
               >
@@ -1504,7 +1663,7 @@ function RegisterProjectContent({ onStartOver }: { onStartOver: () => void }) {
                   <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path d="M12 5v14M5 12h14" />
                   </svg>
-                  {isCreating ? "Registering…" : "Register Project"}
+                  {edit ? (isCreating ? "Saving…" : "Save Changes") : isCreating ? "Registering…" : "Register Project"}
                 </button>
               )}
             </div>
@@ -1522,6 +1681,135 @@ export default function RegisterProjectPage() {
     <ProtectedRoute>
       <AppShell title="Register Approved Project">
         <RegisterProjectContent key={resetKey} onStartOver={() => setResetKey((k) => k + 1)} />
+      </AppShell>
+    </ProtectedRoute>
+  );
+}
+
+const byId = <T extends { id: number }>(rows: T[]) => [...rows].sort((a, b) => a.id - b.id);
+
+/** The wizard's form state built from a registered project and its form rows. */
+async function loadEditSource(projectId: number): Promise<EditSource> {
+  const [project, team, studies, outputs, beneficiaries, milestones, endorsers, budgets] = await Promise.all([
+    researchApi.getProject(projectId),
+    researchApi.getTeamMembers(projectId),
+    researchApi.getStudies(projectId),
+    outputsApi.getExpectedOutputs({ project: projectId }),
+    researchApi.getBeneficiaries(projectId),
+    researchApi.getMilestones(projectId),
+    researchApi.getEndorsers(projectId),
+    budgetApi.getBudgets(projectId),
+  ]);
+  const p = project;
+  const lib = budgets.find((b) => b.is_current)?.line_items ?? [];
+  const sortedStudies = byId(studies);
+  const draft: RegisterDraft = {
+    form: {
+      ...blankForm(String(p.lead)),
+      title: p.title,
+      project_code: p.project_code,
+      funding_type: p.funding_type,
+      lead_gender: p.lead_gender,
+      contact_number: p.contact_number,
+      ntp_number: p.ntp_number,
+      ntp_date: p.ntp_date ?? "",
+      toe_signed_date: p.toe_signed_date ?? "",
+      is_dry_research: String(p.is_dry_research),
+      start_date: p.start_date ?? "",
+      target_end_date: p.target_end_date ?? "",
+      rei_thrust: p.rei_thrust,
+      sdgs: p.sdgs.map(String),
+      sectors: p.sectors,
+      sector_other: p.sector_other,
+      is_continuing: String(p.is_continuing),
+      continuing_year: p.continuing_year ? String(p.continuing_year) : "",
+      research_type: p.research_type,
+      research_priority_area: p.research_priority_area,
+      research_typology: p.research_typology,
+      campus: p.campus,
+      implementing_unit: p.implementing_unit || p.college,
+      total_cost: p.total_cost ?? "",
+      background: p.background,
+      methodology: p.methodology,
+      socio_economic_significance: p.socio_economic_significance,
+      monitoring_evaluation: p.monitoring_evaluation,
+      references: p.references,
+      description: p.description,
+      expected_outcomes: p.expected_outcomes,
+      expected_impacts: p.expected_impacts,
+      proposal_submitted_on: p.proposal_submitted_on ?? "",
+      proposal_reviewed_on: p.proposal_reviewed_on ?? "",
+      proposal_approved_on: p.proposal_approved_on ?? "",
+      reviewing_body: p.reviewing_body,
+    },
+    agencies: p.cooperating_agencies ? p.cooperating_agencies.split(", ").filter(Boolean) : [],
+    objectives: (() => {
+      const list = p.objectives.split("\n").map((l) => l.replace(/^\d+[.)]\s*/, "").trim()).filter(Boolean);
+      return list.length ? list : [""];
+    })(),
+    studyTitles: sortedStudies.length ? sortedStudies.map((st) => st.title) : [""],
+    team: byId(team).map((t) => ({ id: t.id, member_role: t.member_role, name: t.name, gender: t.gender, user: t.user })),
+    beneficiaryRows: beneficiaries.length
+      ? byId(beneficiaries).map((b) => ({ id: b.id, group: b.group, description: b.description, total: String(b.total) }))
+      : [{ group: "", description: "", total: "" }],
+    outputRows: byId(outputs).map((o) => ({ id: o.id, category: o.category, description: o.description, target_count: String(o.target_count) })),
+    workPlanRows: byId(milestones).map((m) => ({ id: m.id, title: m.title, start_date: m.start_date ?? "", target_date: m.target_date, tasks: m.tasks_total })),
+    // Older LIB rows have only an amount; shown as 1 x amount so the locked step still adds up
+    libRows: lib.map((r) => ({
+      category: r.category as LibCategory,
+      description: r.description,
+      unit: r.unit,
+      quantity: r.quantity ?? "1",
+      unit_cost: r.unit_cost ?? r.amount,
+    })),
+    libYear: String(lib.find((r) => r.fiscal_year)?.fiscal_year ?? new Date().getFullYear()),
+    endorsers: byId(endorsers).map((e) => ({ id: e.id, role_code: e.role_code, user: e.user, name: e.name, designation: e.designation, signed_on: e.signed_on ?? "" })),
+    step: 0,
+  };
+  return {
+    project,
+    draft,
+    studyIds: sortedStudies.map((st) => st.id),
+    originalIds: {
+      team: team.map((t) => t.id),
+      outputs: outputs.map((o) => o.id),
+      beneficiaries: beneficiaries.map((b) => b.id),
+      workPlan: milestones.map((m) => m.id),
+      endorsers: endorsers.map((e) => e.id),
+    },
+  };
+}
+
+function EditProjectContent() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const [source, setSource] = useState<EditSource | null | undefined>(undefined);
+
+  useEffect(() => {
+    let active = true;
+    loadEditSource(Number(id))
+      .then((s) => active && setSource(s))
+      .catch(() => active && setSource(null));
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (source === undefined) return <div className="h-96 rounded-2xl animate-pulse" style={{ background: "white", border: "1px solid #e2e8f0" }} />;
+  if (source === null) return <NoActualData message="Project not found" />;
+  const code = user?.role?.code;
+  if (!(code === "system_admin" || (code === "project_leader" && source.project.lead === user?.pk))) {
+    return <NoActualData message="Only the System Admin or this project's Project Leader can edit it" />;
+  }
+  return <RegisterProjectContent edit={source} onStartOver={() => undefined} />;
+}
+
+/** Edit Registered Project (client request 2026-10-09): the Register Approved Project wizard, filled from the project. */
+export function EditProjectPage() {
+  return (
+    <ProtectedRoute>
+      <AppShell title="Edit Registered Project">
+        <EditProjectContent />
       </AppShell>
     </ProtectedRoute>
   );

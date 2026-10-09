@@ -26,7 +26,7 @@ export function UserPicker({
   const query = value.name.trim().toLowerCase();
   const matches = users
     .filter((u) => !query || value.user || [u.full_name, u.email, u.role?.name ?? ""].some((v) => v.toLowerCase().includes(query)))
-    .slice(0, 8);
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
 
   return (
     <div className={`relative ${className ?? ""}`}>
@@ -48,7 +48,7 @@ export function UserPicker({
         </span>
       )}
       {open && (
-        <div className="absolute z-20 mt-1 w-full rounded-xl shadow-lg overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+        <div className="absolute z-20 mt-1 w-full rounded-xl shadow-lg overflow-y-auto max-h-64" style={{ background: "white", border: "1px solid #e2e8f0" }}>
           {matches.map((u) => (
             <button
               key={u.id}

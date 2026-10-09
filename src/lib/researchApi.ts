@@ -130,7 +130,7 @@ export const researchApi = {
     const { data } = await apiClient.post("/api/project-team/", payload);
     return data;
   },
-  updateTeamMember: async (id: number, payload: Partial<Pick<ProjectTeamMember, "member_role" | "name" | "gender">>): Promise<ProjectTeamMember> => {
+  updateTeamMember: async (id: number, payload: Partial<{ member_role: string; name: string; gender: string; user: number | null }>): Promise<ProjectTeamMember> => {
     const { data } = await apiClient.patch(`/api/project-team/${id}/`, payload);
     return data;
   },
