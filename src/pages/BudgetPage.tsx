@@ -783,11 +783,6 @@ function LIBDetail({
                 </p>
               </div>
               <div className="flex gap-2 shrink-0">
-              {canManage && isDraft && (
-                <button onClick={() => setShowWizard(true)} className="px-4 py-2 rounded-xl text-xs font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "white" }}>
-                  + Encode with Wizard
-                </button>
-              )}
               {canCertify && isDraft && (
                 <button
                   onClick={() => run(() => budgetApi.certifyBudget(budget.id), "LIB certified.")}
