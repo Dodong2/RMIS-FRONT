@@ -50,7 +50,7 @@ export const outputsApi = {
   },
   updateExpectedOutput: async (
     id: number,
-    payload: Partial<{ description: string; target_count: number; manual_actual_count: number }>,
+    payload: Partial<{ category: SixPCategory; description: string; target_count: number; manual_actual_count: number }>,
   ): Promise<ExpectedOutput> => {
     const { data } = await apiClient.patch(`/api/outputs/expected-outputs/${id}/`, payload);
     return data;

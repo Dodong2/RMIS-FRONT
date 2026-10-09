@@ -130,6 +130,13 @@ export const researchApi = {
     const { data } = await apiClient.post("/api/project-team/", payload);
     return data;
   },
+  updateTeamMember: async (id: number, payload: Partial<Pick<ProjectTeamMember, "member_role" | "name" | "gender">>): Promise<ProjectTeamMember> => {
+    const { data } = await apiClient.patch(`/api/project-team/${id}/`, payload);
+    return data;
+  },
+  deleteTeamMember: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/project-team/${id}/`);
+  },
   createProjectLib: async (
     projectId: number,
     lineItems: {
@@ -152,6 +159,13 @@ export const researchApi = {
     const { data } = await apiClient.post("/api/project-endorsers/", payload);
     return data;
   },
+  updateEndorser: async (id: number, payload: Partial<Pick<ProjectEndorser, "name" | "designation" | "signed_on">>): Promise<ProjectEndorser> => {
+    const { data } = await apiClient.patch(`/api/project-endorsers/${id}/`, payload);
+    return data;
+  },
+  deleteEndorser: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/project-endorsers/${id}/`);
+  },
   getBeneficiaries: async (projectId: number): Promise<TargetBeneficiary[]> => {
     const { data } = await apiClient.get("/api/target-beneficiaries/", { params: { project: projectId } });
     return data;
@@ -165,12 +179,23 @@ export const researchApi = {
     const { data } = await apiClient.post("/api/target-beneficiaries/", payload);
     return data;
   },
+  updateBeneficiary: async (id: number, payload: Partial<Pick<TargetBeneficiary, "group" | "description" | "total">>): Promise<TargetBeneficiary> => {
+    const { data } = await apiClient.patch(`/api/target-beneficiaries/${id}/`, payload);
+    return data;
+  },
+  deleteBeneficiary: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/target-beneficiaries/${id}/`);
+  },
   getStudies: async (projectId: number): Promise<Study[]> => {
     const { data } = await apiClient.get(`/api/studies/?project=${projectId}`);
     return data;
   },
   createStudy: async (payload: { project: number; title: string; lead?: number | null }): Promise<Study> => {
     const { data } = await apiClient.post("/api/studies/", payload);
+    return data;
+  },
+  updateStudy: async (id: number, payload: { title: string }): Promise<Study> => {
+    const { data } = await apiClient.patch(`/api/studies/${id}/`, payload);
     return data;
   },
   getMilestones: async (projectId?: number, opts: { delayed?: boolean } = {}): Promise<Milestone[]> => {
@@ -206,6 +231,9 @@ export const researchApi = {
   ): Promise<Milestone> => {
     const { data } = await apiClient.patch(`/api/milestones/${id}/`, payload);
     return data;
+  },
+  deleteMilestone: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/milestones/${id}/`);
   },
   updateMilestoneStatus: async (id: number, status: string): Promise<Milestone> => {
     const { data } = await apiClient.patch(`/api/milestones/${id}/`, { status });

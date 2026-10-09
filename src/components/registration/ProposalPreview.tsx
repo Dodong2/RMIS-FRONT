@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ProtoModal } from "../common/proto";
+import { BORDER, BUDGET_GROUPS, HEAD, SIX_P_LABELS } from "./proposalForm";
 import { PRIORITY_AREA_LABELS, RESEARCH_TYPE_LABELS, SDG_LABELS, SECTOR_LABELS, TYPOLOGY_LABELS } from "../../lib/projectOptions";
 
 export type ProposalPerson = { name: string; gender?: string };
@@ -43,21 +44,6 @@ export type ProposalData = {
   proposal_submitted_on: string;
 };
 
-const HEAD = { background: "#e7dfc6", color: "#1e293b" };
-const BORDER = "1px solid #94a3b8";
-const SIX_P_LABELS: Record<string, string> = {
-  publications: "Publications",
-  patents: "Patent",
-  products: "Products",
-  people_services: "People Services",
-  places_partnerships: "Places/Partnerships",
-  policies: "Policy Recommendations",
-};
-const BUDGET_GROUPS = [
-  { key: "ps", label: "PERSONAL SERVICES (PS)" },
-  { key: "mooe", label: "MAINTENANCE AND OTHER OPERATING EXPENSES (MOOE)" },
-  { key: "co", label: "EQUIPMENT OUTLAY (CO)" },
-];
 
 const peso = (n: number) => (n ? n.toLocaleString("en-PH", { maximumFractionDigits: 2 }) : "-");
 const fmtDate = (d?: string | null) =>
