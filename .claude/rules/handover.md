@@ -120,10 +120,9 @@ automatically — most pages needed zero code changes for this pass.
 - Module 5 (Disbursements/Realignments): DisbursementsPage built against
   financial_monitoring — record disbursements against a certified budget's line
   items, request fund realignments (existing item or new BOR-tier item), and
-  review pending ones inline (BOR tier requires a resolution number). Review is
-  tier-gated per client confirmation 2026-09-22: major tier (33-100%) can be
-  reviewed by university_admin or system_admin; BOR tier (>100%/new item) is
-  system_admin only. A pending row a viewer can't act on shows "Awaiting ..."
+  review pending ones inline (no BOR resolution no. since client 2026-10-10). Every
+  tier, minor included, is reviewed by finance_budget (Budget Officer) or system_admin
+  (client 2026-10-08). A pending row a viewer can't act on shows "Awaiting ..."
   instead of the Approve/Reject buttons. Untested end-to-end — backend migrated
   and smoke-tested via shell only, not yet hit with real HTTP requests on either side.
 - Module 6 (Ethics/Integrity/Compliance): CompliancePage built against the
@@ -518,9 +517,9 @@ financial_monitoring (Module 5):
 - GET/POST /api/financial/disbursements/?budget=<id> (finance_budget/system_admin only to POST)
 - GET/POST /api/financial/realignments/?budget=<id> (project_leader/system_admin only to POST;
   tier and status are server-computed)
-- POST /api/financial/realignments/<id>/review/ — major tier: university_admin/
-  system_admin; BOR tier: system_admin only (client-confirmed 2026-09-22, no BOR
-  role exists in-system). BOR approval requires bor_resolution_number.
+- POST /api/financial/realignments/<id>/review/ — all tiers: finance_budget/
+  system_admin (client 2026-10-08). Payload is just { decision }; no
+  bor_resolution_number anymore (client 2026-10-10).
 - GET /api/financial/budgets/<id>/summary/ — Approved/Adjusted/Actual/Available per line item
 
 compliance (Module 6):
@@ -677,8 +676,6 @@ pattern is pre-clone.
 - Realignment "one pending request per project" (yearly limit removed 2026-10-10),
   "same class only", and "60 days before target_end_date" rules are enforced server-side only — no client-side
   pre-check, so the form just surfaces whatever error message the backend returns.
-- BOR-tier review requires typing a resolution number inline before Approve is
-  clicked; there's no separate confirmation step.
 
 ## Last thing done in this repo
 2026-10-02: every frontend task of the 2026-10-01 client plan and the 2026-10-02 follow-ups is committed on
