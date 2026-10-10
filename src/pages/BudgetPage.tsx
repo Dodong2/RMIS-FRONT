@@ -5,7 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { financialApi } from "../lib/financialApi";
 import { budgetSummaryQuery, financialRecordsQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { REALIGNMENT_STATUS_META } from "../lib/realignment";
@@ -512,20 +512,12 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   );
 }
 
-function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudget; roleCode: string; onChanged: () => void }) {
-  const certified = budget.status === "certified";
-  const recordsQ = useQuery({ ...financialRecordsQuery(budget.id), enabled: certified });
-  const realignments = recordsQ.data?.realignments ?? [];
-  const [showRequest, setShowRequest] = useState(false);
+const canReviewRealignmentTier = (roleCode: string, t: RealignmentTier) =>
+  (t === "bor" ? REALIGNMENT_BOR_REVIEW_ROLE_CODES : REALIGNMENT_MAJOR_REVIEW_ROLE_CODES).includes(roleCode);
+
+/** Approve/reject flow shared by the per-project Realignment tab and the global list. */
+function useRealignmentReview(onChanged: () => void) {
   const [bor, setBor] = useState<Record<number, string>>({});
-  const canRequest = certified && REALIGNMENT_REQUEST_ROLE_CODES.includes(roleCode);
-  const canReviewTier = (t: RealignmentTier) => (t === "bor" ? REALIGNMENT_BOR_REVIEW_ROLE_CODES : REALIGNMENT_MAJOR_REVIEW_ROLE_CODES).includes(roleCode);
-  const itemName = (id: number | null) => budget.line_items.find((i) => i.id === id);
-
-  useEffect(() => {
-    if (recordsQ.isError) notify.error("Could not load the realignment requests.");
-  }, [recordsQ.isError]);
-
   const reviewMutation = useMutation({
     mutationFn: (v: { r: BudgetRealignment; decision: "approved" | "rejected" }) =>
       financialApi.reviewRealignment(v.r.id, {
@@ -547,6 +539,23 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
     }
     reviewMutation.mutate({ r, decision });
   };
+
+  return { bor, setBor, review, reviewing };
+}
+
+function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudget; roleCode: string; onChanged: () => void }) {
+  const certified = budget.status === "certified";
+  const recordsQ = useQuery({ ...financialRecordsQuery(budget.id), enabled: certified });
+  const realignments = recordsQ.data?.realignments ?? [];
+  const [showRequest, setShowRequest] = useState(false);
+  const { bor, setBor, review, reviewing } = useRealignmentReview(onChanged);
+  const canRequest = certified && REALIGNMENT_REQUEST_ROLE_CODES.includes(roleCode);
+  const canReviewTier = (t: RealignmentTier) => canReviewRealignmentTier(roleCode, t);
+  const itemName = (id: number | null) => budget.line_items.find((i) => i.id === id);
+
+  useEffect(() => {
+    if (recordsQ.isError) notify.error("Could not load the realignment requests.");
+  }, [recordsQ.isError]);
 
   return (
     <div className="space-y-4">
@@ -1096,6 +1105,146 @@ function LIBDetail({
   );
 }
 
+const isPendingRealignment = (r: BudgetRealignment) => r.status === "pending_approval" || r.status === "pending_bor";
+
+const realignmentsQuery = () =>
+  queryOptions({ queryKey: [...queryKeys.financialAll, "realignments"], queryFn: () => financialApi.getRealignments() });
+
+/** Banner on the Budget list: entry point to the cross-project realignment queue. */
+function RealignmentBanner({ onOpen }: { onOpen: () => void }) {
+  const q = useQuery(realignmentsQuery());
+  const pending = (q.data ?? []).filter(isPendingRealignment).length;
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all hover:shadow-md"
+      style={{ background: "#ecfeff", border: "1px solid #a5f3fc" }}
+    >
+      <span className="w-11 h-11 rounded-full flex items-center justify-center shrink-0" style={{ background: "#cffafe", color: "#0891b2" }}>
+        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M7 7h13l-4-4M17 17H4l4 4" />
+        </svg>
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold" style={{ color: "#0d2a5e" }}>Manage Realignment Requests</p>
+        <p className="text-xs mt-0.5" style={{ color: "#0891b2" }}>Review and approve budget shifting across all projects in your campus.</p>
+      </div>
+      {q.data && (
+        <span className="text-xs font-bold px-3 py-1 rounded-full text-white shrink-0" style={{ background: pending ? "#3b82a6" : "#94a3b8" }}>
+          {pending} Pending
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** Global Realignment Requests: every realignment in the user's scope, reviewable in one place. */
+function GlobalRealignments({ projects, budgets, roleCode, onBack }: { projects: Project[]; budgets: LineItemBudget[]; roleCode: string; onBack: () => void }) {
+  const queryClient = useQueryClient();
+  const q = useQuery(realignmentsQuery());
+  const reload = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
+    queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
+  };
+  const { bor, setBor, review, reviewing } = useRealignmentReview(reload);
+
+  useEffect(() => {
+    if (q.isError) notify.error("Could not load the realignment requests.");
+  }, [q.isError]);
+
+  const items = budgets.flatMap((b) => b.line_items);
+  const item = (id: number | null) => items.find((i) => i.id === id);
+  const projectOf = (lineItemId: number) => {
+    const b = budgets.find((x) => x.line_items.some((i) => i.id === lineItemId));
+    return b ? projects.find((p) => p.id === b.project) : undefined;
+  };
+  const itemLabel = (li: LineItem | undefined, fallback: string) => (li ? `${li.description} (${CATEGORY_META[li.category].label})` : fallback);
+  const realignments = q.data ?? [];
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center gap-2 text-sm">
+        <button onClick={onBack} className="font-semibold" style={{ color: "#0891b2" }}>‹ Budget Management</button>
+        <span style={{ color: "#cbd5e1" }}>/</span>
+        <span className="text-xs font-mono" style={{ color: "#64748b" }}>Global Realignment Requests</span>
+      </div>
+
+      <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+        <div className="px-6 py-5" style={{ background: "linear-gradient(135deg, #0d2a5e, #1e3a8a)" }}>
+          <p className="font-black text-lg text-white">Realignment Requests</p>
+          <p className="text-xs mt-1" style={{ color: "#cbd5e1" }}>Review and manage cross-project budget realignment requests.</p>
+        </div>
+        {q.isPending ? (
+          <div className="p-4"><SkeletonRows rows={3} /></div>
+        ) : realignments.length === 0 ? (
+          <div className="p-4"><NoActualData /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  {["Project", "Date", "From / To", "Amount", "Justification", "Status", "Actions"].map((h) => (
+                    <th key={h} className={`px-4 py-3 text-xs font-bold whitespace-nowrap ${h === "Amount" ? "text-right" : "text-left"}`} style={{ color: "#64748b" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {realignments.map((r) => {
+                  const sm = REALIGNMENT_STATUS_META[r.status];
+                  const project = projectOf(r.from_line_item);
+                  const to = r.to_line_item
+                    ? itemLabel(item(r.to_line_item), `#${r.to_line_item}`)
+                    : `New: ${r.new_item_description}${r.new_item_category ? ` (${CATEGORY_META[r.new_item_category].label})` : ""}`;
+                  return (
+                    <tr key={r.id} className="border-t align-top" style={{ borderColor: "#f1f5f9" }}>
+                      <td className="px-4 py-3">
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded" style={{ background: "#e0f2fe", color: "#0369a1" }}>{project?.project_code ?? "—"}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{r.created_at.slice(0, 10)}</td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "#475569" }}>
+                        <p><span className="font-bold">From:</span> {itemLabel(item(r.from_line_item), `#${r.from_line_item}`)}</p>
+                        <p className="mt-0.5"><span className="font-bold">To:</span> {to}</p>
+                      </td>
+                      <td className="px-4 py-3 text-xs font-mono font-bold text-right whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(r.amount)}</td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "#475569", maxWidth: "280px" }}>{r.justification}</td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        <span className="font-bold px-2 py-0.5 rounded-full" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
+                        {r.bor_resolution_number && <p className="mt-1 font-mono" style={{ color: "#6b21a8" }}>BOR Res. {r.bor_resolution_number}</p>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isPendingRealignment(r) && canReviewRealignmentTier(roleCode, r.tier) ? (
+                          <div className="space-y-1.5 min-w-40">
+                            {r.tier === "bor" && (
+                              <input
+                                className={INPUT_CLS + " py-1.5 text-xs"}
+                                style={INPUT_STYLE}
+                                placeholder="BOR resolution no."
+                                value={bor[r.id] ?? ""}
+                                onChange={(e) => setBor((b) => ({ ...b, [r.id]: e.target.value }))}
+                              />
+                            )}
+                            <div className="flex gap-1.5">
+                              <button disabled={reviewing === r.id} onClick={() => review(r, "approved")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ background: "#059669" }}>Approve</button>
+                              <button disabled={reviewing === r.id} onClick={() => review(r, "rejected")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#fee2e2", color: "#dc2626" }}>Reject</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs" style={{ color: "#94a3b8" }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BudgetContent() {
   const { user } = useAuth();
   const code = user?.role?.code ?? "";
@@ -1113,7 +1262,11 @@ function BudgetContent() {
     if (failed) notify.error("Could not load budgets. Check your connection and refresh.");
   }, [failed]);
 
+  const canReviewRealignments = REALIGNMENT_MAJOR_REVIEW_ROLE_CODES.includes(code);
   const current = budgets.filter((b) => b.is_current);
+  if (canReviewRealignments && params.get("view") === "realignments") {
+    return projects === null ? <SkeletonRows rows={3} /> : <GlobalRealignments projects={projects} budgets={budgets} roleCode={code} onBack={() => setParams({})} />;
+  }
   const selected = projects?.find((p) => p.id === Number(params.get("project")));
   if (selected) {
     return (
@@ -1150,6 +1303,8 @@ function BudgetContent() {
           </div>
         ))}
       </div>
+
+      {canReviewRealignments && <RealignmentBanner onOpen={() => setParams({ view: "realignments" })} />}
 
       <div>
         <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
