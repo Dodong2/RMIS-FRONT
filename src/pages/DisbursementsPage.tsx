@@ -299,7 +299,7 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
   return (
     <Modal
       title="Request Budget Realignment"
-      subtitle="One open request at a time · at least 60 days before the target end date · can't be edited once submitted"
+      subtitle="Within the same class only (e.g. MOOE → MOOE) · one open request at a time · can't be edited once submitted"
       onClose={onClose}
       width="max-w-2xl"
       footer={
@@ -326,7 +326,10 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="From Line Item" required>
-                <select className={INPUT_CLS} style={bad(!row.from_line_item)} value={row.from_line_item} onChange={(e) => setRow(idx, { from_line_item: e.target.value })}>
+                <select className={INPUT_CLS} style={bad(!row.from_line_item)} value={row.from_line_item} onChange={(e) => {
+                    const src = budget.line_items.find((i) => String(i.id) === e.target.value);
+                    setRow(idx, { from_line_item: e.target.value, to_line_item: "", new_item_category: src?.category ?? "" });
+                  }}>
                   <option value="">Select source item</option>
                   {budget.line_items.map((i) => (
                     <option key={i.id} value={i.id}>{CATEGORY_META[i.category].label} — {i.description} ({peso(i.amount)})</option>
@@ -345,7 +348,7 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
                 <select className={INPUT_CLS} style={bad(!row.to_line_item)} value={row.to_line_item} onChange={(e) => setRow(idx, { to_line_item: e.target.value })}>
                   <option value="">Select target item</option>
                   {budget.line_items
-                    .filter((i) => String(i.id) !== row.from_line_item)
+                    .filter((i) => String(i.id) !== row.from_line_item && (!from || i.category === from.category))
                     .map((i) => (
                       <option key={i.id} value={i.id}>{CATEGORY_META[i.category].label} — {i.description}</option>
                     ))}
@@ -353,13 +356,8 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
               </Field>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <Field label="New Item Category" required>
-                  <select className={INPUT_CLS} style={bad(!row.new_item_category)} value={row.new_item_category} onChange={(e) => setRow(idx, { new_item_category: e.target.value })}>
-                    <option value="">Select category</option>
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{CATEGORY_META[c].full}</option>
-                    ))}
-                  </select>
+                <Field label="New Item Category">
+                  <input readOnly tabIndex={-1} className={INPUT_CLS} style={{ ...INPUT_STYLE, background: "#f1f5f9" }} value={from ? CATEGORY_META[from.category].full : "Same as the source item"} />
                 </Field>
                 <Field label="New Item Description" required>
                   <input className={INPUT_CLS} style={bad(!row.new_item_description.trim())} value={row.new_item_description} onChange={(e) => setRow(idx, { new_item_description: e.target.value })} />
