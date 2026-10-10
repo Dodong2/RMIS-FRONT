@@ -102,3 +102,30 @@ export function ProtoModal({
     document.body,
   );
 }
+
+const PAGE_BTN = "px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40";
+const PAGE_IDLE = { border: "1px solid #e2e8f0", color: "#475569", background: "white" };
+
+/** "Showing 1–10 of 23 · ‹ Prev 1 2 3 Next ›". Hidden when everything fits on one page. */
+export function Pager({ page, pageCount, total, size, onPage }: { page: number; pageCount: number; total: number; size: number; onPage: (n: number) => void }) {
+  if (pageCount <= 1) return null;
+  // First, last, and current ±1; gaps become "…".
+  const nums = [...new Set([1, page - 1, page, page + 1, pageCount])].filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b);
+  return (
+    <div className="px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
+      <p className="text-xs" style={{ color: "#64748b" }}>
+        Showing {(page - 1) * size + 1}–{Math.min(page * size, total)} of {total}
+      </p>
+      <div className="flex items-center gap-1">
+        <button disabled={page === 1} onClick={() => onPage(page - 1)} className={PAGE_BTN} style={PAGE_IDLE}>‹ Prev</button>
+        {nums.map((n, i) => (
+          <span key={n} className="flex items-center gap-1">
+            {i > 0 && n - nums[i - 1] > 1 && <span className="text-xs px-1" style={{ color: "#94a3b8" }}>…</span>}
+            <button onClick={() => onPage(n)} className={PAGE_BTN} style={n === page ? { background: "#0d2a5e", color: "white" } : PAGE_IDLE}>{n}</button>
+          </span>
+        ))}
+        <button disabled={page === pageCount} onClick={() => onPage(page + 1)} className={PAGE_BTN} style={PAGE_IDLE}>Next ›</button>
+      </div>
+    </div>
+  );
+}

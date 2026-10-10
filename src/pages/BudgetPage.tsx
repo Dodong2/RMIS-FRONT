@@ -18,7 +18,8 @@ import type { BudgetRealignment, BudgetSummary, RealignmentTier } from "../types
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
-import { Field, SkeletonRows } from "../components/common/proto";
+import { Field, Pager, SkeletonRows } from "../components/common/proto";
+import { pageOf } from "../lib/paging";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 
@@ -41,7 +42,6 @@ const STATUS_META = {
 } as const;
 
 const PAGE_SIZE = 10;
-const PAGE_BTN = "px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40";
 
 type LIBTab = "overview" | "line_items" | "utilization" | "realignment" | "history";
 
@@ -1277,9 +1277,7 @@ function BudgetContent() {
     return !term || [p.project_code, p.title, personName(p.lead_detail)].some((v) => (v ?? "").toLowerCase().includes(term));
   });
   // Page-based, client-side: every current LIB is already loaded, so 10 per page needs no backend paging.
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const paged = pageOf(filtered, page, PAGE_SIZE);
   const sum = (list: LineItemBudget[]) => list.reduce((s, b) => s + Number(b.total_amount), 0);
   const kpis = [
     { label: "Total LIB", val: peso(sum(current)), mono: true, color: "#0d2a5e" },
@@ -1375,7 +1373,7 @@ function BudgetContent() {
           ) : filtered.length === 0 ? (
             <p className="rounded-2xl p-6 text-center text-xs" style={{ background: "white", border: "1px solid #e2e8f0", color: "#94a3b8" }}>No LIBs match your search or filter.</p>
           ) : (
-            pageRows.map((project) => {
+            paged.rows.map((project) => {
               const b = current.find((x) => x.project === project.id)!;
               return (
                 <div
@@ -1431,27 +1429,7 @@ function BudgetContent() {
           )}
         </div>
 
-        {filtered.length > PAGE_SIZE && (
-          <div className="mt-4 flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-xs" style={{ color: "#64748b" }}>
-              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
-            </p>
-            <div className="flex items-center gap-1">
-              <button disabled={safePage === 1} onClick={() => setPage(safePage - 1)} className={PAGE_BTN} style={{ border: "1px solid #e2e8f0", color: "#475569" }}>‹ Prev</button>
-              {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={PAGE_BTN}
-                  style={n === safePage ? { background: "#0d2a5e", color: "white" } : { border: "1px solid #e2e8f0", color: "#475569" }}
-                >
-                  {n}
-                </button>
-              ))}
-              <button disabled={safePage === pageCount} onClick={() => setPage(safePage + 1)} className={PAGE_BTN} style={{ border: "1px solid #e2e8f0", color: "#475569" }}>Next ›</button>
-            </div>
-          </div>
-        )}
+        <Pager page={paged.page} pageCount={paged.pageCount} total={filtered.length} size={PAGE_SIZE} onPage={setPage} />
       </div>
     </div>
   );

@@ -12,8 +12,12 @@ import type { AccountStatus, AdminUser, AuditLog, PermissionMatrix, Role, Tempor
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { useAuth } from "../../context/AuthContext";
 import { AppShell } from "../../components/layout/AppShell";
-import { Field, Pill, ProtoModal, SkeletonRows, TableHead } from "../../components/common/proto";
+import { Field, Pager, Pill, ProtoModal, SkeletonRows, TableHead } from "../../components/common/proto";
+import { pageOf } from "../../lib/paging";
 import { NoActualData } from "../../components/common/NoActualData";
+
+const PAGE_SIZE = 10;
+const PROFILE_PAGE_SIZE = 9; // 3-column card grid: 3 full rows
 
 type Tab = "accounts" | "profiles" | "assignments" | "permissions" | "audit";
 type StatusAction = "suspend" | "reactivate" | "deactivate";
@@ -560,6 +564,15 @@ function UsersListContent() {
     });
   }, [users, search, roleFilter, campusFilter, statusFilter]);
 
+  // Back to page 1 whenever the tab or a filter changes.
+  const pageKey = [tab, search, roleFilter, campusFilter, statusFilter].join("|");
+  const [pageState, setPageState] = useState({ key: pageKey, n: 1 });
+  const page = pageState.key === pageKey ? pageState.n : 1;
+  const setPage = (n: number) => setPageState({ key: pageKey, n });
+  const accountsPage = pageOf(filtered, page, PAGE_SIZE);
+  const profilesPage = pageOf(filtered, page, PROFILE_PAGE_SIZE);
+  const auditPage = pageOf(auditLogs ?? [], page, PAGE_SIZE);
+
   const kpis = {
     total: users.length,
     active: users.filter((u) => u.account_status === "active").length,
@@ -713,7 +726,7 @@ function UsersListContent() {
             <table className="w-full text-sm">
               <TableHead cols={["User", "Role", "Office / Position", "Scope", "Joined", "Status", "Actions"]} />
               <tbody>
-                {filtered.map((u) => {
+                {accountsPage.rows.map((u) => {
                   const draftRoleId = pendingRole[u.id] ?? (u.role ? String(u.role.id) : "");
                   const hasChange = draftRoleId !== "" && draftRoleId !== String(u.role?.id ?? "");
                   const isMe = u.id === me?.pk;
@@ -773,6 +786,7 @@ function UsersListContent() {
           {filtered.length > 0 && (
             <p className="px-4 py-2 text-xs border-t" style={{ color: "#94a3b8", borderColor: "#f1f5f9" }}>{filtered.length} of {users.length} accounts</p>
           )}
+          <Pager page={accountsPage.page} pageCount={accountsPage.pageCount} total={filtered.length} size={PAGE_SIZE} onPage={setPage} />
         </div>
       )}
 
@@ -780,8 +794,9 @@ function UsersListContent() {
         (filtered.length === 0 ? (
           <NoActualData message="No accounts match your filters." />
         ) : (
+          <div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((u) => {
+            {profilesPage.rows.map((u) => {
               const st = protoRoleStyle(u.role);
               return (
                 <div key={u.id} className="rounded-2xl p-5 hover:shadow-md transition-all cursor-pointer" style={{ background: "white", border: "1px solid #e2e8f0" }} onClick={() => setSelectedId(u.id)}>
@@ -810,6 +825,8 @@ function UsersListContent() {
                 </div>
               );
             })}
+          </div>
+          <Pager page={profilesPage.page} pageCount={profilesPage.pageCount} total={filtered.length} size={PROFILE_PAGE_SIZE} onPage={setPage} />
           </div>
         ))}
 
@@ -905,7 +922,7 @@ function UsersListContent() {
               <table className="w-full text-sm">
                 <TableHead cols={["Date & Time", "Method", "Endpoint", "Actor", "IP", "Result"]} />
                 <tbody>
-                  {auditLogs.map((log) => {
+                  {auditPage.rows.map((log) => {
                     const mm = METHOD_META[log.method] ?? METHOD_META.POST;
                     const ok = log.status_code < 400;
                     return (
@@ -923,6 +940,7 @@ function UsersListContent() {
                   })}
                 </tbody>
               </table>
+              <Pager page={auditPage.page} pageCount={auditPage.pageCount} total={auditLogs.length} size={PAGE_SIZE} onPage={setPage} />
             </div>
           )}
         </div>
