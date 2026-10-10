@@ -460,7 +460,6 @@ function ProjectBoard({
   const [showRecord, setShowRecord] = useState(false);
   const [showRealign, setShowRealign] = useState(false);
   const [selectedTxn, setSelectedTxn] = useState<number | null>(null);
-  const [bor, setBor] = useState<Record<number, string>>({});
 
   useEffect(() => {
     if (recordsFailed) notify.error("Could not load financial records for this project.");
@@ -477,7 +476,6 @@ function ProjectBoard({
     mutationFn: (v: { r: BudgetRealignment; decision: "approved" | "rejected" }) =>
       financialApi.reviewRealignment(v.r.id, {
         decision: v.decision,
-        bor_resolution_number: v.decision === "approved" && v.r.tier === "bor" ? bor[v.r.id].trim() : undefined,
       }),
     onSuccess: (_, v) => {
       notify.success(v.decision === "approved" ? "Realignment approved." : "Realignment rejected.");
@@ -488,10 +486,6 @@ function ProjectBoard({
   const reviewing = reviewMutation.isPending ? (reviewMutation.variables?.r.id ?? null) : null;
 
   const review = (r: BudgetRealignment, decision: "approved" | "rejected") => {
-    if (decision === "approved" && r.tier === "bor" && !bor[r.id]?.trim()) {
-      notify.error("Enter the BOR resolution number before approving.");
-      return;
-    }
     reviewMutation.mutate({ r, decision });
   };
 
@@ -841,28 +835,18 @@ function ProjectBoard({
                               <td className="px-4 py-3"><Chip bg={TIER_META[r.tier].bg} color={TIER_META[r.tier].color}>{TIER_META[r.tier].label}</Chip></td>
                               <td className="px-4 py-3">
                                 <Chip bg={STATUS_META[r.status].bg} color={STATUS_META[r.status].color}>{STATUS_META[r.status].label}</Chip>
-                                {r.bor_resolution_number && <p className="text-xs mt-1 font-mono" style={{ color: "#6b21a8" }}>BOR Res. {r.bor_resolution_number}</p>}
                               </td>
                               <td className="px-4 py-3 text-xs" style={{ color: "#475569", maxWidth: "220px" }}>{r.justification}</td>
                               <td className="px-4 py-3">
                                 {can ? (
                                   <div className="space-y-1.5 min-w-40">
-                                    {r.tier === "bor" && (
-                                      <input
-                                        className={INPUT_CLS + " py-1.5 text-xs"}
-                                        style={INPUT_STYLE}
-                                        placeholder="BOR resolution no."
-                                        value={bor[r.id] ?? ""}
-                                        onChange={(e) => setBor((b) => ({ ...b, [r.id]: e.target.value }))}
-                                      />
-                                    )}
                                     <div className="flex gap-1.5">
                                       <button disabled={reviewing === r.id} onClick={() => review(r, "approved")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold text-white" style={{ background: "#059669" }}>Approve</button>
                                       <button disabled={reviewing === r.id} onClick={() => review(r, "rejected")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold" style={{ background: "#fee2e2", color: "#dc2626" }}>Reject</button>
                                     </div>
                                   </div>
                                 ) : pending ? (
-                                  <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting Budget Officer{r.tier === "bor" ? " (BOR resolution)" : ""}</span>
+                                  <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting Budget Officer</span>
                                 ) : (
                                   <span className="text-xs" style={{ color: "#94a3b8" }}>{r.reviewed_at ? `Reviewed by ${r.reviewed_by_name ?? "—"} · ${r.reviewed_at.slice(0, 10)}` : "Auto-implemented"}</span>
                                 )}

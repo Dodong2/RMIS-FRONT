@@ -43,7 +43,7 @@ export const financialApi = {
   },
   reviewRealignment: async (
     id: number,
-    payload: { decision: "approved" | "rejected"; bor_resolution_number?: string },
+    payload: { decision: "approved" | "rejected" },
   ): Promise<BudgetRealignment> => {
     const { data } = await apiClient.post(`/api/financial/realignments/${id}/review/`, payload);
     return data;

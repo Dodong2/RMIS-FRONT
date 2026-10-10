@@ -519,12 +519,10 @@ const canReviewRealignmentTier = (roleCode: string, t: RealignmentTier) =>
 
 /** Approve/reject flow shared by the per-project Realignment tab and the global list. */
 function useRealignmentReview(onChanged: () => void) {
-  const [bor, setBor] = useState<Record<number, string>>({});
   const reviewMutation = useMutation({
     mutationFn: (v: { r: BudgetRealignment; decision: "approved" | "rejected" }) =>
       financialApi.reviewRealignment(v.r.id, {
         decision: v.decision,
-        bor_resolution_number: v.decision === "approved" && v.r.tier === "bor" ? bor[v.r.id].trim() : undefined,
       }),
     onSuccess: (_, v) => {
       notify.success(v.decision === "approved" ? "Realignment approved." : "Realignment rejected.");
@@ -535,14 +533,10 @@ function useRealignmentReview(onChanged: () => void) {
   const reviewing = reviewMutation.isPending ? (reviewMutation.variables?.r.id ?? null) : null;
 
   const review = (r: BudgetRealignment, decision: "approved" | "rejected") => {
-    if (decision === "approved" && r.tier === "bor" && !bor[r.id]?.trim()) {
-      notify.error("Enter the BOR resolution number before approving.");
-      return;
-    }
     reviewMutation.mutate({ r, decision });
   };
 
-  return { bor, setBor, review, reviewing };
+  return { review, reviewing };
 }
 
 function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudget; roleCode: string; onChanged: () => void }) {
@@ -550,7 +544,7 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
   const recordsQ = useQuery({ ...financialRecordsQuery(budget.id), enabled: certified });
   const realignments = recordsQ.data?.realignments ?? [];
   const [showRequest, setShowRequest] = useState(false);
-  const { bor, setBor, review, reviewing } = useRealignmentReview(onChanged);
+  const { review, reviewing } = useRealignmentReview(onChanged);
   const canRequest = certified && REALIGNMENT_REQUEST_ROLE_CODES.includes(roleCode);
   // Client 2026-10-10: only one open request per project (the server enforces it too).
   const hasPending = realignments.some(isPendingRealignment);
@@ -618,7 +612,6 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
                     <td className="px-4 py-3 text-xs" style={{ color: "#475569", maxWidth: "280px" }}>{r.justification}</td>
                     <td className="px-4 py-3 text-xs whitespace-nowrap">
                       <span className="font-bold px-2 py-0.5 rounded-full" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
-                      {r.bor_resolution_number && <p className="mt-1 font-mono" style={{ color: "#6b21a8" }}>BOR Res. {r.bor_resolution_number}</p>}
                       {r.reviewed_at && (
                         <p className="mt-1" style={{ color: "#94a3b8" }}>
                           by {r.reviewed_by_name ?? "—"} · {r.reviewed_at.slice(0, 10)}
@@ -628,22 +621,13 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
                     <td className="px-4 py-3">
                       {pending && canReviewTier(r.tier) ? (
                         <div className="space-y-1.5 min-w-40">
-                          {r.tier === "bor" && (
-                            <input
-                              className={INPUT_CLS + " py-1.5 text-xs"}
-                              style={INPUT_STYLE}
-                              placeholder="BOR resolution no."
-                              value={bor[r.id] ?? ""}
-                              onChange={(e) => setBor((b) => ({ ...b, [r.id]: e.target.value }))}
-                            />
-                          )}
                           <div className="flex gap-1.5">
                             <button disabled={reviewing === r.id} onClick={() => review(r, "approved")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ background: "#059669" }}>Approve</button>
                             <button disabled={reviewing === r.id} onClick={() => review(r, "rejected")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#fee2e2", color: "#dc2626" }}>Reject</button>
                           </div>
                         </div>
                       ) : pending ? (
-                        <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting Budget Officer{r.tier === "bor" ? " (BOR resolution)" : ""}</span>
+                        <span className="text-xs" style={{ color: "#94a3b8" }}>Awaiting Budget Officer</span>
                       ) : (
                         <span className="text-xs" style={{ color: "#94a3b8" }}>{r.reviewed_at ? "—" : "Auto-implemented (≤33%)"}</span>
                       )}
@@ -1157,7 +1141,7 @@ function GlobalRealignments({ projects, budgets, roleCode, onBack }: { projects:
     queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
     queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
   };
-  const { bor, setBor, review, reviewing } = useRealignmentReview(reload);
+  const { review, reviewing } = useRealignmentReview(reload);
 
   useEffect(() => {
     if (q.isError) notify.error("Could not load the realignment requests.");
@@ -1220,20 +1204,10 @@ function GlobalRealignments({ projects, budgets, roleCode, onBack }: { projects:
                       <td className="px-4 py-3 text-xs" style={{ color: "#475569", maxWidth: "280px" }}>{r.justification}</td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap">
                         <span className="font-bold px-2 py-0.5 rounded-full" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
-                        {r.bor_resolution_number && <p className="mt-1 font-mono" style={{ color: "#6b21a8" }}>BOR Res. {r.bor_resolution_number}</p>}
                       </td>
                       <td className="px-4 py-3">
                         {isPendingRealignment(r) && canReviewRealignmentTier(roleCode, r.tier) ? (
                           <div className="space-y-1.5 min-w-40">
-                            {r.tier === "bor" && (
-                              <input
-                                className={INPUT_CLS + " py-1.5 text-xs"}
-                                style={INPUT_STYLE}
-                                placeholder="BOR resolution no."
-                                value={bor[r.id] ?? ""}
-                                onChange={(e) => setBor((b) => ({ ...b, [r.id]: e.target.value }))}
-                              />
-                            )}
                             <div className="flex gap-1.5">
                               <button disabled={reviewing === r.id} onClick={() => review(r, "approved")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ background: "#059669" }}>Approve</button>
                               <button disabled={reviewing === r.id} onClick={() => review(r, "rejected")} className="flex-1 px-2 py-1 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#fee2e2", color: "#dc2626" }}>Reject</button>
