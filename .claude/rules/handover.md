@@ -674,8 +674,8 @@ behind a `*_ROLE_CODES` check on `useAuth().user.role.code`. The old PageHeader/
 pattern is pre-clone.
 
 ## Known gaps / things to double check once backend is live
-- Realignment "once per calendar year per project" and "60 days before
-  target_end_date" rules are enforced server-side only — no client-side
+- Realignment "one pending request per project" (yearly limit removed 2026-10-10),
+  "same class only", and "60 days before target_end_date" rules are enforced server-side only — no client-side
   pre-check, so the form just surfaces whatever error message the backend returns.
 - BOR-tier review requires typing a resolution number inline before Approve is
   clicked; there's no separate confirmation step.
