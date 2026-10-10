@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { realignmentsQuery, useBudgets, useProjects } from "../../lib/queries";
 import { initialsFrom, personName, resolveTier, roleLabel, roleScopeLine } from "../../lib/roles";
 import { protoRoleStyle } from "../../lib/protoRole";
 import { riskApi } from "../../lib/riskApi";
 import type { User } from "../../types/auth";
 import type { RiskAlertInbox } from "../../types/risk";
+
+const BUDGET_REVIEWER_ROLE_CODES = ["system_admin", "finance_budget"];
 
 interface TopbarProps {
   user: User | null;
@@ -28,6 +32,35 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
   const alerts = inbox?.alerts ?? [];
 
   const userId = user?.pk;
+
+  // Budget Officer (+ system_admin for testing): LIBs to certify and realignments to approve.
+  const isBudgetReviewer = BUDGET_REVIEWER_ROLE_CODES.includes(user?.role?.code ?? "");
+  const budgetsQ = useBudgets(undefined, { enabled: isBudgetReviewer });
+  const projectsQ = useProjects({ enabled: isBudgetReviewer });
+  const realignmentsQ = useQuery({ ...realignmentsQuery(), enabled: isBudgetReviewer });
+  const budgetItems: { key: string; text: string; sub: string; link: string }[] = [];
+  if (isBudgetReviewer) {
+    for (const b of budgetsQ.data ?? []) {
+      if (!b.is_current || b.status !== "draft" || b.line_items.length === 0) continue;
+      const p = projectsQ.data?.find((x) => x.id === b.project);
+      budgetItems.push({
+        key: `lib${b.id}`,
+        text: `${p?.project_code ?? `Project #${b.project}`} submitted LIB v${b.version_number}${p ? ` · ${p.title}` : ""}`,
+        sub: "Waiting for certification",
+        link: `/budget?project=${b.project}`,
+      });
+    }
+    const pending = (realignmentsQ.data ?? []).filter((r) => r.status === "pending_approval" || r.status === "pending_bor").length;
+    if (pending > 0) {
+      budgetItems.push({
+        key: "realign",
+        text: `${pending} realignment request${pending !== 1 ? "s" : ""} submitted`,
+        sub: "Waiting for approval",
+        link: "/budget?view=realignments",
+      });
+    }
+  }
+  const total = alerts.length + budgetItems.length;
 
   useEffect(() => {
     if (!userId) return;
@@ -78,7 +111,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" />
             </svg>
-            {alerts.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: "#ef4444" }} />}
+            {total > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: "#ef4444" }} />}
           </button>
           {notifOpen && (
             <div
@@ -90,20 +123,40 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
                 style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}
               >
                 <div>
-                  <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>Risk Alerts</p>
+                  <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>Notifications</p>
                   {inbox && (
                     <p className="text-xs" style={{ color: "#94a3b8" }}>
                       Live · as of {inbox.as_of}
                     </p>
                   )}
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full text-white font-semibold" style={{ background: alerts.length ? "#ef4444" : "#94a3b8" }}>
-                  {alerts.length}
+                <span className="text-xs px-2 py-0.5 rounded-full text-white font-semibold" style={{ background: total ? "#ef4444" : "#94a3b8" }}>
+                  {total}
                 </span>
               </div>
+              {budgetItems.length > 0 && (
+                <ul className="divide-y divide-slate-100 border-b" style={{ borderColor: "#e2e8f0" }}>
+                  {budgetItems.map((n) => (
+                    <li
+                      key={n.key}
+                      onClick={() => {
+                        setNotifOpen(false);
+                        navigate(n.link);
+                      }}
+                      className="px-4 py-3 flex gap-3 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <div className="w-2 h-2 rounded-full mt-1.5 shrink-0 bg-red-400" />
+                      <div>
+                        <p className="text-xs leading-relaxed" style={{ color: "#334155" }}>{n.text}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>Budget · {n.sub}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {alerts.length === 0 ? (
                 <p className="px-4 py-6 text-xs text-center" style={{ color: "#94a3b8" }}>
-                  {inbox ? "No alerts in your scope." : "Loading alerts…"}
+                  {inbox ? "No risk alerts in your scope." : "Loading alerts…"}
                 </p>
               ) : (
                 <ul className="divide-y divide-slate-100 max-h-72 overflow-y-auto">

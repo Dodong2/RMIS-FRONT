@@ -42,6 +42,10 @@ type TaskParams = Parameters<typeof personnelApi.getTasks>[0];
 
 export const projectsQuery = queryOptions({ queryKey: queryKeys.projects, queryFn: researchApi.getProjects });
 
+/** Every realignment in the user's scope (Budget page global view + notification bell). */
+export const realignmentsQuery = () =>
+  queryOptions({ queryKey: [...queryKeys.financialAll, "realignments"], queryFn: () => financialApi.getRealignments() });
+
 export const budgetsQuery = (project?: number) =>
   queryOptions({ queryKey: queryKeys.budgets(project), queryFn: () => budgetApi.getBudgets(project) });
 

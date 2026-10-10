@@ -5,9 +5,9 @@ import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { financialApi } from "../lib/financialApi";
-import { budgetSummaryQuery, financialRecordsQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
+import { budgetSummaryQuery, financialRecordsQuery, queryKeys, realignmentsQuery, useBudgets, useProjects } from "../lib/queries";
 import { REALIGNMENT_STATUS_META } from "../lib/realignment";
 import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
@@ -39,6 +39,9 @@ const STATUS_META = {
   draft: { label: "Draft", bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" },
   certified: { label: "Certified", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
 } as const;
+
+const PAGE_SIZE = 10;
+const PAGE_BTN = "px-2.5 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40";
 
 type LIBTab = "overview" | "line_items" | "utilization" | "realignment" | "history";
 
@@ -1101,9 +1104,6 @@ function LIBDetail({
   );
 }
 
-const realignmentsQuery = () =>
-  queryOptions({ queryKey: [...queryKeys.financialAll, "realignments"], queryFn: () => financialApi.getRealignments() });
-
 /** Banner on the Budget list: entry point to the cross-project realignment queue. */
 function RealignmentBanner({ onOpen }: { onOpen: () => void }) {
   const q = useQuery(realignmentsQuery());
@@ -1241,6 +1241,9 @@ function BudgetContent() {
   const projects: Project[] | null = failed ? [] : projectsQ.data && budgetsQ.data ? projectsQ.data : null;
   const budgets = budgetsQ.data ?? [];
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "certified" | "draft">("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (failed) notify.error("Could not load budgets. Check your connection and refresh.");
@@ -1267,6 +1270,16 @@ function BudgetContent() {
 
   const withLib = (projects ?? []).filter((p) => current.some((b) => b.project === p.id));
   const withoutLib = (projects ?? []).filter((p) => !current.some((b) => b.project === p.id));
+  const term = search.trim().toLowerCase();
+  const filtered = withLib.filter((p) => {
+    const b = current.find((x) => x.project === p.id)!;
+    if (statusFilter !== "all" && b.status !== statusFilter) return false;
+    return !term || [p.project_code, p.title, personName(p.lead_detail)].some((v) => (v ?? "").toLowerCase().includes(term));
+  });
+  // Page-based, client-side: every current LIB is already loaded, so 10 per page needs no backend paging.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const sum = (list: LineItemBudget[]) => list.reduce((s, b) => s + Number(b.total_amount), 0);
   const kpis = [
     { label: "Total LIB", val: peso(sum(current)), mono: true, color: "#0d2a5e" },
@@ -1326,13 +1339,43 @@ function BudgetContent() {
           )}
         </div>
 
+        {withLib.length > 0 && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <input
+              className={INPUT_CLS + " flex-1 min-w-48"}
+              style={INPUT_STYLE}
+              placeholder="Search project code, title, or PI…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+            {([["all", "All"], ["certified", "Certified"], ["draft", "Awaiting certification"]] as const).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => {
+                  setStatusFilter(v);
+                  setPage(1);
+                }}
+                className="px-3 py-2 rounded-xl text-xs font-bold"
+                style={statusFilter === v ? { background: "#0d2a5e", color: "white" } : { background: "white", color: "#475569", border: "1px solid #e2e8f0" }}
+              >
+                {label} ({v === "all" ? withLib.length : current.filter((b) => b.status === v).length})
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="space-y-3">
           {projects === null ? (
             <SkeletonRows rows={2} />
           ) : withLib.length === 0 ? (
             <NoActualData hint={canManage ? 'Click "Prepare New LIB" to get started.' : "No LIBs in your access scope yet."} />
+          ) : filtered.length === 0 ? (
+            <p className="rounded-2xl p-6 text-center text-xs" style={{ background: "white", border: "1px solid #e2e8f0", color: "#94a3b8" }}>No LIBs match your search or filter.</p>
           ) : (
-            withLib.map((project) => {
+            pageRows.map((project) => {
               const b = current.find((x) => x.project === project.id)!;
               return (
                 <div
@@ -1376,9 +1419,9 @@ function BudgetContent() {
                     })}
                   </div>
                   {canCertify && b.status === "draft" && b.line_items.length > 0 && (
-                    <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "#fef3c7" }}>
+                    <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "#fee2e2" }}>
                       <span className="text-xs">⏳</span>
-                      <p className="text-xs font-bold" style={{ color: "#92400e" }}>Awaiting Budget Officer certification</p>
+                      <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>Awaiting Budget Officer certification</p>
                       <span className="ml-auto text-xs font-bold" style={{ color: "#0891b2" }}>Open to certify →</span>
                     </div>
                   )}
@@ -1387,6 +1430,28 @@ function BudgetContent() {
             })
           )}
         </div>
+
+        {filtered.length > PAGE_SIZE && (
+          <div className="mt-4 flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs" style={{ color: "#64748b" }}>
+              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button disabled={safePage === 1} onClick={() => setPage(safePage - 1)} className={PAGE_BTN} style={{ border: "1px solid #e2e8f0", color: "#475569" }}>‹ Prev</button>
+              {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={PAGE_BTN}
+                  style={n === safePage ? { background: "#0d2a5e", color: "white" } : { border: "1px solid #e2e8f0", color: "#475569" }}
+                >
+                  {n}
+                </button>
+              ))}
+              <button disabled={safePage === pageCount} onClick={() => setPage(safePage + 1)} className={PAGE_BTN} style={{ border: "1px solid #e2e8f0", color: "#475569" }}>Next ›</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
