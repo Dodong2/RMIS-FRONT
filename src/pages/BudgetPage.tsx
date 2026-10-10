@@ -512,6 +512,8 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   );
 }
 
+const isPendingRealignment = (r: BudgetRealignment) => r.status === "pending_approval" || r.status === "pending_bor";
+
 const canReviewRealignmentTier = (roleCode: string, t: RealignmentTier) =>
   (t === "bor" ? REALIGNMENT_BOR_REVIEW_ROLE_CODES : REALIGNMENT_MAJOR_REVIEW_ROLE_CODES).includes(roleCode);
 
@@ -550,6 +552,8 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
   const [showRequest, setShowRequest] = useState(false);
   const { bor, setBor, review, reviewing } = useRealignmentReview(onChanged);
   const canRequest = certified && REALIGNMENT_REQUEST_ROLE_CODES.includes(roleCode);
+  // Client 2026-10-10: only one open request per project (the server enforces it too).
+  const hasPending = realignments.some(isPendingRealignment);
   const canReviewTier = (t: RealignmentTier) => canReviewRealignmentTier(roleCode, t);
   const itemName = (id: number | null) => budget.line_items.find((i) => i.id === id);
 
@@ -562,9 +566,17 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Budget Realignment Requests</p>
         {canRequest && (
-          <button onClick={() => setShowRequest(true)} className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#2563eb" }}>
-            + Request Realignment
-          </button>
+          <div className="flex items-center gap-3">
+            {hasPending && <span className="text-xs" style={{ color: "#92400e" }}>A request is still pending review.</span>}
+            <button
+              onClick={() => setShowRequest(true)}
+              disabled={hasPending}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "#2563eb" }}
+            >
+              + Request Realignment
+            </button>
+          </div>
         )}
       </div>
       {!certified ? (
@@ -590,7 +602,7 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
                 const sm = REALIGNMENT_STATUS_META[r.status];
                 const from = itemName(r.from_line_item);
                 const to = r.to_line_item ? itemName(r.to_line_item) : null;
-                const pending = r.status === "pending_approval" || r.status === "pending_bor";
+                const pending = isPendingRealignment(r);
                 return (
                   <tr key={r.id} className="border-t align-top" style={{ borderColor: "#f1f5f9" }}>
                     <td className="px-4 py-3 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{r.created_at.slice(0, 10)}</td>
@@ -1104,8 +1116,6 @@ function LIBDetail({
     </div>
   );
 }
-
-const isPendingRealignment = (r: BudgetRealignment) => r.status === "pending_approval" || r.status === "pending_bor";
 
 const realignmentsQuery = () =>
   queryOptions({ queryKey: [...queryKeys.financialAll, "realignments"], queryFn: () => financialApi.getRealignments() });

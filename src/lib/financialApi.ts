@@ -27,15 +27,18 @@ export const financialApi = {
     });
     return data;
   },
-  createRealignment: async (payload: {
-    from_line_item: number;
-    to_line_item?: number | null;
-    new_item_category?: string;
-    new_item_description?: string;
-    amount: string;
-    justification: string;
-  }): Promise<BudgetRealignment> => {
-    const { data } = await apiClient.post("/api/financial/realignments/", payload);
+  /** One submission, several realignments (saved all-or-nothing under one batch). */
+  createRealignments: async (
+    rows: {
+      from_line_item: number;
+      to_line_item?: number | null;
+      new_item_category?: string;
+      new_item_description?: string;
+      amount: string;
+      justification: string;
+    }[],
+  ): Promise<BudgetRealignment[]> => {
+    const { data } = await apiClient.post("/api/financial/realignments/", rows);
     return data;
   },
   reviewRealignment: async (

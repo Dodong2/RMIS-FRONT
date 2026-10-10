@@ -38,6 +38,7 @@ export interface BudgetRealignment {
   reviewed_by_name: string | null;
   reviewed_at: string | null;
   bor_resolution_number: string;
+  batch: string | null;
   created_at: string;
 }
 

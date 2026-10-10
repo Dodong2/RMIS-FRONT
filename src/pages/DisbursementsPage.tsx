@@ -254,34 +254,40 @@ function RecordModal({
   );
 }
 
+type RealignRow = { target: "existing" | "new"; from_line_item: string; to_line_item: string; new_item_category: string; new_item_description: string; amount: string; justification: string };
+const EMPTY_REALIGN_ROW: RealignRow = { target: "existing", from_line_item: "", to_line_item: "", new_item_category: "", new_item_description: "", amount: "", justification: "" };
+const realignRowOk = (r: RealignRow) =>
+  !!r.from_line_item && !!r.amount && !!r.justification.trim() && (r.target === "existing" ? !!r.to_line_item : !!r.new_item_category && !!r.new_item_description.trim());
+
+/**
+ * Client 2026-10-10: one request may hold several realignments, submitted together and
+ * locked once sent. Each row is still approved/rejected on its own by the Budget Officer.
+ */
 export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBudget; onClose: () => void; onSaved: () => void }) {
-  const [target, setTarget] = useState<"existing" | "new">("existing");
-  const [form, setForm] = useState({ from_line_item: "", to_line_item: "", new_item_category: "", new_item_description: "", amount: "", justification: "" });
+  const [rows, setRows] = useState<RealignRow[]>([EMPTY_REALIGN_ROW]);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
-  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const from = budget.line_items.find((i) => String(i.id) === form.from_line_item);
-  const pct = from && Number(from.amount) > 0 ? Math.round(((parseFloat(form.amount) || 0) / Number(from.amount)) * 100) : 0;
-  const expectedTier: RealignmentTier = target === "new" || pct > 100 ? "bor" : pct > 33 ? "major" : "minor";
+  const setRow = (idx: number, patch: Partial<RealignRow>) => setRows((rs) => rs.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
   const save = async () => {
     setAttempted(true);
-    const targetOk = target === "existing" ? !!form.to_line_item : !!form.new_item_category && !!form.new_item_description.trim();
-    if (!form.from_line_item || !targetOk || !form.amount || !form.justification.trim()) {
-      notify.error("Source item, target, amount, and justification are required.");
+    if (!rows.every(realignRowOk)) {
+      notify.error("Every realignment needs a source item, target, amount, and justification.");
       return;
     }
     setSaving(true);
     try {
-      await financialApi.createRealignment({
-        from_line_item: Number(form.from_line_item),
-        to_line_item: target === "existing" ? Number(form.to_line_item) : null,
-        new_item_category: target === "new" ? form.new_item_category : undefined,
-        new_item_description: target === "new" ? form.new_item_description.trim() : undefined,
-        amount: form.amount,
-        justification: form.justification.trim(),
-      });
-      notify.success("Realignment requested.");
+      await financialApi.createRealignments(
+        rows.map((r) => ({
+          from_line_item: Number(r.from_line_item),
+          to_line_item: r.target === "existing" ? Number(r.to_line_item) : null,
+          new_item_category: r.target === "new" ? r.new_item_category : undefined,
+          new_item_description: r.target === "new" ? r.new_item_description.trim() : undefined,
+          amount: r.amount,
+          justification: r.justification.trim(),
+        })),
+      );
+      notify.success(rows.length > 1 ? `Realignment request submitted (${rows.length} items).` : "Realignment requested.");
       onSaved();
     } catch (err) {
       notify.error(errorMessage(err, "Could not submit the realignment."));
@@ -293,69 +299,95 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
   return (
     <Modal
       title="Request Budget Realignment"
-      subtitle="Once per year per project · at least 60 days before the target end date"
+      subtitle="One open request at a time · at least 60 days before the target end date · can't be edited once submitted"
       onClose={onClose}
+      width="max-w-2xl"
       footer={
         <>
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>Cancel</button>
           <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
-            {saving ? "Submitting…" : "Submit Request"}
+            {saving ? "Submitting…" : rows.length > 1 ? `Submit Request (${rows.length} items)` : "Submit Request"}
           </button>
         </>
       }
     >
-      <Field label="From Line Item" required>
-        <select className={INPUT_CLS} style={invalidStyle(attempted && !form.from_line_item)} value={form.from_line_item} onChange={set("from_line_item")}>
-          <option value="">Select source item</option>
-          {budget.line_items.map((i) => (
-            <option key={i.id} value={i.id}>{CATEGORY_META[i.category].label} — {i.description} ({peso(i.amount)})</option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Realign To">
-        <select className={INPUT_CLS} style={INPUT_STYLE} value={target} onChange={(e) => setTarget(e.target.value as "existing" | "new")}>
-          <option value="existing">An existing line item</option>
-          <option value="new">A new expense item (BOR tier)</option>
-        </select>
-      </Field>
-      {target === "existing" ? (
-        <Field label="To Line Item" required>
-          <select className={INPUT_CLS} style={invalidStyle(attempted && !form.to_line_item)} value={form.to_line_item} onChange={set("to_line_item")}>
-            <option value="">Select target item</option>
-            {budget.line_items
-              .filter((i) => String(i.id) !== form.from_line_item)
-              .map((i) => (
-                <option key={i.id} value={i.id}>{CATEGORY_META[i.category].label} — {i.description}</option>
-              ))}
-          </select>
-        </Field>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="New Item Category" required>
-            <select className={INPUT_CLS} style={invalidStyle(attempted && !form.new_item_category)} value={form.new_item_category} onChange={set("new_item_category")}>
-              <option value="">Select category</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{CATEGORY_META[c].full}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="New Item Description" required>
-            <input className={INPUT_CLS} style={invalidStyle(attempted && !form.new_item_description.trim())} value={form.new_item_description} onChange={set("new_item_description")} />
-          </Field>
-        </div>
-      )}
-      <Field label="Amount (₱)" required>
-        <input type="number" min="0" step="0.01" className={INPUT_CLS} style={invalidStyle(attempted && !form.amount)} value={form.amount} onChange={set("amount")} />
-      </Field>
-      {form.from_line_item && form.amount && (
-        <div className="rounded-xl px-4 py-2.5 flex items-center justify-between" style={{ background: TIER_META[expectedTier].bg }}>
-          <span className="text-xs font-bold" style={{ color: TIER_META[expectedTier].color }}>Expected tier: {TIER_META[expectedTier].label}</span>
-          <span className="text-xs font-mono" style={{ color: TIER_META[expectedTier].color }}>{pct}% of source · computed by the server</span>
-        </div>
-      )}
-      <Field label="Justification" required>
-        <textarea rows={3} className={INPUT_CLS + " resize-none"} style={invalidStyle(attempted && !form.justification.trim())} value={form.justification} onChange={set("justification")} />
-      </Field>
+      {rows.map((row, idx) => {
+        const from = budget.line_items.find((i) => String(i.id) === row.from_line_item);
+        const pct = from && Number(from.amount) > 0 ? Math.round(((parseFloat(row.amount) || 0) / Number(from.amount)) * 100) : 0;
+        const tier: RealignmentTier = row.target === "new" || pct > 100 ? "bor" : pct > 33 ? "major" : "minor";
+        const bad = (missing: boolean) => invalidStyle(attempted && missing);
+        return (
+          <div key={idx} className="rounded-2xl p-4 space-y-3" style={{ border: "1px solid #e2e8f0", background: "#fafbfc" }}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-wide" style={{ color: "#64748b" }}>Realignment {idx + 1}</p>
+              {rows.length > 1 && (
+                <button onClick={() => setRows((rs) => rs.filter((_, i) => i !== idx))} className="text-xs font-bold" style={{ color: "#dc2626" }}>Remove</button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="From Line Item" required>
+                <select className={INPUT_CLS} style={bad(!row.from_line_item)} value={row.from_line_item} onChange={(e) => setRow(idx, { from_line_item: e.target.value })}>
+                  <option value="">Select source item</option>
+                  {budget.line_items.map((i) => (
+                    <option key={i.id} value={i.id}>{CATEGORY_META[i.category].label} — {i.description} ({peso(i.amount)})</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Realign To">
+                <select className={INPUT_CLS} style={INPUT_STYLE} value={row.target} onChange={(e) => setRow(idx, { target: e.target.value as RealignRow["target"] })}>
+                  <option value="existing">An existing line item</option>
+                  <option value="new">A new expense item (BOR tier)</option>
+                </select>
+              </Field>
+            </div>
+            {row.target === "existing" ? (
+              <Field label="To Line Item" required>
+                <select className={INPUT_CLS} style={bad(!row.to_line_item)} value={row.to_line_item} onChange={(e) => setRow(idx, { to_line_item: e.target.value })}>
+                  <option value="">Select target item</option>
+                  {budget.line_items
+                    .filter((i) => String(i.id) !== row.from_line_item)
+                    .map((i) => (
+                      <option key={i.id} value={i.id}>{CATEGORY_META[i.category].label} — {i.description}</option>
+                    ))}
+                </select>
+              </Field>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="New Item Category" required>
+                  <select className={INPUT_CLS} style={bad(!row.new_item_category)} value={row.new_item_category} onChange={(e) => setRow(idx, { new_item_category: e.target.value })}>
+                    <option value="">Select category</option>
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{CATEGORY_META[c].full}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="New Item Description" required>
+                  <input className={INPUT_CLS} style={bad(!row.new_item_description.trim())} value={row.new_item_description} onChange={(e) => setRow(idx, { new_item_description: e.target.value })} />
+                </Field>
+              </div>
+            )}
+            <Field label="Amount (₱)" required>
+              <input type="number" min="0" step="0.01" className={INPUT_CLS} style={bad(!row.amount)} value={row.amount} onChange={(e) => setRow(idx, { amount: e.target.value })} />
+            </Field>
+            {row.from_line_item && row.amount && (
+              <div className="rounded-xl px-4 py-2.5 flex items-center justify-between" style={{ background: TIER_META[tier].bg }}>
+                <span className="text-xs font-bold" style={{ color: TIER_META[tier].color }}>Expected tier: {TIER_META[tier].label}</span>
+                <span className="text-xs font-mono" style={{ color: TIER_META[tier].color }}>{pct}% of source · computed by the server</span>
+              </div>
+            )}
+            <Field label="Justification" required>
+              <textarea rows={2} className={INPUT_CLS + " resize-none"} style={bad(!row.justification.trim())} value={row.justification} onChange={(e) => setRow(idx, { justification: e.target.value })} />
+            </Field>
+          </div>
+        );
+      })}
+      <button
+        onClick={() => setRows((rs) => [...rs, EMPTY_REALIGN_ROW])}
+        className="w-full py-2.5 rounded-xl text-xs font-bold"
+        style={{ background: "#eff6ff", color: "#2563eb", border: "1px dashed #93c5fd" }}
+      >
+        + Add another realignment
+      </button>
     </Modal>
   );
 }
@@ -528,7 +560,13 @@ function ProjectBoard({
               </div>
               <div className="flex gap-2 flex-wrap">
                 {canRequest && certified && (
-                  <button onClick={() => setShowRealign(true)} className="px-3 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "rgba(124,58,237,0.6)" }}>
+                  <button
+                    onClick={() => setShowRealign(true)}
+                    disabled={pendingCount > 0}
+                    title={pendingCount > 0 ? "Wait for the pending realignment request to be reviewed." : undefined}
+                    className="px-3 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: "rgba(124,58,237,0.6)" }}
+                  >
                     Request Realignment
                   </button>
                 )}
@@ -752,7 +790,13 @@ function ProjectBoard({
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Post-Approval Budget Adjustments (Realignments)</p>
                   {canRequest && certified && (
-                    <button onClick={() => setShowRealign(true)} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
+                    <button
+                      onClick={() => setShowRealign(true)}
+                      disabled={pendingCount > 0}
+                      title={pendingCount > 0 ? "Wait for the pending realignment request to be reviewed." : undefined}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: "#0d2a5e" }}
+                    >
                       + Request Realignment
                     </button>
                   )}
