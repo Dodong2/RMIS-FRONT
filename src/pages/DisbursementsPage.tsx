@@ -19,7 +19,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 
 const DISBURSEMENT_ROLE_CODES = ["system_admin", "finance_budget"];
-const REALIGNMENT_REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
+const REALIGNMENT_REQUEST_ROLE_CODES = ["project_leader"];
 const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 
