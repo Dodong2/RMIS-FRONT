@@ -23,7 +23,8 @@ import { pageOf } from "../lib/paging";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 
-const MANAGE_ROLE_CODES = ["system_admin", "finance_budget", "procurement_officer_lib", "program_leader", "project_leader"];
+// Client 2026-10-11: finance_budget and system_admin only certify/approve; they don't prepare LIBs or edit line items.
+const MANAGE_ROLE_CODES = ["procurement_officer_lib", "program_leader", "project_leader"];
 const CERTIFY_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
 const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
