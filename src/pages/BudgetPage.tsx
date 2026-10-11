@@ -933,7 +933,7 @@ function LIBDetail({
               <div className="space-y-5">
                 {budget.exceeds_dry_cap && <DryCapWarning />}
                 {budget.line_items.length === 0 && !(canManage && isDraft) && <NoActualData />}
-                {budget.status === "certified" && (
+                {canManage && budget.status === "certified" && (
                   <div className="rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap" style={{ background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
                     <p className="text-xs flex-1 min-w-60" style={{ color: "#5b21b6" }}>
                       This LIB is certified, so its line items are locked. To move funds between items or into a new item, file a request on the Realignment tab. New items are added only once the request is approved.
