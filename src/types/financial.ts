@@ -20,6 +20,7 @@ export interface Disbursement {
   funding_source: string;
   disbursed_on: string;
   recorded_by: number;
+  procurement_request: number | null;
   created_at: string;
 }
 

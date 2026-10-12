@@ -560,6 +560,7 @@ function ProcurementContent() {
     queryClient.invalidateQueries({ queryKey: queryKeys.projects });
     queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
     queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
   };
 
   useEffect(() => {

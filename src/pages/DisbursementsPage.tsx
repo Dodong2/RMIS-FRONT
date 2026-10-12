@@ -407,6 +407,7 @@ function TxnDetailModal({ txn, seq, item, doc, onClose }: { txn: Disbursement; s
         {[
           ["Transaction Date", txn.disbursed_on],
           ["Recorded", txn.created_at.slice(0, 10)],
+          ["Source", txn.procurement_request ? `Completed procurement request ${txn.reference_number}` : "Recorded manually"],
           ["Payee", txn.payee || "—"],
         ].map(([l, v]) => (
           <div key={l}>
@@ -626,7 +627,7 @@ function ProjectBoard({
                     <table className="w-full text-sm">
                       <thead>
                         <tr style={{ background: "#f0f4f8" }}>
-                          {["Ref", "Date", "Description / Payee", "LIB Link", "Cat", "Amount", ""].map((h) => (
+                          {["Ref", "Date", "Description / Payee", "LIB Link", "Cat", "Source", "Amount", ""].map((h) => (
                             <th key={h} className="px-3 py-2.5 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{h}</th>
                           ))}
                         </tr>
@@ -646,6 +647,13 @@ function ProjectBoard({
                                 </td>
                                 <td className="px-3 py-2.5"><p className="text-xs truncate max-w-xs" style={{ color: "#0369a1" }}>{it?.description ?? `#${d.line_item}`}</p></td>
                                 <td className="px-3 py-2.5">{it && <CatChip cat={it.category} />}</td>
+                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                  {d.procurement_request ? (
+                                    <Chip bg="#ede9fe" color="#6d28d9">Procurement · {d.reference_number}</Chip>
+                                  ) : (
+                                    <Chip bg="#f1f5f9" color="#475569">Manual</Chip>
+                                  )}
+                                </td>
                                 <td className="px-3 py-2.5 text-xs font-mono font-black whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(d.amount)}</td>
                                 <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                                   <button onClick={() => setSelectedTxn(d.id)} className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "#e0f2fe", color: "#0369a1" }}>View</button>
@@ -656,7 +664,7 @@ function ProjectBoard({
                       </tbody>
                       <tfoot>
                         <tr style={{ background: "#f0f4f8" }}>
-                          <td colSpan={5} className="px-3 py-2.5 text-xs font-black" style={{ color: "#0d2a5e" }}>Total ({filtered.length} txn{filtered.length !== 1 ? "s" : ""})</td>
+                          <td colSpan={6} className="px-3 py-2.5 text-xs font-black" style={{ color: "#0d2a5e" }}>Total ({filtered.length} txn{filtered.length !== 1 ? "s" : ""})</td>
                           <td className="px-3 py-2.5 text-xs font-mono font-black whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(filtered.reduce((s, d) => s + Number(d.amount), 0))}</td>
                           <td />
                         </tr>
