@@ -1,4 +1,4 @@
-import { apiClient } from "./apiClient";
+import { apiClient, idempotent } from "./apiClient";
 import type { BudgetRealignment, BudgetSummary, Disbursement, ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
 
 export const financialApi = {
@@ -16,8 +16,8 @@ export const financialApi = {
     payee?: string;
     supporting_document?: number | null;
     disbursed_on: string;
-  }): Promise<Disbursement> => {
-    const { data } = await apiClient.post("/api/financial/disbursements/", payload);
+  }, idempotencyKey?: string): Promise<Disbursement> => {
+    const { data } = await apiClient.post("/api/financial/disbursements/", payload, idempotent(idempotencyKey));
     return data;
   },
 
@@ -37,8 +37,9 @@ export const financialApi = {
       amount: string;
       justification: string;
     }[],
+    idempotencyKey?: string,
   ): Promise<BudgetRealignment[]> => {
-    const { data } = await apiClient.post("/api/financial/realignments/", rows);
+    const { data } = await apiClient.post("/api/financial/realignments/", rows, idempotent(idempotencyKey));
     return data;
   },
   reviewRealignment: async (
@@ -65,8 +66,8 @@ export const financialApi = {
     fiscal_year: number;
     quarter: number;
     remarks?: string;
-  }): Promise<ProcurementRequest> => {
-    const { data } = await apiClient.post("/api/financial/procurement-requests/", payload);
+  }, idempotencyKey?: string): Promise<ProcurementRequest> => {
+    const { data } = await apiClient.post("/api/financial/procurement-requests/", payload, idempotent(idempotencyKey));
     return data;
   },
   receiveProcurementRequest: async (id: number): Promise<ProcurementRequest> => {

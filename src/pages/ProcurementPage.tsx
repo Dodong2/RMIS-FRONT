@@ -144,6 +144,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
   });
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [requestKey] = useState(() => crypto.randomUUID());
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const lib = certified.find((b) => String(b.project) === form.project);
   const firstCategory = (b?: LineItemBudget) => CATEGORIES.find((c) => b?.line_items.some((li) => li.category === c)) ?? "mooe";
@@ -166,7 +167,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
         fiscal_year: Number(form.fiscal_year),
         quarter: Number(form.quarter),
         remarks: form.remarks.trim() || undefined,
-      });
+      }, requestKey);
       notify.success("Procurement request filed.");
       onSaved();
     } catch (err) {

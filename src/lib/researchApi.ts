@@ -1,5 +1,5 @@
 import type { ProposalData } from "../components/registration/ProposalPreview";
-import { apiClient } from "./apiClient";
+import { apiClient, idempotent } from "./apiClient";
 import { downloadReport } from "./reportsApi";
 import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
 import type { AdminUser } from "../types/auth";
@@ -93,8 +93,8 @@ export const researchApi = {
     recommended_by_vprde?: string;
     recommended_by_vprde_on?: string;
     approved_by_president?: string;
-  }): Promise<Project> => {
-    const { data } = await apiClient.post("/api/projects/", payload);
+  }, idempotencyKey?: string): Promise<Project> => {
+    const { data } = await apiClient.post("/api/projects/", payload, idempotent(idempotencyKey));
     return data;
   },
   isProjectCodeAvailable: async (code: string): Promise<boolean> => {
@@ -147,8 +147,9 @@ export const researchApi = {
       quantity: string;
       unit_cost: string;
     }[],
+    idempotencyKey?: string,
   ): Promise<LineItemBudget> => {
-    const { data } = await apiClient.post(`/api/projects/${projectId}/lib/`, { line_items: lineItems });
+    const { data } = await apiClient.post(`/api/projects/${projectId}/lib/`, { line_items: lineItems }, idempotent(idempotencyKey));
     return data;
   },
   getEndorsers: async (projectId: number): Promise<ProjectEndorser[]> => {

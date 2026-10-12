@@ -125,6 +125,7 @@ function RecordModal({
   const [cat, setCat] = useState<LineItemCategory>("mooe");
   const [form, setForm] = useState({ line_item: "", amount: "", reference_number: "", payee: "", description: "", supporting_document: "", disbursed_on: today() });
   const [saving, setSaving] = useState(false);
+  const [requestKey] = useState(() => crypto.randomUUID());
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const row = summary?.line_items.find((r) => String(r.line_item) === form.line_item);
   const amount = parseFloat(form.amount) || 0;
@@ -151,7 +152,7 @@ function RecordModal({
         description: form.description.trim(),
         supporting_document: form.supporting_document ? Number(form.supporting_document) : null,
         disbursed_on: form.disbursed_on,
-      });
+      }, requestKey);
       notify.success(`Disbursement of ${peso(amount)} recorded.`);
       onSaved();
     } catch (err) {
@@ -268,6 +269,7 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
   const [rows, setRows] = useState<RealignRow[]>([EMPTY_REALIGN_ROW]);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [requestKey] = useState(() => crypto.randomUUID());
   const setRow = (idx: number, patch: Partial<RealignRow>) => setRows((rs) => rs.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
   const save = async () => {
@@ -287,6 +289,7 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
           amount: r.amount,
           justification: r.justification.trim(),
         })),
+        requestKey,
       );
       notify.success(rows.length > 1 ? `Realignment request submitted (${rows.length} items).` : "Realignment requested.");
       onSaved();

@@ -524,6 +524,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const [triedSteps, setTriedSteps] = useState<number[]>([]);
   const [isCheckingCode, setIsCheckingCode] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [requestKey] = useState(() => crypto.randomUUID());
   const [certified, setCertified] = useState(false);
   const [objectives, setObjectives] = useState(init.objectives);
   const [studyTitles, setStudyTitles] = useState(init.studyTitles);
@@ -872,7 +873,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         proposal_reviewed_on: opt(form.proposal_reviewed_on),
         proposal_approved_on: opt(form.proposal_approved_on),
         reviewing_body: opt(form.reviewing_body),
-      });
+      }, requestKey);
       const results = await Promise.allSettled([
         ...filledTeam.map((t) =>
           researchApi.createTeamMember({ project: project.id, member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined, user: t.user }),
@@ -890,6 +891,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                   quantity: r.quantity,
                   unit_cost: r.unit_cost,
                 })),
+                `${requestKey}-lib`,
               ),
             ]
           : []),

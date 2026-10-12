@@ -72,3 +72,5 @@ apiClient.interceptors.response.use(
     }
   }
 );
+
+export const idempotent = (key?: string) => (key ? { headers: { "Idempotency-Key": key } } : {});
