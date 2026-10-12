@@ -21,6 +21,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Field, Pill, ProtoModal, SkeletonRows } from "../components/common/proto";
 import { NoActualData } from "../components/common/NoActualData";
+import { MoneyInput } from "../components/common/MoneyInput";
 
 const DSS_ROLE_CODES = ["system_admin", "drd", "vprei"];
 const DECISION_ROLE_CODES = ["system_admin", "drd", "vprei", "university_admin"];
@@ -548,7 +549,7 @@ function RecordDecisionModal({
       </Field>
       {decision === "fund" && (
         <Field label="Indicative Amount (₱, optional)">
-          <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={INPUT_CLS} style={INPUT_STYLE} placeholder="Entered by the decider, not computed" />
+          <MoneyInput value={amount} onChange={setAmount} className={INPUT_CLS} style={INPUT_STYLE} placeholder="Entered by the decider, not computed" />
         </Field>
       )}
       <Field label="Rationale / Decision Basis" required>

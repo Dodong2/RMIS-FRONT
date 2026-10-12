@@ -12,6 +12,7 @@ import type { ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } f
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
+import { MoneyInput } from "../components/common/MoneyInput";
 import { Field, SkeletonRows } from "../components/common/proto";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
@@ -237,7 +238,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
           </Field>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Amount (₱)" required>
-              <input type="number" min="0" step="0.01" className={INPUT_CLS} style={invalidStyle(attempted && amount <= 0)} value={form.amount} onChange={set("amount")} />
+              <MoneyInput className={INPUT_CLS} style={invalidStyle(attempted && amount <= 0)} value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
             </Field>
             <Field label="Fiscal Year" required>
               <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={form.fiscal_year} onChange={set("fiscal_year")} />
@@ -312,7 +313,7 @@ function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequ
         <input className={INPUT_CLS} style={INPUT_STYLE} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
       </Field>
       <Field label="Amount (₱)" required>
-        <input type="number" min="0" step="0.01" className={INPUT_CLS} style={INPUT_STYLE} value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+        <MoneyInput className={INPUT_CLS} style={INPUT_STYLE} value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
       </Field>
       <Field label="Remarks">
         <textarea rows={2} className={INPUT_CLS + " resize-none"} style={INPUT_STYLE} value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} placeholder="What you changed" />

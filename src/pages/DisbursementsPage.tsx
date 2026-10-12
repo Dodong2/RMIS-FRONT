@@ -14,6 +14,7 @@ import type { ProjectDocument } from "../types/document";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
+import { MoneyInput } from "../components/common/MoneyInput";
 import { Field, SkeletonRows } from "../components/common/proto";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
@@ -222,7 +223,7 @@ function RecordModal({
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Amount (₱)" required>
-          <input type="number" min="0" step="0.01" className={INPUT_CLS} style={INPUT_STYLE} value={form.amount} onChange={set("amount")} placeholder="0.00" />
+          <MoneyInput className={INPUT_CLS} style={INPUT_STYLE} value={form.amount} onChange={(amount) => setForm((f) => ({ ...f, amount }))} />
         </Field>
         <Field label="Reference No." required>
           <input className={INPUT_CLS} style={INPUT_STYLE} value={form.reference_number} onChange={set("reference_number")} placeholder="PO / DV / OR number" />
@@ -365,7 +366,7 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
               </div>
             )}
             <Field label="Amount (₱)" required>
-              <input type="number" min="0" step="0.01" className={INPUT_CLS} style={bad(!row.amount)} value={row.amount} onChange={(e) => setRow(idx, { amount: e.target.value })} />
+              <MoneyInput className={INPUT_CLS} style={bad(!row.amount)} value={row.amount} onChange={(amount) => setRow(idx, { amount })} />
             </Field>
             {row.from_line_item && row.amount && (
               <div className="rounded-xl px-4 py-2.5 flex items-center justify-between" style={{ background: TIER_META[tier].bg }}>
