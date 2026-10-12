@@ -46,6 +46,10 @@ export const projectsQuery = queryOptions({ queryKey: queryKeys.projects, queryF
 export const realignmentsQuery = () =>
   queryOptions({ queryKey: [...queryKeys.financialAll, "realignments"], queryFn: () => financialApi.getRealignments() });
 
+/** Procurement requests in the user's scope (notification bell). */
+export const procurementRequestsQuery = () =>
+  queryOptions({ queryKey: [...queryKeys.financialAll, "procurement"], queryFn: () => financialApi.getProcurementRequests() });
+
 export const budgetsQuery = (project?: number) =>
   queryOptions({ queryKey: queryKeys.budgets(project), queryFn: () => budgetApi.getBudgets(project) });
 

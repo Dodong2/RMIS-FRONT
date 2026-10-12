@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
-import type { ProcurementRequest, ProcurementStatus } from "../types/financial";
+import type { ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
@@ -28,18 +28,49 @@ const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; col
 const CATEGORIES = Object.keys(CATEGORY_META) as LineItemCategory[];
 
 const STATUS_META: Record<ProcurementStatus, { label: string; bg: string; color: string; dot: string }> = {
-  requested: { label: "Requested", bg: "#e0f2fe", color: "#0369a1", dot: "#0891b2" },
-  processing: { label: "Processing", bg: "#fef3c7", color: "#92400e", dot: "#f59e0b" },
-  released: { label: "Released", bg: "#d1fae5", color: "#166534", dot: "#22c55e" },
+  requested: { label: "Request Submitted", bg: "#e0eaf7", color: "#0d2a5e", dot: "#0d2a5e" },
+  under_review: { label: "Under Review", bg: "#fef3c7", color: "#92400e", dot: "#f59e0b" },
+  returned_for_revision: { label: "Returned for Revision", bg: "#fef08a", color: "#b45309", dot: "#d97706" },
+  for_procurement: { label: "For Procurement", bg: "#e0f2fe", color: "#0369a1", dot: "#0891b2" },
+  procurement_in_progress: { label: "Procurement in Progress", bg: "#dbeafe", color: "#0284c7", dot: "#0284c7" },
+  order_placed: { label: "Order Placed", bg: "#bfdbfe", color: "#1d4ed8", dot: "#1d4ed8" },
+  awaiting_delivery: { label: "Awaiting Delivery", bg: "#ffedd5", color: "#a16207", dot: "#f59e0b" },
+  delivered: { label: "Delivered", bg: "#ccfbf1", color: "#0f766e", dot: "#14b8a6" },
+  ready_for_release: { label: "Ready for Release", bg: "#d1fae5", color: "#166534", dot: "#22c55e" },
+  completed: { label: "Completed", bg: "#86efac", color: "#065f46", dot: "#059669" },
   cancelled: { label: "Cancelled", bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8" },
 };
+
+const UPDATE_STATUSES: ProcurementUpdateStatus[] = [
+  "returned_for_revision",
+  "for_procurement",
+  "procurement_in_progress",
+  "order_placed",
+  "awaiting_delivery",
+  "delivered",
+  "ready_for_release",
+  "completed",
+];
+const CLOSED: ProcurementStatus[] = ["completed", "cancelled"];
+const isOpen = (r: ProcurementRequest) => !CLOSED.includes(r.status);
+const prNo = (r: ProcurementRequest) => `PR-${String(r.id).padStart(4, "0")}`;
 
 const ROUTING_LABELS: Record<string, string> = {
   university_president: "University President (> ₱25,000)",
   campus_director: "Campus Director (≤ ₱25,000)",
 };
 
-const PIPELINE: ProcurementStatus[] = ["requested", "processing", "released"];
+const PIPELINE: ProcurementStatus[] = [
+  "requested",
+  "under_review",
+  "for_procurement",
+  "procurement_in_progress",
+  "order_placed",
+  "awaiting_delivery",
+  "delivered",
+  "ready_for_release",
+  "completed",
+];
 
 type Tab = "requests" | "worklist";
 
@@ -67,7 +98,7 @@ function Pipeline({ status }: { status: ProcurementStatus }) {
             title={STATUS_META[s].label}
             style={{ background: status === "cancelled" ? "#e2e8f0" : i <= idx ? STATUS_META[s].dot : "#e2e8f0" }}
           />
-          {i < PIPELINE.length - 1 && <div className="w-4 h-px" style={{ background: status !== "cancelled" && i < idx ? "#22c55e" : "#e2e8f0" }} />}
+          {i < PIPELINE.length - 1 && <div className="w-1.5 h-px" style={{ background: status !== "cancelled" && i < idx ? "#22c55e" : "#e2e8f0" }} />}
         </div>
       ))}
     </div>
@@ -233,6 +264,240 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
   );
 }
 
+function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequest; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({ description: request.description, amount: request.amount, remarks: "" });
+  const [saving, setSaving] = useState(false);
+  const amount = parseFloat(form.amount) || 0;
+
+  const save = async () => {
+    if (!form.description.trim() || amount <= 0) {
+      notify.error("Description and amount are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await financialApi.resubmitProcurementRequest(request.id, {
+        description: form.description.trim(),
+        amount: amount.toFixed(2),
+        remarks: form.remarks.trim() || undefined,
+      });
+      notify.success("Procurement request resubmitted.");
+      onSaved();
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not resubmit the request."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Revise & Resubmit"
+      subtitle={`${prNo(request)} · returned for revision by the Procurement Office`}
+      onClose={onClose}
+      footer={
+        <>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>Cancel</button>
+          <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
+            {saving ? "Resubmitting…" : "Resubmit Request"}
+          </button>
+        </>
+      }
+    >
+      <div className="rounded-xl px-4 py-3 text-xs" style={{ background: "#fef9c3", border: "1px solid #fde047", color: "#854d0e" }}>
+        <p className="font-bold">Procurement Office remarks</p>
+        <p className="mt-0.5">{request.remarks || "—"}</p>
+      </div>
+      <Field label="Description" required>
+        <input className={INPUT_CLS} style={INPUT_STYLE} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+      </Field>
+      <Field label="Amount (₱)" required>
+        <input type="number" min="0" step="0.01" className={INPUT_CLS} style={INPUT_STYLE} value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+      </Field>
+      <Field label="Remarks">
+        <textarea rows={2} className={INPUT_CLS + " resize-none"} style={INPUT_STYLE} value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} placeholder="What you changed" />
+      </Field>
+    </Modal>
+  );
+}
+
+function StatusNoteModal({ status, onCancel, onConfirm }: { status: ProcurementUpdateStatus; onCancel: () => void; onConfirm: (note: string) => Promise<void> }) {
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const required = status === "returned_for_revision";
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+        <div className="px-5 py-4 border-b border-slate-200">
+          <h3 className="font-bold text-slate-800">Status Update Details</h3>
+          <p className="text-xs text-slate-500 mt-1">
+            {required ? "Provide mandatory remarks or justification for changing status to " : "Add optional remarks before changing status to "}
+            <strong>{STATUS_META[status].label}</strong>.
+          </p>
+        </div>
+        <div className="p-5">
+          <textarea
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Notes, justification, or remarks..."
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-blue-500 transition-colors"
+          />
+        </div>
+        <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
+          <button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">Cancel</button>
+          <button
+            disabled={saving || (required && !note.trim())}
+            onClick={async () => {
+              setSaving(true);
+              await onConfirm(note.trim());
+              setSaving(false);
+            }}
+            className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 transition-colors"
+          >
+            Confirm Update
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChanged }: {
+  requests: ProcurementRequest[] | null;
+  projectOf: (id: number | undefined) => Project | undefined;
+  itemsById: Map<number, LineItem>;
+  onBack: () => void;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<number | null>(null);
+  const [noting, setNoting] = useState<{ request: ProcurementRequest; status: ProcurementUpdateStatus } | null>(null);
+
+  const receive = async (r: ProcurementRequest) => {
+    setBusy(r.id);
+    try {
+      await financialApi.receiveProcurementRequest(r.id);
+      notify.success(`${prNo(r)} marked received. ${r.requested_by_name} has been notified.`);
+      onChanged();
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not mark the request received."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const update = async (r: ProcurementRequest, status: ProcurementUpdateStatus, remarks?: string) => {
+    setBusy(r.id);
+    try {
+      await financialApi.updateProcurementStatus(r.id, status, remarks || undefined);
+      notify.success(`${prNo(r)} is now ${STATUS_META[status].label}.`);
+      setNoting(null);
+      onChanged();
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not update the request."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-cyan-600 hover:text-cyan-700">
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
+          Procurement
+        </button>
+        <span className="text-slate-300">/</span>
+        <span className="text-xs font-mono font-semibold text-slate-500">Pending Procurement Requests</span>
+      </div>
+
+      <div className="rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm">
+        <div className="px-6 py-5" style={{ background: "linear-gradient(135deg, #0d2a5e 0%, #1a3f7a 100%)" }}>
+          <p className="text-white font-black text-lg">Active Procurement Tracking</p>
+          <p className="text-sm text-blue-200 mt-1">Review, approve, and update the status of active procurement requests.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-500">Request No.</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-500">Project / Item</th>
+                <th className="px-5 py-3 text-right text-xs font-bold text-slate-500">Amount</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-500">Justification</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-500">Status</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-slate-500">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {requests === null ? (
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">Loading…</td></tr>
+              ) : requests.length === 0 ? (
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">No active procurement requests found.</td></tr>
+              ) : (
+                requests.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4 text-xs font-mono font-bold text-blue-700 whitespace-nowrap">{prNo(r)}</td>
+                    <td className="px-5 py-4">
+                      <p className="text-xs font-mono font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-100 inline-block mb-1">{projectOf(r.project)?.project_code ?? `#${r.project}`}</p>
+                      <p className="text-xs font-semibold text-slate-700">{itemsById.get(r.line_item)?.description ?? `Line item #${r.line_item}`}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Req by {r.requested_by_name}</p>
+                    </td>
+                    <td className="px-5 py-4 text-xs font-mono font-black text-slate-800 text-right whitespace-nowrap">{peso(r.amount)}</td>
+                    <td className="px-5 py-4 text-xs text-slate-500 max-w-xs">
+                      {r.description}
+                      {r.remarks && <p className="mt-0.5 text-slate-400">{r.remarks}</p>}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide whitespace-nowrap" style={{ background: STATUS_META[r.status].bg, color: STATUS_META[r.status].color }}>
+                        {STATUS_META[r.status].label}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      {r.status === "requested" ? (
+                        <button disabled={busy === r.id} onClick={() => receive(r)} className="w-40 px-2 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
+                          {busy === r.id ? "Saving…" : "✓ Received"}
+                        </button>
+                      ) : r.status === "returned_for_revision" ? (
+                        <span className="text-xs text-slate-400">Awaiting leader's revision</span>
+                      ) : (
+                        <select
+                          className="text-xs font-semibold px-2 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 w-40"
+                          value=""
+                          disabled={busy === r.id}
+                          onChange={(e) => {
+                            const status = e.target.value as ProcurementUpdateStatus;
+                            if (status === "returned_for_revision" || status === "completed") setNoting({ request: r, status });
+                            else update(r, status);
+                          }}
+                        >
+                          <option value="" disabled>Update Status...</option>
+                          {UPDATE_STATUSES.map((s) => (
+                            <option key={s} value={s} disabled={r.status === s}>{STATUS_META[s].label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {noting && (
+        <StatusNoteModal
+          status={noting.status}
+          onCancel={() => setNoting(null)}
+          onConfirm={(note) => update(noting.request, noting.status, note)}
+        />
+      )}
+    </div>
+  );
+}
+
 function ProcurementContent() {
   const { user } = useAuth();
   const code = user?.role?.code ?? "";
@@ -254,8 +519,25 @@ function ProcurementContent() {
   const [statusFilter, setStatusFilter] = useState<ProcurementStatus | "">("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [showNew, setShowNew] = useState(false);
-  const [busy, setBusy] = useState<number | null>(null);
-  const [remarks, setRemarks] = useState<Record<number, string>>({});
+  const [showPending, setShowPending] = useState(false);
+  const [pendingList, setPendingList] = useState<ProcurementRequest[] | null>(null);
+  const [resubmitting, setResubmitting] = useState<ProcurementRequest | null>(null);
+
+  useEffect(() => {
+    if (!canUpdate) return;
+    let active = true;
+    financialApi
+      .getProcurementRequests({ active: true })
+      .then((r) => active && setPendingList(r))
+      .catch(() => {
+        if (!active) return;
+        setPendingList([]);
+        notify.error("Could not load pending procurement requests.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [canUpdate, reloadKey]);
 
   useEffect(() => {
     let active = true;
@@ -276,6 +558,7 @@ function ProcurementContent() {
     setReloadKey((k) => k + 1);
     queryClient.invalidateQueries({ queryKey: queryKeys.projects });
     queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
   };
 
   useEffect(() => {
@@ -305,27 +588,26 @@ function ProcurementContent() {
   const all = requests ?? [];
   const shown = all.filter((r) => (!statusFilter || r.status === statusFilter) && (!overdueOnly || overdueIds.has(r.id)));
 
-  const move = async (r: ProcurementRequest, status: "processing" | "released" | "cancelled") => {
-    setBusy(r.id);
-    try {
-      await financialApi.updateProcurementStatus(r.id, status, remarks[r.id]?.trim() || undefined);
-      notify.success(`Request moved to ${STATUS_META[status].label}.`);
-      reload();
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not update the request."));
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const kpis = [
     { label: "Total Requests", val: all.length, color: "#0d2a5e" },
-    { label: "Ongoing", val: all.filter((r) => r.status === "requested" || r.status === "processing").length, color: "#92400e" },
-    { label: "Completed (Released)", val: all.filter((r) => r.status === "released").length, color: "#166534" },
-    { label: "Cancelled", val: all.filter((r) => r.status === "cancelled").length, color: "#64748b" },
+    { label: "Ongoing", val: all.filter(isOpen).length, color: "#92400e" },
+    { label: "Completed", val: all.filter((r) => r.status === "completed").length, color: "#166534" },
+    { label: "Returned for Revision", val: all.filter((r) => r.status === "returned_for_revision").length, color: "#b45309" },
     { label: `Delayed (>${DELAY_DAYS}d)`, val: all.filter((r) => overdueIds.has(r.id)).length, color: "#dc2626" },
-    { label: "Open Amount", val: peso(all.filter((r) => r.status === "requested" || r.status === "processing").reduce((s, r) => s + Number(r.amount), 0)), color: "#0d2a5e", mono: true },
+    { label: "Open Amount", val: peso(all.filter(isOpen).reduce((s, r) => s + Number(r.amount), 0)), color: "#0d2a5e", mono: true },
   ];
+
+  if (showPending) {
+    return (
+      <PendingProcurementView
+        requests={pendingList}
+        projectOf={projectOf}
+        itemsById={itemsById}
+        onBack={() => setShowPending(false)}
+        onChanged={reload}
+      />
+    );
+  }
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -338,8 +620,30 @@ function ProcurementContent() {
         ))}
       </div>
 
+      {canUpdate && (
+        <div
+          onClick={() => setShowPending(true)}
+          className="rounded-2xl p-5 cursor-pointer hover:shadow-lg transition-all border border-blue-200 bg-blue-50 flex items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-lg text-blue-900">Manage Pending Procurement Requests</p>
+              <p className="text-sm text-blue-700 mt-0.5">Review, approve, or decline procurement requests from Project Leaders.</p>
+            </div>
+          </div>
+          <span className="inline-block px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full whitespace-nowrap">
+            {pendingList === null ? "…" : pendingList.length} Active
+          </span>
+        </div>
+      )}
+
       <div className="rounded-xl p-3 text-xs" style={{ background: "#f0f9ff", border: "1px solid #bae6fd", color: "#0369a1" }}>
-        Fund release goes through the Procurement Office: Requested → Processing → Released. Requests above ₱25,000 route to the University President; ₱25,000 and below to the Campus Director. Requests open longer than {DELAY_DAYS} days are flagged as delayed.
+        Fund release goes through the Procurement Office: Request Submitted → Received (Under Review) → For Procurement → … → Completed. A request returned for revision goes back to its leader to revise and resubmit. Requests above ₱25,000 route to the University President; ₱25,000 and below to the Campus Director. Requests open longer than {DELAY_DAYS} days are flagged as delayed.
       </div>
 
       <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
@@ -427,7 +731,7 @@ function ProcurementContent() {
                       return (
                         <tr key={r.id} className="border-t align-top hover:bg-slate-50" style={{ borderColor: "#f1f5f9" }}>
                           <td className="px-3 py-2.5 text-xs font-mono font-bold whitespace-nowrap" style={{ color: "#94a3b8" }}>
-                            PR-{String(r.id).padStart(4, "0")}
+                            {prNo(r)}
                             <p className="font-sans font-normal" style={{ color: "#94a3b8" }}>{r.requested_at.slice(0, 10)}</p>
                           </td>
                           <td className="px-3 py-2.5 text-xs" style={{ maxWidth: "200px" }}>
@@ -448,45 +752,23 @@ function ProcurementContent() {
                               {delayed && <p className="text-xs font-bold" style={{ color: "#dc2626" }}>⚠ Delayed</p>}
                             </div>
                           </td>
-                          {!canUpdate && (
-                            <td className="px-3 py-2.5 text-xs" style={{ color: "#94a3b8" }}>
-                              {r.status === "requested" || r.status === "processing"
-                                ? "Awaiting Procurement Office"
-                                : r.released_at
-                                  ? `Released ${r.released_at.slice(0, 10)}`
-                                  : "Closed"}
-                            </td>
-                          )}
-                          {canUpdate && (
-                            <td className="px-3 py-2.5">
-                              {r.status === "requested" || r.status === "processing" ? (
-                                <div className="space-y-1.5 min-w-40">
-                                  <input
-                                    className={INPUT_CLS + " py-1.5 text-xs"}
-                                    style={INPUT_STYLE}
-                                    placeholder="Remarks (optional)"
-                                    value={remarks[r.id] ?? ""}
-                                    onChange={(e) => setRemarks((m) => ({ ...m, [r.id]: e.target.value }))}
-                                  />
-                                  <div className="flex gap-1.5">
-                                    <button
-                                      disabled={busy === r.id}
-                                      onClick={() => move(r, r.status === "requested" ? "processing" : "released")}
-                                      className="flex-1 px-2 py-1 rounded-lg text-xs font-bold text-white"
-                                      style={{ background: r.status === "requested" ? "#d97706" : "#059669" }}
-                                    >
-                                      {r.status === "requested" ? "→ Processing" : "→ Released"}
-                                    </button>
-                                    <button disabled={busy === r.id} onClick={() => move(r, "cancelled")} className="px-2 py-1 rounded-lg text-xs font-bold" style={{ background: "#fee2e2", color: "#dc2626" }}>
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-xs" style={{ color: "#94a3b8" }}>{r.released_at ? `Released ${r.released_at.slice(0, 10)}` : "Closed"}</span>
-                              )}
-                            </td>
-                          )}
+                          <td className="px-3 py-2.5 text-xs" style={{ color: "#94a3b8" }}>
+                            {r.status === "returned_for_revision" && canRequest ? (
+                              <button onClick={() => setResubmitting(r)} className="px-2 py-1 rounded-lg text-xs font-bold text-white whitespace-nowrap" style={{ background: "#d97706" }}>
+                                Revise & Resubmit
+                              </button>
+                            ) : r.status === "requested" ? (
+                              "Awaiting Procurement Office"
+                            ) : r.status === "completed" ? (
+                              `Done${r.completed_at ? ` ${r.completed_at.slice(0, 10)}` : ""}`
+                            ) : r.status === "cancelled" ? (
+                              "Closed"
+                            ) : r.received_by_name ? (
+                              `Received by ${r.received_by_name}`
+                            ) : (
+                              "In progress"
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -537,6 +819,17 @@ function ProcurementContent() {
             ))}
         </div>
       </div>
+
+      {resubmitting && (
+        <ResubmitModal
+          request={resubmitting}
+          onClose={() => setResubmitting(null)}
+          onSaved={() => {
+            setResubmitting(null);
+            reload();
+          }}
+        />
+      )}
 
       {showNew && (
         <NewRequestModal

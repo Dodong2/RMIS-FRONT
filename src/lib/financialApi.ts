@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { BudgetRealignment, BudgetSummary, Disbursement, ProcurementRequest, ProcurementStatus } from "../types/financial";
+import type { BudgetRealignment, BudgetSummary, Disbursement, ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
 
 export const financialApi = {
   getDisbursements: async (
@@ -50,10 +50,12 @@ export const financialApi = {
   },
 
   getProcurementRequests: async (
-    params: { project?: number; status?: ProcurementStatus; fiscal_year?: number; quarter?: number; overdue?: boolean } = {},
+    params: { project?: number; status?: ProcurementStatus; fiscal_year?: number; quarter?: number; overdue?: boolean; active?: boolean } = {},
   ): Promise<ProcurementRequest[]> => {
-    const { overdue, ...rest } = params;
-    const { data } = await apiClient.get("/api/financial/procurement-requests/", { params: { ...rest, ...(overdue ? { overdue: "true" } : {}) } });
+    const { overdue, active, ...rest } = params;
+    const { data } = await apiClient.get("/api/financial/procurement-requests/", {
+      params: { ...rest, ...(overdue ? { overdue: "true" } : {}), ...(active ? { active: "true" } : {}) },
+    });
     return data;
   },
   createProcurementRequest: async (payload: {
@@ -67,8 +69,16 @@ export const financialApi = {
     const { data } = await apiClient.post("/api/financial/procurement-requests/", payload);
     return data;
   },
-  updateProcurementStatus: async (id: number, status: "processing" | "released" | "cancelled", remarks?: string): Promise<ProcurementRequest> => {
+  receiveProcurementRequest: async (id: number): Promise<ProcurementRequest> => {
+    const { data } = await apiClient.post(`/api/financial/procurement-requests/${id}/receive/`);
+    return data;
+  },
+  updateProcurementStatus: async (id: number, status: ProcurementUpdateStatus, remarks?: string): Promise<ProcurementRequest> => {
     const { data } = await apiClient.post(`/api/financial/procurement-requests/${id}/status/`, { status, remarks });
+    return data;
+  },
+  resubmitProcurementRequest: async (id: number, payload: { description: string; amount: string; remarks?: string }): Promise<ProcurementRequest> => {
+    const { data } = await apiClient.post(`/api/financial/procurement-requests/${id}/resubmit/`, payload);
     return data;
   },
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { realignmentsQuery, useBudgets, useProjects } from "../../lib/queries";
+import { procurementRequestsQuery, realignmentsQuery, useBudgets, useProjects } from "../../lib/queries";
 import { initialsFrom, personName, resolveTier, roleLabel, roleScopeLine } from "../../lib/roles";
 import { protoRoleStyle } from "../../lib/protoRole";
 import { riskApi } from "../../lib/riskApi";
@@ -9,6 +9,8 @@ import type { User } from "../../types/auth";
 import type { RiskAlertInbox } from "../../types/risk";
 
 const BUDGET_REVIEWER_ROLE_CODES = ["system_admin", "finance_budget"];
+const PROCUREMENT_LEADER_ROLE_CODES = ["program_leader", "project_leader"];
+const PROCUREMENT_OFFICE_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
 
 interface TopbarProps {
   user: User | null;
@@ -38,7 +40,10 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
   const budgetsQ = useBudgets(undefined, { enabled: isBudgetReviewer });
   const projectsQ = useProjects({ enabled: isBudgetReviewer });
   const realignmentsQ = useQuery({ ...realignmentsQuery(), enabled: isBudgetReviewer });
-  const budgetItems: { key: string; text: string; sub: string; link: string }[] = [];
+  const isProcurementLeader = PROCUREMENT_LEADER_ROLE_CODES.includes(user?.role?.code ?? "");
+  const isProcurementOffice = PROCUREMENT_OFFICE_ROLE_CODES.includes(user?.role?.code ?? "");
+  const procurementQ = useQuery({ ...procurementRequestsQuery(), enabled: isProcurementLeader || isProcurementOffice });
+  const budgetItems: { key: string; text: string; sub: string; link: string; area: string }[] = [];
   if (isBudgetReviewer) {
     for (const b of budgetsQ.data ?? []) {
       if (!b.is_current || b.status !== "draft" || b.line_items.length === 0) continue;
@@ -48,6 +53,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
         text: `${p?.project_code ?? `Project #${b.project}`} submitted LIB v${b.version_number}${p ? ` · ${p.title}` : ""}`,
         sub: "Waiting for certification",
         link: `/budget?project=${b.project}`,
+        area: "Budget",
       });
     }
     const pending = (realignmentsQ.data ?? []).filter((r) => r.status === "pending_approval" || r.status === "pending_bor").length;
@@ -57,6 +63,42 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
         text: `${pending} realignment request${pending !== 1 ? "s" : ""} submitted`,
         sub: "Waiting for approval",
         link: "/budget?view=realignments",
+        area: "Budget",
+      });
+    }
+  }
+  const procurement = procurementQ.data ?? [];
+  if (isProcurementLeader) {
+    for (const r of procurement) {
+      const no = `PR-${String(r.id).padStart(4, "0")}`;
+      if (r.status === "under_review" && r.received_by_name) {
+        budgetItems.push({
+          key: `pr${r.id}`,
+          text: `Your procurement request ${no} was received by ${r.received_by_name}${r.received_by_role ? ` (${r.received_by_role})` : ""}`,
+          sub: "Under Review",
+          link: "/procurement",
+          area: "Procurement",
+        });
+      } else if (r.status === "returned_for_revision") {
+        budgetItems.push({
+          key: `pr${r.id}`,
+          text: `Your procurement request ${no} was returned for revision${r.remarks ? `: ${r.remarks}` : ""}`,
+          sub: "Revise and resubmit",
+          link: "/procurement",
+          area: "Procurement",
+        });
+      }
+    }
+  }
+  if (isProcurementOffice) {
+    const submitted = procurement.filter((r) => r.status === "requested").length;
+    if (submitted > 0) {
+      budgetItems.push({
+        key: "pr-submitted",
+        text: `${submitted} new procurement request${submitted !== 1 ? "s" : ""} submitted`,
+        sub: "Waiting to be received",
+        link: "/procurement",
+        area: "Procurement",
       });
     }
   }
@@ -148,7 +190,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
                       <div className="w-2 h-2 rounded-full mt-1.5 shrink-0 bg-red-400" />
                       <div>
                         <p className="text-xs leading-relaxed" style={{ color: "#334155" }}>{n.text}</p>
-                        <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>Budget · {n.sub}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{n.area} · {n.sub}</p>
                       </div>
                     </li>
                   ))}

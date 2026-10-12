@@ -68,7 +68,20 @@ export interface BudgetSummary {
   totals: BalanceFigures;
 }
 
-export type ProcurementStatus = "requested" | "processing" | "released" | "cancelled";
+export type ProcurementStatus =
+  | "requested"
+  | "under_review"
+  | "returned_for_revision"
+  | "for_procurement"
+  | "procurement_in_progress"
+  | "order_placed"
+  | "awaiting_delivery"
+  | "delivered"
+  | "ready_for_release"
+  | "completed"
+  | "cancelled";
+
+export type ProcurementUpdateStatus = Exclude<ProcurementStatus, "requested" | "under_review" | "cancelled">;
 
 export interface ProcurementRequest {
   id: number;
@@ -82,8 +95,12 @@ export interface ProcurementRequest {
   status: ProcurementStatus;
   remarks: string;
   requested_by: number;
+  requested_by_name: string;
   requested_at: string;
-  processing_at: string | null;
-  released_at: string | null;
+  received_by: number | null;
+  received_by_name: string | null;
+  received_by_role: string | null;
+  received_at: string | null;
+  completed_at: string | null;
   updated_by: number | null;
 }
