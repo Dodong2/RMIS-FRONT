@@ -27,6 +27,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Field, SkeletonRows, TableHead } from "../components/common/proto";
 import { BudgetTab } from "../components/analytics/BudgetTab";
+import { OutputsTab } from "../components/analytics/OutputsTab";
 import { OverviewTab } from "../components/analytics/OverviewTab";
 import { ProjectsTab } from "../components/analytics/ProjectsTab";
 import { PortfolioTab } from "../components/analytics/PortfolioTab";
@@ -39,21 +40,6 @@ const PROJECT_STATUS_META: Record<string, { label: string; color: string }> = {
   active: { label: "Active", color: "#059669" },
   completed: { label: "Completed", color: "#0d2a5e" },
   archived: { label: "Archived", color: "#94a3b8" },
-};
-
-const PUBLICATION_TYPE_LABELS: Record<string, string> = {
-  journal_article: "Journal Article",
-  book: "Book",
-  book_chapter: "Book Chapter",
-  conference_proceeding: "Conference Proceeding",
-  instructional_material: "Instructional Material",
-};
-
-const IP_STATUS_LABELS: Record<string, string> = {
-  disclosed: "Disclosed",
-  filed: "Filed",
-  registered: "Registered",
-  adopted: "Adopted by Community",
 };
 
 const REVIEW_STATUS_LABELS: Record<string, string> = {
@@ -131,8 +117,6 @@ function AnalyticsContent() {
   const [portfolioCampuses, setPortfolioCampuses] = useState<string[]>([]);
   const [allColleges, setAllColleges] = useState<PortfolioCollege[]>([]);
 
-  const [outputYear, setOutputYear] = useState("");
-  const [outputYearApplied, setOutputYearApplied] = useState("");
 
   const [planningTargets, setPlanningTargets] = useState<PlanningTarget[] | null>(null);
   const [planningComparison, setPlanningComparison] = useState<PlanningTargetComparison[]>([]);
@@ -207,13 +191,13 @@ function AnalyticsContent() {
   useEffect(() => {
     let alive = true;
     dashboardApi
-      .getOutputDashboard({ ...scope, year: outputYearApplied ? Number(outputYearApplied) : undefined })
+      .getOutputDashboard(scope)
       .then((d) => alive && setOutputDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the outputs dashboard.")));
     return () => {
       alive = false;
     };
-  }, [outputYearApplied, scope]);
+  }, [scope]);
 
   useEffect(() => {
     let alive = true;
@@ -292,9 +276,6 @@ function AnalyticsContent() {
   if (projects === null) return <SkeletonRows />;
 
   const statusSegments = Object.entries(projectDash?.by_status ?? {}).map(([k, v]) => ({ label: PROJECT_STATUS_META[k]?.label ?? humanize(k), value: v, color: PROJECT_STATUS_META[k]?.color ?? "#64748b" }));
-  const pubTotal = Object.values(outputDash?.publications_by_type ?? {}).reduce((a, v) => a + v, 0);
-  const ipTotal = Object.values(outputDash?.ip_records_by_status ?? {}).reduce((a, v) => a + v, 0);
-  const outputsTotal = pubTotal + ipTotal + (outputDash?.creative_works_count ?? 0);
   const sim = complianceDash?.similarity_checks;
   const count = (obj: Record<string, number> | undefined) => Object.values(obj ?? {}).reduce((a, v) => a + v, 0);
 
@@ -458,36 +439,7 @@ function AnalyticsContent() {
           </>
         ))}
 
-      {tab === "outputs" && (
-        <>
-          <div className="flex items-center gap-2">
-            <input type="number" value={outputYear} onChange={(e) => setOutputYear(e.target.value)} placeholder="All years" className="px-3 py-2 rounded-xl text-xs border outline-none w-32" style={selSt} />
-            <button onClick={() => setOutputYearApplied(outputYear)} className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-              Apply Year
-            </button>
-          </div>
-          {!outputDash ? (
-            <SkeletonRows />
-          ) : (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <KpiBox label="Total Outputs" value={String(outputsTotal)} sub="Publications + IP + creative works" color="#0d2a5e" />
-                <KpiBox label="Publications" value={String(pubTotal)} color="#0891b2" />
-                <KpiBox label="IP Incentive-Eligible" value={String(outputDash.ip_incentive_eligible_count)} sub={`of ${ipTotal} IP records`} color="#7c3aed" />
-                <KpiBox label="Est. Publication Incentives" value={peso(outputDash.total_estimated_publication_incentive)} sub="Manual Article V tables" color="#059669" />
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <ChartCard title="Publications by Type">
-                  <CountBars data={outputDash.publications_by_type} labelFor={(k) => PUBLICATION_TYPE_LABELS[k] ?? humanize(k)} emptyMessage="No publications recorded yet." />
-                </ChartCard>
-                <ChartCard title="IP Records by Status">
-                  <CountBars data={outputDash.ip_records_by_status} labelFor={(k) => IP_STATUS_LABELS[k] ?? humanize(k)} emptyMessage="No IP records logged yet." />
-                </ChartCard>
-              </div>
-            </>
-          )}
-        </>
-      )}
+      {tab === "outputs" && <OutputsTab data={performanceDash} outputDash={outputDash} />}
 
       {tab === "rei" &&
         (!reiDash ? (
