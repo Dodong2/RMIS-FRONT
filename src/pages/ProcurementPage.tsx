@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
 import { errorMessage } from "../lib/errorMessage";
@@ -16,6 +17,7 @@ import { MoneyInput } from "../components/common/MoneyInput";
 import { Field, SkeletonRows } from "../components/common/proto";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
+import { PROCUREMENT_EVENTS, useRealtime } from "../hooks/useRealtime";
 
 const REQUEST_ROLE_CODES = ["system_admin", "program_leader", "project_leader"];
 const UPDATE_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
@@ -516,12 +518,15 @@ function ProcurementContent() {
   const [appItems, setAppItems] = useState<LineItem[] | null>(null);
   const [overdueIds, setOverdueIds] = useState<Set<number>>(new Set());
   const [reloadKey, setReloadKey] = useState(0);
-  const [tab, setTab] = useState<Tab>("requests");
+  const [params, setParams] = useSearchParams();
+  const focusId = Number(params.get("request")) || null;
+  const showPending = canUpdate && params.get("view") === "pending";
+  const [chosenTab, setTab] = useState<Tab>("requests");
+  const tab: Tab = focusId ? "requests" : chosenTab;
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProcurementStatus | "">("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [showNew, setShowNew] = useState(false);
-  const [showPending, setShowPending] = useState(false);
   const [pendingList, setPendingList] = useState<ProcurementRequest[] | null>(null);
   const [resubmitting, setResubmitting] = useState<ProcurementRequest | null>(null);
 
@@ -563,6 +568,11 @@ function ProcurementContent() {
     queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
     queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
   };
+  useRealtime(PROCUREMENT_EVENTS, reload);
+
+  useEffect(() => {
+    if (focusId) document.getElementById(`pr-${focusId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [focusId, requests]);
 
   useEffect(() => {
     let active = true;
@@ -589,7 +599,7 @@ function ProcurementContent() {
   const projectOf = (id: number | undefined) => projects.find((p) => p.id === id);
   // KPIs count every request of the selected project(s); the status/delayed filters only narrow the table.
   const all = requests ?? [];
-  const shown = all.filter((r) => (!statusFilter || r.status === statusFilter) && (!overdueOnly || overdueIds.has(r.id)));
+  const shown = all.filter((r) => r.id === focusId || ((!statusFilter || r.status === statusFilter) && (!overdueOnly || overdueIds.has(r.id))));
 
   const kpis = [
     { label: "Total Requests", val: all.length, color: "#0d2a5e" },
@@ -606,7 +616,7 @@ function ProcurementContent() {
         requests={pendingList}
         projectOf={projectOf}
         itemsById={itemsById}
-        onBack={() => setShowPending(false)}
+        onBack={() => setParams({})}
         onChanged={reload}
       />
     );
@@ -625,7 +635,7 @@ function ProcurementContent() {
 
       {canUpdate && (
         <div
-          onClick={() => setShowPending(true)}
+          onClick={() => setParams({ view: "pending" })}
           className="rounded-2xl p-5 cursor-pointer hover:shadow-lg transition-all border border-blue-200 bg-blue-50 flex items-center justify-between gap-3"
         >
           <div className="flex items-center gap-4">
@@ -660,7 +670,10 @@ function ProcurementContent() {
             ).map(([k, l]) => (
               <button
                 key={k}
-                onClick={() => setTab(k)}
+                onClick={() => {
+                  setTab(k);
+                  if (focusId) setParams({});
+                }}
                 className="px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-all"
                 style={{ borderBottomColor: tab === k ? "#0891b2" : "transparent", color: tab === k ? "#0891b2" : "#64748b" }}
               >
@@ -732,7 +745,12 @@ function ProcurementContent() {
                       const item = itemsById.get(r.line_item);
                       const delayed = overdueIds.has(r.id);
                       return (
-                        <tr key={r.id} className="border-t align-top hover:bg-slate-50" style={{ borderColor: "#f1f5f9" }}>
+                        <tr
+                          key={r.id}
+                          id={`pr-${r.id}`}
+                          className="border-t align-top hover:bg-slate-50"
+                          style={{ borderColor: "#f1f5f9", background: r.id === focusId ? "#fef9c3" : undefined }}
+                        >
                           <td className="px-3 py-2.5 text-xs font-mono font-bold whitespace-nowrap" style={{ color: "#94a3b8" }}>
                             {prNo(r)}
                             <p className="font-sans font-normal" style={{ color: "#94a3b8" }}>{r.requested_at.slice(0, 10)}</p>

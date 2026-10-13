@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { procurementRequestsQuery, realignmentsQuery, useBudgets, useProjects } from "../../lib/queries";
+import { PROCUREMENT_EVENTS, useRealtime } from "../../hooks/useRealtime";
 import { initialsFrom, personName, resolveTier, roleLabel, roleScopeLine } from "../../lib/roles";
 import { protoRoleStyle } from "../../lib/protoRole";
 import { riskApi } from "../../lib/riskApi";
@@ -43,6 +44,8 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
   const isProcurementLeader = PROCUREMENT_LEADER_ROLE_CODES.includes(user?.role?.code ?? "");
   const isProcurementOffice = PROCUREMENT_OFFICE_ROLE_CODES.includes(user?.role?.code ?? "");
   const procurementQ = useQuery({ ...procurementRequestsQuery(), enabled: isProcurementLeader || isProcurementOffice });
+  const queryClient = useQueryClient();
+  useRealtime(PROCUREMENT_EVENTS, () => queryClient.invalidateQueries({ queryKey: procurementRequestsQuery().queryKey }));
   const budgetItems: { key: string; text: string; sub: string; link: string; area: string }[] = [];
   if (isBudgetReviewer) {
     for (const b of budgetsQ.data ?? []) {
@@ -76,7 +79,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
           key: `pr${r.id}`,
           text: `Your procurement request ${no} was received by ${r.received_by_name}${r.received_by_role ? ` (${r.received_by_role})` : ""}`,
           sub: "Under Review",
-          link: "/procurement",
+          link: `/procurement?request=${r.id}`,
           area: "Procurement",
         });
       } else if (r.status === "returned_for_revision") {
@@ -84,7 +87,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
           key: `pr${r.id}`,
           text: `Your procurement request ${no} was returned for revision${r.remarks ? `: ${r.remarks}` : ""}`,
           sub: "Revise and resubmit",
-          link: "/procurement",
+          link: `/procurement?request=${r.id}`,
           area: "Procurement",
         });
       }
@@ -97,7 +100,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
         key: "pr-submitted",
         text: `${submitted} new procurement request${submitted !== 1 ? "s" : ""} submitted`,
         sub: "Waiting to be received",
-        link: "/procurement",
+        link: "/procurement?view=pending",
         area: "Procurement",
       });
     }

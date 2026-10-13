@@ -5,6 +5,7 @@ type Handler = (msg: RealtimeMessage) => void;
 type Options = { getToken: () => string | null; refreshToken: () => Promise<boolean> };
 
 export const RECONNECTED = "realtime.reconnected";
+export const PROCUREMENT_EVENTS = ["procurement.created", "procurement.updated"];
 const UNAUTHORIZED = 4401;
 const PING_MS = 25000;
 const MAX_DELAY_MS = 30000;
