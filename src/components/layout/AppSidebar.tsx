@@ -58,7 +58,6 @@ export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebar
               </p>
               <ul className="space-y-0.5">
                 {section.items.map((item) => {
-                  // A grouped item stays lit on every tab of its group, not only the first.
                   const inGroup = !!item.tabs?.some((t) => t.to === pathname);
                   return (
                   <li key={item.to}>

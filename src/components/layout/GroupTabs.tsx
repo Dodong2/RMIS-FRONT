@@ -3,10 +3,6 @@ import { groupTabsFor } from "../../lib/nav";
 import { resolveTier } from "../../lib/roles";
 import type { User } from "../../types/auth";
 
-/**
- * Tabs for a grouped sidebar entry (grouping.png): one sidebar item, with its
- * pages as tabs above the content. Renders nothing on ungrouped pages.
- */
 export function GroupTabs({ user }: { user: User | null }) {
   const { pathname } = useLocation();
   const tabs = groupTabsFor(pathname, resolveTier(user?.role), user?.role?.code);
