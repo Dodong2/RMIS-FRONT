@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import type { OutputDashboard, PerformanceDashboard, PerformanceScore } from "../../types/dashboard";
 import { SkeletonRows } from "../common/proto";
-import { FUNDING_LABELS, monthLabel, peso } from "./format";
+import { monthLabel, peso } from "./format";
 import { ChartCard, DonutChart, EmptyChart, HBar, KpiBox, MiniBar, TrendBar } from "./ProtoCharts";
 
 const PROGRESS_PER_PAGE = 4;
@@ -80,13 +80,8 @@ export function OverviewTab({
   const monthCount = months.reduce((a, m) => a + m.count, 0);
   const monthLabels = months.map((m) => monthLabel(m.month));
 
-  const byFunding = Object.entries(
-    rows.reduce<Record<string, number>>((acc, r) => {
-      if (r.approved) acc[r.funding_type] = (acc[r.funding_type] ?? 0) + r.approved;
-      return acc;
-    }, {}),
-  ).sort((a, b) => b[1] - a[1]);
-  const maxFunding = Math.max(0, ...byFunding.map(([, v]) => v));
+  const byFunding = data.budget_by_funding_agency;
+  const maxFunding = Math.max(0, ...byFunding.map((f) => f.total));
 
   const pageBtn = (disabled: boolean) => ({ background: disabled ? "#f1f5f9" : "#0d2a5e", color: disabled ? "#94a3b8" : "white" });
 
@@ -149,13 +144,13 @@ export function OverviewTab({
           )}
         </ChartCard>
 
-        <ChartCard title="Budget Allocation by Funding Type">
+        <ChartCard title="Budget Allocation by Funding Agency">
           {byFunding.length === 0 ? (
             <Empty message="No budget data matches the selected filters." />
           ) : (
             <div className="space-y-2">
-              {byFunding.map(([type, value], i) => (
-                <HBar key={type} label={FUNDING_LABELS[type] ?? type} val={value} max={maxFunding} color={["#0d2a5e", "#0891b2", "#7c3aed", "#059669"][i % 4]} valLabel={peso(value)} />
+              {byFunding.map((f, i) => (
+                <HBar key={f.agency} label={f.agency} val={f.total} max={maxFunding} color={["#0d2a5e", "#0891b2", "#7c3aed", "#059669"][i % 4]} valLabel={peso(f.total)} />
               ))}
             </div>
           )}

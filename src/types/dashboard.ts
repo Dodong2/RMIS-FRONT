@@ -91,6 +91,7 @@ export interface PerformanceDashboard {
   weights: { progress: number; utilization: number; completion: number; outputs: number };
   projects: PerformanceProjectRow[];
   monthly_disbursements: { month: string; total: number; count: number }[];
+  budget_by_funding_agency: { agency: string; total: number }[];
   college_ranking: (PerformanceScore & { campus: string; college: string; code: string; title: string })[];
   campus_ranking: (PerformanceScore & { campus: string })[];
   leader_ranking: (PerformanceScore & { leader_id: number; leader: string; position: string; office: string })[];
