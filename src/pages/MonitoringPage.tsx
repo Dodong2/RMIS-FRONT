@@ -13,6 +13,7 @@ import { NoActualData } from "../components/common/NoActualData";
 import { SkeletonRows } from "../components/common/proto";
 import { EvaluationsPanel, RubricPanel } from "../components/monitoring/Evaluations";
 import { ExtensionsPanel, ProgressReportsPanel, RenewalPanel } from "../components/monitoring/Reports";
+import { QuarterlyReports } from "../components/monitoring/QuarterlyReports";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { RECONNECTED, useRealtime } from "../hooks/useRealtime";
@@ -526,11 +527,36 @@ function MonitoringContent() {
   );
 }
 
+const PAGE_TABS = [
+  ["monitoring", "Monitoring & Evaluation"],
+  ["quarterly", "R&D Quarterly Progress Reports"],
+] as const;
+
 export default function MonitoringPage() {
+  const [page, setPage] = useState<(typeof PAGE_TABS)[number][0]>("monitoring");
   return (
     <ProtectedRoute>
       <AppShell title="Monitoring & Evaluation">
-        <MonitoringContent />
+        <div
+          role="tablist"
+          className="mb-5 inline-flex max-w-full flex-wrap gap-1 rounded-xl border p-1"
+          style={{ borderColor: "#e2e8f0", background: "white" }}
+        >
+          {PAGE_TABS.map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={page === key}
+              onClick={() => setPage(key)}
+              className="px-4 py-2 rounded-lg text-xs font-bold transition-all"
+              style={{ background: page === key ? "#0d2a5e" : "transparent", color: page === key ? "white" : "#64748b" }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {page === "monitoring" ? <MonitoringContent /> : <QuarterlyReports />}
       </AppShell>
     </ProtectedRoute>
   );

@@ -141,3 +141,88 @@ export interface MonitoringIndicators {
   forecast_overrun_risk: boolean | null;
   budget_office_status: BudgetOfficeMatchStatus | null;
 }
+
+// R&D Quarterly Progress Reports (client 2026-10-14)
+export type QuarterlyReportStatus = "draft" | "submitted" | "under_review" | "returned_for_revision" | "endorsed" | "approved";
+
+export interface QuarterlyAccomplishment {
+  objective: string;
+  activity: string;
+  target: string;
+  actual: string;
+  cumulative: string;
+  target_date: string;
+  actual_date: string;
+  completion_pct: number;
+  variance: string;
+  remarks: string;
+}
+
+export interface QuarterlyIssue {
+  issue: string;
+  corrective_action: string;
+  recommendation: string;
+  responsible: string;
+  target_resolution_date: string;
+}
+
+export interface QuarterlyFinancialSnapshot {
+  original_budget: number;
+  approved_adjustments: number;
+  adjusted_budget: number;
+  quarter_disbursements: number;
+  cumulative_disbursements: number;
+  remaining_budget: number;
+  utilization_pct: number;
+  transaction_count: number;
+  over_budget: boolean;
+}
+
+export interface QuarterlyReportEvent {
+  action: "created" | "updated" | "status_transition";
+  from_status: string;
+  to_status: string;
+  remarks: string;
+  actor: string;
+  at: string;
+}
+
+export interface QuarterlyReport {
+  id: number;
+  project: number;
+  year: number;
+  quarter: number;
+  period: string;
+  status: QuarterlyReportStatus;
+  version: number;
+  is_overdue: boolean;
+  project_info: {
+    code: string;
+    title: string;
+    leader: string;
+    leader_id: number;
+    campus: string;
+    college: string;
+    funding_agency: string;
+    start_date: string | null;
+    end_date: string | null;
+    objectives: string[];
+  };
+  accomplishments: QuarterlyAccomplishment[];
+  issues: QuarterlyIssue[];
+  financial_snapshot: QuarterlyFinancialSnapshot;
+  evidence: number[];
+  evidence_files: { id: number; file_name: string }[];
+  recommendations: string;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+  submitted_at: string | null;
+  approved_by: number | null;
+  approved_by_name: string;
+  approved_at: string | null;
+  events: QuarterlyReportEvent[];
+  review_history: QuarterlyReportEvent[];
+}
+
+export type QuarterlyReportEdit = Partial<Pick<QuarterlyReport, "accomplishments" | "issues" | "evidence" | "recommendations">>;

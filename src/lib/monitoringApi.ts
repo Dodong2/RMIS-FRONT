@@ -1,4 +1,4 @@
-import { apiClient } from "./apiClient";
+import { apiClient, idempotent } from "./apiClient";
 import type {
   EvaluationCriterion,
   EvaluationOutcome,
@@ -9,6 +9,9 @@ import type {
   ObjectiveAccomplishment,
   ProjectEvaluation,
   ProjectMonitoringStatus,
+  QuarterlyReport,
+  QuarterlyReportEdit,
+  QuarterlyReportStatus,
   RenewalApplication,
   RenewalStatus,
   TerminalReport,
@@ -136,6 +139,26 @@ export const monitoringApi = {
   },
   actOnExtensionRequest: async (id: number, action: "endorse" | "approve" | "deny", remarks?: string): Promise<ExtensionRequest> => {
     const { data } = await apiClient.post(`/api/monitoring/extension-requests/${id}/action/`, { action, remarks });
+    return data;
+  },
+
+  getQuarterlyReports: async (): Promise<QuarterlyReport[]> => {
+    const { data } = await apiClient.get("/api/monitoring/quarterly-reports/");
+    return data;
+  },
+  createQuarterlyReport: async (
+    payload: { project: number; year: number; quarter: number },
+    idempotencyKey?: string,
+  ): Promise<QuarterlyReport> => {
+    const { data } = await apiClient.post("/api/monitoring/quarterly-reports/", payload, idempotent(idempotencyKey));
+    return data;
+  },
+  updateQuarterlyReport: async (id: number, payload: QuarterlyReportEdit): Promise<QuarterlyReport> => {
+    const { data } = await apiClient.patch(`/api/monitoring/quarterly-reports/${id}/`, payload);
+    return data;
+  },
+  transitionQuarterlyReport: async (id: number, status: QuarterlyReportStatus, remarks = ""): Promise<QuarterlyReport> => {
+    const { data } = await apiClient.post(`/api/monitoring/quarterly-reports/${id}/transition/`, { status, remarks });
     return data;
   },
 };
