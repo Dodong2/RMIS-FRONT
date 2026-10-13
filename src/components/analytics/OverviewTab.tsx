@@ -1,18 +1,11 @@
 import { useState, type ReactNode } from "react";
 import type { OutputDashboard, PerformanceDashboard, PerformanceScore } from "../../types/dashboard";
 import { SkeletonRows } from "../common/proto";
+import { FUNDING_LABELS, monthLabel, peso } from "./format";
 import { ChartCard, DonutChart, EmptyChart, HBar, KpiBox, MiniBar, TrendBar } from "./ProtoCharts";
 
 const PROGRESS_PER_PAGE = 4;
 const RANK_LIMIT = 6;
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const FUNDING_LABELS: Record<string, string> = {
-  institutional: "Institutional (LSPU-Funded)",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally-Funded",
-};
-
-const peso = (n: number) => `₱${Math.round(n).toLocaleString("en-PH")}`;
 const medal = (i: number) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`);
 const barColor = (i: number) => (i === 0 ? "#059669" : i === 1 ? "#0891b2" : i === 2 ? "#7c3aed" : "#94a3b8");
 const rankBox = (top: boolean) => ({ background: top ? "#f0fdf4" : "#f8fafc", border: `1px solid ${top ? "#bbf7d0" : "#e2e8f0"}` });
@@ -85,7 +78,7 @@ export function OverviewTab({
   const months = data.monthly_disbursements;
   const monthTotal = months.reduce((a, m) => a + m.total, 0);
   const monthCount = months.reduce((a, m) => a + m.count, 0);
-  const monthLabels = months.map((m) => `${MONTHS[Number(m.month.slice(5)) - 1]} ${m.month.slice(2, 4)}`);
+  const monthLabels = months.map((m) => monthLabel(m.month));
 
   const byFunding = Object.entries(
     rows.reduce<Record<string, number>>((acc, r) => {

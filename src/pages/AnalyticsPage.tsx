@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { dashboardApi } from "../lib/dashboardApi";
-import { financialApi } from "../lib/financialApi";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
@@ -10,7 +9,6 @@ import type {
   AppendixEEntry,
   AppendixFExport,
   AppendixGExport,
-  BudgetDashboard,
   ComplianceDashboard,
   ForecastingDashboard,
   OutputDashboard,
@@ -23,23 +21,19 @@ import type {
   ProjectDashboard,
   REIThrustAlignment,
 } from "../types/dashboard";
-import type { Disbursement } from "../types/financial";
-import type { FundingType, Project } from "../types/research";
+import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Field, SkeletonRows, TableHead } from "../components/common/proto";
+import { BudgetTab } from "../components/analytics/BudgetTab";
 import { OverviewTab } from "../components/analytics/OverviewTab";
+import { ProjectsTab } from "../components/analytics/ProjectsTab";
 import { PortfolioTab } from "../components/analytics/PortfolioTab";
-import { ChartCard, CountBars, EmptyChart, HBar, KpiBox, MiniBar, TrendBar } from "../components/analytics/ProtoCharts";
+import { ChartCard, CountBars, EmptyChart, HBar, KpiBox } from "../components/analytics/ProtoCharts";
 
 const MANAGE_TARGET_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
 
-const FUNDING_LABELS: Record<FundingType, string> = {
-  institutional: "Institutional (LSPU-Funded)",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally-Funded",
-};
 
 const PROJECT_STATUS_META: Record<string, { label: string; color: string }> = {
   active: { label: "Active", color: "#059669" },
@@ -105,7 +99,6 @@ const TABS = [
 
 type Tab = (typeof TABS)[number][0];
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const humanize = (key: string) => key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 const peso = (n: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);
@@ -129,11 +122,9 @@ function AnalyticsContent() {
   const [projects, setProjects] = useState<Project[] | null>(null);
 
   const [projectDash, setProjectDash] = useState<ProjectDashboard | null>(null);
-  const [budgetDash, setBudgetDash] = useState<BudgetDashboard | null>(null);
   const [forecastDash, setForecastDash] = useState<ForecastingDashboard | null>(null);
   const [complianceDash, setComplianceDash] = useState<ComplianceDashboard | null>(null);
   const [outputDash, setOutputDash] = useState<OutputDashboard | null>(null);
-  const [disbursements, setDisbursements] = useState<Disbursement[] | null>(null);
   const [reiDash, setReiDash] = useState<REIThrustAlignment | null>(null);
   const [portfolioDash, setPortfolioDash] = useState<PortfolioDashboard | null>(null);
   const [performanceDash, setPerformanceDash] = useState<PerformanceDashboard | null>(null);
@@ -142,7 +133,6 @@ function AnalyticsContent() {
 
   const [outputYear, setOutputYear] = useState("");
   const [outputYearApplied, setOutputYearApplied] = useState("");
-  const [trendYear, setTrendYear] = useState(new Date().getFullYear());
 
   const [planningTargets, setPlanningTargets] = useState<PlanningTarget[] | null>(null);
   const [planningComparison, setPlanningComparison] = useState<PlanningTargetComparison[]>([]);
@@ -178,10 +168,6 @@ function AnalyticsContent() {
         notify.error("Could not load projects.");
       });
     dashboardApi.getREIThrustAlignment().then((d) => alive && setReiDash(d)).catch(() => undefined);
-    financialApi
-      .getDisbursements()
-      .then((d) => alive && setDisbursements(d))
-      .catch(() => alive && setDisbursements([]));
     return () => {
       alive = false;
     };
@@ -193,10 +179,6 @@ function AnalyticsContent() {
       .getProjectDashboard(scope)
       .then((d) => alive && setProjectDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the projects dashboard.")));
-    dashboardApi
-      .getBudgetDashboard(scope)
-      .then((d) => alive && setBudgetDash(d))
-      .catch((err) => alive && notify.error(errorMessage(err, "Could not load the budget dashboard.")));
     dashboardApi
       .getPortfolioDashboard(scope)
       .then((d) => {
@@ -281,25 +263,7 @@ function AnalyticsContent() {
     () => [...new Set([...(projects ?? []).map((p) => p.campus), ...portfolioCampuses].filter(Boolean))].sort(),
     [projects, portfolioCampuses],
   );
-  const scopedProjects = useMemo(
-    () => (projects ?? []).filter((p) => (!scope.campus || p.campus === scope.campus) && (!scope.college || p.college === scope.college)),
-    [projects, scope],
-  );
   const collegeOptions = allColleges.filter((c) => !campus || c.campus === campus);
-  const monthly = useMemo(() => {
-    const totals = Array(12).fill(0) as number[];
-    (disbursements ?? []).forEach((d) => {
-      const dt = new Date(d.disbursed_on + "T00:00:00");
-      if (dt.getFullYear() === trendYear) totals[dt.getMonth()] += Number(d.amount);
-    });
-    return totals;
-  }, [disbursements, trendYear]);
-  const trendYears = useMemo(() => {
-    const ys = new Set((disbursements ?? []).map((d) => Number(d.disbursed_on.slice(0, 4))));
-    ys.add(new Date().getFullYear());
-    return [...ys].sort((a, b) => b - a);
-  }, [disbursements]);
-
   const handleAddTarget = async () => {
     setAttemptedTarget(true);
     if (!targetForm.metric || !targetForm.target_year || !targetForm.target_value) {
@@ -331,9 +295,7 @@ function AnalyticsContent() {
   const pubTotal = Object.values(outputDash?.publications_by_type ?? {}).reduce((a, v) => a + v, 0);
   const ipTotal = Object.values(outputDash?.ip_records_by_status ?? {}).reduce((a, v) => a + v, 0);
   const outputsTotal = pubTotal + ipTotal + (outputDash?.creative_works_count ?? 0);
-  const util = budgetDash?.utilization_pct ?? null;
   const sim = complianceDash?.similarity_checks;
-  const trendTotal = monthly.reduce((a, v) => a + v, 0);
   const count = (obj: Record<string, number> | undefined) => Object.values(obj ?? {}).reduce((a, v) => a + v, 0);
 
   const complianceSnapshot = complianceDash && (
@@ -352,32 +314,6 @@ function AnalyticsContent() {
         </div>
       ))}
     </div>
-  );
-
-  const trendCard = (
-    <ChartCard
-      title={`Monthly Disbursement (${trendYear})`}
-      aside={
-        <select value={trendYear} onChange={(e) => setTrendYear(Number(e.target.value))} className="px-2 py-1 rounded-lg text-xs border outline-none" style={selSt}>
-          {trendYears.map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-      }
-    >
-      {disbursements === null ? (
-        <SkeletonRows />
-      ) : trendTotal === 0 ? (
-        <EmptyChart message={`No disbursement records found for ${trendYear}.`} />
-      ) : (
-        <>
-          <TrendBar labels={MONTHS} values={monthly} color="#0891b2" format={peso} />
-          <p className="text-xs mt-3" style={{ color: "#94a3b8" }}>
-            Total {trendYear}: <span className="font-bold" style={{ color: "#0d2a5e" }}>{peso(trendTotal)}</span>
-          </p>
-        </>
-      )}
-    </ChartCard>
   );
 
   return (
@@ -448,80 +384,9 @@ function AnalyticsContent() {
 
       {tab === "portfolio" && <PortfolioTab data={portfolioDash} />}
 
-      {tab === "projects" && (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KpiBox label="Total Projects" value={String(projectDash?.total_projects ?? "—")} color="#0d2a5e" />
-            <KpiBox label="Active" value={String(projectDash?.by_status.active ?? 0)} color="#059669" />
-            <KpiBox label="Completed" value={String(projectDash?.by_status.completed ?? 0)} color="#0891b2" />
-            <KpiBox label="Archived" value={String(projectDash?.by_status.archived ?? 0)} color="#64748b" />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <ChartCard title="By Status">
-              <CountBars data={projectDash?.by_status ?? {}} labelFor={(k) => PROJECT_STATUS_META[k]?.label ?? humanize(k)} emptyMessage="No projects match these filters." />
-            </ChartCard>
-            <ChartCard title="By Funding Type">
-              <CountBars data={projectDash?.by_funding_type ?? {}} labelFor={(k) => FUNDING_LABELS[k as FundingType] ?? humanize(k)} emptyMessage="No projects match these filters." />
-            </ChartCard>
-            <ChartCard title="By Campus">
-              <CountBars data={projectDash?.by_campus ?? {}} labelFor={(k) => k || "Unspecified"} emptyMessage="No campus recorded yet." />
-            </ChartCard>
-          </div>
-          <ChartCard title="Project Register" aside={<span className="text-xs" style={{ color: "#94a3b8" }}>{scopedProjects.length} in scope</span>}>
-            {scopedProjects.length === 0 ? (
-              <EmptyChart message="No projects match these filters." />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <TableHead cols={["Project Code", "Title", "Funding", "Campus", "REI Thrust", "Status", "Start", "Target End"]} />
-                  <tbody>
-                    {scopedProjects.map((p) => (
-                      <tr key={p.id} className="border-t" style={{ borderColor: "#f1f5f9" }}>
-                        <td className="px-4 py-3 text-xs font-bold whitespace-nowrap" style={{ color: "#0d2a5e" }}>{p.project_code}</td>
-                        <td className="px-4 py-3 text-xs max-w-xs truncate" style={{ color: "#334155" }}>{p.title}</td>
-                        <td className="px-4 py-3 text-xs" style={{ color: "#64748b" }}>{FUNDING_LABELS[p.funding_type] ?? p.funding_type}</td>
-                        <td className="px-4 py-3 text-xs" style={{ color: "#64748b" }}>{p.campus || "—"}</td>
-                        <td className="px-4 py-3 text-xs" style={{ color: "#64748b" }}>{p.rei_thrust || "—"}</td>
-                        <td className="px-4 py-3 text-xs">
-                          <span className="px-2 py-0.5 rounded-full font-semibold" style={{ background: "#f1f5f9", color: PROJECT_STATUS_META[p.status]?.color ?? "#64748b" }}>{PROJECT_STATUS_META[p.status]?.label ?? p.status}</span>
-                        </td>
-                        <td className="px-4 py-3 text-xs font-mono whitespace-nowrap" style={{ color: "#94a3b8" }}>{p.start_date ?? "—"}</td>
-                        <td className="px-4 py-3 text-xs font-mono whitespace-nowrap" style={{ color: "#94a3b8" }}>{p.target_end_date ?? "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </ChartCard>
-        </>
-      )}
+      {tab === "projects" && <ProjectsTab data={performanceDash} />}
 
-      {tab === "budget" && (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KpiBox label="Total Approved" value={budgetDash ? peso(budgetDash.total_approved) : "—"} sub={`${budgetDash?.project_count ?? 0} projects with a certified LIB`} color="#0d2a5e" />
-            <KpiBox label="Total Disbursed" value={budgetDash ? peso(budgetDash.total_actual) : "—"} sub={util === null ? "No certified budget yet" : `${util}% utilization`} color="#0891b2" />
-            <KpiBox label="Remaining" value={budgetDash ? peso(budgetDash.total_approved - budgetDash.total_actual) : "—"} sub="Undisbursed" color="#059669" />
-            <KpiBox label="Utilization" value={util === null ? "—" : `${util}%`} color={util !== null && util > 100 ? "#dc2626" : "#d97706"} />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title="Institutional Utilization">
-              {util === null ? (
-                <EmptyChart message="No certified budget in this scope yet." />
-              ) : (
-                <div className="space-y-4">
-                  <MiniBar label="Disbursed vs. approved" pct={Math.round(util)} color={util > 100 ? "#dc2626" : "#0891b2"} />
-                  <HBar label="Approved" val={budgetDash!.total_approved} max={budgetDash!.total_approved} color="#0d2a5e" valLabel={peso(budgetDash!.total_approved)} />
-                  <HBar label="Disbursed" val={budgetDash!.total_actual} max={budgetDash!.total_approved} color="#0891b2" valLabel={peso(budgetDash!.total_actual)} />
-                  <p className="text-xs" style={{ color: "#94a3b8" }}>Campus filter applies; the budget dashboard has no funding-type filter.</p>
-                </div>
-              )}
-            </ChartCard>
-            {trendCard}
-          </div>
-        </>
-      )}
+      {tab === "budget" && <BudgetTab data={performanceDash} />}
 
       {tab === "forecast" && (
         <>
