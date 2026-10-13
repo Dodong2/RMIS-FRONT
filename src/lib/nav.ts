@@ -232,7 +232,8 @@ export const NAV_SECTIONS: NavSection[] = [
             label: "Leader Load",
             to: "/leader-load",
             icon: "activity",
-            tiers: [...OVERSIGHT, "project_management"],
+            tiers: ["system_admin", "campus_coordination", "college_oversight", "project_management"],
+            roles: ["drd"],
             ready: true,
           },
           {
