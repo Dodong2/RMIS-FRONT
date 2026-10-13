@@ -27,6 +27,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Field, SkeletonRows, TableHead } from "../components/common/proto";
 import { BudgetTab } from "../components/analytics/BudgetTab";
+import { DecisionTab } from "../components/analytics/DecisionTab";
 import { ForecastTab } from "../components/analytics/ForecastTab";
 import { OutputsTab } from "../components/analytics/OutputsTab";
 import { OverviewTab } from "../components/analytics/OverviewTab";
@@ -78,6 +79,7 @@ const TABS = [
   ["budget", "Budget"],
   ["outputs", "Outputs"],
   ["forecast", "Budget Forecast"],
+  ["decision", "Decision Support"],
   ["compliance", "Compliance"],
   ["rei", "REI Thrust"],
   ["planning", "Planning Targets"],
@@ -370,6 +372,8 @@ function AnalyticsContent() {
       {tab === "budget" && <BudgetTab data={performanceDash} />}
 
       {tab === "forecast" && <ForecastTab data={performanceDash} forecast={forecastDash} />}
+
+      {tab === "decision" && <DecisionTab data={performanceDash} />}
 
       {tab === "compliance" &&
         (!complianceDash ? (
