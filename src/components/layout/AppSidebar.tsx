@@ -18,7 +18,7 @@ const MUTED = "rgba(168,196,232,0.8)";
 
 export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebarProps) {
   const tier = resolveTier(user?.role);
-  const sections = visibleSections(tier);
+  const sections = visibleSections(tier, user?.role?.code);
   const navRef = useRef<HTMLElement>(null);
   const roleStyle = protoRoleStyle(user?.role);
 

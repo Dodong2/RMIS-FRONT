@@ -12,6 +12,7 @@ import type {
   PlanningMetric,
   PlanningTarget,
   PlanningTargetComparison,
+  PortfolioDashboard,
   ProjectDashboard,
   REIThrustAlignment,
 } from "../types/dashboard";
@@ -50,6 +51,10 @@ export const dashboardApi = {
   },
   getTaskDashboard: async (params: { project?: number } = {}): Promise<TaskDashboardRow[]> => {
     const { data } = await apiClient.get("/api/dashboard/tasks/", { params });
+    return data;
+  },
+  getPortfolioDashboard: async (params: { campus?: string } = {}): Promise<PortfolioDashboard> => {
+    const { data } = await apiClient.get("/api/dashboard/portfolio/", { params });
     return data;
   },
   getREIThrustAlignment: async (): Promise<REIThrustAlignment> => {

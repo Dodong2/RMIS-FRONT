@@ -32,6 +32,22 @@ export interface OutputDashboard {
   ip_incentive_eligible_count: number;
 }
 
+export interface PortfolioCollege {
+  college: string;
+  code: string;
+  title: string;
+  campus: string;
+  total: number;
+  by_status: Record<string, number>;
+}
+
+export interface PortfolioDashboard {
+  total_projects: number;
+  by_priority_area: Record<string, number>;
+  by_sdg: Record<string, number>;
+  by_college: PortfolioCollege[];
+}
+
 export interface REIThrustAlignment {
   by_thrust: Record<string, number>;
   unaligned_count: number;

@@ -10,6 +10,10 @@ import type { RoleTier } from "./roles";
  * `ready` marks whether the module's backend actually exists yet. Items that are
  * not ready render disabled with a "Not yet built" note instead of linking to a
  * page full of invented numbers. Flip the flag when the module lands.
+ *
+ * `roles` is the one exception to "tiers only": extra role codes for when a
+ * client request splits a tier (Analytics, 2026-10-13: Program Leader yes,
+ * Project Leader no, though both are project_management).
  */
 
 export interface NavItem {
@@ -17,6 +21,7 @@ export interface NavItem {
   to: string;
   icon: IconName;
   tiers: RoleTier[] | "all";
+  roles?: string[];
   ready: boolean;
 }
 
@@ -155,7 +160,14 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     heading: "Insights",
     items: [
-      { label: "Analytics", to: "/analytics", icon: "chart", tiers: [...OVERSIGHT, "finance"], ready: true },
+      {
+        label: "Analytics",
+        to: "/analytics",
+        icon: "chart",
+        tiers: [...OVERSIGHT, "finance"],
+        roles: ["procurement_officer_lib", "program_leader"],
+        ready: true,
+      },
       {
         label: "Decision Support System",
         to: "/decision-support",
@@ -207,11 +219,14 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export function visibleSections(tier: RoleTier | null): NavSection[] {
+export function visibleSections(tier: RoleTier | null, roleCode?: string): NavSection[] {
   return NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter(
-      (item) => item.tiers === "all" || (tier !== null && item.tiers.includes(tier)),
+      (item) =>
+        item.tiers === "all" ||
+        (tier !== null && item.tiers.includes(tier)) ||
+        (!!roleCode && !!item.roles?.includes(roleCode)),
     ),
   })).filter((section) => section.items.length > 0);
 }

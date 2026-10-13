@@ -1091,7 +1091,7 @@ function DashboardContent() {
   const hasRole = !!user?.role;
   const isWide = tier !== null && WIDE_TIERS.includes(tier);
   const canSeeWorkload = !!user?.role && TASK_ASSIGNER_CODES.includes(user.role.code);
-  const navTargets = visibleSections(tier).flatMap((s) => s.items.filter((i) => i.ready).map((i) => i.to));
+  const navTargets = visibleSections(tier, user?.role?.code).flatMap((s) => s.items.filter((i) => i.ready).map((i) => i.to));
   const canOpen = (to: string) => navTargets.includes(to);
 
   const [rawData, setData] = useState<DashData>({});

@@ -16,6 +16,7 @@ import type {
   PlanningMetric,
   PlanningTarget,
   PlanningTargetComparison,
+  PortfolioDashboard,
   ProjectDashboard,
   REIThrustAlignment,
 } from "../types/dashboard";
@@ -25,6 +26,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Field, SkeletonRows, TableHead } from "../components/common/proto";
+import { PortfolioTab } from "../components/analytics/PortfolioTab";
 import { ChartCard, CountBars, DonutChart, EmptyChart, HBar, KpiBox, MiniBar, TrendBar } from "../components/analytics/ProtoCharts";
 
 const MANAGE_TARGET_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
@@ -86,6 +88,7 @@ const PLANNING_METRIC_LABELS: Record<PlanningMetric, string> = {
 
 const TABS = [
   ["overview", "Overview"],
+  ["portfolio", "Portfolio"],
   ["projects", "Projects"],
   ["budget", "Budget"],
   ["forecast", "Budget Forecast"],
@@ -128,6 +131,8 @@ function AnalyticsContent() {
   const [outputDash, setOutputDash] = useState<OutputDashboard | null>(null);
   const [disbursements, setDisbursements] = useState<Disbursement[] | null>(null);
   const [reiDash, setReiDash] = useState<REIThrustAlignment | null>(null);
+  const [portfolioDash, setPortfolioDash] = useState<PortfolioDashboard | null>(null);
+  const [portfolioCampuses, setPortfolioCampuses] = useState<string[]>([]);
 
   const [outputYear, setOutputYear] = useState("");
   const [outputYearApplied, setOutputYearApplied] = useState("");
@@ -182,6 +187,14 @@ function AnalyticsContent() {
       .getBudgetDashboard({ campus: scope.campus })
       .then((d) => alive && setBudgetDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the budget dashboard.")));
+    dashboardApi
+      .getPortfolioDashboard({ campus: scope.campus })
+      .then((d) => {
+        if (!alive) return;
+        setPortfolioDash(d);
+        if (!scope.campus) setPortfolioCampuses(d.by_college.map((c) => c.campus).filter(Boolean));
+      })
+      .catch((err) => alive && notify.error(errorMessage(err, "Could not load the portfolio dashboard.")));
     dashboardApi
       .getForecastingDashboard(scope)
       .then((d) => alive && setForecastDash(d))
@@ -246,7 +259,10 @@ function AnalyticsContent() {
     };
   }, [gParams]);
 
-  const campuses = useMemo(() => [...new Set((projects ?? []).map((p) => p.campus).filter(Boolean))].sort(), [projects]);
+  const campuses = useMemo(
+    () => [...new Set([...(projects ?? []).map((p) => p.campus), ...portfolioCampuses].filter(Boolean))].sort(),
+    [projects, portfolioCampuses],
+  );
   const scopedProjects = useMemo(
     () => (projects ?? []).filter((p) => (!campus || p.campus === campus) && (!fundingType || p.funding_type === fundingType)),
     [projects, campus, fundingType],
@@ -415,6 +431,8 @@ function AnalyticsContent() {
           </div>
         </>
       )}
+
+      {tab === "portfolio" && <PortfolioTab data={portfolioDash} />}
 
       {tab === "projects" && (
         <>

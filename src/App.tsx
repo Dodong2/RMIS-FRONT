@@ -94,6 +94,8 @@ export default function App() {
                 "crc_chair",
                 "riuh",
                 "finance_budget",
+                "procurement_officer_lib",
+                "program_leader",
               ]}
             >
               <AnalyticsPage />
