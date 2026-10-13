@@ -6,6 +6,7 @@ import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import type {
+  AnalyticsScope,
   AppendixEEntry,
   AppendixFExport,
   AppendixGExport,
@@ -16,6 +17,8 @@ import type {
   PlanningMetric,
   PlanningTarget,
   PlanningTargetComparison,
+  PerformanceDashboard,
+  PortfolioCollege,
   PortfolioDashboard,
   ProjectDashboard,
   REIThrustAlignment,
@@ -26,8 +29,9 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Field, SkeletonRows, TableHead } from "../components/common/proto";
+import { OverviewTab } from "../components/analytics/OverviewTab";
 import { PortfolioTab } from "../components/analytics/PortfolioTab";
-import { ChartCard, CountBars, DonutChart, EmptyChart, HBar, KpiBox, MiniBar, TrendBar } from "../components/analytics/ProtoCharts";
+import { ChartCard, CountBars, EmptyChart, HBar, KpiBox, MiniBar, TrendBar } from "../components/analytics/ProtoCharts";
 
 const MANAGE_TARGET_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
 
@@ -91,9 +95,9 @@ const TABS = [
   ["portfolio", "Portfolio"],
   ["projects", "Projects"],
   ["budget", "Budget"],
+  ["outputs", "Outputs"],
   ["forecast", "Budget Forecast"],
   ["compliance", "Compliance"],
-  ["outputs", "Outputs"],
   ["rei", "REI Thrust"],
   ["planning", "Planning Targets"],
   ["exports", "Data Exports"],
@@ -121,7 +125,7 @@ function AnalyticsContent() {
 
   const [tab, setTab] = useState<Tab>("overview");
   const [campus, setCampus] = useState("");
-  const [fundingType, setFundingType] = useState("");
+  const [collegeKey, setCollegeKey] = useState("");
   const [projects, setProjects] = useState<Project[] | null>(null);
 
   const [projectDash, setProjectDash] = useState<ProjectDashboard | null>(null);
@@ -132,7 +136,9 @@ function AnalyticsContent() {
   const [disbursements, setDisbursements] = useState<Disbursement[] | null>(null);
   const [reiDash, setReiDash] = useState<REIThrustAlignment | null>(null);
   const [portfolioDash, setPortfolioDash] = useState<PortfolioDashboard | null>(null);
+  const [performanceDash, setPerformanceDash] = useState<PerformanceDashboard | null>(null);
   const [portfolioCampuses, setPortfolioCampuses] = useState<string[]>([]);
+  const [allColleges, setAllColleges] = useState<PortfolioCollege[]>([]);
 
   const [outputYear, setOutputYear] = useState("");
   const [outputYearApplied, setOutputYearApplied] = useState("");
@@ -155,6 +161,12 @@ function AnalyticsContent() {
   const [gParams, setGParams] = useState<{ campus?: string; year?: number }>({});
   const [appendixG, setAppendixG] = useState<AppendixGExport | null>(null);
 
+  const selectedCollege = allColleges.find((c) => collegeKey === `${c.campus}|${c.college}`);
+  const scope = useMemo<AnalyticsScope>(
+    () => ({ campus: campus || selectedCollege?.campus || undefined, college: selectedCollege?.college }),
+    [campus, selectedCollege],
+  );
+
   useEffect(() => {
     let alive = true;
     researchApi
@@ -165,7 +177,6 @@ function AnalyticsContent() {
         setProjects([]);
         notify.error("Could not load projects.");
       });
-    dashboardApi.getComplianceDashboard().then((d) => alive && setComplianceDash(d)).catch(() => undefined);
     dashboardApi.getREIThrustAlignment().then((d) => alive && setReiDash(d)).catch(() => undefined);
     financialApi
       .getDisbursements()
@@ -178,42 +189,49 @@ function AnalyticsContent() {
 
   useEffect(() => {
     let alive = true;
-    const scope = { campus: campus || undefined, funding_type: fundingType || undefined };
     dashboardApi
       .getProjectDashboard(scope)
       .then((d) => alive && setProjectDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the projects dashboard.")));
     dashboardApi
-      .getBudgetDashboard({ campus: scope.campus })
+      .getBudgetDashboard(scope)
       .then((d) => alive && setBudgetDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the budget dashboard.")));
     dashboardApi
-      .getPortfolioDashboard({ campus: scope.campus })
+      .getPortfolioDashboard(scope)
       .then((d) => {
         if (!alive) return;
         setPortfolioDash(d);
-        if (!scope.campus) setPortfolioCampuses(d.by_college.map((c) => c.campus).filter(Boolean));
+        if (!scope.campus && !scope.college) {
+          setPortfolioCampuses(d.by_college.map((c) => c.campus).filter(Boolean));
+          setAllColleges(d.by_college);
+        }
       })
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the portfolio dashboard.")));
     dashboardApi
       .getForecastingDashboard(scope)
       .then((d) => alive && setForecastDash(d))
       .catch(() => undefined);
+    dashboardApi.getComplianceDashboard(scope).then((d) => alive && setComplianceDash(d)).catch(() => undefined);
+    dashboardApi
+      .getPerformanceDashboard(scope)
+      .then((d) => alive && setPerformanceDash(d))
+      .catch((err) => alive && notify.error(errorMessage(err, "Could not load project performance.")));
     return () => {
       alive = false;
     };
-  }, [campus, fundingType]);
+  }, [scope]);
 
   useEffect(() => {
     let alive = true;
     dashboardApi
-      .getOutputDashboard({ year: outputYearApplied ? Number(outputYearApplied) : undefined })
+      .getOutputDashboard({ ...scope, year: outputYearApplied ? Number(outputYearApplied) : undefined })
       .then((d) => alive && setOutputDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the outputs dashboard.")));
     return () => {
       alive = false;
     };
-  }, [outputYearApplied]);
+  }, [outputYearApplied, scope]);
 
   useEffect(() => {
     let alive = true;
@@ -264,9 +282,10 @@ function AnalyticsContent() {
     [projects, portfolioCampuses],
   );
   const scopedProjects = useMemo(
-    () => (projects ?? []).filter((p) => (!campus || p.campus === campus) && (!fundingType || p.funding_type === fundingType)),
-    [projects, campus, fundingType],
+    () => (projects ?? []).filter((p) => (!scope.campus || p.campus === scope.campus) && (!scope.college || p.college === scope.college)),
+    [projects, scope],
   );
+  const collegeOptions = allColleges.filter((c) => !campus || c.campus === campus);
   const monthly = useMemo(() => {
     const totals = Array(12).fill(0) as number[];
     (disbursements ?? []).forEach((d) => {
@@ -364,19 +383,55 @@ function AnalyticsContent() {
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-2 flex-wrap">
-          <select value={campus} onChange={(e) => setCampus(e.target.value)} className={selCls} style={selSt}>
-            <option value="">All Campuses</option>
-            {campuses.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <select value={fundingType} onChange={(e) => setFundingType(e.target.value)} className={selCls} style={selSt}>
-            <option value="">All Funding Types</option>
-            {(Object.keys(FUNDING_LABELS) as FundingType[]).map((t) => (
-              <option key={t} value={t}>{FUNDING_LABELS[t]}</option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-end gap-2">
+          <label htmlFor="analytics-campus-filter" className="flex flex-col gap-1 text-[10px] font-black uppercase tracking-wide" style={{ color: "#64748b" }}>
+            Campus
+            <select
+              id="analytics-campus-filter"
+              value={campus}
+              onChange={(e) => {
+                setCampus(e.target.value);
+                setCollegeKey("");
+              }}
+              className="min-w-44 rounded-xl border px-3 py-2 text-xs font-semibold normal-case tracking-normal outline-none"
+              style={{ borderColor: "#e2e8f0", background: "white", color: "#334155" }}
+            >
+              <option value="">All Campuses</option>
+              {campuses.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="analytics-college-filter" className="flex flex-col gap-1 text-[10px] font-black uppercase tracking-wide" style={{ color: "#64748b" }}>
+            College
+            <select
+              id="analytics-college-filter"
+              value={collegeKey}
+              onChange={(e) => setCollegeKey(e.target.value)}
+              className="min-w-52 rounded-xl border px-3 py-2 text-xs font-semibold normal-case tracking-normal outline-none"
+              style={{ borderColor: "#e2e8f0", background: "white", color: "#334155" }}
+            >
+              <option value="">All Colleges</option>
+              {collegeOptions.map((c) => (
+                <option key={`${c.campus}|${c.college}`} value={`${c.campus}|${c.college}`}>
+                  {c.code} — {c.title}
+                  {!campus && c.campus ? ` (${c.campus})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setCampus("");
+              setCollegeKey("");
+            }}
+            disabled={!campus && !collegeKey}
+            className="rounded-xl border px-3 py-2 text-xs font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ borderColor: "#cbd5e1", background: "white" }}
+          >
+            Reset
+          </button>
         </div>
         <div className="flex flex-wrap gap-1 rounded-xl border p-1" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
           {TABS.map(([k, l]) => (
@@ -388,48 +443,7 @@ function AnalyticsContent() {
       </div>
 
       {tab === "overview" && (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KpiBox label="Total Projects" value={String(projectDash?.total_projects ?? "—")} sub="All lifecycle stages" color="#0d2a5e" />
-            <KpiBox label="Approved Budget" value={budgetDash ? peso(budgetDash.total_approved) : "—"} sub={`${budgetDash?.project_count ?? 0} certified LIB(s)`} color="#0891b2" />
-            <KpiBox label="Budget Utilization" value={util === null ? "—" : `${Math.round(util)}%`} sub={budgetDash ? `${peso(budgetDash.total_actual)} disbursed` : undefined} color="#d97706" />
-            <KpiBox label="Research Outputs" value={outputDash ? String(outputsTotal) : "—"} sub={`${pubTotal} pubs · ${ipTotal} IP · ${outputDash?.creative_works_count ?? 0} creative`} color="#059669" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            <ChartCard title="Projects by Status">
-              {projectDash && projectDash.total_projects > 0 ? <DonutChart segments={statusSegments} centerLabel="Projects" /> : <EmptyChart message="No projects match the current scope." />}
-            </ChartCard>
-            <ChartCard title="Projects by Funding Type">
-              <CountBars data={projectDash?.by_funding_type ?? {}} labelFor={(k) => FUNDING_LABELS[k as FundingType] ?? humanize(k)} emptyMessage="No projects match the current scope." />
-            </ChartCard>
-            {trendCard}
-            <ChartCard title="Projects by Campus">
-              <CountBars data={projectDash?.by_campus ?? {}} labelFor={(k) => k || "Unspecified"} emptyMessage="No campus recorded yet." />
-            </ChartCard>
-            <ChartCard title="Research Output Summary">
-              {outputDash && outputsTotal > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { icon: "📄", label: "Publications", val: pubTotal, sub: `${outputDash.publications_by_type.journal_article ?? 0} journal articles`, color: "#0d2a5e" },
-                    { icon: "🔏", label: "IP Records", val: ipTotal, sub: `${outputDash.ip_incentive_eligible_count} incentive-eligible`, color: "#6b21a8" },
-                    { icon: "🎨", label: "Creative Works", val: outputDash.creative_works_count, sub: "Registered works", color: "#059669" },
-                    { icon: "💰", label: "Est. Incentives", val: peso(outputDash.total_estimated_publication_incentive), sub: "Article V tables", color: "#f59e0b" },
-                  ].map((s) => (
-                    <div key={s.label} className="p-3 rounded-xl" style={{ background: "#f8fafc" }}>
-                      <p className="text-lg">{s.icon}</p>
-                      <p className="text-xl font-black" style={{ color: s.color }}>{s.val}</p>
-                      <p className="text-xs font-semibold" style={{ color: "#334155" }}>{s.label}</p>
-                      <p className="text-xs" style={{ color: "#94a3b8" }}>{s.sub}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyChart message="No research outputs recorded yet." />
-              )}
-            </ChartCard>
-            <ChartCard title="Compliance Snapshot">{complianceSnapshot ?? <SkeletonRows />}</ChartCard>
-          </div>
-        </>
+        <OverviewTab data={performanceDash} statusSegments={statusSegments} outputDash={outputDash} complianceSnapshot={complianceSnapshot} />
       )}
 
       {tab === "portfolio" && <PortfolioTab data={portfolioDash} />}

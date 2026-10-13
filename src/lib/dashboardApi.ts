@@ -1,5 +1,6 @@
 import { apiClient } from "./apiClient";
 import type {
+  AnalyticsScope,
   AppendixEEntry,
   AppendixFExport,
   AppendixGExport,
@@ -12,30 +13,31 @@ import type {
   PlanningMetric,
   PlanningTarget,
   PlanningTargetComparison,
+  PerformanceDashboard,
   PortfolioDashboard,
   ProjectDashboard,
   REIThrustAlignment,
 } from "../types/dashboard";
 
 export const dashboardApi = {
-  getProjectDashboard: async (params: { campus?: string; funding_type?: string } = {}): Promise<ProjectDashboard> => {
+  getProjectDashboard: async (params: AnalyticsScope & { funding_type?: string } = {}): Promise<ProjectDashboard> => {
     const { data } = await apiClient.get("/api/dashboard/projects/", { params });
     return data;
   },
-  getBudgetDashboard: async (params: { campus?: string } = {}): Promise<BudgetDashboard> => {
+  getBudgetDashboard: async (params: AnalyticsScope = {}): Promise<BudgetDashboard> => {
     const { data } = await apiClient.get("/api/dashboard/budget/", { params });
     return data;
   },
-  getComplianceDashboard: async (): Promise<ComplianceDashboard> => {
-    const { data } = await apiClient.get("/api/dashboard/compliance/");
+  getComplianceDashboard: async (params: AnalyticsScope = {}): Promise<ComplianceDashboard> => {
+    const { data } = await apiClient.get("/api/dashboard/compliance/", { params });
     return data;
   },
-  getOutputDashboard: async (params: { year?: number } = {}): Promise<OutputDashboard> => {
+  getOutputDashboard: async (params: AnalyticsScope & { year?: number } = {}): Promise<OutputDashboard> => {
     const { data } = await apiClient.get("/api/dashboard/outputs/", { params });
     return data;
   },
   getForecastingDashboard: async (
-    params: { campus?: string; funding_type?: string } = {},
+    params: AnalyticsScope & { funding_type?: string } = {},
   ): Promise<ForecastingDashboard> => {
     const { data } = await apiClient.get("/api/dashboard/forecasting/", { params });
     return data;
@@ -53,8 +55,12 @@ export const dashboardApi = {
     const { data } = await apiClient.get("/api/dashboard/tasks/", { params });
     return data;
   },
-  getPortfolioDashboard: async (params: { campus?: string } = {}): Promise<PortfolioDashboard> => {
+  getPortfolioDashboard: async (params: AnalyticsScope = {}): Promise<PortfolioDashboard> => {
     const { data } = await apiClient.get("/api/dashboard/portfolio/", { params });
+    return data;
+  },
+  getPerformanceDashboard: async (params: AnalyticsScope = {}): Promise<PerformanceDashboard> => {
+    const { data } = await apiClient.get("/api/dashboard/performance/", { params });
     return data;
   },
   getREIThrustAlignment: async (): Promise<REIThrustAlignment> => {

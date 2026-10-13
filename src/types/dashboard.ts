@@ -48,6 +48,54 @@ export interface PortfolioDashboard {
   by_college: PortfolioCollege[];
 }
 
+export interface AnalyticsScope {
+  campus?: string;
+  college?: string;
+}
+
+export interface PerformanceProjectRow {
+  project: number;
+  project_code: string;
+  title: string;
+  priority_area: string;
+  status: string;
+  funding_type: string;
+  team_members: number;
+  campus: string;
+  college: string;
+  college_code: string;
+  college_title: string;
+  leader_id: number;
+  leader: string;
+  leader_position: string;
+  leader_office: string;
+  physical_pct: number | null;
+  financial_pct: number | null;
+  milestones_done: number;
+  milestones_total: number;
+  outputs: number;
+  approved: number;
+  actual: number;
+}
+
+export interface PerformanceScore {
+  projects: number;
+  avg_progress: number;
+  utilization: number;
+  completed: number;
+  outputs: number;
+  score: number;
+}
+
+export interface PerformanceDashboard {
+  weights: { progress: number; utilization: number; completion: number; outputs: number };
+  projects: PerformanceProjectRow[];
+  monthly_disbursements: { month: string; total: number; count: number }[];
+  college_ranking: (PerformanceScore & { campus: string; college: string; code: string; title: string })[];
+  campus_ranking: (PerformanceScore & { campus: string })[];
+  leader_ranking: (PerformanceScore & { leader_id: number; leader: string; position: string; office: string })[];
+}
+
 export interface REIThrustAlignment {
   by_thrust: Record<string, number>;
   unaligned_count: number;
