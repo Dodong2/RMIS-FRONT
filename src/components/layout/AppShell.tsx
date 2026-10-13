@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppSidebar } from "./AppSidebar";
 import { Topbar } from "./Topbar";
+import { GroupTabs } from "./GroupTabs";
 
 interface AppShellProps {
   title: string;
@@ -35,7 +36,10 @@ export function AppShell({ title, children }: AppShellProps) {
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <Topbar user={user} isLoading={isLoading} title={title} onOpenSidebar={() => setSidebarOpen(true)} />
-          <main className="flex-1 overflow-y-auto p-4 lg:p-6 animate-fade-in">{children}</main>
+          <main className="flex-1 overflow-y-auto p-4 lg:p-6 animate-fade-in">
+            <GroupTabs user={user} />
+            {children}
+          </main>
         </div>
       </div>
     </TooltipProvider>

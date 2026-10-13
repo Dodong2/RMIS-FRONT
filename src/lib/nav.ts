@@ -14,6 +14,12 @@ import type { RoleTier } from "./roles";
  * `roles` is the one exception to "tiers only": extra role codes for when a
  * client request splits a tier (Analytics, 2026-10-13: Program and Project
  * Leader yes, Study Leader no, though all are project_management).
+ *
+ * `tabs` turns an item into a group (client sidebar_layout.png, 2026-10-14):
+ * the sidebar shows one entry, and every page in the group gets the group's
+ * tabs above it. Each tab keeps its own tiers/roles (the group's own tiers are
+ * not used); the group links to its first visible tab, and a role that sees
+ * only one tab gets that page as a plain item.
  */
 
 export interface NavItem {
@@ -23,6 +29,7 @@ export interface NavItem {
   tiers: RoleTier[] | "all";
   roles?: string[];
   ready: boolean;
+  tabs?: NavItem[];
 }
 
 export interface NavSection {
@@ -180,7 +187,26 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     heading: "Administration",
     items: [
-      { label: "User & Access Management", to: "/admin/users", icon: "userCog", tiers: ["system_admin"], ready: true },
+      {
+        label: "User & Access Management",
+        to: "/admin/users",
+        icon: "userCog",
+        tiers: ["system_admin"],
+        ready: true,
+        tabs: [
+          { label: "Users", to: "/admin/users", icon: "userCog", tiers: ["system_admin"], ready: true },
+          { label: "College Units", to: "/admin/college-units", icon: "settings", tiers: ["system_admin"], ready: true },
+          { label: "REI Thrusts", to: "/admin/rei-thrusts", icon: "settings", tiers: ["system_admin"], ready: true },
+          {
+            label: "Cooperating Agencies",
+            to: "/admin/cooperating-agencies",
+            icon: "settings",
+            tiers: ["system_admin"],
+            ready: true,
+          },
+          { label: "Endorsers", to: "/admin/endorsers", icon: "settings", tiers: ["system_admin"], ready: true },
+        ],
+      },
       {
         label: "Pending Registrations",
         to: "/admin/pending-users",
@@ -192,41 +218,81 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Personnel Coordination",
         to: "/staff",
         icon: "team",
-        tiers: [...OVERSIGHT, "project_management", "study_management"],
+        tiers: [...OVERSIGHT, "project_management", "study_management", "procurement"],
         ready: true,
+        tabs: [
+          {
+            label: "Personnel Coordination",
+            to: "/staff",
+            icon: "team",
+            tiers: [...OVERSIGHT, "project_management", "study_management"],
+            ready: true,
+          },
+          {
+            label: "Leader Load",
+            to: "/leader-load",
+            icon: "activity",
+            tiers: [...OVERSIGHT, "project_management"],
+            ready: true,
+          },
+          {
+            label: "Personnel Changes",
+            to: "/personnel-changes",
+            icon: "userCog",
+            tiers: [...OVERSIGHT, "procurement"],
+            ready: true,
+          },
+        ],
       },
       {
-        label: "Leader Load",
-        to: "/leader-load",
-        icon: "activity",
-        tiers: [...OVERSIGHT, "project_management"],
+        label: "Audit Logs",
+        to: "/admin/audit",
+        icon: "clipboard",
+        tiers: ["system_admin"],
         ready: true,
+        tabs: [
+          { label: "Audit Logs", to: "/admin/audit", icon: "clipboard", tiers: ["system_admin"], ready: true },
+          { label: "System Settings", to: "/admin/settings", icon: "settings", tiers: ["system_admin"], ready: true },
+        ],
       },
-      {
-        label: "Personnel Changes",
-        to: "/personnel-changes",
-        icon: "userCog",
-        tiers: [...OVERSIGHT, "procurement"],
-        ready: true,
-      },
-      { label: "Audit Logs", to: "/admin/audit", icon: "clipboard", tiers: ["system_admin"], ready: true },
-      { label: "College Units", to: "/admin/college-units", icon: "settings", tiers: ["system_admin"], ready: true },
-      { label: "REI Thrusts", to: "/admin/rei-thrusts", icon: "settings", tiers: ["system_admin"], ready: true },
-      { label: "Cooperating Agencies", to: "/admin/cooperating-agencies", icon: "settings", tiers: ["system_admin"], ready: true },
-      { label: "Endorsers", to: "/admin/endorsers", icon: "settings", tiers: ["system_admin"], ready: true },
-      { label: "System Settings", to: "/admin/settings", icon: "settings", tiers: ["system_admin"], ready: true },
     ],
   },
 ];
 
+function canSee(item: NavItem, tier: RoleTier | null, roleCode?: string): boolean {
+  return (
+    item.tiers === "all" ||
+    (tier !== null && item.tiers.includes(tier)) ||
+    (!!roleCode && !!item.roles?.includes(roleCode))
+  );
+}
+
 export function visibleSections(tier: RoleTier | null, roleCode?: string): NavSection[] {
   return NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter(
-      (item) =>
-        item.tiers === "all" ||
-        (tier !== null && item.tiers.includes(tier)) ||
-        (!!roleCode && !!item.roles?.includes(roleCode)),
-    ),
+    items: section.items.flatMap((item) => {
+      if (!item.tabs) return canSee(item, tier, roleCode) ? [item] : [];
+      const tabs = item.tabs.filter((tab) => canSee(tab, tier, roleCode));
+      // One visible tab is just that page under its own name (e.g. procurement → Personnel Changes).
+      if (tabs.length <= 1) return tabs;
+      return [{ ...item, to: tabs[0].to, tabs }];
+    }),
   })).filter((section) => section.items.length > 0);
+}
+
+/** Every page path the user may open, group tabs included. */
+export function visibleTargets(tier: RoleTier | null, roleCode?: string): string[] {
+  return visibleSections(tier, roleCode).flatMap((s) =>
+    s.items.flatMap((i) => i.tabs ?? [i]).filter((i) => i.ready).map((i) => i.to),
+  );
+}
+
+/** The visible tabs of the group that owns `pathname`, or [] when it isn't grouped. */
+export function groupTabsFor(pathname: string, tier: RoleTier | null, roleCode?: string): NavItem[] {
+  for (const section of visibleSections(tier, roleCode)) {
+    for (const item of section.items) {
+      if (item.tabs?.some((tab) => tab.to === pathname)) return item.tabs;
+    }
+  }
+  return [];
 }

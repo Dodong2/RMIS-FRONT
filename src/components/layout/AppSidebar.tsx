@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NavIcon } from "./NavIcon";
 import { visibleSections } from "../../lib/nav";
@@ -21,9 +21,10 @@ export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebar
   const sections = visibleSections(tier, user?.role?.code);
   const navRef = useRef<HTMLElement>(null);
   const roleStyle = protoRoleStyle(user?.role);
+  const { pathname } = useLocation();
 
   useEffect(() => {
-    navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
+    navRef.current?.querySelector('[aria-current="page"], [data-group-active]')?.scrollIntoView({ block: "nearest" });
   }, []);
 
   return (
@@ -56,27 +57,35 @@ export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebar
                 {section.heading}
               </p>
               <ul className="space-y-0.5">
-                {section.items.map((item) => (
+                {section.items.map((item) => {
+                  // A grouped item stays lit on every tab of its group, not only the first.
+                  const inGroup = !!item.tabs?.some((t) => t.to === pathname);
+                  return (
                   <li key={item.to}>
                     {item.ready ? (
                       <NavLink
                         to={item.to}
                         end={item.to === "/budget"}
                         onClick={onNavigate}
-                        className={({ isActive }) =>
-                          `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                        className={({ isActive: onLink }) => {
+                          const isActive = onLink || inGroup;
+                          return `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                             isActive ? "" : "hover:bg-white/[0.06] hover:text-white"
-                          }`
-                        }
-                        style={({ isActive }) => ({
+                          }`;
+                        }}
+                        style={({ isActive: onLink }) => {
+                          const isActive = onLink || inGroup;
+                          return {
                           background: isActive ? "rgba(8,145,178,0.2)" : undefined,
                           color: isActive ? "#67e8f9" : MUTED,
                           borderLeft: `3px solid ${isActive ? "#0891b2" : "transparent"}`,
-                        })}
+                          };
+                        }}
+                        data-group-active={inGroup || undefined}
                       >
-                        {({ isActive }) => (
+                        {({ isActive: onLink }) => (
                           <>
-                            <span style={{ color: isActive ? "#67e8f9" : "rgba(168,196,232,0.5)", flexShrink: 0 }}>
+                            <span style={{ color: onLink || inGroup ? "#67e8f9" : "rgba(168,196,232,0.5)", flexShrink: 0 }}>
                               <NavIcon name={item.icon} />
                             </span>
                             <span className="truncate text-left text-xs font-semibold">{item.label}</span>
@@ -101,7 +110,8 @@ export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebar
                       </Tooltip>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           ))

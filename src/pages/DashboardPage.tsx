@@ -13,7 +13,7 @@ import { notify } from "../lib/notify";
 import { useBudgets, useProjects } from "../lib/queries";
 import { personnelApi } from "../lib/personnelApi";
 import { riskApi } from "../lib/riskApi";
-import { visibleSections } from "../lib/nav";
+import { visibleTargets } from "../lib/nav";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
 import { resolveTier, type RoleTier, initialsFrom, personName } from "../lib/roles";
 import type {
@@ -1091,7 +1091,7 @@ function DashboardContent() {
   const hasRole = !!user?.role;
   const isWide = tier !== null && WIDE_TIERS.includes(tier);
   const canSeeWorkload = !!user?.role && TASK_ASSIGNER_CODES.includes(user.role.code);
-  const navTargets = visibleSections(tier, user?.role?.code).flatMap((s) => s.items.filter((i) => i.ready).map((i) => i.to));
+  const navTargets = visibleTargets(tier, user?.role?.code);
   const canOpen = (to: string) => navTargets.includes(to);
 
   const [rawData, setData] = useState<DashData>({});
