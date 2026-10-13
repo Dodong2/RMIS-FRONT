@@ -155,7 +155,7 @@ function AnalyticsContent() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex flex-wrap gap-3 items-center justify-between">
+      <div className="flex flex-wrap gap-3 items-end justify-between">
         <div className="flex flex-wrap items-end gap-2">
           <label htmlFor="analytics-campus-filter" className="flex flex-col gap-1 text-[10px] font-black uppercase tracking-wide" style={{ color: "#64748b" }}>
             Campus
