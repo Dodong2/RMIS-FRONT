@@ -12,8 +12,8 @@ import type { RoleTier } from "./roles";
  * page full of invented numbers. Flip the flag when the module lands.
  *
  * `roles` is the one exception to "tiers only": extra role codes for when a
- * client request splits a tier (Analytics, 2026-10-13: Program Leader yes,
- * Project Leader no, though both are project_management).
+ * client request splits a tier (Analytics, 2026-10-13: Program and Project
+ * Leader yes, Study Leader no, though all are project_management).
  */
 
 export interface NavItem {
@@ -165,7 +165,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/analytics",
         icon: "chart",
         tiers: [...OVERSIGHT, "finance"],
-        roles: ["procurement_officer_lib", "program_leader"],
+        roles: ["procurement_officer_lib", "program_leader", "project_leader"],
         ready: true,
       },
       {

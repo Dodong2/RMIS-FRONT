@@ -96,6 +96,7 @@ export default function App() {
                 "finance_budget",
                 "procurement_officer_lib",
                 "program_leader",
+                "project_leader",
               ]}
             >
               <AnalyticsPage />
