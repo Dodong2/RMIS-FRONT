@@ -6,6 +6,7 @@ import { authApi } from "../lib/authApi";
 import { getAccessToken, setTokens, clearTokens } from "../lib/tokenStorage";
 import { supabase } from "../lib/supabaseClient";
 import { getLandingPath } from "../lib/roleLanding";
+import { startRealtime, stopRealtime } from "../hooks/useRealtime";
 
 interface AuthContextValue {
   user: User | null;
@@ -48,6 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshUser();
   }, []);
+
+  const userId = user?.pk;
+  useEffect(() => {
+    if (userId === undefined) return;
+    startRealtime({
+      getToken: getAccessToken,
+      refreshToken: async () => {
+        await authApi.getCurrentUser();
+        return true;
+      },
+    });
+    return () => stopRealtime();
+  }, [userId]);
 
   const login = async (payload: LoginPayload) => {
     const tokens = await authApi.login(payload);

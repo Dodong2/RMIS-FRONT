@@ -15,6 +15,7 @@ import { EvaluationsPanel, RubricPanel } from "../components/monitoring/Evaluati
 import { ExtensionsPanel, ProgressReportsPanel, RenewalPanel } from "../components/monitoring/Reports";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
+import { RECONNECTED, useRealtime } from "../hooks/useRealtime";
 
 const REPORT_ROLE_CODES = ["system_admin", "riuh", "project_leader", "study_leader", "project_staff"];
 const CERTIFY_ROLE_CODES = ["system_admin", "riuh"];
@@ -217,6 +218,16 @@ function ProgressBar({ pct, status }: { pct: number; status: IndicatorStatus }) 
   );
 }
 
+const MONITORING_EVENTS = [
+  "monitoring.report.created",
+  "monitoring.report.certified",
+  "monitoring.evaluation.changed",
+  "monitoring.renewal.created",
+  "monitoring.renewal.decided",
+  "monitoring.extension.created",
+  "monitoring.extension.updated",
+];
+
 function MonitoringContent() {
   const { user } = useAuth();
   const code = user?.role?.code ?? "";
@@ -286,6 +297,9 @@ function MonitoringContent() {
   const overallPct = measured.length ? Math.round(((count("achieved") + count("on_track") * 0.7) / measured.length) * 100) : 0;
   const shown = indicators.filter((i) => typeFilter === "all" || i.type === typeFilter);
   const changed = () => setReloadKey((k) => k + 1);
+  useRealtime(MONITORING_EVENTS, (msg) => {
+    if (msg.type === RECONNECTED || msg.project === projectId) changed();
+  });
 
   const kpi = (label: string, val: number | string, color: string) => (
     <div key={label} className="rounded-2xl p-4" style={{ background: "white", border: "1px solid #e2e8f0" }}>
