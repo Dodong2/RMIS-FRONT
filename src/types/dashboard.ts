@@ -159,9 +159,11 @@ export interface ForecastingDashboard {
   projects_forecasted: number;
   overrun_risk_count: number;
   accuracy: { avg_mae: number | null; avg_rmse: number | null; avg_mape: number | null };
+  monthly_forecast: { month: string; predicted: number }[];
   projects: {
     project: number;
     project_code: string;
+    title: string;
     run: number;
     run_at: string;
     approved_budget_total: number;

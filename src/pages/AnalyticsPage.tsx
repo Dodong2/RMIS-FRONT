@@ -27,6 +27,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Field, SkeletonRows, TableHead } from "../components/common/proto";
 import { BudgetTab } from "../components/analytics/BudgetTab";
+import { ForecastTab } from "../components/analytics/ForecastTab";
 import { OutputsTab } from "../components/analytics/OutputsTab";
 import { OverviewTab } from "../components/analytics/OverviewTab";
 import { ProjectsTab } from "../components/analytics/ProjectsTab";
@@ -87,7 +88,6 @@ type Tab = (typeof TABS)[number][0];
 
 
 const humanize = (key: string) => key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-const peso = (n: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);
 const selCls = "px-3 py-2 rounded-xl text-xs font-semibold border outline-none";
 const selSt = { borderColor: "#e2e8f0", background: "white", color: "#334155" };
 
@@ -177,7 +177,7 @@ function AnalyticsContent() {
     dashboardApi
       .getForecastingDashboard(scope)
       .then((d) => alive && setForecastDash(d))
-      .catch(() => undefined);
+      .catch((err) => alive && notify.error(errorMessage(err, "Could not load the forecasting dashboard.")));
     dashboardApi.getComplianceDashboard(scope).then((d) => alive && setComplianceDash(d)).catch(() => undefined);
     dashboardApi
       .getPerformanceDashboard(scope)
@@ -369,50 +369,7 @@ function AnalyticsContent() {
 
       {tab === "budget" && <BudgetTab data={performanceDash} />}
 
-      {tab === "forecast" && (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KpiBox label="Projects in Scope" value={String(forecastDash?.projects_in_scope ?? "—")} sub="Institutional + externally funded" color="#0d2a5e" />
-            <KpiBox label="Forecasted" value={String(forecastDash?.projects_forecasted ?? "—")} sub="With a successful ARIMA run" color="#0891b2" />
-            <KpiBox label="Overrun Risk" value={String(forecastDash?.overrun_risk_count ?? "—")} sub="Projected over approved" color="#dc2626" />
-            <KpiBox label="Avg. MAPE" value={forecastDash?.accuracy.avg_mape != null ? `${forecastDash.accuracy.avg_mape.toFixed(1)}%` : "—"} sub="Backtest accuracy" color="#7c3aed" />
-          </div>
-          <ChartCard title="Project-Level Budget Forecast">
-            {!forecastDash || forecastDash.projects.length === 0 ? (
-              <EmptyChart message="No forecast runs yet. A project needs 6+ months of disbursements before ARIMA can fit." />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <TableHead cols={["Project", "Approved", "Actual to Date", "Projected (Horizon)", "Risk", "MAE", "RMSE", "MAPE", "Run"]} />
-                  <tbody>
-                    {forecastDash.projects.map((r) => (
-                      <tr key={r.run} className="border-t" style={{ borderColor: "#f1f5f9" }}>
-                        <td className="px-4 py-3 text-xs font-bold" style={{ color: "#0d2a5e" }}>{r.project_code}</td>
-                        <td className="px-4 py-3 text-xs">{peso(r.approved_budget_total)}</td>
-                        <td className="px-4 py-3 text-xs">{peso(r.actual_to_date)}</td>
-                        <td className="px-4 py-3 text-xs">{r.projected_total_at_horizon === null ? "—" : peso(r.projected_total_at_horizon)}</td>
-                        <td className="px-4 py-3 text-xs">
-                          {r.is_overrun_risk === null ? (
-                            <span style={{ color: "#94a3b8" }}>—</span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full font-semibold" style={r.is_overrun_risk ? { background: "#fee2e2", color: "#dc2626" } : { background: "#d1fae5", color: "#059669" }}>
-                              {r.is_overrun_risk ? "Overrun risk" : "Within budget"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs font-mono">{r.mae?.toFixed(0) ?? "—"}</td>
-                        <td className="px-4 py-3 text-xs font-mono">{r.rmse?.toFixed(0) ?? "—"}</td>
-                        <td className="px-4 py-3 text-xs font-mono">{r.mape != null ? `${r.mape.toFixed(1)}%` : "—"}</td>
-                        <td className="px-4 py-3 text-xs font-mono" style={{ color: "#94a3b8" }}>{r.run_at.slice(0, 10)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </ChartCard>
-        </>
-      )}
+      {tab === "forecast" && <ForecastTab data={performanceDash} forecast={forecastDash} />}
 
       {tab === "compliance" &&
         (!complianceDash ? (
