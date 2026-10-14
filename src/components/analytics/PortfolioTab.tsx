@@ -1,7 +1,9 @@
 import { useState } from "react";
 import type { PortfolioDashboard } from "../../types/dashboard";
 import { SkeletonRows } from "../common/proto";
+import { countAxis } from "./format";
 import { ChartCard, EmptyChart, HBar } from "./ProtoCharts";
+import { useTip } from "./useTip";
 
 const PRIORITY_COLORS = ["#0d2a5e", "#9f1239", "#065f46", "#f59e0b", "#f472b6", "#0891b2", "#7c3aed", "#ea580c", "#64748b"];
 
@@ -16,6 +18,9 @@ const STATUS_META: [string, string, string][] = [
   ["completed", "Completed", "#0d2a5e"],
   ["archived", "Archived", "#94a3b8"],
 ];
+const OTHER_STATUS: [string, string, string] = ["other", "Unclassified", "#f59e0b"];
+
+type SegmentTip = { key: string; code: string; title: string; campus: string; status: string; count: number; pct: string; color: string };
 
 const COLLEGES_PER_PAGE = 6;
 
@@ -30,6 +35,7 @@ function Meta({ left, right }: { left: string; right: string }) {
 
 export function PortfolioTab({ data }: { data: PortfolioDashboard | null }) {
   const [page, setPage] = useState(0);
+  const { tip, handlers } = useTip<SegmentTip>();
   if (!data) return <SkeletonRows />;
 
   const total = data.total_projects;
@@ -41,7 +47,14 @@ export function PortfolioTab({ data }: { data: PortfolioDashboard | null }) {
   const sdgMax = Math.max(0, ...sdgs.map((s) => s.count));
   const sdgAllocations = sdgs.reduce((sum, s) => sum + s.count, 0);
   const colleges = data.by_college;
-  const collegeMax = Math.max(1, ...colleges.map((c) => c.total));
+  const axis = countAxis(Math.max(0, ...colleges.map((c) => c.total)));
+  const known = new Set(STATUS_META.map(([key]) => key));
+  const segmentsOf = (byStatus: Record<string, number>) => {
+    const other = Object.entries(byStatus).reduce((a, [k, n]) => (known.has(k) ? a : a + n), 0);
+    return [...STATUS_META.map(([key, label, color]) => ({ key, label, color, count: byStatus[key] ?? 0 })), { key: OTHER_STATUS[0], label: OTHER_STATUS[1], color: OTHER_STATUS[2], count: other }];
+  };
+  const hasOther = colleges.some((c) => segmentsOf(c.by_status)[STATUS_META.length].count > 0);
+  const legend = hasOther ? [...STATUS_META, OTHER_STATUS] : STATUS_META;
   const collegeProjects = colleges.reduce((sum, c) => sum + c.total, 0);
   const pages = Math.max(1, Math.ceil(colleges.length / COLLEGES_PER_PAGE));
   const current = Math.min(page, pages - 1);
@@ -86,40 +99,74 @@ export function PortfolioTab({ data }: { data: PortfolioDashboard | null }) {
       </div>
 
       <ChartCard title="Projects by College">
-        <Meta left="Compare college-level project totals, broken down by status. Unit: Number of Projects" right={`${colleges.length} colleges · ${collegeProjects} projects`} />
+        <Meta left="Compare college-level project totals, broken down by status. Unit: Number of Projects (Y-axis)" right={`${colleges.length} colleges · ${collegeProjects} projects`} />
         {colleges.length === 0 ? (
           <EmptyChart message="No college recorded on projects yet." />
         ) : (
           <>
             <div className="flex flex-wrap justify-center gap-4 mb-3 text-[10px] font-bold" style={{ color: "#475569" }}>
-              {STATUS_META.map(([key, label, color]) => (
+              {legend.map(([key, label, color]) => (
                 <span key={key} className="flex items-center gap-1">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
                   {label}
                 </span>
               ))}
             </div>
-            <div className="overflow-x-auto">
-              <div className="flex items-end gap-3 h-56 border-b border-l px-2" style={{ borderColor: "#cbd5e1", minWidth: `${colleges.length * 56}px` }}>
-                {colleges.map((c) => (
-                  <div key={`${c.campus}:${c.college}`} className="flex-1 min-w-[40px] h-full flex flex-col-reverse" title={`${c.college} (${c.campus || "No campus"}): ${c.total}`}>
-                    {STATUS_META.map(([key, label, color]) =>
-                      c.by_status[key] ? (
-                        <div key={key} title={`${label}: ${c.by_status[key]}`} style={{ height: `${(c.by_status[key] / collegeMax) * 100}%`, background: color }} />
-                      ) : null,
-                    )}
-                  </div>
+            <div className="flex">
+              <div className="flex items-start justify-center shrink-0 w-5 h-56">
+                <span className="text-[10px] font-bold whitespace-nowrap rotate-180 self-center [writing-mode:vertical-rl]" style={{ color: "#64748b" }}>Number of Projects</span>
+              </div>
+              <div className="relative w-6 h-56 shrink-0">
+                {axis.ticks.map((t) => (
+                  <span key={t} className="absolute right-1 text-[10px] font-bold leading-none translate-y-1/2" style={{ bottom: `${(t / axis.max) * 100}%`, color: "#64748b" }}>{t}</span>
                 ))}
               </div>
-              <div className="flex gap-3 px-2 mt-1" style={{ minWidth: `${colleges.length * 56}px` }}>
-                {colleges.map((c) => (
-                  <div key={`${c.campus}:${c.college}`} className="flex-1 min-w-[40px] text-center">
-                    <p className="text-[10px] font-bold truncate" style={{ color: "#334155" }}>{c.code}</p>
-                    <p className="text-[9px] truncate" style={{ color: "#94a3b8" }}>{c.campus}</p>
+              <div className="flex-1 min-w-0 overflow-x-auto">
+                <div style={{ minWidth: `${colleges.length * 64}px` }}>
+                  <div className="relative h-56 border-b border-l" style={{ borderColor: "#cbd5e1" }}>
+                    {axis.ticks.slice(1).map((t) => (
+                      <div key={t} className="absolute inset-x-0 border-t" style={{ bottom: `${(t / axis.max) * 100}%`, borderColor: "#eef2f6" }} />
+                    ))}
+                    <div className="absolute inset-0 flex">
+                      {colleges.map((c) => (
+                        <div key={`${c.campus}:${c.college}`} className="flex-1 min-w-16 h-full flex flex-col-reverse items-center">
+                          {segmentsOf(c.by_status).map((seg) =>
+                            seg.count ? (
+                              <div
+                                key={seg.key}
+                                {...handlers({ key: `${c.campus}:${c.college}:${seg.key}`, code: c.code, title: c.title, campus: c.campus || "No campus", status: seg.label, count: seg.count, pct: ((seg.count / c.total) * 100).toFixed(1), color: seg.color })}
+                                aria-label={`${c.code} ${c.campus}: ${seg.count} ${seg.label} project${seg.count !== 1 ? "s" : ""}`}
+                                className="w-10 shrink-0 cursor-pointer outline-none transition-opacity hover:opacity-80 focus:opacity-80"
+                                style={{ height: `${(seg.count / axis.max) * 100}%`, background: seg.color }}
+                              />
+                            ) : null,
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                  <div className="flex mt-1">
+                    {colleges.map((c) => (
+                      <div key={`${c.campus}:${c.college}`} className="flex-1 min-w-16 text-center px-0.5">
+                        <p className="text-[10px] font-bold truncate" style={{ color: "#334155" }} title={c.title}>{c.code}</p>
+                        <p className="text-[9px] truncate" style={{ color: "#94a3b8" }}>{c.campus}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
+            {tip && (
+              <div className="fixed z-50 w-60 rounded-xl p-3 text-xs shadow-2xl pointer-events-none" style={{ left: tip.x, top: tip.y, background: "#0f172a", color: "white", border: `1px solid ${tip.color}` }}>
+                <p className="font-black">{tip.code}{tip.title !== tip.code ? ` — ${tip.title}` : ""}</p>
+                <p className="mt-1" style={{ color: "#cbd5e1" }}>Campus: {tip.campus}</p>
+                <p style={{ color: "#cbd5e1" }}>Status: {tip.status}</p>
+                <div className="mt-2 pt-2 flex justify-between gap-2 border-t font-bold" style={{ borderColor: "#334155" }}>
+                  <span>{tip.count} project{tip.count !== 1 ? "s" : ""}</span>
+                  <span>{tip.pct}% of college total</span>
+                </div>
+              </div>
+            )}
           </>
         )}
       </ChartCard>

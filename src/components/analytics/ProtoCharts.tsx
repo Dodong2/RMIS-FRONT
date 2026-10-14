@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { tipPosition } from "./format";
+import type { ReactNode } from "react";
+import { useTip } from "./useTip";
 
 const PALETTE = ["#0d2a5e", "#0891b2", "#059669", "#7c3aed", "#f59e0b", "#ea580c", "#dc2626", "#64748b"];
 
@@ -62,7 +62,6 @@ export function CountBars({ data, labelFor, emptyMessage, color }: { data: Recor
 }
 
 type Segment = { label: string; value: number; color: string };
-type SegmentTip = Segment & { pct: string; x: number; y: number; pinned: boolean };
 
 export function DonutChart({
   segments,
@@ -75,27 +74,12 @@ export function DonutChart({
   tooltipLabel?: string;
   valueLabel?: string;
 }) {
-  const [tip, setTip] = useState<SegmentTip | null>(null);
+  const { tip, handlers } = useTip<Segment & { key: string; pct: string }>();
   const total = segments.reduce((a, s) => a + s.value, 0);
   const radius = 38;
   const circumference = 2 * Math.PI * radius;
   const starts = segments.map((_, i) => segments.slice(0, i).reduce((a, s) => a + (total ? s.value / total : 0), 0));
   const pctOf = (v: number) => (total ? ((v / total) * 100).toFixed(1) : "0.0");
-  const pinned = tip?.pinned ?? false;
-  useEffect(() => {
-    if (!pinned) return;
-    const close = () => setTip(null);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
-    const onDown = (e: PointerEvent) => !(e.target as Element).closest?.("[data-slice]") && close();
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("pointerdown", onDown);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pointerdown", onDown);
-    };
-  }, [pinned]);
-  const show = (seg: Segment, clientX: number, clientY: number, pinned: boolean) =>
-    setTip({ ...seg, pct: pctOf(seg.value), ...tipPosition(clientX, clientY), pinned });
 
   return (
     <div className="relative flex h-full min-h-0 flex-col items-center justify-center">
@@ -115,23 +99,10 @@ export function DonutChart({
               strokeWidth="24"
               strokeDasharray={`${dash} ${circumference - dash}`}
               strokeDashoffset={circumference - starts[i] * circumference}
-              data-slice
-              role="button"
-              tabIndex={0}
+              {...handlers({ ...seg, key: seg.label, pct: pctOf(seg.value) })}
               aria-label={`${seg.label}: ${seg.value} ${valueLabel.toLowerCase()}, ${pctOf(seg.value)} percent`}
               className="cursor-pointer outline-none transition-opacity hover:opacity-80 focus:opacity-80"
               style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
-              onPointerEnter={(e) => !tip?.pinned && show(seg, e.clientX, e.clientY, false)}
-              onPointerMove={(e) => !tip?.pinned && show(seg, e.clientX, e.clientY, false)}
-              onPointerLeave={() => !tip?.pinned && setTip(null)}
-              onClick={(e) => (tip?.pinned && tip.label === seg.label ? setTip(null) : show(seg, e.clientX, e.clientY, true))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  const r = e.currentTarget.getBoundingClientRect();
-                  show(seg, r.left + r.width / 2, r.top + r.height / 2, true);
-                }
-              }}
             />
           );
         })}
