@@ -11,3 +11,11 @@ export const FUNDING_LABELS: Record<string, string> = {
 };
 
 export const STATUS_LABELS: Record<string, string> = { active: "Active", completed: "Completed", archived: "Archived" };
+
+// Keeps a fixed-position tooltip inside the viewport so the card never clips it.
+export function tipPosition(clientX: number, clientY: number, width = 238, height = 132) {
+  return {
+    x: Math.max(12, Math.min(clientX + 14, window.innerWidth - width)),
+    y: Math.max(12, Math.min(clientY + 14, window.innerHeight - height)),
+  };
+}

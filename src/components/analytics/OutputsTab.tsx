@@ -72,6 +72,8 @@ export function OutputsTab({ data, outputDash }: { data: PerformanceDashboard | 
               { label: "Completed Milestones", value: milestonesDone, color: "#7c3aed" },
             ]}
             centerLabel="Activities"
+            tooltipLabel="Activity type"
+            valueLabel="Records"
           />
         </ChartCard>
 

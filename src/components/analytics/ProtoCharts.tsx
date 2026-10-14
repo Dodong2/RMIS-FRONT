@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { tipPosition } from "./format";
 
 const PALETTE = ["#0d2a5e", "#0891b2", "#059669", "#7c3aed", "#f59e0b", "#ea580c", "#dc2626", "#64748b"];
 
@@ -60,19 +61,49 @@ export function CountBars({ data, labelFor, emptyMessage, color }: { data: Recor
   );
 }
 
-export function DonutChart({ segments, centerLabel }: { segments: { label: string; value: number; color: string }[]; centerLabel: string }) {
+type Segment = { label: string; value: number; color: string };
+type SegmentTip = Segment & { pct: string; x: number; y: number; pinned: boolean };
+
+export function DonutChart({
+  segments,
+  centerLabel,
+  tooltipLabel = "Status",
+  valueLabel = "Projects",
+}: {
+  segments: Segment[];
+  centerLabel: string;
+  tooltipLabel?: string;
+  valueLabel?: string;
+}) {
+  const [tip, setTip] = useState<SegmentTip | null>(null);
   const total = segments.reduce((a, s) => a + s.value, 0);
   const radius = 38;
   const circumference = 2 * Math.PI * radius;
   const starts = segments.map((_, i) => segments.slice(0, i).reduce((a, s) => a + (total ? s.value / total : 0), 0));
+  const pctOf = (v: number) => (total ? ((v / total) * 100).toFixed(1) : "0.0");
+  const pinned = tip?.pinned ?? false;
+  useEffect(() => {
+    if (!pinned) return;
+    const close = () => setTip(null);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onDown = (e: PointerEvent) => !(e.target as Element).closest?.("[data-slice]") && close();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onDown);
+    };
+  }, [pinned]);
+  const show = (seg: Segment, clientX: number, clientY: number, pinned: boolean) =>
+    setTip({ ...seg, pct: pctOf(seg.value), ...tipPosition(clientX, clientY), pinned });
+
   return (
-    <div className="flex items-center gap-6 flex-wrap">
-      <svg viewBox="0 0 100 100" className="w-32 h-32 shrink-0">
-        {total === 0 && <circle cx={50} cy={50} r={radius} fill="none" stroke="#e2e8f0" strokeWidth="22" />}
+    <div className="relative flex h-full min-h-0 flex-col items-center justify-center">
+      <svg viewBox="0 0 100 100" className="w-56 h-56 sm:w-64 sm:h-64 shrink-0 overflow-visible" aria-label={`${centerLabel} chart showing ${total} total`}>
+        {total === 0 && <circle cx={50} cy={50} r={radius} fill="none" stroke="#e2e8f0" strokeWidth="24" />}
         {segments.map((seg, i) => {
-          const pct = total ? seg.value / total : 0;
-          const dash = pct * circumference;
-          const offset = circumference - starts[i] * circumference;
+          if (!seg.value) return null;
+          const dash = (seg.value / total) * circumference;
           return (
             <circle
               key={seg.label}
@@ -81,25 +112,49 @@ export function DonutChart({ segments, centerLabel }: { segments: { label: strin
               r={radius}
               fill="none"
               stroke={seg.color}
-              strokeWidth="22"
+              strokeWidth="24"
               strokeDasharray={`${dash} ${circumference - dash}`}
-              strokeDashoffset={offset}
+              strokeDashoffset={circumference - starts[i] * circumference}
+              data-slice
+              role="button"
+              tabIndex={0}
+              aria-label={`${seg.label}: ${seg.value} ${valueLabel.toLowerCase()}, ${pctOf(seg.value)} percent`}
+              className="cursor-pointer outline-none transition-opacity hover:opacity-80 focus:opacity-80"
               style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%" }}
+              onPointerEnter={(e) => !tip?.pinned && show(seg, e.clientX, e.clientY, false)}
+              onPointerMove={(e) => !tip?.pinned && show(seg, e.clientX, e.clientY, false)}
+              onPointerLeave={() => !tip?.pinned && setTip(null)}
+              onClick={(e) => (tip?.pinned && tip.label === seg.label ? setTip(null) : show(seg, e.clientX, e.clientY, true))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  show(seg, r.left + r.width / 2, r.top + r.height / 2, true);
+                }
+              }}
             />
           );
         })}
-        <text x="50" y="47" textAnchor="middle" style={{ fontSize: "14px", fontWeight: 900, fill: "#0d2a5e" }}>{total}</text>
-        <text x="50" y="60" textAnchor="middle" style={{ fontSize: "7px", fill: "#94a3b8" }}>{centerLabel}</text>
+        <text x="50" y="49" textAnchor="middle" style={{ fontSize: "14px", fontWeight: 900, fill: "#0d2a5e" }}>{total}</text>
+        <text x="50" y="60" textAnchor="middle" style={{ fontSize: "6px", fill: "#94a3b8" }}>{centerLabel}</text>
       </svg>
-      <div className="space-y-2">
+      <div className="mt-4 flex max-w-full flex-wrap items-center justify-center gap-x-4 gap-y-2">
         {segments.map((seg) => (
-          <div key={seg.label} className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: seg.color }} />
-            <span className="text-xs" style={{ color: "#475569" }}>{seg.label}</span>
-            <span className="text-xs font-bold ml-auto pl-4" style={{ color: seg.color }}>{seg.value}</span>
+          <div key={seg.label} className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: seg.color }} />
+            <span className="text-[11px] font-semibold" style={{ color: "#475569" }}>{seg.label}</span>
+            <span className="text-[11px] font-black" style={{ color: seg.color }}>{seg.value}</span>
           </div>
         ))}
       </div>
+      {tip && (
+        <div className="fixed z-50 w-56 rounded-xl p-3 text-xs shadow-2xl pointer-events-none" style={{ left: tip.x, top: tip.y, background: "#0f172a", color: "white", border: `1px solid ${tip.color}` }}>
+          <p className="font-black">{tooltipLabel}: {tip.label}</p>
+          <p className="mt-1" style={{ color: "#cbd5e1" }}>{valueLabel}: {tip.value}</p>
+          <p style={{ color: "#cbd5e1" }}>Percentage: {tip.pct}%</p>
+          {tip.pinned && <p className="mt-2 text-[9px]" style={{ color: "#94a3b8" }}>Select the slice again or press Escape to close.</p>}
+        </div>
+      )}
     </div>
   );
 }

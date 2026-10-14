@@ -43,7 +43,6 @@ const TABS = [
 
 type Tab = (typeof TABS)[number][0];
 
-const humanize = (key: string) => key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 function AnalyticsContent() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -131,7 +130,13 @@ function AnalyticsContent() {
   const collegeOptions = allColleges.filter((c) => !campus || c.campus === campus);
   if (projects === null) return <SkeletonRows />;
 
-  const statusSegments = Object.entries(projectDash?.by_status ?? {}).map(([k, v]) => ({ label: PROJECT_STATUS_META[k]?.label ?? humanize(k), value: v, color: PROJECT_STATUS_META[k]?.color ?? "#64748b" }));
+  // Every known status shows (0 included); anything else is counted under Unclassified so slices always sum to the scoped total.
+  const byStatus = projectDash?.by_status ?? {};
+  const unclassified = Object.entries(byStatus).reduce((a, [k, v]) => (k in PROJECT_STATUS_META ? a : a + v), 0);
+  const statusSegments = [
+    ...Object.entries(PROJECT_STATUS_META).map(([k, m]) => ({ label: m.label, value: byStatus[k] ?? 0, color: m.color })),
+    ...(unclassified ? [{ label: "Unclassified", value: unclassified, color: "#f59e0b" }] : []),
+  ];
   const sim = complianceDash?.similarity_checks;
   const count = (obj: Record<string, number> | undefined) => Object.values(obj ?? {}).reduce((a, v) => a + v, 0);
 
