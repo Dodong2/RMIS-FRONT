@@ -660,6 +660,32 @@ function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudge
 const EMPTY_ROW = { description: "", unit: "unit", quantity: "", unit_cost: "", justification: "" };
 type NewRow = typeof EMPTY_ROW;
 
+type AllocationColumn = { key: string; label: string; amount: (item: LineItem) => number };
+
+// Client meeting 2026-10-14: split items give "Year N (YYYY)" or Q1-Q4 columns (Figma LIB Overview); unsplit LIBs keep fiscal years
+function libAllocationColumns(items: LineItem[], startDate: string | null): AllocationColumn[] {
+  const periods = [...new Set(items.flatMap((i) => (i.allocations ?? []).map((a) => a.period)))];
+  if (periods.length === 0) {
+    const years = [...new Set(items.map((i) => i.fiscal_year))].sort((a, b) => (a ?? 9999) - (b ?? 9999));
+    return years.map((y) => ({
+      key: `fy${y}`,
+      label: y ? `FY ${y}` : "No fiscal year",
+      amount: (i) => (i.fiscal_year === y ? Number(i.amount) : 0),
+    }));
+  }
+  const startYear = startDate ? Number(startDate.slice(0, 4)) : null;
+  const order = (p: string) => (p[0] === "Q" ? 100 : 0) + Number(p.slice(1));
+  const columns: AllocationColumn[] = periods.sort((a, b) => order(a) - order(b)).map((p) => ({
+    key: p,
+    label: p[0] === "Y" ? `Year ${p.slice(1)}${startYear ? ` (${startYear + Number(p.slice(1)) - 1})` : ""}` : p,
+    amount: (i) => Number(i.allocations?.find((a) => a.period === p)?.amount ?? 0),
+  }));
+  if (items.some((i) => !i.allocations?.length)) {
+    columns.push({ key: "unsplit", label: "Not split", amount: (i) => (i.allocations?.length ? 0 : Number(i.amount)) });
+  }
+  return columns;
+}
+
 function LIBDetail({
   project,
   canManage,
@@ -735,7 +761,7 @@ function LIBDetail({
     }, "Line item added.");
   };
 
-  const years = [...new Set<number | null>((budget?.line_items ?? []).map((i) => i.fiscal_year))].sort((a, b) => (a ?? 9999) - (b ?? 9999));
+  const allocationColumns = libAllocationColumns(budget?.line_items ?? [], project.start_date);
 
   const isDraft = budget?.status === "draft";
 
@@ -859,9 +885,9 @@ function LIBDetail({
                           <thead>
                             <tr style={{ background: "#f0f4f8" }}>
                               <th className="px-3 py-2 text-left text-xs font-bold" style={{ color: "#64748b" }}>Category</th>
-                              {years.map((y) => (
-                                <th key={y ?? "none"} className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>
-                                  {y ? `FY ${y}` : "No fiscal year"}
+                              {allocationColumns.map((c) => (
+                                <th key={c.key} className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>
+                                  {c.label}
                                 </th>
                               ))}
                               <th className="px-3 py-2 text-right text-xs font-bold" style={{ color: "#64748b" }}>Total</th>
@@ -875,9 +901,9 @@ function LIBDetail({
                                   <td className="px-3 py-2.5">
                                     <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: cm.bg, color: cm.color }}>{cm.icon} {cm.label}</span>
                                   </td>
-                                  {years.map((y) => (
-                                    <td key={y ?? "none"} className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#334155" }}>
-                                      {peso(budget.line_items.filter((i) => i.category === cat && i.fiscal_year === y).reduce((s, i) => s + Number(i.amount), 0))}
+                                  {allocationColumns.map((c) => (
+                                    <td key={c.key} className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#334155" }}>
+                                      {peso(budget.line_items.filter((i) => i.category === cat).reduce((s, i) => s + c.amount(i), 0))}
                                     </td>
                                   ))}
                                   <td className="px-3 py-2.5 text-right text-xs font-mono font-black" style={{ color: cm.color }}>{peso(catTotal(budget, cat))}</td>
@@ -888,9 +914,9 @@ function LIBDetail({
                           <tfoot>
                             <tr style={{ background: "#f0f4f8" }}>
                               <td className="px-3 py-2.5 text-xs font-black" style={{ color: "#0d2a5e" }}>TOTAL</td>
-                              {years.map((y) => (
-                                <td key={y ?? "none"} className="px-3 py-2.5 text-right text-xs font-mono font-black" style={{ color: "#0d2a5e" }}>
-                                  {peso(budget.line_items.filter((i) => i.fiscal_year === y).reduce((s, i) => s + Number(i.amount), 0))}
+                              {allocationColumns.map((c) => (
+                                <td key={c.key} className="px-3 py-2.5 text-right text-xs font-mono font-black" style={{ color: "#0d2a5e" }}>
+                                  {peso(budget.line_items.reduce((s, i) => s + c.amount(i), 0))}
                                 </td>
                               ))}
                               <td className="px-3 py-2.5 text-right text-xs font-mono font-black" style={{ color: "#0d2a5e" }}>{peso(budget.total_amount)}</td>
