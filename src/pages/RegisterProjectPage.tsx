@@ -719,7 +719,9 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         quantity: Number(r.quantity) || 0,
         unit_cost: Number(r.unit_cost) || 0,
         total: libRowTotal(r),
+        allocations: libPeriods?.map((period) => ({ period, amount: Number(r.allocations?.[period]) || 0 })),
       })),
+      allocation_periods: libPeriods ?? [],
       work_plan: filledWorkPlan.map((w) => ({ title: w.title.trim(), start_date: w.start_date || null, target_date: w.target_date })),
       endorsers: filledEndorsers.map((e) => ({ name: e.name, designation: e.designation, signed_on: e.signed_on || null })),
     };

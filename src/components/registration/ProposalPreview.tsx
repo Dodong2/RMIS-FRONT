@@ -38,7 +38,17 @@ export type ProposalData = {
   beneficiaries: { group: string; description: string; total: number | string }[];
   monitoring_evaluation: string;
   references: string;
-  budget: { category: string; description: string; unit: string; quantity: number | null; unit_cost: number | null; total: number }[];
+  budget: {
+    category: string;
+    description: string;
+    unit: string;
+    quantity: number | null;
+    unit_cost: number | null;
+    total: number;
+    allocations?: { period: string; amount: number }[];
+  }[];
+  /** Y1..Yn or Q1-Q4 (client meeting 2026-10-14); the per-period columns show only when some item is split */
+  allocation_periods?: string[];
   work_plan: { title: string; start_date?: string | null; target_date?: string | null }[];
   endorsers: { name: string; designation: string; signed_on: string | null }[];
   proposal_submitted_on: string;
@@ -146,6 +156,13 @@ function Text({ value }: { value: string }) {
 
 export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose: () => void }) {
   const budgetTotal = data.budget.reduce((s, r) => s + r.total, 0);
+  const periods = data.budget.some((r) => r.allocations?.length) ? (data.allocation_periods ?? []) : [];
+  const periodSum = (rows: ProposalData["budget"], p: string) =>
+    rows.reduce((s, r) => s + (r.allocations?.find((a) => a.period === p)?.amount ?? 0), 0);
+  const periodCells = (rows: ProposalData["budget"], bold?: boolean) =>
+    periods.map((p) => (
+      <td key={p} className={"px-1 text-right" + (bold ? " font-bold" : "")} style={{ border: BORDER }}>{peso(periodSum(rows, p))}</td>
+    ));
 
   return (
     <ProtoModal
@@ -322,7 +339,7 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
               <table className="w-full" style={{ borderCollapse: "collapse", fontFamily: "Arial, sans-serif" }}>
                 <thead>
                   <tr style={HEAD}>
-                    {["DESCRIPTION", "UNIT", "QTY", "UNIT COST", "TOTAL"].map((h) => (
+                    {["DESCRIPTION", "UNIT", "QTY", "UNIT COST", ...periods.map((p) => p.replace("Y", "YEAR ")), "TOTAL"].map((h) => (
                       <th key={h} className="px-1" style={{ border: BORDER }}>{h}</th>
                     ))}
                   </tr>
@@ -334,7 +351,7 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
                     const subtotal = rows.reduce((s, r) => s + r.total, 0);
                     return [
                       <tr key={g.key} style={HEAD}>
-                        <td colSpan={5} className="px-1 font-bold" style={{ border: BORDER }}>{g.label}</td>
+                        <td colSpan={5 + periods.length} className="px-1 font-bold" style={{ border: BORDER }}>{g.label}</td>
                       </tr>,
                       ...rows.map((r, i) => (
                         <tr key={`${g.key}${i}`}>
@@ -342,17 +359,20 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
                           <td className="px-1 text-center" style={{ border: BORDER }}>{r.unit}</td>
                           <td className="px-1 text-right" style={{ border: BORDER }}>{r.quantity ?? ""}</td>
                           <td className="px-1 text-right" style={{ border: BORDER }}>{r.unit_cost != null ? peso(r.unit_cost) : ""}</td>
+                          {periodCells([r])}
                           <td className="px-1 text-right font-bold" style={{ border: BORDER }}>{peso(r.total)}</td>
                         </tr>
                       )),
                       <tr key={`${g.key}-sub`} style={{ background: "#e2e8f0" }}>
                         <td colSpan={4} className="px-1 text-right font-bold" style={{ border: BORDER }}>SUBTOTAL</td>
+                        {periodCells(rows, true)}
                         <td className="px-1 text-right font-bold" style={{ border: BORDER }}>{peso(subtotal)}</td>
                       </tr>,
                     ];
                   })}
                   <tr style={{ background: "#fecaca" }}>
                     <td colSpan={4} className="px-1 text-right font-bold" style={{ border: BORDER }}>GRAND TOTAL</td>
+                    {periodCells(data.budget, true)}
                     <td className="px-1 text-right font-bold" style={{ border: BORDER }}>{peso(budgetTotal)}</td>
                   </tr>
                 </tbody>
