@@ -152,7 +152,6 @@ function AnalyticsContent() {
         setProjects([]);
         notify.error("Could not load projects.");
       });
-    dashboardApi.getREIThrustAlignment().then((d) => alive && setReiDash(d)).catch(() => undefined);
     return () => {
       alive = false;
     };
@@ -180,6 +179,7 @@ function AnalyticsContent() {
       .then((d) => alive && setForecastDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the forecasting dashboard.")));
     dashboardApi.getComplianceDashboard(scope).then((d) => alive && setComplianceDash(d)).catch(() => undefined);
+    dashboardApi.getREIThrustAlignment(scope).then((d) => alive && setReiDash(d)).catch(() => undefined);
     dashboardApi
       .getPerformanceDashboard(scope)
       .then((d) => alive && setPerformanceDash(d))

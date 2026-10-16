@@ -63,8 +63,8 @@ export const dashboardApi = {
     const { data } = await apiClient.get("/api/dashboard/performance/", { params });
     return data;
   },
-  getREIThrustAlignment: async (): Promise<REIThrustAlignment> => {
-    const { data } = await apiClient.get("/api/dashboard/rei-thrust-alignment/");
+  getREIThrustAlignment: async (params: AnalyticsScope = {}): Promise<REIThrustAlignment> => {
+    const { data } = await apiClient.get("/api/dashboard/rei-thrust-alignment/", { params });
     return data;
   },
 
