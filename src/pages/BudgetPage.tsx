@@ -982,6 +982,11 @@ function LIBDetail({
                                       <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: "#f0fdf4", color: "#166534" }}>Counterpart</span>
                                     )}
                                   </div>
+                                  {li.allocations?.length > 0 && (
+                                    <p className="mt-1 text-xs font-normal font-mono" style={{ color: "#64748b" }}>
+                                      {li.allocations.map((a) => `${a.period} ${peso(a.amount)}`).join(" · ")}
+                                    </p>
+                                  )}
                                 </td>
                                 <td className="px-3 py-2.5 text-xs" style={{ color: "#64748b" }}>{libUnitLabel(li.unit) || "—"}</td>
                                 <td className="px-3 py-2.5 text-xs font-mono text-right" style={{ color: "#64748b" }}>{li.quantity != null ? Number(li.quantity) : "—"}</td>

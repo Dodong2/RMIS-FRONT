@@ -5,7 +5,7 @@ import { outputsApi } from "../lib/outputsApi";
 import type { SixPCategory } from "../types/outputs";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
-import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
+import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { notify } from "../lib/notify";
 import { clearDraft, loadDraft, saveDraft } from "../lib/formDraft";
 import type { AdminChoice, AdminChoiceKind, FundingType, Project, ProjectImportError } from "../types/research";
@@ -81,7 +81,8 @@ const SIX_P_FORM: [SixPCategory, string][] = [
   ["places_partnerships", "Places/Partnerships"],
   ["policies", "Policy Recommendations"],
 ];
-type LibRow = { category: LibCategory; description: string; unit: string; quantity: string; unit_cost: string };
+// `allocations` = period (Y1..Yn or Q1-Q4) -> amount; drafts saved before 2026-10-16 don't have it
+type LibRow = { category: LibCategory; description: string; unit: string; quantity: string; unit_cost: string; allocations?: Record<string, string> };
 type LibCategory = "ps" | "mooe" | "co";
 
 const LIB_CATEGORIES: { key: LibCategory; label: string }[] = [
@@ -91,6 +92,7 @@ const LIB_CATEGORIES: { key: LibCategory; label: string }[] = [
 ];
 // Client feedback 2026-10-06: LIB rows are Unit / Qty / Unit Cost instead of per quarter; Total = Qty x Unit Cost.
 const libRowTotal = (r: LibRow) => libLineTotal(r.quantity, r.unit_cost);
+const libRowAllocated = (r: LibRow, periods: string[]) => Math.round(periods.reduce((sum, p) => sum + (Number(r.allocations?.[p]) || 0), 0) * 100) / 100;
 const peso = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 type EndorserRow = { id?: number; role_code: string; user: number | null; name: string; designation: string; signed_on: string };
@@ -616,6 +618,9 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const libGrandTotal = libRows.reduce((sum, r) => sum + libRowTotal(r), 0);
   const libDifference = Math.round((libGrandTotal - approvedBudget) * 100) / 100;
   const libMatchesBudget = isEdit || approvedBudget === 0 || libDifference === 0;
+  // Client meeting 2026-10-14: each item is split per year (multi-year) or per quarter (one-year), adding up to its total
+  const libPeriods = allocationPeriods(form.start_date, form.target_end_date);
+  const libSplitsMatch = isEdit || !libPeriods || filledLib.every((r) => libRowAllocated(r, libPeriods) === libRowTotal(r));
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
       0: form.project_code.trim() ? [] : ["Project Code"],
@@ -623,7 +628,10 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
       2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
       3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
       4: beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim()) ? [] : ["every Target Beneficiaries row"],
-      5: libMatchesBudget ? [] : [`a Grand Total equal to the approved budget (₱${peso(approvedBudget)})`],
+      5: [
+        ...(libMatchesBudget ? [] : [`a Grand Total equal to the approved budget (₱${peso(approvedBudget)})`]),
+        ...(libSplitsMatch ? [] : [`a ${libPeriods?.[0] === "Q1" ? "per-quarter" : "per-year"} allocation that adds up to every item's total`]),
+      ],
       6: [...(form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"]), ...(uploadsPending ? ["the document uploads"] : [])],
     };
     return missing[i] ?? [];
@@ -645,6 +653,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
     { label: "Every target beneficiary row complete", done: stepMissing(4).length === 0, required: true, step: 4 },
     { label: "LIB line items entered", done: filledLib.length > 0, step: 5 },
     { label: "LIB Grand Total equals the approved budget", done: libMatchesBudget, required: true, step: 5 },
+    ...(libPeriods ? [{ label: "Every LIB item's allocation adds up to its total", done: libSplitsMatch, required: true, step: 5 }] : []),
     { label: "Approval reference number provided", done: !!form.ntp_number.trim(), required: true, step: 6 },
     { label: "Approval document attached", done: approvalDoc.length > 0, step: 6 },
     { label: "All document uploads finished", done: !uploadsPending, required: true, step: 6 },
@@ -665,7 +674,11 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
     const missing = stepMissing(step);
     if (missing.length) {
       setTriedSteps((t) => (t.includes(step) ? t : [...t, step]));
-      notify.error(step === 5 ? `Grand total must equal approved budget (₱${peso(approvedBudget)}). Difference: ₱${peso(libDifference)}.` : `Fill in ${missing.join(", ")} before going to the next step.`);
+      notify.error(
+        step === 5 && !libMatchesBudget
+          ? `Grand total must equal approved budget (₱${peso(approvedBudget)}). Difference: ₱${peso(libDifference)}.`
+          : `Fill in ${missing.join(", ")} before going to the next step.`,
+      );
       return;
     }
     if (step === 0 && form.project_code.trim() !== edit?.project.project_code) {
@@ -886,10 +899,11 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                 filledLib.map((r) => ({
                   category: r.category,
                   description: r.description.trim(),
-                  fiscal_year: Number(libYear) || null,
+                  fiscal_year: (libPeriods ? Number(form.start_date.slice(0, 4)) : Number(libYear)) || null,
                   unit: r.unit,
                   quantity: r.quantity,
                   unit_cost: r.unit_cost,
+                  ...(libPeriods ? { allocations: libPeriods.map((period) => ({ period, amount: r.allocations?.[period] || "0" })) } : {}),
                 })),
                 `${requestKey}-lib`,
               ),
@@ -1418,11 +1432,25 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                     Section X, Budget Requirements: the approved Line-Item Budget (Total = Qty × Unit Cost). It is saved as the project's draft LIB (version 1) for the
                     Budget Officer to certify under Budget Management. Its Grand Total must equal the Total Project/Study Cost from Project Details before you can go on.
                   </StepNote>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <Field label="Fiscal Year">
-                      <input type="number" min="2000" className={inputCls} style={inputSt} value={libYear} onChange={(e) => setLibYear(e.target.value)} />
-                    </Field>
-                  </div>
+                  {libPeriods ? (
+                    <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e3a8a" }}>
+                      {libPeriods[0] === "Q1"
+                        ? "One-year project: split each item's total per quarter (Q1-Q4)."
+                        : `${libPeriods.length}-year project: split each item's total per year (${libPeriods.join(", ")}).`}{" "}
+                      The split must add up to the item's total.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
+                        Set the Start and Target End dates in Project Details to split each item per year or per quarter.
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Field label="Fiscal Year">
+                          <input type="number" min="2000" className={inputCls} style={inputSt} value={libYear} onChange={(e) => setLibYear(e.target.value)} />
+                        </Field>
+                      </div>
+                    </>
+                  )}
                   {LIB_CATEGORIES.map((cat) => {
                     const rows = libRows.map((r, i) => ({ r, i })).filter(({ r }) => r.category === cat.key);
                     const subtotal = rows.reduce((sum, { r }) => sum + libRowTotal(r), 0);
@@ -1445,7 +1473,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                               <span className="w-4" />
                             </div>
                             {rows.map(({ r, i }) => (
-                              <div key={i} className="flex flex-wrap md:flex-nowrap gap-2 items-start">
+                              <div key={i} className="flex flex-wrap gap-2 items-start">
                                 <input className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(e) => updateLib(i, { description: e.target.value })} placeholder="Description, e.g. Travel Expenses" />
                                 <select className={inputCls + " md:w-28"} style={inputSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
                                   {LIB_UNITS.map(([code, label]) => (
@@ -1456,6 +1484,32 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                                 <MoneyInput className={inputCls + " md:w-36"} style={inputSt} value={r.unit_cost} onChange={(v) => updateLib(i, { unit_cost: v })} placeholder="Unit Cost" aria-label="Unit Cost" />
                                 <input readOnly tabIndex={-1} className={inputCls + " md:w-36 font-mono font-bold text-right"} style={{ ...inputSt, background: "#f1f5f9", color: "#0d2a5e" }} value={peso(libRowTotal(r))} aria-label="Total" />
                                 <RemoveButton onClick={() => setLibRows(libRows.filter((_, idx) => idx !== i))} label="Remove item" />
+                                {libPeriods && (
+                                  <div className="w-full flex flex-wrap items-center gap-2 pl-1 pb-1">
+                                    {libPeriods.map((period) => (
+                                      <label key={period} className="flex items-center gap-1 text-xs font-semibold" style={{ color: "#64748b" }}>
+                                        {period}
+                                        <MoneyInput
+                                          className={inputCls + " w-32"}
+                                          style={inputSt}
+                                          value={r.allocations?.[period] ?? ""}
+                                          onChange={(v) => updateLib(i, { allocations: { ...r.allocations, [period]: v } })}
+                                          placeholder="0.00"
+                                          aria-label={`${period} allocation`}
+                                        />
+                                      </label>
+                                    ))}
+                                    {(() => {
+                                      const allocated = libRowAllocated(r, libPeriods);
+                                      const ok = allocated === libRowTotal(r);
+                                      return (
+                                        <span className="text-xs font-semibold" style={{ color: ok ? "#15803d" : "#b91c1c" }}>
+                                          Allocated ₱{peso(allocated)} of ₱{peso(libRowTotal(r))}
+                                        </span>
+                                      );
+                                    })()}
+                                  </div>
+                                )}
                               </div>
                             ))}
                             <p className="text-xs font-semibold text-right pr-8" style={{ color: "#64748b" }}>Subtotal: ₱{peso(subtotal)}</p>
@@ -1763,6 +1817,7 @@ async function loadEditSource(projectId: number): Promise<EditSource> {
       unit: r.unit,
       quantity: r.quantity ?? "1",
       unit_cost: r.unit_cost ?? r.amount,
+      allocations: Object.fromEntries((r.allocations ?? []).map((a) => [a.period, a.amount])),
     })),
     libYear: String(lib.find((r) => r.fiscal_year)?.fiscal_year ?? new Date().getFullYear()),
     endorsers: byId(endorsers).map((e) => ({ id: e.id, role_code: e.role_code, user: e.user, name: e.name, designation: e.designation, signed_on: e.signed_on ?? "" })),

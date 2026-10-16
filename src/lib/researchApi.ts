@@ -3,7 +3,7 @@ import { apiClient, idempotent } from "./apiClient";
 import { downloadReport } from "./reportsApi";
 import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
 import type { AdminUser } from "../types/auth";
-import type { LineItemBudget } from "../types/budget";
+import type { LibAllocation, LineItemBudget } from "../types/budget";
 
 export const researchApi = {
   getChoices: async (kind: AdminChoiceKind): Promise<AdminChoice[]> => {
@@ -146,6 +146,7 @@ export const researchApi = {
       unit: string;
       quantity: string;
       unit_cost: string;
+      allocations?: LibAllocation[];
     }[],
     idempotencyKey?: string,
   ): Promise<LineItemBudget> => {

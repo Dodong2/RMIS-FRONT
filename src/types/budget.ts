@@ -1,6 +1,8 @@
 export type LineItemCategory = "ps" | "mooe" | "co";
 export type BudgetStatus = "draft" | "certified";
 
+export type LibAllocation = { period: string; amount: string };
+
 export interface LineItem {
   id: number;
   budget: number;
@@ -18,6 +20,8 @@ export interface LineItem {
   q2_amount: string | null;
   q3_amount: string | null;
   q4_amount: string | null;
+  /** Per-year (Y1..Yn) or per-quarter (Q1-Q4) split of `amount`; empty on older items */
+  allocations: LibAllocation[];
   is_app_flagged: boolean;
   created_at: string;
 }
