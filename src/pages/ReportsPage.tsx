@@ -6,7 +6,7 @@ import { monitoringApi } from "../lib/monitoringApi";
 import { researchApi } from "../lib/researchApi";
 import { reportsApi, reportErrorMessage } from "../lib/reportsApi";
 import { runServerReport, type ReportParams } from "../lib/reportRunner";
-import { DOMAIN_META, FORMAT_META, FUNDING_TYPE_LABELS, PARAM_LABELS, REPORT_DEFINITIONS, STATUS_LABELS, type ReportDefinition, type ReportDomain, type ReportParam } from "../lib/reportCatalog";
+import { DOMAIN_META, FORMAT_META, PARAM_LABELS, REPORT_DEFINITIONS, STATUS_LABELS, type ReportDefinition, type ReportDomain, type ReportParam } from "../lib/reportCatalog";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { personName } from "../lib/roles";
@@ -18,6 +18,7 @@ import { NoActualData } from "../components/common/NoActualData";
 import { SkeletonRows } from "../components/common/proto";
 import { GenerateReportModal } from "../components/reports/GenerateReportModal";
 import { useAuth } from "../context/AuthContext";
+import { useFundingTypes } from "../lib/fundingTypes";
 
 const REPORT_LOG_VIEW_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
 
@@ -48,6 +49,7 @@ const fmtDateTime = (iso: string) => iso.slice(0, 16).replace("T", " ");
 const monthLabel = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-PH", { month: "long", year: "numeric" });
 
 function ReportsContent() {
+  const fundingTypes = useFundingTypes();
   const { user } = useAuth();
   const code = user?.role?.code ?? "";
   const canViewLogs = REPORT_LOG_VIEW_ROLE_CODES.includes(code);
@@ -129,7 +131,7 @@ function ReportsContent() {
       .filter(([, v]) => v !== null && v !== undefined && v !== "")
       .map(([k, v]) => {
         if (k === "project_id") return ["Project", projectCode(Number(v))];
-        if (k === "funding_type") return [PARAM_LABELS.funding_type, FUNDING_TYPE_LABELS[String(v)] ?? String(v)];
+        if (k === "funding_type") return [PARAM_LABELS.funding_type, fundingTypes.label(String(v))];
         if (k === "status") return [PARAM_LABELS.status, STATUS_LABELS[String(v)] ?? String(v)];
         return [PARAM_LABELS[k as ReportParam] ?? k, String(v)];
       });

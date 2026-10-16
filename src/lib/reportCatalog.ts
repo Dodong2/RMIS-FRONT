@@ -61,11 +61,6 @@ export const PARAM_LABELS: Record<ReportParam, string> = {
   year: "Year",
 };
 
-export const FUNDING_TYPE_LABELS: Record<string, string> = {
-  institutional: "Institutional (LSPU-Funded)",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally-Funded",
-};
 
 export const STATUS_LABELS: Record<string, string> = {
   active: "Active",

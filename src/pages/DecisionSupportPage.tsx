@@ -22,6 +22,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { Field, Pill, ProtoModal, SkeletonRows } from "../components/common/proto";
 import { NoActualData } from "../components/common/NoActualData";
 import { MoneyInput } from "../components/common/MoneyInput";
+import { useFundingTypes } from "../lib/fundingTypes";
 
 const DSS_ROLE_CODES = ["system_admin", "drd", "vprei"];
 const DECISION_ROLE_CODES = ["system_admin", "drd", "vprei", "university_admin"];
@@ -61,11 +62,6 @@ const DECISION_META: Record<FundingDecision, { label: string; color: string; bg:
   decline: { label: "Decline", color: "#dc2626", bg: "#fee2e2" },
 };
 
-const FUNDING_TYPE_LABELS: Record<string, string> = {
-  institutional: "Institutional (LSPU-Funded)",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally-Funded",
-};
 
 const SAATY_SCALE: { value: string; numeric: number; label: string }[] = [
   { value: "1/9", numeric: 1 / 9, label: "1/9 — Column extremely more important" },
@@ -564,6 +560,7 @@ function RecordDecisionModal({
 }
 
 function DecisionSupportContent() {
+  const fundingTypes = useFundingTypes();
   const { user } = useAuth();
   const roleCode = user?.role?.code ?? "";
   const canManage = DSS_ROLE_CODES.includes(roleCode);
@@ -795,7 +792,7 @@ function DecisionSupportContent() {
                   <>
                     <select value={fundingType} onChange={(e) => setFundingType(e.target.value)} className={selCls + " w-full"} style={selSt}>
                       <option value="">All funding types</option>
-                      {Object.entries(FUNDING_TYPE_LABELS).map(([k, v]) => (
+                      {fundingTypes.options.map(([k, v]) => (
                         <option key={k} value={k}>{v}</option>
                       ))}
                     </select>
@@ -862,7 +859,7 @@ function DecisionSupportContent() {
                   </select>
                   {activeRec && (
                     <span className="text-xs" style={{ color: "#94a3b8" }}>
-                      Filters: {[FUNDING_TYPE_LABELS[activeRec.funding_type_filter], activeRec.campus_filter].filter(Boolean).join(" · ") || "none"}
+                      Filters: {[activeRec.funding_type_filter && fundingTypes.label(activeRec.funding_type_filter), activeRec.campus_filter].filter(Boolean).join(" · ") || "none"}
                     </span>
                   )}
                 </div>

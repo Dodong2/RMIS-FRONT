@@ -11,12 +11,8 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { notify } from "../lib/notify";
 import { REGISTRATION_ROLE_CODES, personName } from "../lib/roles";
+import { useFundingTypes } from "../lib/fundingTypes";
 
-const FUNDING_LABELS: Record<FundingType, string> = {
-  institutional: "Institutional (LSPU-Funded)",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally-Funded",
-};
 
 
 const peso = (n: number) =>
@@ -49,6 +45,7 @@ function ProgressBar({ label, pct, color }: { label: string; pct: number | null 
 }
 
 function ProjectsContent() {
+  const fundingTypes = useFundingTypes();
   const navigate = useNavigate();
   const { user } = useAuth();
   const canRegister = !!user?.role && REGISTRATION_ROLE_CODES.includes(user.role.code);
@@ -159,7 +156,7 @@ function ProjectsContent() {
           style={{ background: "white", borderColor: "#e2e8f0", color: "#334155" }}
         >
           <option value="all">All Funding Types</option>
-          {Object.entries(FUNDING_LABELS).map(([k, v]) => (
+          {fundingTypes.options.map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
@@ -201,7 +198,7 @@ function ProjectsContent() {
                         </span>
                       )}
                       <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
-                        {FUNDING_LABELS[proj.funding_type]}
+                        {fundingTypes.label(proj.funding_type)}
                       </span>
                       {proj.campus && (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#e0f2fe", color: "#0891b2" }}>

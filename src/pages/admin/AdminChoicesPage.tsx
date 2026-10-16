@@ -6,12 +6,13 @@ import type { AdminChoice, AdminChoiceInput, AdminChoiceKind } from "../../types
 import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { AppShell } from "../../components/layout/AppShell";
 import { SectionCard, SkeletonRows } from "../../components/common/proto";
+import { resetFundingTypes } from "../../lib/fundingTypes";
 
 const inputCls = "w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[#0891b2]";
 const inputSt = { borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" };
 
 type Coded = { codeLabel: string; codePlaceholder: string; titleLabel: string; titlePlaceholder: string };
-type ChoiceConfig = { kind: AdminChoiceKind; title: string; field: string; placeholder: string; noun: string; coded?: Coded; designation?: string };
+type ChoiceConfig = { kind: AdminChoiceKind; title: string; field: string; placeholder: string; noun: string; coded?: Coded; designation?: string; note?: string };
 
 const CONFIGS: Record<AdminChoiceKind, ChoiceConfig> = {
   "college-units": {
@@ -38,6 +39,15 @@ const CONFIGS: Record<AdminChoiceKind, ChoiceConfig> = {
     placeholder: "Full name, e.g. Adriel G. Roman",
     noun: "endorser",
     designation: "Designation, e.g. Dean/Associate Dean",
+  },
+  "funding-types": {
+    kind: "funding-types",
+    title: "Funding Types",
+    field: "Funding Type",
+    placeholder: "e.g. LGU-Funded",
+    noun: "funding type",
+    note:
+      'These are the choices for "Funding Type" on Register Approved Project and the funding filters. Projects keep the type, so a new name shows on them too. The three Manual types (System) carry the funding rules and can\'t be deleted, and a type used by a project can\'t be deleted either.',
   },
 };
 
@@ -100,7 +110,7 @@ function ChoiceInputs({ coded, placeholder, designation, draft, onChange, onEnte
   );
 }
 
-function ChoicesContent({ config: { kind, field, placeholder, noun, coded, designation } }: { config: ChoiceConfig }) {
+function ChoicesContent({ config: { kind, field, placeholder, noun, coded, designation, note } }: { config: ChoiceConfig }) {
   const [units, setUnits] = useState<AdminChoice[] | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [editing, setEditing] = useState<({ id: number } & Draft) | null>(null);
@@ -128,6 +138,7 @@ function ChoicesContent({ config: { kind, field, placeholder, noun, coded, desig
     setBusy(true);
     try {
       await action();
+      if (kind === "funding-types") resetFundingTypes();
       notify.success(success);
       await load();
       return true;
@@ -198,12 +209,17 @@ function ChoicesContent({ config: { kind, field, placeholder, noun, coded, desig
                 ) : (
                   <>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold" style={{ color: "#0d2a5e" }}>{u.name}</p>
+                      <p className="text-sm font-semibold" style={{ color: "#0d2a5e" }}>
+                        {u.name}
+                        {u.is_system && <span className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: "#eff6ff", color: "#1e3a8a" }}>System</span>}
+                      </p>
                       {designation && <p className="text-xs" style={{ color: "#64748b" }}>{u.designation || "No designation"}</p>}
                       {coded && !u.code && <p className="text-xs" style={{ color: "#b45309" }}>No {coded.codeLabel.toLowerCase()} yet. Edit to add it.</p>}
                     </div>
                     <button onClick={() => setEditing({ id: u.id, code: u.code ?? "", title: u.title || (u.code ? "" : u.name), name: u.name, designation: u.designation ?? "" })} disabled={busy} className="text-xs font-semibold shrink-0" style={{ color: "#0891b2" }}>Edit</button>
-                    <button onClick={() => remove(u)} disabled={busy} className="text-xs font-semibold shrink-0" style={{ color: "#dc2626" }}>Delete</button>
+                    {!u.is_system && (
+                      <button onClick={() => remove(u)} disabled={busy} className="text-xs font-semibold shrink-0" style={{ color: "#dc2626" }}>Delete</button>
+                    )}
                   </>
                 )}
               </div>
@@ -212,7 +228,7 @@ function ChoicesContent({ config: { kind, field, placeholder, noun, coded, desig
         )}
         <div className="px-5 py-3 border-t" style={{ borderColor: "#e2e8f0", background: "#fafbfc" }}>
           <p className="text-xs" style={{ color: "#64748b" }}>
-            These are the choices for "{field}" on Register Approved Project ({designation ? "manual entry" : "manual entry and Excel import"}). Renaming or deleting one doesn't change projects already registered.
+            {note ?? <>These are the choices for "{field}" on Register Approved Project ({designation ? "manual entry" : "manual entry and Excel import"}). Renaming or deleting one doesn't change projects already registered.</>}
           </p>
         </div>
       </SectionCard>

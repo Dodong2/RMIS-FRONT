@@ -8,12 +8,8 @@ import type { Project } from "../../types/research";
 import { NoActualData } from "../common/NoActualData";
 import { SkeletonRows, TableHead } from "../common/proto";
 import { LevelBadge } from "./RiskParts";
+import { useFundingTypes } from "../../lib/fundingTypes";
 
-const FUNDING_TYPE_LABELS: Record<string, string> = {
-  institutional: "Institutional (LSPU-Funded)",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally-Funded",
-};
 
 const selCls = "px-3 py-2 rounded-xl border text-xs outline-none";
 const selSt = { borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" };
@@ -86,6 +82,7 @@ function ProjectStatusCard({ status, project }: { status: ProjectRiskStatus; pro
 }
 
 export function EarlyWarningPanel({ projects }: { projects: Project[] }) {
+  const fundingTypes = useFundingTypes();
   const [view, setView] = useState<"overview" | "project">("overview");
   const [campus, setCampus] = useState("");
   const [fundingType, setFundingType] = useState("");
@@ -154,7 +151,7 @@ export function EarlyWarningPanel({ projects }: { projects: Project[] }) {
             </select>
             <select value={fundingType} onChange={(e) => setFundingType(e.target.value)} className={selCls} style={selSt}>
               <option value="">All Funding Types</option>
-              {Object.entries(FUNDING_TYPE_LABELS).map(([k, v]) => (
+              {fundingTypes.options.map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>

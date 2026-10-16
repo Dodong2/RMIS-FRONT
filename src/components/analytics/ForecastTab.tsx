@@ -1,7 +1,8 @@
 import type { ForecastingDashboard, PerformanceDashboard } from "../../types/dashboard";
 import { SkeletonRows } from "../common/proto";
-import { FUNDING_LABELS, monthLabel, peso } from "./format";
+import { monthLabel, peso } from "./format";
 import { ChartCard, EmptyChart, HBar, KpiBox, MiniBar } from "./ProtoCharts";
+import { useFundingTypes } from "../../lib/fundingTypes";
 
 const ARIMA_ORDER = "(1, 1, 1)";
 const HORIZON_MONTHS = 3;
@@ -16,6 +17,7 @@ const riskBand = (util: number) =>
 const num = (v: number | string | null | undefined) => (v === null || v === undefined ? null : Number(v));
 
 export function ForecastTab({ data, forecast }: { data: PerformanceDashboard | null; forecast: ForecastingDashboard | null }) {
+  const fundingTypes = useFundingTypes();
   if (!data || !forecast) return <SkeletonRows />;
 
   const rows = data.projects.filter((r) => r.approved > 0);
@@ -161,7 +163,7 @@ export function ForecastTab({ data, forecast }: { data: PerformanceDashboard | n
           ) : (
             <div className="space-y-2">
               {byFunding.map(([type, value], i) => (
-                <HBar key={type} label={FUNDING_LABELS[type] ?? type} val={value} max={byFunding[0][1]} color={["#0d2a5e", "#0891b2", "#7c3aed", "#059669"][i % 4]} valLabel={peso(value)} />
+                <HBar key={type} label={fundingTypes.label(type)} val={value} max={byFunding[0][1]} color={["#0d2a5e", "#0891b2", "#7c3aed", "#059669"][i % 4]} valLabel={peso(value)} />
               ))}
             </div>
           )}

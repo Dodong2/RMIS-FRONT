@@ -7,10 +7,11 @@ import { errorMessage } from "../../lib/errorMessage";
 import { exportPdf, exportXlsx, type ExportDoc } from "../../lib/exportFiles";
 import { notify } from "../../lib/notify";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../../lib/protoStyles";
-import { DOMAIN_META, FORMAT_META, FUNDING_TYPE_LABELS, PARAM_LABELS, STATUS_LABELS, type CatalogFormat, type ReportDefinition, type ReportParam } from "../../lib/reportCatalog";
+import { DOMAIN_META, FORMAT_META, PARAM_LABELS, STATUS_LABELS, type CatalogFormat, type ReportDefinition, type ReportParam } from "../../lib/reportCatalog";
 import { CAT_META, STATUS_META as RISK_STATUS_META, LEVEL_META } from "../../lib/riskMeta";
 import type { Project } from "../../types/research";
 import { Field, ProtoModal } from "../common/proto";
+import { useFundingTypes } from "../../lib/fundingTypes";
 
 type Params = ReportParams;
 
@@ -53,6 +54,7 @@ async function runClientReport(def: ReportDefinition, p: Params, format: Catalog
 }
 
 export function GenerateReportModal({ def, initial, projects, onGenerated, onClose }: { def: ReportDefinition; initial?: Params; projects: Project[]; onGenerated: () => void; onClose: () => void }) {
+  const fundingTypes = useFundingTypes();
   const [params, setParams] = useState<Params>(initial ?? {});
   const [format, setFormat] = useState<CatalogFormat>(def.formats[0]);
   const [generating, setGenerating] = useState(false);
@@ -96,7 +98,7 @@ export function GenerateReportModal({ def, initial, projects, onGenerated, onClo
       case "campus":
         return select(k, campuses.map((c) => [c, c]), "All campuses");
       case "funding_type":
-        return select(k, Object.entries(FUNDING_TYPE_LABELS), "All funding types");
+        return select(k, fundingTypes.options, "All funding types");
       case "status":
         return select(k, Object.entries(STATUS_LABELS), "All statuses");
       case "rei_thrust":

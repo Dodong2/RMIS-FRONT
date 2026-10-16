@@ -17,7 +17,6 @@ import {
   TYPOLOGY_LABELS,
 } from "../lib/projectOptions";
 import type {
-  FundingType,
   Milestone,
   MilestoneStatus,
   Program,
@@ -41,16 +40,12 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFundingTypes } from "../lib/fundingTypes";
 
 type DetailTab = "overview" | "registration" | "team" | "workplan" | "impact" | "history" | "closure";
 
 const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "program_leader", "project_leader", "study_leader"];
 
-const FUNDING_LABELS: Record<FundingType, string> = {
-  institutional: "Institutional (LSPU-Funded)",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally-Funded",
-};
 
 const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
   pending: "Pending",
@@ -254,6 +249,7 @@ function GanttChart({ project, milestones, now }: { project: Project; milestones
 }
 
 function ProjectDetailContent() {
+  const fundingTypes = useFundingTypes();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -501,7 +497,7 @@ function ProjectDetailContent() {
                   </span>
                 )}
                 <span className="text-xs px-2 py-0.5 rounded font-semibold" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(168,196,232,0.9)" }}>
-                  {FUNDING_LABELS[project.funding_type]}
+                  {fundingTypes.label(project.funding_type)}
                 </span>
               </div>
               <h2 className="text-white font-bold text-lg leading-snug max-w-2xl">{project.title}</h2>
@@ -582,7 +578,7 @@ function ProjectDetailContent() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <InfoCard label="Project Leader / PI" value={personName(project.lead_detail)} />
-                <InfoCard label="Funding Type" value={FUNDING_LABELS[project.funding_type]} />
+                <InfoCard label="Funding Type" value={fundingTypes.label(project.funding_type)} />
                 <InfoCard label="Cooperating Agencies" value={project.cooperating_agencies} />
                 {program && <InfoCard label="Research Program" value={program.title} />}
                 <InfoCard label="Project Period" value={`${project.start_date ?? "—"} – ${project.target_end_date ?? "—"}`} />

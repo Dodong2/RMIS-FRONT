@@ -30,6 +30,7 @@ import type { ProjectMonitoringStatus } from "../types/monitoring";
 import type { WorkloadRow } from "../types/personnel";
 import type { Project, RecordStatus } from "../types/research";
 import type { RiskDashboard, RiskLevel } from "../types/risk";
+import { useFundingTypes } from "../lib/fundingTypes";
 
 interface Scope {
   level: "institution" | "campus" | "project";
@@ -51,11 +52,6 @@ const TASK_ASSIGNER_CODES = [
 
 const WIDE_TIERS: RoleTier[] = ["system_admin", "institution_oversight"];
 
-const FUNDING_TYPE_LABELS: Record<string, string> = {
-  institutional: "Institutional",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally Funded",
-};
 
 const ESCALATION_LABELS: Record<string, string> = {
   unknown: "No reports yet",
@@ -329,6 +325,7 @@ function ObjectiveDashboards({ data, canOpen }: { data: DashData; canOpen: (to: 
 }
 
 function ProjectsPanel({ data, scoped }: { data: DashData; scoped: Project[] }) {
+  const fundingTypes = useFundingTypes();
   const { projects } = data;
   if (projects === undefined) return <Loading />;
   if (scoped.length === 0) return <NoActualData />;
@@ -351,7 +348,7 @@ function ProjectsPanel({ data, scoped }: { data: DashData; scoped: Project[] }) 
             <p className="text-xs font-mono font-bold" style={{ color: "#0891b2" }}>{proj.project_code}</p>
             <p className="text-xs font-semibold truncate" style={{ color: "#0d2a5e" }}>{proj.title}</p>
             <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>
-              {FUNDING_TYPE_LABELS[proj.funding_type] ?? proj.funding_type}
+              {fundingTypes.label(proj.funding_type)}
               {proj.total_cost ? ` · ${peso(Number(proj.total_cost))}` : ""}
             </p>
           </div>
@@ -769,6 +766,7 @@ function DrillPanel({
   scoped: Project[];
   onChange: (s: Scope) => void;
 }) {
+  const fundingTypes = useFundingTypes();
   const { projects, budgets } = data;
   if (projects === undefined) return <Loading />;
   if (!projects || projects.length === 0) return <NoActualData />;
@@ -842,7 +840,7 @@ function DrillPanel({
         <p className="text-xs font-mono" style={{ color: "rgba(168,196,232,0.5)" }}>{proj.project_code}</p>
         <p className="text-sm font-black text-white leading-snug mt-0.5">{proj.title}</p>
         <p className="text-xs mt-1" style={{ color: "rgba(168,196,232,0.5)" }}>
-          {FUNDING_TYPE_LABELS[proj.funding_type] ?? proj.funding_type}
+          {fundingTypes.label(proj.funding_type)}
           {proj.total_cost ? ` · ${peso(Number(proj.total_cost))}` : ""}
         </p>
         <p className="text-xs mt-1" style={{ color: "rgba(168,196,232,0.5)" }}>
@@ -874,7 +872,7 @@ const REPORT_TYPES = [
 
 type ReportType = (typeof REPORT_TYPES)[number]["value"];
 
-function buildSections(type: ReportType, data: DashData, scoped: Project[], ids: Set<number> | null): ExportSection[] {
+function buildSections(type: ReportType, data: DashData, scoped: Project[], ids: Set<number> | null, fundingLabel: (code: string) => string): ExportSection[] {
   const inScope = (id: number) => !ids || ids.has(id);
   const code = (id: number) => data.projects?.find((p) => p.id === id)?.project_code ?? `#${id}`;
   const projectRows: ExportSection = {
@@ -884,7 +882,7 @@ function buildSections(type: ReportType, data: DashData, scoped: Project[], ids:
       p.project_code,
       p.title,
       PROJECT_STATUS_LABELS[p.status],
-      FUNDING_TYPE_LABELS[p.funding_type] ?? p.funding_type,
+      fundingLabel(p.funding_type),
       p.total_cost ? peso(Number(p.total_cost)) : "—",
       p.campus || "—",
       p.start_date ?? "—",
@@ -948,11 +946,12 @@ function GenerateReportModal({
   ids: Set<number> | null;
   onClose: () => void;
 }) {
+  const fundingTypes = useFundingTypes();
   const [type, setType] = useState<ReportType>("consolidated");
   const [format, setFormat] = useState<"PDF" | "Excel (XLSX)">("PDF");
 
   const generate = () => {
-    const doc = { title: REPORT_TYPES.find((t) => t.value === type)!.label, scope: label, sections: buildSections(type, data, scoped, ids) };
+    const doc = { title: REPORT_TYPES.find((t) => t.value === type)!.label, scope: label, sections: buildSections(type, data, scoped, ids, fundingTypes.label) };
     try {
       if (format === "PDF") exportPdf(doc);
       else exportXlsx(doc);

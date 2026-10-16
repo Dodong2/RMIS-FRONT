@@ -1,4 +1,5 @@
-export type FundingType = "institutional" | "core_funded" | "externally_funded";
+/** A FundingType code from System Admin > Funding Types; institutional / core_funded / externally_funded always exist. */
+export type FundingType = string;
 export type RecordStatus = "active" | "completed" | "archived";
 export type Sector =
   | "agriculture_fisheries"
@@ -38,7 +39,7 @@ export interface Lead {
 }
 
 /** System Admin-managed dropdown choices on Register Approved Project. */
-export type AdminChoiceKind = "college-units" | "rei-thrusts" | "cooperating-agencies" | "endorsers";
+export type AdminChoiceKind = "college-units" | "rei-thrusts" | "cooperating-agencies" | "endorsers" | "funding-types";
 
 export interface AdminChoice {
   id: number;
@@ -48,6 +49,8 @@ export interface AdminChoice {
   name: string;
   /** Endorsers only. */
   designation?: string;
+  /** Funding Types only: the three Manual types can be renamed but not deleted. */
+  is_system?: boolean;
   created_at: string;
 }
 

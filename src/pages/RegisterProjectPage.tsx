@@ -19,6 +19,7 @@ import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { useAuth } from "../context/AuthContext";
+import { useFundingTypes } from "../lib/fundingTypes";
 import {
   PRIORITY_AREA_LABELS,
   RESEARCH_TYPE_LABELS,
@@ -27,11 +28,6 @@ import {
   TYPOLOGY_OPTIONS,
 } from "../lib/projectOptions";
 
-const FUNDING_LABELS: Record<FundingType, string> = {
-  institutional: "Institutional (LSPU-Funded)",
-  core_funded: "Core-Funded (Self-Funded)",
-  externally_funded: "Externally-Funded",
-};
 
 const CAMPUSES = [
   { name: "San Pablo City", color: "#0d2a5e", bg: "#e0eaf7" },
@@ -499,6 +495,7 @@ type EditSource = {
 };
 
 function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void; edit?: EditSource }) {
+  const fundingTypes = useFundingTypes();
   const navigate = useNavigate();
   const { user } = useAuth();
   const isEdit = !!edit;
@@ -538,7 +535,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const [supportingDocs, setSupportingDocs] = useState<StagedFile[]>([]);
 
   const [form, setForm] = useState(init.form);
-  const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rei-thrusts": [], "cooperating-agencies": [], endorsers: [] });
+  const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rei-thrusts": [], "cooperating-agencies": [], endorsers: [], "funding-types": [] });
   const [agencies, setAgencies] = useState<string[]>(init.agencies);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
@@ -1054,7 +1051,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                     <Field label="Funding Type" required invalid={bad("funding_type")}>
                       <select className={inputCls} style={inputSt} value={form.funding_type} onChange={set("funding_type")}>
                         <option value="">Select funding type...</option>
-                        {Object.entries(FUNDING_LABELS).map(([k, v]) => (
+                        {fundingTypes.options.map(([k, v]) => (
                           <option key={k} value={k}>{v}</option>
                         ))}
                       </select>

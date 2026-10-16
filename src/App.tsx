@@ -378,6 +378,16 @@ export default function App() {
         }
       />
       <Route
+        path="/admin/funding-types"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin"]}>
+              <AdminChoicesPage kind="funding-types" />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/cooperating-agencies"
         element={
           <ProtectedRoute>
