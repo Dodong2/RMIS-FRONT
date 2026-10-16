@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { assignmentsQuery, milestonesQuery, monitoringStatusQuery, useProjects } from "../lib/queries";
-import { RESEARCH_TYPE_LABELS } from "../lib/projectOptions";
+import { RESEARCH_TYPE_LABELS, SDG_COLORS, SDG_LABELS } from "../lib/projectOptions";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
 import type { FundingType, RecordStatus } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -61,6 +61,7 @@ function ProjectsContent() {
   );
   const [filterStatus, setFilterStatus] = useState<RecordStatus | "all">("all");
   const [filterType, setFilterType] = useState<FundingType | "all">("all");
+  const [filterSdg, setFilterSdg] = useState("all");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -76,12 +77,13 @@ function ProjectsContent() {
   const visible = projects.filter((p) => {
     const matchStatus = filterStatus === "all" || p.status === filterStatus;
     const matchType = filterType === "all" || p.funding_type === filterType;
+    const matchSdg = filterSdg === "all" || p.sdgs.includes(Number(filterSdg));
     const matchSearch =
       p.title.toLowerCase().includes(q) ||
       p.project_code.toLowerCase().includes(q) ||
       p.implementing_unit.toLowerCase().includes(q) ||
       p.cooperating_agencies.toLowerCase().includes(q);
-    return matchStatus && matchType && matchSearch;
+    return matchStatus && matchType && matchSdg && matchSearch;
   });
 
   return (
@@ -160,6 +162,17 @@ function ProjectsContent() {
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
+        <select
+          value={filterSdg}
+          onChange={(e) => setFilterSdg(e.target.value)}
+          className="px-3 py-2 rounded-xl text-sm border outline-none max-w-[200px]"
+          style={{ background: "white", borderColor: "#e2e8f0", color: "#334155" }}
+        >
+          <option value="all">All SDGs</option>
+          {Object.entries(SDG_LABELS).map(([k, title]) => (
+            <option key={k} value={k}>SDG {k}: {title}</option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-3">
@@ -232,6 +245,20 @@ function ProjectsContent() {
                     </p>
                   </div>
                 </div>
+                {proj.sdgs.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {[...proj.sdgs].sort((a, b) => a - b).map((n) => (
+                      <div
+                        key={n}
+                        title={`SDG ${n}: ${SDG_LABELS[n] ?? ""}`}
+                        className="w-5 h-5 flex items-center justify-center rounded text-[10px] font-black text-white cursor-help"
+                        style={{ background: SDG_COLORS[n] ?? "#64748b" }}
+                      >
+                        {n}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                   <div>
                     <p style={{ color: "#94a3b8" }}>Period</p>

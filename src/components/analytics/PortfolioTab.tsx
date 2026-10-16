@@ -1,17 +1,12 @@
 import { useState } from "react";
 import type { PortfolioDashboard } from "../../types/dashboard";
 import { SkeletonRows } from "../common/proto";
+import { SDG_COLORS } from "../../lib/projectOptions";
 import { countAxis } from "./format";
 import { ChartCard, EmptyChart, HBar } from "./ProtoCharts";
 import { useTip } from "./useTip";
 
 const PRIORITY_COLORS = ["#0d2a5e", "#9f1239", "#065f46", "#f59e0b", "#f472b6", "#0891b2", "#7c3aed", "#ea580c", "#64748b"];
-
-const SDG_COLORS: Record<number, string> = {
-  1: "#E5243B", 2: "#DDA63A", 3: "#4C9F38", 4: "#C5192D", 5: "#FF3A21", 6: "#26BDE2", 7: "#FCC30B", 8: "#A21942",
-  9: "#FD6925", 10: "#DD1367", 11: "#FD9D24", 12: "#BF8B2E", 13: "#3F7E44", 14: "#0A97D9", 15: "#56C02B",
-  16: "#00689D", 17: "#19486A",
-};
 
 const STATUS_META: [string, string, string][] = [
   ["active", "Active", "#059669"],
