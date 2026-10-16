@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
+import type { LibAllocation, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 
 export const budgetApi = {
   getBudgets: async (project?: number): Promise<LineItemBudget[]> => {
@@ -39,6 +39,7 @@ export const budgetApi = {
     funding_source?: string;
     is_counterpart?: boolean;
     justification?: string;
+    allocations?: LibAllocation[];
   }): Promise<LineItem> => {
     const { data } = await apiClient.post("/api/budget/line-items/", payload);
     return data;

@@ -11,7 +11,7 @@ import { budgetSummaryQuery, financialRecordsQuery, queryKeys, realignmentsQuery
 import { REALIGNMENT_STATUS_META } from "../lib/realignment";
 import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
-import { LIB_UNITS, libLineTotal, libUnitLabel } from "../lib/libUnits";
+import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 import type { BudgetRealignment, BudgetSummary, RealignmentTier } from "../types/financial";
@@ -270,6 +270,7 @@ interface WizardItem {
   unitCost: string;
   fiscalYear: string;
   counterpart: boolean;
+  allocations: Record<string, string>;
 }
 
 const blankItem = (unit: string, fy: string): WizardItem => ({
@@ -279,7 +280,11 @@ const blankItem = (unit: string, fy: string): WizardItem => ({
   unitCost: "",
   fiscalYear: fy,
   counterpart: false,
+  allocations: {},
 });
+
+const periodLabel = (p: string, startYear: number | null) =>
+  p[0] === "Y" ? `Year ${p.slice(1)}${startYear ? ` (${startYear + Number(p.slice(1)) - 1})` : ""}` : p;
 
 function LIBWizard({ project, existing, onClose, onDone }: { project: Project; existing: LineItemBudget | null; onClose: () => void; onDone: () => void }) {
   const thisYear = new Date().getFullYear();
@@ -295,11 +300,20 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   const grand = CATEGORIES.reduce((s, c) => s + filled(c).reduce((a, i) => a + lineTotal(i), 0), 0);
   const count = CATEGORIES.reduce((s, c) => s + filled(c).length, 0);
   const existingTotal = Number(existing?.total_amount ?? 0);
+  // Client meeting 2026-10-14: optional per-year (Y1..Yn) / per-quarter (Q1-Q4) split from the project's dates
+  const periods = allocationPeriods(project.start_date ?? "", project.target_end_date ?? "");
+  const startYear = project.start_date ? Number(project.start_date.slice(0, 4)) : null;
+  const isSplit = (i: WizardItem) => !!periods && periods.some((p) => i.allocations[p]?.trim());
+  const allocated = (i: WizardItem) => Math.round((periods ?? []).reduce((s, p) => s + (Number(i.allocations[p]) || 0), 0) * 100) / 100;
+  const periodSum = (cat: LineItemCategory, p: string) => filled(cat).reduce((s, i) => s + (isSplit(i) ? Number(i.allocations[p]) || 0 : 0), 0);
+  const unsplitSum = (cat: LineItemCategory) => filled(cat).reduce((s, i) => s + (isSplit(i) ? 0 : lineTotal(i)), 0);
 
   const checks = [
     { label: "At least one line item with an amount", ok: count > 0 },
     { label: "Every item has a description", ok: CATEGORIES.every((c) => items[c].every((i) => lineTotal(i) === 0 || i.description.trim())) },
-    { label: "Every item has a fiscal year", ok: CATEGORIES.every((c) => filled(c).every((i) => i.fiscalYear)) },
+    periods
+      ? { label: "Every split adds up to its item's total (or is left blank)", ok: CATEGORIES.every((c) => filled(c).every((i) => !isSplit(i) || allocated(i) === lineTotal(i))) }
+      : { label: "Every item has a fiscal year", ok: CATEGORIES.every((c) => filled(c).every((i) => i.fiscalYear)) },
   ];
   const allValid = checks.every((c) => c.ok);
   const dryWarning = project.is_dry_research && project.funding_type === "institutional" && existingTotal + grand > 100000;
@@ -321,8 +335,9 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
             quantity: it.qty,
             unit_cost: it.unitCost,
             amount: lineTotal(it).toFixed(2),
-            fiscal_year: it.fiscalYear ? Number(it.fiscalYear) : null,
+            fiscal_year: periods ? startYear : it.fiscalYear ? Number(it.fiscalYear) : null,
             is_counterpart: it.counterpart,
+            ...(isSplit(it) && periods ? { allocations: periods.map((period) => ({ period, amount: it.allocations[period] || "0" })) } : {}),
           });
         }
       }
@@ -380,9 +395,33 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                 <TotalBox value={lineTotal(it)} />
               </Field>
             </div>
-            <Field label="Fiscal Year">
-              <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={it.fiscalYear} onChange={(e) => update(cat, idx, { fiscalYear: e.target.value })} />
-            </Field>
+            {periods ? (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: "#64748b" }}>Annual Allocation (optional)</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {periods.map((p) => (
+                    <Field key={p} label={periodLabel(p, startYear)}>
+                      <MoneyInput
+                        className={INPUT_CLS}
+                        style={INPUT_STYLE}
+                        value={it.allocations[p] ?? ""}
+                        onChange={(v) => update(cat, idx, { allocations: { ...it.allocations, [p]: v } })}
+                        placeholder="0.00"
+                      />
+                    </Field>
+                  ))}
+                </div>
+                {isSplit(it) && (
+                  <p className="text-xs font-semibold mt-1" style={{ color: allocated(it) === lineTotal(it) ? "#15803d" : "#b91c1c" }}>
+                    Allocated {peso(allocated(it))} of {peso(lineTotal(it))}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <Field label="Fiscal Year">
+                <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={it.fiscalYear} onChange={(e) => update(cat, idx, { fiscalYear: e.target.value })} />
+              </Field>
+            )}
             <div className="flex items-center justify-between px-2 py-1.5 rounded-xl" style={{ background: cm.bg }}>
               <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: cm.color }}>
                 <input type="checkbox" checked={it.counterpart} onChange={(e) => update(cat, idx, { counterpart: e.target.checked })} />
@@ -451,10 +490,28 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                   Items will be added to the existing draft LIB v{existing.version_number} ({existing.line_items.length} item(s), {peso(existing.total_amount)}).
                 </div>
               )}
-              <Field label="Default Fiscal Year">
-                <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={defaults.fiscalYear} onChange={(e) => setDefaults({ ...defaults, fiscalYear: e.target.value })} />
-              </Field>
-              <p className="text-xs" style={{ color: "#94a3b8" }}>New items start with this fiscal year; each item can override it.</p>
+              {periods ? (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Budget {periods[0] === "Q1" ? "Quarters" : "Years"}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {periods.map((p) => (
+                      <span key={p} className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "#e0f2fe", color: "#0369a1" }}>
+                        {periodLabel(p, startYear)}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>
+                    From the project's start and target end dates. Each item can be split across these; the split must add up to the item's total.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Field label="Default Fiscal Year">
+                    <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={defaults.fiscalYear} onChange={(e) => setDefaults({ ...defaults, fiscalYear: e.target.value })} />
+                  </Field>
+                  <p className="text-xs" style={{ color: "#94a3b8" }}>New items start with this fiscal year; each item can override it.</p>
+                </>
+              )}
             </div>
           )}
           {step === 1 && editor("ps")}
@@ -478,6 +535,46 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                 <span className="text-2xl font-black font-mono text-white">{peso(grand)}</span>
               </div>
               {dryWarning && <DryCapWarning />}
+              {periods && count > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Annual Allocations</p>
+                  <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ background: "#f0f4f8" }}>
+                          <th className="px-3 py-2 text-left text-xs font-bold" style={{ color: "#64748b" }}>Category</th>
+                          {periods.map((p) => (
+                            <th key={p} className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{periodLabel(p, startYear)}</th>
+                          ))}
+                          {CATEGORIES.some((c) => unsplitSum(c) > 0) && (
+                            <th className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>Not split</th>
+                          )}
+                          <th className="px-3 py-2 text-right text-xs font-bold" style={{ color: "#64748b" }}>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {CATEGORIES.map((c) => {
+                          const cm = CATEGORY_META[c];
+                          return (
+                            <tr key={c} className="border-t" style={{ borderColor: "#f1f5f9" }}>
+                              <td className="px-3 py-2.5">
+                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: cm.bg, color: cm.color }}>{cm.icon} {cm.label}</span>
+                              </td>
+                              {periods.map((p) => (
+                                <td key={p} className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#334155" }}>{peso(periodSum(c, p))}</td>
+                              ))}
+                              {CATEGORIES.some((x) => unsplitSum(x) > 0) && (
+                                <td className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#334155" }}>{peso(unsplitSum(c))}</td>
+                              )}
+                              <td className="px-3 py-2.5 text-right text-xs font-mono font-black" style={{ color: cm.color }}>{peso(catSum(c))}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Validation Checklist</p>
                 <div className="space-y-1.5">
@@ -677,7 +774,7 @@ function libAllocationColumns(items: LineItem[], startDate: string | null): Allo
   const order = (p: string) => (p[0] === "Q" ? 100 : 0) + Number(p.slice(1));
   const columns: AllocationColumn[] = periods.sort((a, b) => order(a) - order(b)).map((p) => ({
     key: p,
-    label: p[0] === "Y" ? `Year ${p.slice(1)}${startYear ? ` (${startYear + Number(p.slice(1)) - 1})` : ""}` : p,
+    label: periodLabel(p, startYear),
     amount: (i) => Number(i.allocations?.find((a) => a.period === p)?.amount ?? 0),
   }));
   if (items.some((i) => !i.allocations?.length)) {
