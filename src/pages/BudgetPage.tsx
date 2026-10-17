@@ -11,7 +11,7 @@ import { budgetSummaryQuery, financialRecordsQuery, queryKeys, realignmentsQuery
 import { REALIGNMENT_STATUS_META } from "../lib/realignment";
 import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
-import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel } from "../lib/libUnits";
+import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel, periodLabel, periodQuarter, periodYear } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 import type { BudgetRealignment, BudgetSummary, RealignmentTier } from "../types/financial";
@@ -283,8 +283,6 @@ const blankItem = (unit: string, fy: string): WizardItem => ({
   allocations: {},
 });
 
-const periodLabel = (p: string, startYear: number | null) =>
-  p[0] === "Y" ? `Year ${p.slice(1)}${startYear ? ` (${startYear + Number(p.slice(1)) - 1})` : ""}` : p;
 
 function LIBWizard({ project, existing, onClose, onDone }: { project: Project; existing: LineItemBudget | null; onClose: () => void; onDone: () => void }) {
   const thisYear = new Date().getFullYear();
@@ -300,7 +298,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
   const grand = CATEGORIES.reduce((s, c) => s + filled(c).reduce((a, i) => a + lineTotal(i), 0), 0);
   const count = CATEGORIES.reduce((s, c) => s + filled(c).length, 0);
   const existingTotal = Number(existing?.total_amount ?? 0);
-  // Client meeting 2026-10-14: optional per-year (Y1..Yn) / per-quarter (Q1-Q4) split from the project's dates
+  // Client 2026-10-14/10-17: optional split per quarter of each project year (Y1Q1..YnQ4, or Q1..Q4) from the project's dates
   const periods = allocationPeriods(project.start_date ?? "", project.target_end_date ?? "");
   const startYear = project.start_date ? Number(project.start_date.slice(0, 4)) : null;
   const isSplit = (i: WizardItem) => !!periods && periods.some((p) => i.allocations[p]?.trim());
@@ -397,10 +395,10 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
             </div>
             {periods ? (
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: "#64748b" }}>Annual Allocation (optional)</p>
+                <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: "#64748b" }}>Quarterly Allocation (optional)</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {periods.map((p) => (
-                    <Field key={p} label={periodLabel(p, startYear)}>
+                    <Field key={p} label={periodLabel(p)}>
                       <MoneyInput
                         className={INPUT_CLS}
                         style={INPUT_STYLE}
@@ -492,11 +490,11 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
               )}
               {periods ? (
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Budget {periods[0] === "Q1" ? "Quarters" : "Years"}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Budget Quarters</p>
                   <div className="flex flex-wrap gap-2">
                     {periods.map((p) => (
                       <span key={p} className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "#e0f2fe", color: "#0369a1" }}>
-                        {periodLabel(p, startYear)}
+                        {periodLabel(p)}
                       </span>
                     ))}
                   </div>
@@ -537,14 +535,14 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
               {dryWarning && <DryCapWarning />}
               {periods && count > 0 && (
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Annual Allocations</p>
+                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Quarterly Allocations</p>
                   <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
                     <table className="w-full text-sm">
                       <thead>
                         <tr style={{ background: "#f0f4f8" }}>
                           <th className="px-3 py-2 text-left text-xs font-bold" style={{ color: "#64748b" }}>Category</th>
                           {periods.map((p) => (
-                            <th key={p} className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{periodLabel(p, startYear)}</th>
+                            <th key={p} className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{periodLabel(p)}</th>
                           ))}
                           {CATEGORIES.some((c) => unsplitSum(c) > 0) && (
                             <th className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>Not split</th>
@@ -759,8 +757,8 @@ type NewRow = typeof EMPTY_ROW;
 
 type AllocationColumn = { key: string; label: string; amount: (item: LineItem) => number };
 
-// Client meeting 2026-10-14: split items give "Year N (YYYY)" or Q1-Q4 columns (Figma LIB Overview); unsplit LIBs keep fiscal years
-function libAllocationColumns(items: LineItem[], startDate: string | null): AllocationColumn[] {
+// Client 2026-10-14/10-17: split items give Y1 Q1..Yn Q4 or Q1..Q4 columns (Figma LIB Overview); unsplit LIBs keep fiscal years
+function libAllocationColumns(items: LineItem[]): AllocationColumn[] {
   const periods = [...new Set(items.flatMap((i) => (i.allocations ?? []).map((a) => a.period)))];
   if (periods.length === 0) {
     const years = [...new Set(items.map((i) => i.fiscal_year))].sort((a, b) => (a ?? 9999) - (b ?? 9999));
@@ -770,11 +768,10 @@ function libAllocationColumns(items: LineItem[], startDate: string | null): Allo
       amount: (i) => (i.fiscal_year === y ? Number(i.amount) : 0),
     }));
   }
-  const startYear = startDate ? Number(startDate.slice(0, 4)) : null;
-  const order = (p: string) => (p[0] === "Q" ? 100 : 0) + Number(p.slice(1));
+  const order = (p: string) => periodYear(p) * 10 + Number(periodQuarter(p).slice(1));
   const columns: AllocationColumn[] = periods.sort((a, b) => order(a) - order(b)).map((p) => ({
     key: p,
-    label: periodLabel(p, startYear),
+    label: periodLabel(p),
     amount: (i) => Number(i.allocations?.find((a) => a.period === p)?.amount ?? 0),
   }));
   if (items.some((i) => !i.allocations?.length)) {
@@ -858,7 +855,7 @@ function LIBDetail({
     }, "Line item added.");
   };
 
-  const allocationColumns = libAllocationColumns(budget?.line_items ?? [], project.start_date);
+  const allocationColumns = libAllocationColumns(budget?.line_items ?? []);
 
   const isDraft = budget?.status === "draft";
 

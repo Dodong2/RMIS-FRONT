@@ -339,7 +339,7 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
               <table className="w-full" style={{ borderCollapse: "collapse", fontFamily: "Arial, sans-serif" }}>
                 <thead>
                   <tr style={HEAD}>
-                    {["DESCRIPTION", "UNIT", "QTY", "UNIT COST", ...periods.map((p) => p.replace("Y", "YEAR ")), "TOTAL"].map((h) => (
+                    {["DESCRIPTION", "UNIT", "QTY", "UNIT COST", ...periods.map((p) => (p[0] === "Y" ? p.slice(1) : p)), "TOTAL"].map((h) => (
                       <th key={h} className="px-1" style={{ border: BORDER }}>{h}</th>
                     ))}
                   </tr>
