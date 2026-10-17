@@ -28,7 +28,9 @@ export function LibAllocationGrid({
   const yearTint = (p: string) => (multiYear && periodYear(p) % 2 === 0 ? "#f1f5f9" : "white");
 
   return (
-    <div className="rounded-xl overflow-x-auto" style={{ border: line }}>
+    <div className="space-y-1">
+      {years.length > 1 && <p className="text-[11px]" style={{ color: "#64748b" }}>Scroll sideways to see all {years.length} years.</p>}
+      <div className="rounded-xl overflow-x-auto" style={{ border: line }}>
       <table className="text-xs w-full" style={{ borderCollapse: "collapse", minWidth: 380 + periods.length * 130 }}>
         <thead>
           <tr>
@@ -96,6 +98,7 @@ export function LibAllocationGrid({
           ])}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
