@@ -36,7 +36,6 @@ import type { LineItemBudget } from "../types/budget";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { EmptyOption } from "../components/common/EmptyOption";
-import { UserPicker } from "../components/common/UserPicker";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -281,12 +280,6 @@ function ProjectDetailContent() {
   const [studyLeaders, setStudyLeaders] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
-  const [memberForm, setMemberForm] = useState<{ user: number | null; name: string; gender: string }>({ user: null, name: "", gender: "" });
-  const [attemptedMember, setAttemptedMember] = useState(false);
-  const [isAddingMember, setIsAddingMember] = useState(false);
-  const [staffAccounts, setStaffAccounts] = useState<AdminUser[] | null>(null);
-
   const [studyDialogOpen, setStudyDialogOpen] = useState(false);
   const [studyForm, setStudyForm] = useState({ title: "", lead: "" });
   const [attemptedStudy, setAttemptedStudy] = useState(false);
@@ -348,40 +341,6 @@ function ProjectDetailContent() {
     if (!canRegister) return;
     researchApi.getUsersByRole("study_leader").then(setStudyLeaders).catch(() => undefined);
   }, [canRegister]);
-
-  const openMemberDialog = () => {
-    setMemberForm({ user: null, name: "", gender: "" });
-    setAttemptedMember(false);
-    setMemberDialogOpen(true);
-    if (staffAccounts === null) {
-      researchApi
-        .getUsersByRole("project_staff")
-        .then(setStaffAccounts)
-        .catch(() => {
-          setStaffAccounts([]);
-          notify.error("Could not load the Project Staff accounts. You can still type a name.");
-        });
-    }
-  };
-
-  const handleAddMember = async () => {
-    setAttemptedMember(true);
-    if (!memberForm.name.trim()) {
-      notify.error("Pick a Project Staff account or type the member's name.");
-      return;
-    }
-    setIsAddingMember(true);
-    try {
-      await researchApi.addTeamMember(projectId, { name: memberForm.name.trim(), gender: memberForm.gender, user: memberForm.user });
-      notify.success(`${memberForm.name.trim()} added to the project team.`);
-      setMemberDialogOpen(false);
-      researchApi.getTeamMembers(projectId).then(setFormTeam).catch(() => undefined);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not add the team member."));
-    } finally {
-      setIsAddingMember(false);
-    }
-  };
 
   const handleCreateStudy = async () => {
     setAttemptedStudy(true);
@@ -473,7 +432,6 @@ function ProjectDetailContent() {
   }
   if (!project) return <NoActualData message="Project not found" />;
   const canEditProposal = roleCode === "system_admin" || (roleCode === "project_leader" && project.lead === user?.pk);
-  const canAddMember = roleCode === "project_leader" && project.lead === user?.pk;
 
   const libTotal = budgets.filter((b) => b.is_current).reduce((s, b) => s + Number(b.total_amount), 0);
   const duration = monthsBetween(project.start_date, project.target_end_date);
@@ -791,14 +749,7 @@ function ProjectDetailContent() {
 
           {tab === "team" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <SectionHeader>Project Team Members</SectionHeader>
-                {canAddMember && (
-                  <button onClick={openMemberDialog} className="px-3 py-2 rounded-xl text-xs font-bold text-white -mt-3" style={{ background: "#0891b2" }}>
-                    + Add Member
-                  </button>
-                )}
-              </div>
+              <SectionHeader>Project Team Members</SectionHeader>
               <div className="space-y-3">
                 {teamRows.map((m) => (
                   <div key={m.key} className="rounded-xl p-4 flex items-start gap-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
@@ -1087,47 +1038,6 @@ function ProjectDetailContent() {
           )}
         </div>
       </div>
-
-      <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle style={{ color: "#0d2a5e" }}>Add Project Staff</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs" style={{ color: "#64748b" }}>
-            For a member left out of the approved registration. They are added as Project Staff and also appear on the Research Proposal Form (SF-018).
-          </p>
-          <div className="grid gap-3">
-            <div>
-              <Label required>Member</Label>
-              <UserPicker
-                users={(staffAccounts ?? []).filter((a) => a.id !== project.lead && !formTeam.some((m) => m.user === a.id))}
-                value={{ user: memberForm.user, name: memberForm.name }}
-                onChange={(picked) => setMemberForm((f) => ({ ...f, ...picked }))}
-                invalid={attemptedMember && !memberForm.name.trim()}
-                placeholder={staffAccounts === null ? "Loading Project Staff accounts…" : "Search a Project Staff account, or type a name"}
-              />
-            </div>
-            <div>
-              <Label>Gender</Label>
-              <select className={INPUT} style={INPUT_STYLE} value={memberForm.gender} onChange={(e) => setMemberForm((f) => ({ ...f, gender: e.target.value }))}>
-                <option value="">Select...</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <button
-              onClick={handleAddMember}
-              disabled={isAddingMember}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-              style={{ background: "#0d2a5e" }}
-            >
-              {isAddingMember ? "Adding…" : "Add Member"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={studyDialogOpen} onOpenChange={setStudyDialogOpen}>
         <DialogContent>
