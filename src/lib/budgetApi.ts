@@ -20,6 +20,18 @@ export const budgetApi = {
     const { data } = await apiClient.post(`/api/budget/budgets/${id}/certify/`);
     return data;
   },
+  endorseBudget: async (id: number): Promise<LineItemBudget> => {
+    const { data } = await apiClient.post(`/api/budget/budgets/${id}/endorse/`);
+    return data;
+  },
+  returnBudget: async (id: number, remarks: string): Promise<LineItemBudget> => {
+    const { data } = await apiClient.post(`/api/budget/budgets/${id}/return/`, { remarks });
+    return data;
+  },
+  resubmitBudget: async (id: number, remarks: string): Promise<LineItemBudget> => {
+    const { data } = await apiClient.post(`/api/budget/budgets/${id}/resubmit/`, { remarks });
+    return data;
+  },
 
   getLineItems: async (
     params: { budget?: number; project?: number; is_app_flagged?: boolean } = {},

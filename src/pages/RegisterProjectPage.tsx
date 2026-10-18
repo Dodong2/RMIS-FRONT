@@ -1429,7 +1429,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                   )}
                   <StepNote>
                     Section X, Budget Requirements: the approved Line-Item Budget (Total = Qty × Unit Cost). It is saved as the project's draft LIB (version 1) for the
-                    Budget Officer to certify under Budget Management. Its Grand Total must equal the Total Project/Study Cost from Project Details before you can go on.
+                    CRC Chair to endorse and then the Budget Officer to certify under Budget Management. Its Grand Total must equal the Total Project/Study Cost from Project Details before you can go on.
                   </StepNote>
                   {libPeriods ? (
                     <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e3a8a" }}>

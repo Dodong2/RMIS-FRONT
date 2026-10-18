@@ -1,5 +1,5 @@
 export type LineItemCategory = "ps" | "mooe" | "co";
-export type BudgetStatus = "draft" | "certified";
+export type BudgetStatus = "draft" | "endorsed" | "returned" | "certified";
 
 export type LibAllocation = { period: string; amount: string };
 
@@ -34,8 +34,24 @@ export interface LineItemBudget {
   status: BudgetStatus;
   certified_by: number | null;
   certified_at: string | null;
+  certified_by_name: string | null;
+  endorsed_by: number | null;
+  endorsed_at: string | null;
+  endorsed_by_name: string | null;
   created_at: string;
   line_items: LineItem[];
   total_amount: string;
   exceeds_dry_cap: boolean;
+  reviews: BudgetReview[];
+}
+
+export type BudgetReviewAction = "endorsed" | "returned" | "resubmitted" | "certified";
+
+export interface BudgetReview {
+  id: number;
+  action: BudgetReviewAction;
+  remarks: string;
+  acted_by: number;
+  acted_by_name: string;
+  acted_at: string;
 }

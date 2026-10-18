@@ -13,12 +13,12 @@ import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel, periodLabel, periodQuarter, periodYear } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
-import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
+import type { BudgetReviewAction, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 import type { BudgetRealignment, BudgetSummary, RealignmentTier } from "../types/financial";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
-import { Field, Pager, SkeletonRows } from "../components/common/proto";
+import { Field, Pager, ProtoModal, SkeletonRows } from "../components/common/proto";
 import { pageOf } from "../lib/paging";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
@@ -26,6 +26,7 @@ import { AppShell } from "../components/layout/AppShell";
 // Client 2026-10-11: finance_budget and system_admin only certify/approve; they don't prepare LIBs or edit line items.
 const MANAGE_ROLE_CODES = ["procurement_officer_lib", "program_leader", "project_leader"];
 const CERTIFY_ROLE_CODES = ["system_admin", "finance_budget"];
+const ENDORSE_ROLE_CODES = ["system_admin", "crc_chair"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["project_leader"];
 const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
@@ -38,7 +39,9 @@ const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; col
 };
 
 const STATUS_META = {
-  draft: { label: "Draft", bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" },
+  draft: { label: "Awaiting CRC Chair", bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" },
+  endorsed: { label: "Endorsed · Awaiting Budget Officer", bg: "#e0f2fe", text: "#0369a1", dot: "#0891b2" },
+  returned: { label: "Returned for Revision", bg: "#fee2e2", text: "#b91c1c", dot: "#ef4444" },
   certified: { label: "Certified", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
 } as const;
 
@@ -205,11 +208,82 @@ function UtilizationTab({ budget, summary }: { budget: LineItemBudget; summary: 
   );
 }
 
+const REVIEW_META: Record<BudgetReviewAction, { icon: string; label: string; color: string }> = {
+  endorsed: { icon: "🖊️", label: "Endorsed", color: "#0369a1" },
+  returned: { icon: "↩️", label: "Returned", color: "#b91c1c" },
+  resubmitted: { icon: "📤", label: "Resubmitted", color: "#7c3aed" },
+  certified: { icon: "✅", label: "Certified", color: "#166534" },
+};
+
+function ReviewModal({
+  title,
+  hint,
+  required,
+  confirm,
+  busy,
+  onClose,
+  onSubmit,
+}: {
+  title: string;
+  hint: string;
+  required: boolean;
+  confirm: string;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (remarks: string) => void;
+}) {
+  const [remarks, setRemarks] = useState("");
+  const [attempted, setAttempted] = useState(false);
+  const missing = required && !remarks.trim();
+  return (
+    <ProtoModal
+      title={title}
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: "#f1f5f9", color: "#475569" }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              setAttempted(true);
+              if (!missing) onSubmit(remarks.trim());
+            }}
+            disabled={busy}
+            className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+            style={{ background: "#0d2a5e" }}
+          >
+            {confirm}
+          </button>
+        </div>
+      }
+    >
+      <Field label={required ? "Remarks" : "Remarks (optional)"} required={required}>
+        <textarea
+          className={INPUT_CLS}
+          style={invalidStyle(attempted && missing)}
+          rows={4}
+          value={remarks}
+          onChange={(e) => setRemarks(e.target.value)}
+          placeholder={hint}
+          autoFocus
+        />
+      </Field>
+    </ProtoModal>
+  );
+}
+
 function HistoryTab({ versions }: { versions: LineItemBudget[] }) {
   const sorted = [...versions].sort((a, b) => b.version_number - a.version_number);
   const events = sorted
     .flatMap((v) => [
-      ...(v.certified_at ? [{ key: `c${v.id}`, icon: "✅", label: "Certified", color: "#166534", date: v.certified_at, text: `LIB v${v.version_number} certified — ${peso(v.total_amount)} baseline` }] : []),
+      ...v.reviews.map((r) => ({
+        key: `r${r.id}`,
+        ...REVIEW_META[r.action],
+        date: r.acted_at,
+        text: `LIB v${v.version_number} ${REVIEW_META[r.action].label.toLowerCase()} by ${r.acted_by_name}${r.action === "certified" ? ` — ${peso(v.total_amount)} baseline` : ""}${r.remarks ? `: “${r.remarks}”` : ""}`,
+      })),
+      ...(v.certified_at && !v.reviews.some((r) => r.action === "certified") ? [{ key: `c${v.id}`, icon: "✅", label: "Certified", color: "#166534", date: v.certified_at, text: `LIB v${v.version_number} certified — ${peso(v.total_amount)} baseline` }] : []),
       { key: `d${v.id}`, icon: "📝", label: "Prepared", color: "#0369a1", date: v.created_at, text: `LIB v${v.version_number} draft created` },
     ])
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -784,6 +858,8 @@ function LIBDetail({
   project,
   canManage,
   canCertify,
+  canEndorse,
+  userId,
   roleCode,
   isStudyLeader,
   onBack,
@@ -791,6 +867,8 @@ function LIBDetail({
   project: Project;
   canManage: boolean;
   canCertify: boolean;
+  canEndorse: boolean;
+  userId: number | undefined;
   roleCode: string;
   isStudyLeader: boolean;
   onBack: () => void;
@@ -804,6 +882,7 @@ function LIBDetail({
   const summaryQ = useQuery({ ...budgetSummaryQuery(certifiedId), enabled: certifiedId > 0 });
   const summary: BudgetSummary | null = certifiedId > 0 ? (summaryQ.data ?? null) : null;
   const [showWizard, setShowWizard] = useState(false);
+  const [reviewing, setReviewing] = useState<"returned" | "resubmitted" | null>(null);
   const [tab, setTab] = useState<LIBTab>("overview");
   const [rows, setRows] = useState<Record<LineItemCategory, NewRow>>({ ps: EMPTY_ROW, mooe: EMPTY_ROW, co: EMPTY_ROW });
   const [attemptedCat, setAttemptedCat] = useState<LineItemCategory | null>(null);
@@ -822,10 +901,11 @@ function LIBDetail({
 
   const save = useMutation({ mutationFn: (fn: () => Promise<unknown>) => fn() });
   const busy = save.isPending;
-  const run = (fn: () => Promise<unknown>, ok: string) =>
+  const run = (fn: () => Promise<unknown>, ok: string, done?: () => void) =>
     save.mutate(fn, {
       onSuccess: () => {
         notify.success(ok);
+        done?.();
         reload();
       },
       onError: (err) => notify.error(errorMessage(err, "The change could not be saved.")),
@@ -857,7 +937,9 @@ function LIBDetail({
 
   const allocationColumns = libAllocationColumns(budget?.line_items ?? []);
 
-  const isDraft = budget?.status === "draft";
+  const isDraft = budget?.status === "draft" || budget?.status === "returned";
+  const isOwnLeader = userId !== undefined && project.lead === userId;
+  const lastReturn = budget?.status === "returned" ? [...budget.reviews].reverse().find((r) => r.action === "returned") : undefined;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -908,18 +990,55 @@ function LIBDetail({
                 <p className="text-white font-black text-lg leading-snug max-w-2xl">{project.title}</p>
                 <p className="text-sm mt-1" style={{ color: "rgba(168,196,232,0.6)" }}>
                   Created {budget.created_at.slice(0, 10)}
-                  {budget.certified_at ? ` · Certified ${budget.certified_at.slice(0, 10)}` : " · Not yet certified by the Budget Officer"}
+                  {budget.endorsed_at ? ` · Endorsed by ${budget.endorsed_by_name} (CRC Chair) ${budget.endorsed_at.slice(0, 10)}` : ""}
+                  {budget.certified_at
+                    ? ` · Certified by ${budget.certified_by_name} (Budget Officer) ${budget.certified_at.slice(0, 10)}`
+                    : budget.status === "endorsed"
+                      ? " · Not yet certified by the Budget Officer"
+                      : budget.status === "draft"
+                        ? " · Waiting for the CRC Chair's endorsement"
+                        : ""}
                 </p>
               </div>
-              <div className="flex gap-2 shrink-0">
-              {canCertify && isDraft && (
+              <div className="flex flex-wrap gap-2 shrink-0">
+              {canEndorse && budget.status === "draft" && (
                 <button
-                  onClick={() => run(() => budgetApi.certifyBudget(budget.id), "LIB certified.")}
+                  onClick={() => run(() => budgetApi.endorseBudget(budget.id), "LIB endorsed. It now goes to the Budget Officer.")}
                   disabled={busy || budget.line_items.length === 0}
                   className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 disabled:opacity-50"
                   style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
                 >
+                  Endorse LIB
+                </button>
+              )}
+              {canCertify && budget.status === "endorsed" && (
+                <button
+                  onClick={() => run(() => budgetApi.certifyBudget(budget.id), "LIB certified.")}
+                  disabled={busy}
+                  className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 disabled:opacity-50"
+                  style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+                >
                   Certify LIB
+                </button>
+              )}
+              {((canEndorse && budget.status === "draft") || (canCertify && budget.status === "endorsed")) && (
+                <button
+                  onClick={() => setReviewing("returned")}
+                  disabled={busy}
+                  className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 disabled:opacity-50"
+                  style={{ background: "rgba(239,68,68,0.25)", color: "white" }}
+                >
+                  Return for Revision
+                </button>
+              )}
+              {isOwnLeader && budget.status === "returned" && (
+                <button
+                  onClick={() => setReviewing("resubmitted")}
+                  disabled={busy}
+                  className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 disabled:opacity-50"
+                  style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+                >
+                  Resubmit LIB
                 </button>
               )}
               </div>
@@ -937,6 +1056,12 @@ function LIBDetail({
             </div>
           </div>
 
+          {lastReturn && (
+            <div className="px-6 py-3 text-xs" style={{ background: "#fef2f2", borderBottom: "1px solid #fecaca", color: "#991b1b" }}>
+              <span className="font-bold">Returned by {lastReturn.acted_by_name} on {lastReturn.acted_at.slice(0, 10)}:</span> {lastReturn.remarks}
+              {isOwnLeader && <span className="block mt-1">Edit the line items, then click “Resubmit LIB”. The Grand Total must equal the Total Project/Study Cost.</span>}
+            </div>
+          )}
           <div className="flex border-b overflow-x-auto" style={{ borderColor: "#e2e8f0" }}>
             {(
               [
@@ -1215,10 +1340,25 @@ function LIBDetail({
           </div>
         </div>
       )}
+      {reviewing && budget && (
+        <ReviewModal
+          title={reviewing === "returned" ? "Return LIB for Revision" : "Resubmit LIB"}
+          hint={reviewing === "returned" ? "What should the Project Leader revise?" : "What did you change?"}
+          required={reviewing === "returned"}
+          confirm={reviewing === "returned" ? "Return to Project Leader" : "Resubmit to CRC Chair"}
+          busy={busy}
+          onClose={() => setReviewing(null)}
+          onSubmit={(remarks) =>
+            reviewing === "returned"
+              ? run(() => budgetApi.returnBudget(budget.id, remarks), "LIB returned to the Project Leader.", () => setReviewing(null))
+              : run(() => budgetApi.resubmitBudget(budget.id, remarks), "LIB resubmitted to the CRC Chair.", () => setReviewing(null))
+          }
+        />
+      )}
       {showWizard && (
         <LIBWizard
           project={project}
-          existing={budget && budget.status === "draft" ? budget : null}
+          existing={budget && isDraft ? budget : null}
           onClose={() => setShowWizard(false)}
           onDone={() => {
             setShowWizard(false);
@@ -1360,6 +1500,7 @@ function BudgetContent() {
   const code = user?.role?.code ?? "";
   const canManage = MANAGE_ROLE_CODES.includes(code);
   const canCertify = CERTIFY_ROLE_CODES.includes(code);
+  const canEndorse = ENDORSE_ROLE_CODES.includes(code);
   const [params, setParams] = useSearchParams();
   const projectsQ = useProjects();
   const budgetsQ = useBudgets();
@@ -1367,7 +1508,7 @@ function BudgetContent() {
   const projects: Project[] | null = failed ? [] : projectsQ.data && budgetsQ.data ? projectsQ.data : null;
   const budgets = budgetsQ.data ?? [];
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "certified" | "draft">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | LineItemBudget["status"]>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -1387,6 +1528,8 @@ function BudgetContent() {
         project={selected}
         canManage={canManage}
         canCertify={canCertify}
+        canEndorse={canEndorse}
+        userId={user?.pk}
         roleCode={code}
         isStudyLeader={code === "study_leader"}
         onBack={() => setParams({})}
@@ -1409,7 +1552,7 @@ function BudgetContent() {
     { label: "Total LIB", val: peso(sum(current)), mono: true, color: "#0d2a5e" },
     { label: "Certified", val: peso(sum(current.filter((b) => b.status === "certified"))), mono: true, color: "#166534" },
     { label: "Certified LIBs", val: String(current.filter((b) => b.status === "certified").length), mono: false, color: "#166534" },
-    { label: "Draft", val: String(current.filter((b) => b.status === "draft").length), mono: false, color: "#475569" },
+    { label: "In Review", val: String(current.filter((b) => b.status !== "certified").length), mono: false, color: "#475569" },
     { label: "Over Dry Cap", val: String(current.filter((b) => b.exceeds_dry_cap).length), mono: false, color: "#92400e" },
     { label: "No LIB Yet", val: String(withoutLib.length), mono: false, color: "#991b1b" },
   ];
@@ -1475,7 +1618,7 @@ function BudgetContent() {
                 setPage(1);
               }}
             />
-            {([["all", "All"], ["certified", "Certified"], ["draft", "Awaiting certification"]] as const).map(([v, label]) => (
+            {([["all", "All"], ["draft", "Awaiting CRC Chair"], ["endorsed", "Awaiting Budget Officer"], ["returned", "Returned"], ["certified", "Certified"]] as const).map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => {
@@ -1542,11 +1685,18 @@ function BudgetContent() {
                       );
                     })}
                   </div>
-                  {canCertify && b.status === "draft" && b.line_items.length > 0 && (
+                  {((canEndorse && b.status === "draft" && b.line_items.length > 0) || (canCertify && b.status === "endorsed")) && (
                     <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "#fee2e2" }}>
                       <span className="text-xs">⏳</span>
-                      <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>Awaiting Budget Officer certification</p>
-                      <span className="ml-auto text-xs font-bold" style={{ color: "#0891b2" }}>Open to certify →</span>
+                      <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>{b.status === "draft" ? "Awaiting CRC Chair endorsement" : "Awaiting Budget Officer certification"}</p>
+                      <span className="ml-auto text-xs font-bold" style={{ color: "#0891b2" }}>{b.status === "draft" ? "Open to endorse →" : "Open to certify →"}</span>
+                    </div>
+                  )}
+                  {b.status === "returned" && project.lead === user?.pk && (
+                    <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "#fee2e2" }}>
+                      <span className="text-xs">↩️</span>
+                      <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>Returned for revision</p>
+                      <span className="ml-auto text-xs font-bold" style={{ color: "#0891b2" }}>Open to revise →</span>
                     </div>
                   )}
                 </div>

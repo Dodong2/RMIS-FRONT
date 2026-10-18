@@ -10,6 +10,7 @@ import type { User } from "../../types/auth";
 import type { RiskAlertInbox } from "../../types/risk";
 
 const BUDGET_REVIEWER_ROLE_CODES = ["system_admin", "finance_budget"];
+const LIB_ENDORSER_ROLE_CODES = ["system_admin", "crc_chair"];
 const PROCUREMENT_LEADER_ROLE_CODES = ["program_leader", "project_leader"];
 const PROCUREMENT_OFFICE_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
 
@@ -38,8 +39,11 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
 
   // Budget Officer (+ system_admin for testing): LIBs to certify and realignments to approve.
   const isBudgetReviewer = BUDGET_REVIEWER_ROLE_CODES.includes(user?.role?.code ?? "");
-  const budgetsQ = useBudgets(undefined, { enabled: isBudgetReviewer });
-  const projectsQ = useProjects({ enabled: isBudgetReviewer });
+  const isLibEndorser = LIB_ENDORSER_ROLE_CODES.includes(user?.role?.code ?? "");
+  const isLeader = user?.role?.code === "project_leader";
+  const watchesLibs = isBudgetReviewer || isLibEndorser || isLeader;
+  const budgetsQ = useBudgets(undefined, { enabled: watchesLibs });
+  const projectsQ = useProjects({ enabled: watchesLibs });
   const realignmentsQ = useQuery({ ...realignmentsQuery(), enabled: isBudgetReviewer });
   const isProcurementLeader = PROCUREMENT_LEADER_ROLE_CODES.includes(user?.role?.code ?? "");
   const isProcurementOffice = PROCUREMENT_OFFICE_ROLE_CODES.includes(user?.role?.code ?? "");
@@ -47,18 +51,21 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
   const queryClient = useQueryClient();
   useRealtime(PROCUREMENT_EVENTS, () => queryClient.invalidateQueries({ queryKey: procurementRequestsQuery().queryKey }));
   const budgetItems: { key: string; text: string; sub: string; link: string; area: string }[] = [];
+  for (const b of watchesLibs ? (budgetsQ.data ?? []) : []) {
+    if (!b.is_current || b.line_items.length === 0) continue;
+    const p = projectsQ.data?.find((x) => x.id === b.project);
+    const label = `${p?.project_code ?? `Project #${b.project}`} LIB v${b.version_number}${p ? ` · ${p.title}` : ""}`;
+    const sub =
+      isLibEndorser && b.status === "draft"
+        ? "Waiting for your endorsement"
+        : isBudgetReviewer && b.status === "endorsed"
+          ? "Endorsed by the CRC Chair · waiting for certification"
+          : isLeader && b.status === "returned" && p?.lead === userId
+            ? "Returned for revision · edit and resubmit"
+            : null;
+    if (sub) budgetItems.push({ key: `lib${b.id}`, text: label, sub, link: `/budget?project=${b.project}`, area: "Budget" });
+  }
   if (isBudgetReviewer) {
-    for (const b of budgetsQ.data ?? []) {
-      if (!b.is_current || b.status !== "draft" || b.line_items.length === 0) continue;
-      const p = projectsQ.data?.find((x) => x.id === b.project);
-      budgetItems.push({
-        key: `lib${b.id}`,
-        text: `${p?.project_code ?? `Project #${b.project}`} submitted LIB v${b.version_number}${p ? ` · ${p.title}` : ""}`,
-        sub: "Waiting for certification",
-        link: `/budget?project=${b.project}`,
-        area: "Budget",
-      });
-    }
     const pending = (realignmentsQ.data ?? []).filter((r) => r.status === "pending_approval" || r.status === "pending_bor").length;
     if (pending > 0) {
       budgetItems.push({
