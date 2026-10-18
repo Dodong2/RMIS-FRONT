@@ -473,7 +473,7 @@ function ProjectDetailContent() {
   }
   if (!project) return <NoActualData message="Project not found" />;
   const canEditProposal = roleCode === "system_admin" || (roleCode === "project_leader" && project.lead === user?.pk);
-  const canAddMember = roleCode === "project_leader" && project.lead === user?.pk && project.status === "active";
+  const canAddMember = roleCode === "project_leader" && project.lead === user?.pk;
 
   const libTotal = budgets.filter((b) => b.is_current).reduce((s, b) => s + Number(b.total_amount), 0);
   const duration = monthsBetween(project.start_date, project.target_end_date);
@@ -481,6 +481,7 @@ function ProjectDetailContent() {
     { key: "lead", name: personName(project.lead_detail), role: "Project Leader", sub: "Lead proponent", color: "#0d2a5e" },
     ...formTeam
       .filter((m) => m.user === null || !team.some((a) => a.user === m.user))
+      .sort((a, b) => Number(b.member_role === "co_leader") - Number(a.member_role === "co_leader"))
       .map((m) => ({
         key: `form-${m.id}`,
         name: m.name,
@@ -814,9 +815,6 @@ function ProjectDetailContent() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => navigate("/staff")} className="flex items-center gap-2 text-xs font-semibold" style={{ color: "#0891b2" }}>
-                Manage assignments in Personnel Coordination →
-              </button>
             </div>
           )}
 
