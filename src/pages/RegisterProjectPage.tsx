@@ -15,7 +15,8 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
-import { teamMissing, type TeamRow } from "../lib/teamRows";
+import { needsTeamConfirm, teamMissing, type TeamRow } from "../lib/teamRows";
+import { ProtoModal } from "../components/common/proto";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
@@ -519,6 +520,8 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const [libYear, setLibYear] = useState(init.libYear);
   const [mode, setMode] = useState<"manual" | "excel">("manual");
   const [step, setStep] = useState(init.step);
+  const [teamConfirmed, setTeamConfirmed] = useState(false);
+  const [confirmTeamTo, setConfirmTeamTo] = useState<number | null>(null);
   const [attempted, setAttempted] = useState(false);
   const [triedSteps, setTriedSteps] = useState<number[]>([]);
   const [isCheckingCode, setIsCheckingCode] = useState(false);
@@ -693,7 +696,23 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         setIsCheckingCode(false);
       }
     }
+    if (needsTeamConfirm(step, step + 1, teamConfirmed)) {
+      setConfirmTeamTo(step + 1);
+      return;
+    }
     setStep(step + 1);
+  };
+
+  const goToStep = (i: number) => {
+    if (!canReach(i)) {
+      notify.error("Finish the required fields of the earlier steps first.");
+      return;
+    }
+    if (needsTeamConfirm(step, i, teamConfirmed)) {
+      setConfirmTeamTo(i);
+      return;
+    }
+    setStep(i);
   };
 
   const previewData = (): ProposalData => {
@@ -957,8 +976,59 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
     }
   };
 
+  const confirmTeam = confirmTeamTo === null ? null : previewData();
+  const teamLines = confirmTeam
+    ? [
+        { role: "Project Leader", names: [confirmTeam.lead_name || edit?.project.lead_detail?.full_name || "—"] },
+        { role: "Co-Project Leader", names: confirmTeam.co_leaders.map((t) => t.name) },
+        { role: "Project Staff", names: confirmTeam.team.map((t) => t.name) },
+      ]
+    : [];
+
   return (
     <div className="space-y-4 animate-fade-in">
+      {confirmTeamTo !== null && (
+        <ProtoModal
+          title="Confirm the Project Team"
+          subtitle="Check that everyone who belongs to this approved project is listed."
+          onClose={() => setConfirmTeamTo(null)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmTeamTo(null)} className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: "#f1f5f9", color: "#475569" }}>
+                No, Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setTeamConfirmed(true);
+                  setStep(confirmTeamTo);
+                  setConfirmTeamTo(null);
+                }}
+                className="px-5 py-2 rounded-xl text-sm font-bold text-white"
+                style={{ background: "#0d2a5e" }}
+              >
+                Yes, Proceed
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            {teamLines.map((line) => (
+              <div key={line.role}>
+                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "#64748b" }}>{line.role}</p>
+                {line.names.length ? (
+                  <ul className="text-sm space-y-0.5" style={{ color: "#0d2a5e" }}>
+                    {line.names.map((n, i) => (
+                      <li key={i}>• {n}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm" style={{ color: "#94a3b8" }}>None added</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </ProtoModal>
+      )}
       <div className="flex items-center gap-3 flex-wrap">
         <button onClick={() => navigate("/projects")} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "#0891b2" }}>
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -1014,7 +1084,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                 {WIZARD_STEPS.map((s, i) => (
                   <div key={s.label} className="flex items-center gap-1">
                     <button
-                      onClick={() => (canReach(i) ? setStep(i) : notify.error("Finish the required fields of the earlier steps first."))}
+                      onClick={() => goToStep(i)}
                       className="flex flex-col items-center gap-0.5"
                     >
                       <div

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { teamMissing } from "./teamRows";
+import { needsTeamConfirm, teamMissing } from "./teamRows";
 
 const row = (member_role: string, name: string, user: number | null = null) => ({ member_role, name, gender: "", user });
 
@@ -22,5 +22,19 @@ describe("teamMissing", () => {
 
   it("accepts typed names without an account and ignores gender", () => {
     expect(teamMissing("7", [row("member", "EIU Coordinators"), row("co_leader", "Ana", 3)])).toEqual([]);
+  });
+});
+
+describe("needsTeamConfirm", () => {
+  it("asks once, when leaving Step 2 (index 1) or jumping past it", () => {
+    expect(needsTeamConfirm(1, 2, false)).toBe(true);
+    expect(needsTeamConfirm(0, 4, false)).toBe(true);
+    expect(needsTeamConfirm(1, 2, true)).toBe(false);
+  });
+
+  it("does not ask when moving back or within the first steps", () => {
+    expect(needsTeamConfirm(3, 1, false)).toBe(false);
+    expect(needsTeamConfirm(0, 1, false)).toBe(false);
+    expect(needsTeamConfirm(3, 5, false)).toBe(false);
   });
 });

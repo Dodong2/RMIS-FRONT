@@ -8,3 +8,7 @@ export function teamMissing(lead: string, team: TeamRow[]): string[] {
     ...team.flatMap((t, i) => (t.name.trim() ? [] : [`the member of Team row ${i + 1} (${TEAM_ROLE_LABELS[t.member_role] ?? t.member_role})`])),
   ];
 }
+
+export function needsTeamConfirm(from: number, to: number, confirmed: boolean): boolean {
+  return !confirmed && from <= 1 && to > 1;
+}
