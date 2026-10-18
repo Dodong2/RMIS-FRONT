@@ -15,6 +15,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
+import { teamMissing, type TeamRow } from "../lib/teamRows";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
@@ -65,7 +66,6 @@ const MODES = [
 ] as const;
 
 // `id` is set on rows loaded from a registered project (Edit Registered Project)
-type TeamRow = { id?: number; member_role: string; name: string; gender: string; user: number | null };
 type BeneficiaryRow = { id?: number; group: string; description: string; total: string };
 type OutputRow = { id?: number; category: SixPCategory | ""; description: string; target_count: string };
 type WorkPlanRow = { id?: number; title: string; start_date: string; target_date: string; tasks?: number };
@@ -621,7 +621,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
       0: form.project_code.trim() ? [] : ["Project Code"],
-      1: form.campus ? [] : ["Campus"],
+      1: [...teamMissing(form.lead, team), ...(form.campus ? [] : ["Campus"])],
       2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
       3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
       4: beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim()) ? [] : ["every Target Beneficiaries row"],
@@ -674,7 +674,9 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
       notify.error(
         step === 5 && !libMatchesBudget
           ? `Grand total must equal approved budget (₱${peso(approvedBudget)}). Difference: ₱${peso(libDifference)}.`
-          : `Fill in ${missing.join(", ")} before going to the next step.`,
+          : step === 1 && missing.some((m) => m.startsWith("the member of"))
+            ? `Fill in ${missing.join(", ")}, or remove the empty team row with ✕, before going to the next step.`
+            : `Fill in ${missing.join(", ")} before going to the next step.`,
       );
       return;
     }
@@ -1164,6 +1166,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                                 users={accounts.filter((a) => String(a.id) !== form.lead && (TEAM_ROLE_CODES[t.member_role] ?? []).includes(a.role?.code ?? ""))}
                                 value={{ user: t.user, name: t.name }}
                                 onChange={(picked) => update(picked)}
+                                invalid={showErrors && !t.name.trim()}
                                 placeholder="Search an account, or type a name/group (e.g. EIU Coordinators)"
                               />
                               <select className={inputCls + " max-w-32"} style={inputSt} value={t.gender} onChange={(e) => update({ gender: e.target.value })}>
