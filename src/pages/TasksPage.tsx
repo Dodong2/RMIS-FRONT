@@ -446,24 +446,26 @@ function TaskDetailModal({
                         step="0.5"
                         value={hours}
                         onChange={(e) => setHours(e.target.value)}
-                        className={inputCls + " w-40"}
+                        className={inputCls + " flex-1 min-w-0"}
                         style={inputSt}
                         placeholder="Hours worked *"
                         aria-label="Hours worked"
                       />
                     )}
-                    <p className="flex-1 text-xs" style={{ color: "#94a3b8" }}>
-                      {kind === "update" ? `% completed updates from the hours (now ${task.progress_pct}%).` : ""}
-                    </p>
                     <button
                       onClick={post}
                       disabled={!note.trim() || posting}
-                      className="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all"
+                      className="ml-auto px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shrink-0"
                       style={{ background: note.trim() ? "#0d2a5e" : "#94a3b8" }}
                     >
                       {posting ? "Posting…" : "Post"}
                     </button>
                   </div>
+                  {kind === "update" && (
+                    <p className="text-xs" style={{ color: "#94a3b8" }}>
+                      % completed is computed from your logged hours · now <strong style={{ color: "#0d2a5e" }}>{task.progress_pct}%</strong>
+                    </p>
+                  )}
                 </div>
               )}
             </div>
