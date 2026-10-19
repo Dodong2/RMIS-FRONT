@@ -42,7 +42,7 @@ const PRIORITY_META: Record<TaskPriority, { label: string; bg: string; text: str
 };
 
 const KIND_META: Record<TaskUpdateKind, { label: string; bg: string; text: string }> = {
-  update: { label: "Update", bg: "#e0f2fe", text: "#0369a1" },
+  update: { label: "Work Log", bg: "#e0f2fe", text: "#0369a1" },
   comment: { label: "Comment", bg: "#f1f5f9", text: "#475569" },
   blocker: { label: "Blocker", bg: "#fee2e2", text: "#991b1b" },
   completion: { label: "Completion", bg: "#d1fae5", text: "#166534" },
