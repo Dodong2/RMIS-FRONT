@@ -13,7 +13,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LatePill } from "../components/workplan/ActivityGantt";
-import { STATUS_META, daysLate, nameOf } from "../lib/workplan";
+import { STATUS_META, activityTaskCompletion, daysLate, nameOf } from "../lib/workplan";
 import { personName } from "../lib/roles";
 
 type WPTab = "milestones" | "activities" | "deliverables";
@@ -121,6 +121,49 @@ function MilestonesDeliverables({ milestones }: { milestones: Milestone[] }) {
   );
 }
 
+interface TeamRow {
+  key: string;
+  name: string;
+  role: string;
+  user: number | null;
+}
+
+function TeamTaskCompletion({ rows, tasks }: { rows: TeamRow[]; tasks: Task[] }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Team Task Completion</p>
+        <p className="text-xs mt-1" style={{ color: "#64748b" }}>Share of tasks done on the activities assigned to each Co-Project Leader and Project Staff.</p>
+      </div>
+      {rows.length === 0 ? (
+        <NoActualData hint="No Co-Project Leaders or Project Staff on this project yet." />
+      ) : (
+        <div className="rounded-xl p-4 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+          {rows.map((r) => {
+            const { done, total, pct } = r.user === null ? { done: 0, total: 0, pct: 0 } : activityTaskCompletion(tasks, r.user);
+            const detail = r.user === null ? "No system account" : total ? `${done} of ${total} task${total !== 1 ? "s" : ""} done` : "No tasks assigned";
+            return (
+              <div key={r.key} className="flex items-center gap-3" title={`${r.name}: ${detail}`}>
+                <div className="shrink-0" style={{ width: "200px" }}>
+                  <p className="text-xs font-semibold truncate" style={{ color: "#334155" }}>{r.name}</p>
+                  <p className="text-xs" style={{ color: "#94a3b8" }}>{r.role}</p>
+                </div>
+                <div className="flex-1 h-3 rounded overflow-hidden" style={{ background: "#e2e8f0" }}>
+                  <div className="h-full rounded" style={{ width: `${pct}%`, background: "#0891b2" }} />
+                </div>
+                <div className="shrink-0 text-right" style={{ width: "130px" }}>
+                  <p className="text-xs font-mono font-bold" style={{ color: "#1e293b" }}>{total ? `${pct}%` : "—"}</p>
+                  <p className="text-xs" style={{ color: "#94a3b8" }}>{detail}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface FormState {
   title: string;
   start_date: string;
@@ -143,12 +186,15 @@ function WorkPlanDetail({
   now: number;
   onBack: () => void;
 }) {
+  const { user } = useAuth();
+  const roleCode = user?.role?.code ?? "";
   const [tab, setTab] = useState<WPTab>("milestones");
   const [milestones, setMilestones] = useState<Milestone[] | null>(null);
   const [delayedOnly, setDelayedOnly] = useState(false);
   const [delayed, setDelayed] = useState<Milestone[] | null>(null);
   const [team, setTeam] = useState<ProjectAssignment[]>([]);
   const [teamRows, setTeamRows] = useState<ProjectTeamMember[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [editing, setEditing] = useState<Milestone | "new" | null>(null);
@@ -171,6 +217,10 @@ function WorkPlanDetail({
     researchApi
       .getTeamMembers(project.id)
       .then((t) => active && setTeamRows(t))
+      .catch(() => undefined);
+    personnelApi
+      .getTasks({ project: project.id })
+      .then((t) => active && setTasks(t))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -202,7 +252,13 @@ function WorkPlanDetail({
     ...team.map((a) => a.user_detail),
   ].filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i);
   const activityRows = delayedOnly ? [...(delayed ?? [])].sort((a, b) => seqOf(a.id) - seqOf(b.id)) : sorted;
-  const deliverables = sorted.filter((m) => m.deliverable.trim());
+  const completionRows: TeamRow[] = [
+    ...teamRows.filter((t) => t.member_role === "co_leader").map((t) => ({ key: `t${t.id}`, name: t.name, role: "Co-Project Leader", user: t.user })),
+    ...teamRows.filter((t) => t.member_role === "member").map((t) => ({ key: `t${t.id}`, name: t.name, role: "Project Staff", user: t.user })),
+    ...team.map((a) => ({ key: `a${a.id}`, name: nameOf(a.user_detail), role: "Project Staff", user: a.user })),
+  ]
+    .filter((r, i, arr) => r.user === null || arr.findIndex((x) => x.user === r.user) === i)
+    .filter((r) => roleCode !== "project_staff" || r.user === user?.pk);
 
   const openEdit = (m: Milestone | "new") => {
     setAttempted(false);
@@ -417,46 +473,7 @@ function WorkPlanDetail({
                 </div>
               )}
 
-              {tab === "deliverables" && (
-                <div className="space-y-4">
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Project Deliverables Register</p>
-                  {deliverables.length === 0 ? (
-                    <NoActualData hint="Deliverables are recorded on each activity." />
-                  ) : (
-                    <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr style={{ background: "#f0f4f8" }}>
-                            {["#", "Deliverable", "Source Activity", "Responsible", "Due", "Activity Status"].map((h) => (
-                              <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {deliverables.map((m, i) => (
-                            <tr key={m.id} className="border-t hover:bg-slate-50" style={{ borderColor: "#f1f5f9" }}>
-                              <td className="px-4 py-2.5 text-xs font-mono font-bold" style={{ color: "#94a3b8" }}>{String(i + 1).padStart(2, "0")}</td>
-                              <td className="px-4 py-2.5 text-xs font-semibold" style={{ color: "#1e293b" }}>{m.deliverable}</td>
-                              <td className="px-4 py-2.5">
-                                <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
-                                  A-{String(seqOf(m.id)).padStart(2, "0")}
-                                </span>
-                                <span className="text-xs ml-2" style={{ color: "#64748b" }}>{m.title.length > 40 ? `${m.title.slice(0, 40)}…` : m.title}</span>
-                              </td>
-                              <td className="px-4 py-2.5 text-xs" style={{ color: "#475569" }}>{nameOf(m.responsible_detail)}</td>
-                              <td className="px-4 py-2.5 text-xs font-mono" style={{ color: "#475569" }}>{m.target_date}</td>
-                              <td className="px-4 py-2.5"><StatusDot status={m.status} /></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <div className="px-4 py-2 text-xs" style={{ background: "#f8fafc", borderTop: "1px solid #e2e8f0", color: "#94a3b8" }}>
-                        {deliverables.length} deliverable{deliverables.length !== 1 ? "s" : ""} across {sorted.length} activities
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {tab === "deliverables" && <TeamTaskCompletion rows={completionRows} tasks={tasks} />}
             </>
           )}
         </div>
