@@ -35,12 +35,14 @@ export interface Task {
   study: number | null;
   title: string;
   description: string;
+  start_date: string | null;
   due_date: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  /** Planned hours: Mon-Fri working days from start_date to due_date x 8, set by the server */
   estimated_hours: string | null;
   logged_hours: string;
-  /** Latest % completed the assignee reported (100 when done) */
+  /** Assignee's Work Log hours / planned hours, capped at 100 (100 when done, 0 without planned hours) */
   progress_pct: number;
   milestone: number | null;
   tags: string[];

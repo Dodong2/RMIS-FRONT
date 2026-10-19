@@ -702,7 +702,7 @@ function PersonnelPanel({ data, canSeeWorkload, ids }: { data: DashData; canSeeW
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold truncate" style={{ color: "#0d2a5e" }}>{w.full_name}</p>
                 <p className="text-xs" style={{ color: "#94a3b8" }}>
-                  {w.logged_hours}h logged / {w.estimated_hours}h estimated
+                  {w.logged_hours}h logged / {w.estimated_hours}h planned
                 </p>
               </div>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "#e0f2fe", color: "#0369a1" }}>{w.open} open</span>

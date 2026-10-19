@@ -23,6 +23,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
+import { plannedHoursLabel, workingDays } from "../lib/taskHours";
 
 const TASK_ASSIGNER_CODES = ["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"];
 
@@ -86,7 +87,7 @@ function HoursBar({ estimated, logged }: { estimated: number; logged: number }) 
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: over ? "#ef4444" : "#0891b2" }} />
       </div>
       <p className="text-xs mt-0.5" style={{ color: over ? "#dc2626" : "#94a3b8" }}>
-        {logged}h logged / {estimated ? `${estimated}h est.` : "no estimate"}
+        {logged}h logged / {estimated ? `${estimated}h planned` : "no planned hours"}
       </p>
     </div>
   );
@@ -149,9 +150,9 @@ function TaskDetailModal({
   const updatesQ = useQuery(taskUpdatesQuery(task.id));
   const updates: TaskUpdate[] | null = updatesQ.isError ? [] : (updatesQ.data ?? null);
   const [note, setNote] = useState("");
-  const [kind, setKind] = useState<TaskUpdateKind>("update");
+  const [kind, setKind] = useState<TaskUpdateKind>(isAssignee ? "update" : "comment");
   const [hours, setHours] = useState("");
-  const [progress, setProgress] = useState("");
+  const [postKey, setPostKey] = useState(() => crypto.randomUUID());
   const [remarks, setRemarks] = useState("");
   const [newDeliverable, setNewDeliverable] = useState("");
   const [editing, setEditing] = useState(false);
@@ -159,8 +160,8 @@ function TaskDetailModal({
     title: task.title,
     description: task.description,
     priority: task.priority,
+    start_date: task.start_date ?? "",
     due_date: task.due_date ?? "",
-    estimated_hours: task.estimated_hours ?? "",
     tags: task.tags.join(", "),
   });
   const canUpdate = canAssign || isAssignee;
@@ -190,10 +191,10 @@ function TaskDetailModal({
 
   const postMutation = useMutation({
     mutationFn: async () => {
-      await personnelApi.postTaskUpdate(task.id, { note: note.trim(), kind, hours: hours || undefined, progress_pct: progress === "" ? undefined : Number(progress) });
+      await personnelApi.postTaskUpdate(task.id, { note: note.trim(), kind, hours: kind === "update" ? hours : undefined }, postKey);
       setNote("");
       setHours("");
-      setProgress("");
+      setPostKey(crypto.randomUUID());
       await refreshTask();
     },
     onError: (err) => notify.error(errorMessage(err, "Could not post the update.")),
@@ -212,8 +213,8 @@ function TaskDetailModal({
 
   const post = () => {
     if (!note.trim()) return;
-    if (progress !== "" && !(Number(progress) >= 0 && Number(progress) <= 100)) {
-      notify.error("% completed must be from 0 to 100.");
+    if (kind === "update" && !(Number(hours) > 0)) {
+      notify.error("Enter the hours worked (more than 0).");
       return;
     }
     postMutation.mutate();
@@ -225,8 +226,8 @@ function TaskDetailModal({
         title: edit.title,
         description: edit.description,
         priority: edit.priority,
+        start_date: edit.start_date || null,
         due_date: edit.due_date || null,
-        estimated_hours: edit.estimated_hours ? String(edit.estimated_hours) : null,
         tags: edit.tags
           .split(",")
           .map((t) => t.trim())
@@ -274,14 +275,15 @@ function TaskDetailModal({
                     </select>
                   </div>
                   <div>
-                    <label className="label-field">Due Date</label>
-                    <input type="date" className={inputCls} style={inputSt} value={edit.due_date} onChange={(e) => setEdit({ ...edit, due_date: e.target.value })} />
+                    <label className="label-field">Start Date</label>
+                    <input type="date" className={inputCls} style={inputSt} value={edit.start_date} onChange={(e) => setEdit({ ...edit, start_date: e.target.value })} />
                   </div>
                   <div>
-                    <label className="label-field">Est. Hours</label>
-                    <input type="number" min="0" step="0.5" className={inputCls} style={inputSt} value={edit.estimated_hours} onChange={(e) => setEdit({ ...edit, estimated_hours: e.target.value })} />
+                    <label className="label-field">End Date</label>
+                    <input type="date" className={inputCls} style={inputSt} value={edit.due_date} onChange={(e) => setEdit({ ...edit, due_date: e.target.value })} />
                   </div>
                 </div>
+                {edit.start_date && <p className="text-xs font-semibold" style={{ color: "#0369a1" }}>{plannedHoursLabel(edit.start_date, edit.due_date)}</p>}
                 <div>
                   <label className="label-field">Tags (comma-separated)</label>
                   <input className={inputCls} style={inputSt} value={edit.tags} onChange={(e) => setEdit({ ...edit, tags: e.target.value })} />
@@ -410,7 +412,7 @@ function TaskDetailModal({
               {canUpdate && (
                 <div className="mt-3 space-y-2">
                   <div className="flex gap-1.5 flex-wrap">
-                    {(Object.keys(KIND_META) as TaskUpdateKind[]).map((k) => {
+                    {(Object.keys(KIND_META) as TaskUpdateKind[]).filter((k) => isAssignee || k !== "update").map((k) => {
                       const cm = KIND_META[k];
                       return (
                         <button
@@ -437,27 +439,22 @@ function TaskDetailModal({
                     placeholder={`Post a ${KIND_META[kind].label.toLowerCase()}...`}
                   />
                   <div className="flex gap-2 items-center">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={hours}
-                      onChange={(e) => setHours(e.target.value)}
-                      className={inputCls + " w-32"}
-                      style={inputSt}
-                      placeholder="Hours worked"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={progress}
-                      onChange={(e) => setProgress(e.target.value)}
-                      className={inputCls + " w-32"}
-                      style={inputSt}
-                      placeholder={`% done (now ${task.progress_pct}%)`}
-                      aria-label="% completed"
-                    />
+                    {kind === "update" && (
+                      <input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        value={hours}
+                        onChange={(e) => setHours(e.target.value)}
+                        className={inputCls + " w-40"}
+                        style={inputSt}
+                        placeholder="Hours worked *"
+                        aria-label="Hours worked"
+                      />
+                    )}
+                    <p className="flex-1 text-xs" style={{ color: "#94a3b8" }}>
+                      {kind === "update" ? `% completed updates from the hours (now ${task.progress_pct}%).` : ""}
+                    </p>
                     <button
                       onClick={post}
                       disabled={!note.trim() || posting}
@@ -584,7 +581,7 @@ function CreateTaskModal({
 }) {
   const [studies, setStudies] = useState<Study[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
-  const [form, setForm] = useState({ title: "", description: "", assignee: "", study: "", milestone: "", priority: "medium", due_date: "", estimated_hours: "", tags: "" });
+  const [form, setForm] = useState({ title: "", description: "", assignee: "", study: "", milestone: "", priority: "medium", start_date: "", due_date: "", tags: "" });
   const [deliverables, setDeliverables] = useState([""]);
   const [attempted, setAttempted] = useState(false);
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -612,10 +609,10 @@ function CreateTaskModal({
         milestone: form.milestone ? Number(form.milestone) : null,
         title: form.title,
         description: form.description || undefined,
-        due_date: form.due_date || undefined,
+        start_date: form.start_date,
+        due_date: form.due_date,
         assignee: Number(form.assignee),
         priority: form.priority as TaskPriority,
-        estimated_hours: form.estimated_hours || undefined,
         tags: form.tags
           .split(",")
           .map((t) => t.trim())
@@ -633,8 +630,12 @@ function CreateTaskModal({
 
   const create = () => {
     setAttempted(true);
-    if (!form.title.trim() || !form.assignee) {
-      notify.error("Task title and assignee are required.");
+    if (!form.title.trim() || !form.assignee || !form.start_date || !form.due_date) {
+      notify.error("Task title, assignee, Start Date and End Date are required.");
+      return;
+    }
+    if (!workingDays(form.start_date, form.due_date)) {
+      notify.error(plannedHoursLabel(form.start_date, form.due_date));
       return;
     }
     createMutation.mutate();
@@ -700,22 +701,26 @@ function CreateTaskModal({
               ))}
             </select>
           </div>
-          <div>
-            <label className="label-field">Due Date</label>
-            <input
-              type="date"
-              className={inputCls}
-              style={inputSt}
-              value={form.due_date}
-              min={milestones.find((m) => String(m.id) === form.milestone)?.start_date ?? undefined}
-              max={milestones.find((m) => String(m.id) === form.milestone)?.target_date}
-              onChange={set("due_date")}
-            />
-          </div>
-          <div>
-            <label className="label-field">Estimated Hours</label>
-            <input type="number" min="0" step="0.5" className={inputCls} style={inputSt} value={form.estimated_hours} onChange={set("estimated_hours")} placeholder="e.g. 8" />
-          </div>
+          {(
+            [
+              ["start_date", "Start Date"],
+              ["due_date", "End Date"],
+            ] as const
+          ).map(([field, label]) => (
+            <div key={field}>
+              <label className="label-field">{label} <span style={{ color: "#dc2626" }}>*</span></label>
+              <input
+                type="date"
+                className={inputCls}
+                style={{ ...inputSt, borderColor: attempted && !form[field] ? "#dc2626" : "#e2e8f0" }}
+                value={form[field]}
+                min={milestones.find((m) => String(m.id) === form.milestone)?.start_date ?? undefined}
+                max={milestones.find((m) => String(m.id) === form.milestone)?.target_date}
+                onChange={set(field)}
+              />
+            </div>
+          ))}
+          <p className="col-span-full text-xs font-semibold" style={{ color: "#0369a1" }}>{plannedHoursLabel(form.start_date, form.due_date)}</p>
           <div>
             <label className="label-field">Tags (comma-separated)</label>
             <input className={inputCls} style={inputSt} value={form.tags} onChange={set("tags")} placeholder="e.g. data-analysis, field-work" />
@@ -1130,7 +1135,7 @@ function ProjectTaskBoard({
                               <div className="absolute inset-y-0 left-0 rounded-full opacity-20" style={{ width: `${Math.round((est / maxEst) * 100)}%`, background: "#0d2a5e" }} />
                               <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${utilPct}%`, background: logged > est ? "#ef4444" : "#0891b2" }} />
                             </div>
-                            <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{logged}h logged / {est}h estimated</p>
+                            <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{logged}h logged / {est}h planned</p>
                           </div>
                           <div className="flex gap-2 flex-wrap">
                             {[

@@ -1,4 +1,4 @@
-import { apiClient } from "./apiClient";
+import { apiClient, idempotent } from "./apiClient";
 import type {
   CollaborationRow,
   LeaderLoad,
@@ -42,10 +42,10 @@ export const personnelApi = {
     milestone?: number | null;
     title: string;
     description?: string;
-    due_date?: string;
+    start_date: string;
+    due_date: string;
     assignee: number;
     priority?: TaskPriority;
-    estimated_hours?: string;
     tags?: string[];
   }): Promise<Task> => {
     const { data } = await apiClient.post("/api/personnel/tasks/", payload);
@@ -60,9 +60,9 @@ export const personnelApi = {
     payload: Partial<{
       title: string;
       description: string;
+      start_date: string | null;
       due_date: string | null;
       priority: TaskPriority;
-      estimated_hours: string | null;
       tags: string[];
       status: TaskStatus;
     }>,
@@ -83,9 +83,10 @@ export const personnelApi = {
   },
   postTaskUpdate: async (
     id: number,
-    payload: { note: string; kind: TaskUpdateKind; hours?: string; progress_pct?: number; new_status?: TaskStatus | "" },
+    payload: { note: string; kind: TaskUpdateKind; hours?: string; new_status?: TaskStatus | "" },
+    idempotencyKey?: string,
   ): Promise<TaskUpdate> => {
-    const { data } = await apiClient.post(`/api/personnel/tasks/${id}/updates/`, payload);
+    const { data } = await apiClient.post(`/api/personnel/tasks/${id}/updates/`, payload, idempotent(idempotencyKey));
     return data;
   },
   addTaskDeliverable: async (taskId: number, text: string): Promise<TaskDeliverable> => {

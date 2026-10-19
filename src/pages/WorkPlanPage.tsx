@@ -14,6 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LatePill } from "../components/workplan/ActivityGantt";
 import { STATUS_META, activityTaskCompletion, daysLate, nameOf } from "../lib/workplan";
+import { plannedHoursLabel, workingDays } from "../lib/taskHours";
 import { personName } from "../lib/roles";
 
 type WPTab = "milestones" | "activities" | "deliverables";
@@ -532,7 +533,8 @@ function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: M
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [reload, setReload] = useState(0);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ title: "", assignee: "", due_date: milestone.target_date });
+  const emptyForm = { title: "", assignee: "", start_date: milestone.start_date ?? "", due_date: milestone.target_date };
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -548,15 +550,21 @@ function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: M
 
   const minDate = milestone.start_date ?? undefined;
   const maxDate = milestone.target_date;
-  const outOfRange = !!form.due_date && ((!!minDate && form.due_date < minDate) || form.due_date > maxDate);
+  const outside = (d: string) => !!d && ((!!minDate && d < minDate) || d > maxDate);
+  const outOfRange = outside(form.start_date) || outside(form.due_date);
+  const hasWorkingDay = workingDays(form.start_date, form.due_date) > 0;
 
   const save = async () => {
-    if (!form.title.trim() || !form.assignee) {
-      notify.error("Task title and assignee are required.");
+    if (!form.title.trim() || !form.assignee || !form.start_date || !form.due_date) {
+      notify.error("Task title, assignee, Start Date and End Date are required.");
       return;
     }
     if (outOfRange) {
-      notify.error(`The due date must be within the activity's planned dates (${minDate ?? "start"} to ${maxDate}).`);
+      notify.error(`The dates must be within the activity's planned dates (${minDate ?? "start"} to ${maxDate}).`);
+      return;
+    }
+    if (!hasWorkingDay) {
+      notify.error(plannedHoursLabel(form.start_date, form.due_date));
       return;
     }
     setSaving(true);
@@ -566,10 +574,11 @@ function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: M
         milestone: milestone.id,
         title: form.title.trim(),
         assignee: Number(form.assignee),
-        due_date: form.due_date || undefined,
+        start_date: form.start_date,
+        due_date: form.due_date,
       });
       notify.success("Task added. The assignee was e-mailed.");
-      setForm({ title: "", assignee: "", due_date: milestone.target_date });
+      setForm(emptyForm);
       setAdding(false);
       setReload((k) => k + 1);
       onChanged();
@@ -620,18 +629,32 @@ function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: M
               <option key={p.id} value={p.id}>{nameOf(p)}</option>
             ))}
           </select>
-          <input
-            type="date"
-            className={inputCls}
-            style={{ ...inputSt, borderColor: outOfRange ? "#dc2626" : "#e2e8f0" }}
-            value={form.due_date}
-            min={minDate}
-            max={maxDate}
-            onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-            aria-label="Due date"
-          />
+          <div className="md:col-span-4 grid grid-cols-2 gap-2">
+            {(
+              [
+                ["start_date", "Start Date"],
+                ["due_date", "End Date"],
+              ] as const
+            ).map(([field, label]) => (
+              <label key={field} className="text-xs font-semibold" style={{ color: "#64748b" }}>
+                {label}
+                <input
+                  type="date"
+                  className={inputCls + " mt-1"}
+                  style={{ ...inputSt, borderColor: outside(form[field]) ? "#dc2626" : "#e2e8f0" }}
+                  value={form[field]}
+                  min={minDate}
+                  max={maxDate}
+                  onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                />
+              </label>
+            ))}
+          </div>
+          <p className="md:col-span-4 text-xs font-semibold" style={{ color: form.start_date && form.due_date && !hasWorkingDay ? "#dc2626" : "#0369a1" }}>
+            {plannedHoursLabel(form.start_date, form.due_date)}
+          </p>
           <p className="md:col-span-4 text-xs" style={{ color: outOfRange ? "#dc2626" : "#94a3b8" }}>
-            Due date must be within the planned dates: {minDate ?? "—"} → {maxDate}
+            Dates must be within the planned dates: {minDate ?? "—"} → {maxDate}
           </p>
           <div className="md:col-span-4 flex justify-end gap-2">
             <button onClick={() => setAdding(false)} className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer" style={{ background: "#f1f5f9", color: "#64748b" }}>Cancel</button>
