@@ -289,7 +289,6 @@ function ProjectDetailContent() {
   const [milestoneForm, setMilestoneForm] = useState({ title: "", start_date: "", target_date: "", objective: "", deliverable: "" });
   const [attemptedMilestone, setAttemptedMilestone] = useState(false);
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
-  const [updatingMilestone, setUpdatingMilestone] = useState<number | null>(null);
 
   const [closureStatus, setClosureStatus] = useState<RecordStatus | "">("");
   const [closureRemarks, setClosureRemarks] = useState("");
@@ -388,18 +387,6 @@ function ProjectDetailContent() {
       notify.error(errorMessage(err, "Could not add the milestone."));
     } finally {
       setIsCreatingMilestone(false);
-    }
-  };
-
-  const handleMilestoneStatusChange = async (milestoneId: number, next: string) => {
-    setUpdatingMilestone(milestoneId);
-    try {
-      await researchApi.updateMilestoneStatus(milestoneId, next);
-      load();
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not update the milestone status."));
-    } finally {
-      setUpdatingMilestone(null);
     }
   };
 
@@ -791,23 +778,8 @@ function ProjectDetailContent() {
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="text-xs font-bold font-mono" style={{ color: "#0891b2" }}>MS-{String(idx + 1).padStart(2, "0")}</span>
                           <span className="text-xs font-semibold" style={{ color: "#1e293b" }}>{ms.title}</span>
-                          <span className="ml-auto">
-                            {canManageMilestones ? (
-                              <Select value={ms.status} onValueChange={(v) => handleMilestoneStatusChange(ms.id, v)} disabled={updatingMilestone === ms.id}>
-                                <SelectTrigger className="h-7 w-36 rounded-full text-xs font-semibold border-0" style={{ background: c.bg, color: c.text }}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Object.entries(MILESTONE_STATUS_LABELS).map(([value, label]) => (
-                                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: c.bg, color: c.text }}>
-                                {MILESTONE_STATUS_LABELS[ms.status]}
-                              </span>
-                            )}
+                          <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: c.bg, color: c.text }}>
+                            {MILESTONE_STATUS_LABELS[ms.status]}
                           </span>
                         </div>
                         {ms.objective && <p className="text-xs leading-relaxed" style={{ color: "#64748b" }}>Objective: {ms.objective}</p>}
@@ -820,6 +792,14 @@ function ProjectDetailContent() {
                           <div className="mt-2 p-2.5 rounded-lg text-xs" style={{ background: "#f0f9ff", color: "#0369a1" }}>
                             <span className="font-semibold">Deliverable: </span>
                             {ms.deliverable}
+                          </div>
+                        )}
+                        {ms.status !== "pending" && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
+                              <div className="h-full rounded-full" style={{ width: `${ms.progress_pct}%`, background: c.bar }} />
+                            </div>
+                            <span className="text-xs font-mono font-bold" style={{ color: c.bar }}>{ms.progress_pct}%</span>
                           </div>
                         )}
                       </div>
