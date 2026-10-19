@@ -44,9 +44,6 @@ import { useFundingTypes } from "../lib/fundingTypes";
 
 type DetailTab = "overview" | "registration" | "team" | "workplan" | "impact" | "history" | "closure";
 
-const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "program_leader", "project_leader", "study_leader"];
-
-
 const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
   pending: "Pending",
   in_progress: "In Progress",
@@ -256,7 +253,6 @@ function ProjectDetailContent() {
   const roleCode = user?.role?.code ?? "";
   const canRegister = REGISTRATION_ROLE_CODES.includes(roleCode);
   const canEdit = PROJECT_EDIT_ROLE_CODES.includes(roleCode);
-  const canManageMilestones = MILESTONE_ROLE_CODES.includes(roleCode);
   const projectId = Number(id);
 
   const [tab, setTab] = useState<DetailTab>("overview");
@@ -285,10 +281,6 @@ function ProjectDetailContent() {
   const [attemptedStudy, setAttemptedStudy] = useState(false);
   const [isCreatingStudy, setIsCreatingStudy] = useState(false);
 
-  const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
-  const [milestoneForm, setMilestoneForm] = useState({ title: "", start_date: "", target_date: "", objective: "", deliverable: "" });
-  const [attemptedMilestone, setAttemptedMilestone] = useState(false);
-  const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
 
   const [closureStatus, setClosureStatus] = useState<RecordStatus | "">("");
   const [closureRemarks, setClosureRemarks] = useState("");
@@ -359,34 +351,6 @@ function ProjectDetailContent() {
       notify.error(errorMessage(err, "Could not add the study."));
     } finally {
       setIsCreatingStudy(false);
-    }
-  };
-
-  const handleCreateMilestone = async () => {
-    setAttemptedMilestone(true);
-    if (!milestoneForm.title || !milestoneForm.target_date) {
-      notify.error("Milestone title and target date are required.");
-      return;
-    }
-    setIsCreatingMilestone(true);
-    try {
-      await researchApi.createMilestone({
-        project: projectId,
-        title: milestoneForm.title,
-        target_date: milestoneForm.target_date,
-        start_date: milestoneForm.start_date || undefined,
-        objective: milestoneForm.objective || undefined,
-        deliverable: milestoneForm.deliverable || undefined,
-      });
-      setAttemptedMilestone(false);
-      notify.success("Milestone added.");
-      setMilestoneForm({ title: "", start_date: "", target_date: "", objective: "", deliverable: "" });
-      setMilestoneDialogOpen(false);
-      load();
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not add the milestone."));
-    } finally {
-      setIsCreatingMilestone(false);
     }
   };
 
@@ -806,15 +770,6 @@ function ProjectDetailContent() {
                     );
                   })}
                   {milestones.length === 0 && <p className="text-sm" style={{ color: "#94a3b8" }}>No milestones yet.</p>}
-                  {canManageMilestones && (
-                    <button
-                      onClick={() => setMilestoneDialogOpen(true)}
-                      className="w-full py-3 rounded-xl border-2 border-dashed text-xs font-semibold hover:border-[#0891b2] hover:text-[#0891b2]"
-                      style={{ borderColor: "#e2e8f0", color: "#94a3b8" }}
-                    >
-                      + Add Milestone
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -1059,78 +1014,6 @@ function ProjectDetailContent() {
               style={{ background: "#0d2a5e" }}
             >
               {isCreatingStudy ? "Adding…" : "Add Study"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={milestoneDialogOpen} onOpenChange={setMilestoneDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle style={{ color: "#0d2a5e" }}>Add a Work Plan Milestone</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <div>
-              <Label required>Title</Label>
-              <input
-                value={milestoneForm.title}
-                onChange={(e) => setMilestoneForm((m) => ({ ...m, title: e.target.value }))}
-                placeholder="Milestone title"
-                className={INPUT}
-                style={{ ...INPUT_STYLE, borderColor: attemptedMilestone && !milestoneForm.title.trim() ? "#dc2626" : "#e2e8f0" }}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Start Date</Label>
-                <input
-                  type="date"
-                  value={milestoneForm.start_date}
-                  onChange={(e) => setMilestoneForm((m) => ({ ...m, start_date: e.target.value }))}
-                  className={INPUT}
-                  style={INPUT_STYLE}
-                />
-              </div>
-              <div>
-                <Label required>Target Date</Label>
-                <input
-                  type="date"
-                  value={milestoneForm.target_date}
-                  onChange={(e) => setMilestoneForm((m) => ({ ...m, target_date: e.target.value }))}
-                  className={INPUT}
-                  style={{ ...INPUT_STYLE, borderColor: attemptedMilestone && !milestoneForm.target_date ? "#dc2626" : "#e2e8f0" }}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Objective</Label>
-              <input
-                value={milestoneForm.objective}
-                onChange={(e) => setMilestoneForm((m) => ({ ...m, objective: e.target.value }))}
-                placeholder="Which project objective this serves"
-                className={INPUT}
-                style={INPUT_STYLE}
-              />
-            </div>
-            <div>
-              <Label>Deliverable</Label>
-              <input
-                value={milestoneForm.deliverable}
-                onChange={(e) => setMilestoneForm((m) => ({ ...m, deliverable: e.target.value }))}
-                placeholder="What is produced when this is done"
-                className={INPUT}
-                style={INPUT_STYLE}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <button
-              onClick={handleCreateMilestone}
-              disabled={isCreatingMilestone}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-              style={{ background: "#0d2a5e" }}
-            >
-              {isCreatingMilestone ? "Adding…" : "Add Milestone"}
             </button>
           </DialogFooter>
         </DialogContent>
