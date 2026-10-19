@@ -357,18 +357,6 @@ function WorkPlanDetail({
                 {[project.implementing_unit, project.start_date && `${project.start_date} – ${project.target_end_date ?? "—"}`].filter(Boolean).join(" · ")}
               </p>
             </div>
-            {canEdit && (
-              <button
-                onClick={() => openEdit("new")}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white shrink-0"
-                style={{ background: "rgba(255,255,255,0.15)" }}
-              >
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                Add Activity
-              </button>
-            )}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
