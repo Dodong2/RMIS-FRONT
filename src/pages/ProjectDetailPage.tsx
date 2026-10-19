@@ -7,6 +7,7 @@ import { outputsApi } from "../lib/outputsApi";
 import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
+import { ActivityGantt } from "../components/workplan/ActivityGantt";
 import { PROJECT_EDIT_ROLE_CODES, REGISTRATION_ROLE_CODES, initialsFrom, personName } from "../lib/roles";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
 import {
@@ -18,7 +19,6 @@ import {
 } from "../lib/projectOptions";
 import type {
   Milestone,
-  MilestoneStatus,
   Program,
   Project,
   ProjectStatusHistory,
@@ -43,20 +43,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useFundingTypes } from "../lib/fundingTypes";
 
 type DetailTab = "overview" | "registration" | "team" | "workplan" | "impact" | "history" | "closure";
-
-const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
-  pending: "Pending",
-  in_progress: "In Progress",
-  done: "Completed",
-  delayed: "Delayed",
-};
-
-const MILESTONE_COLORS: Record<MilestoneStatus, { bar: string; bg: string; text: string }> = {
-  done: { bar: "#16a34a", bg: "#dcfce7", text: "#166534" },
-  in_progress: { bar: "#0891b2", bg: "#e0f2fe", text: "#164e63" },
-  pending: { bar: "#cbd5e1", bg: "#f1f5f9", text: "#64748b" },
-  delayed: { bar: "#ef4444", bg: "#fee2e2", text: "#991b1b" },
-};
 
 const INPUT = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none focus:border-[#0891b2]";
 const INPUT_STYLE = { borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" };
@@ -171,76 +157,6 @@ function LifecyclePipeline({ project, terminal }: { project: Project; terminal: 
           </div>
         );
       })}
-    </div>
-  );
-}
-
-const QUARTER_PX = 120;
-
-function GanttChart({ project, milestones, now }: { project: Project; milestones: Milestone[]; now: number }) {
-  if (milestones.length === 0) return <p className="text-sm py-4 text-center" style={{ color: "#94a3b8" }}>No milestones defined yet.</p>;
-  const dates = [project.start_date, project.target_end_date, ...milestones.flatMap((m) => [m.start_date, m.target_date])].filter((d): d is string => !!d);
-  const yearsSeen = dates.map((d) => Number(d.slice(0, 4)));
-  const firstYear = Math.min(...yearsSeen);
-  const years = Math.max(...yearsSeen) - firstYear + 1;
-  const quarters = years * 4;
-  const start = new Date(firstYear, 0, 1).getTime();
-  const totalMs = new Date(firstYear + years, 0, 1).getTime() - start;
-  const pctOf = (t: number) => Math.max(0, Math.min(100, ((t - start) / totalMs) * 100));
-  const toPercent = (d: string) => {
-    const [y, m, day] = d.split("-").map(Number);
-    return pctOf(new Date(y, m - 1, day).getTime());
-  };
-  const todayPct = pctOf(now);
-  const showToday = now >= start && now <= start + totalMs;
-  const quarterLines = {
-    backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${QUARTER_PX - 1}px, #e2e8f0 ${QUARTER_PX - 1}px, #e2e8f0 ${QUARTER_PX}px)`,
-  };
-
-  return (
-    <div className="overflow-x-auto">
-      <div style={{ width: 208 + quarters * QUARTER_PX }}>
-        <div className="flex text-xs mb-2" style={{ color: "#94a3b8" }}>
-          <div className="w-52 shrink-0 sticky left-0 z-20" style={{ background: "#f8fafc" }} />
-          <div className="flex">
-            {Array.from({ length: quarters }, (_, q) => (
-              <span
-                key={q}
-                className="text-center font-semibold"
-                style={{ width: QUARTER_PX, borderLeft: q % 4 === 0 && q > 0 ? "2px solid #cbd5e1" : undefined }}
-              >
-                {`${Math.floor(q / 4) + 1}Q${(q % 4) + 1}`}
-              </span>
-            ))}
-          </div>
-        </div>
-        {milestones.map((ms) => {
-          const left = toPercent(ms.start_date ?? ms.target_date);
-          const width = Math.max(0.5, toPercent(ms.target_date) - left);
-          const c = MILESTONE_COLORS[ms.status];
-          return (
-            <div key={ms.id} className="flex items-center mb-1.5">
-              <div className="w-52 shrink-0 pr-4 sticky left-0 z-20" style={{ background: "#f8fafc" }}>
-                <p className="text-xs font-medium truncate" style={{ color: "#334155" }}>{ms.title}</p>
-              </div>
-              <div className="relative h-6 rounded" style={{ width: quarters * QUARTER_PX, background: "#f1f5f9", ...quarterLines }}>
-                <div className="absolute top-1 bottom-1 rounded" style={{ left: `${left}%`, width: `${width}%`, background: c.bar }} />
-                {showToday && <div className="absolute top-0 bottom-0 w-px z-10" style={{ left: `${todayPct}%`, background: "#ef4444", opacity: 0.7 }} />}
-              </div>
-            </div>
-          );
-        })}
-        {showToday && (
-          <div className="flex">
-            <div className="w-52 shrink-0" />
-            <div className="relative h-4" style={{ width: quarters * QUARTER_PX }}>
-              <div className="absolute flex items-center" style={{ left: `${todayPct}%`, transform: "translateX(-50%)" }}>
-                <span className="text-xs font-semibold" style={{ color: "#ef4444" }}>Today</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -382,6 +298,7 @@ function ProjectDetailContent() {
     );
   }
   if (!project) return <NoActualData message="Project not found" />;
+  const sortedMilestones = [...milestones].sort((a, b) => (a.start_date ?? a.target_date).localeCompare(b.start_date ?? b.target_date));
   const canEditProposal = roleCode === "system_admin" || (roleCode === "project_leader" && project.lead === user?.pk);
 
   const libTotal = budgets.filter((b) => b.is_current).reduce((s, b) => s + Number(b.total_amount), 0);
@@ -721,57 +638,9 @@ function ProjectDetailContent() {
           )}
 
           {tab === "workplan" && (
-            <div className="space-y-6">
-              <div>
-                <SectionHeader>Gantt Timeline</SectionHeader>
-                <div className="rounded-xl p-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                  <GanttChart project={project} milestones={milestones} now={now} />
-                </div>
-              </div>
-              <div>
-                <SectionHeader>Milestones & Deliverables</SectionHeader>
-                <div className="space-y-3">
-                  {milestones.map((ms, idx) => {
-                    const c = MILESTONE_COLORS[ms.status];
-                    return (
-                      <div
-                        key={ms.id}
-                        className="rounded-xl p-4"
-                        style={{ background: "white", border: `1px solid ${ms.status === "in_progress" ? "#bae6fd" : "#e2e8f0"}` }}
-                      >
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-xs font-bold font-mono" style={{ color: "#0891b2" }}>MS-{String(idx + 1).padStart(2, "0")}</span>
-                          <span className="text-xs font-semibold" style={{ color: "#1e293b" }}>{ms.title}</span>
-                          <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: c.bg, color: c.text }}>
-                            {MILESTONE_STATUS_LABELS[ms.status]}
-                          </span>
-                        </div>
-                        {ms.objective && <p className="text-xs leading-relaxed" style={{ color: "#64748b" }}>Objective: {ms.objective}</p>}
-                        <div className="flex flex-wrap gap-4 mt-2 text-xs" style={{ color: "#94a3b8" }}>
-                          <span>Start: <strong style={{ color: "#475569" }}>{ms.start_date ?? "—"}</strong></span>
-                          <span>Due: <strong style={{ color: "#475569" }}>{ms.target_date}</strong></span>
-                          <span>Responsible: <strong style={{ color: "#475569" }}>{ms.responsible_detail ? personName(ms.responsible_detail) : "—"}</strong></span>
-                        </div>
-                        {ms.deliverable && (
-                          <div className="mt-2 p-2.5 rounded-lg text-xs" style={{ background: "#f0f9ff", color: "#0369a1" }}>
-                            <span className="font-semibold">Deliverable: </span>
-                            {ms.deliverable}
-                          </div>
-                        )}
-                        {ms.status !== "pending" && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
-                              <div className="h-full rounded-full" style={{ width: `${ms.progress_pct}%`, background: c.bar }} />
-                            </div>
-                            <span className="text-xs font-mono font-bold" style={{ color: c.bar }}>{ms.progress_pct}%</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {milestones.length === 0 && <p className="text-sm" style={{ color: "#94a3b8" }}>No milestones yet.</p>}
-                </div>
-              </div>
+            <div>
+              <SectionHeader>Gantt Timeline</SectionHeader>
+              <ActivityGantt milestones={sortedMilestones} project={project} now={now} />
             </div>
           )}
 

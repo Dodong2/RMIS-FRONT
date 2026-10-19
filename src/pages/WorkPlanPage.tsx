@@ -12,30 +12,16 @@ import { NoActualData } from "../components/common/NoActualData";
 import { AppShell } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LatePill } from "../components/workplan/ActivityGantt";
+import { STATUS_META, daysLate, nameOf } from "../lib/workplan";
+import { personName } from "../lib/roles";
 
-type WPTab = "gantt" | "activities" | "deliverables";
-
-const nameOf = (p: Lead | null | undefined) => (p ? p.full_name || p.email : "—");
+type WPTab = "milestones" | "activities" | "deliverables";
 
 const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "program_leader", "project_leader", "study_leader"];
 
-const STATUS_META: Record<MilestoneStatus, { label: string; bg: string; text: string; dot: string }> = {
-  pending: { label: "Not Started", bg: "#f1f5f9", text: "#64748b", dot: "#94a3b8" },
-  in_progress: { label: "In Progress", bg: "#e0f2fe", text: "#0369a1", dot: "#0891b2" },
-  done: { label: "Completed", bg: "#d1fae5", text: "#166534", dot: "#059669" },
-  delayed: { label: "Delayed", bg: "#fee2e2", text: "#991b1b", dot: "#ef4444" },
-};
-
 const inputCls = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-all focus:border-[#0891b2]";
 const inputSt = { borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" };
-
-const DAY = 86400000;
-
-function daysLate(m: Milestone, now: number) {
-  if (m.status === "done") return 0;
-  const d = Math.floor((now - new Date(m.target_date).getTime()) / DAY);
-  return d > 0 ? d : 0;
-}
 
 function summarize(ms: Milestone[], now: number) {
   const total = ms.length;
@@ -62,15 +48,6 @@ function ProgressBar({ planned, actual, height = 6 }: { planned: number; actual:
   );
 }
 
-function LatePill({ days }: { days: number }) {
-  if (days === 0) return <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ background: "#f1f5f9", color: "#64748b" }}>—</span>;
-  return (
-    <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: "#fee2e2", color: "#991b1b" }}>
-      {days}d late
-    </span>
-  );
-}
-
 function StatusDot({ status }: { status: MilestoneStatus }) {
   const sm = STATUS_META[status];
   return (
@@ -81,54 +58,64 @@ function StatusDot({ status }: { status: MilestoneStatus }) {
   );
 }
 
-function Gantt({ milestones, project, now }: { milestones: Milestone[]; project: Project; now: number }) {
-  if (milestones.length === 0) return <p className="text-sm py-4 text-center" style={{ color: "#94a3b8" }}>No activities defined yet.</p>;
-  const dates = milestones.flatMap((m) => [m.start_date, m.target_date]).filter(Boolean).sort() as string[];
-  const start = new Date(project.start_date ?? dates[0]).getTime();
-  const end = new Date(project.target_end_date ?? dates[dates.length - 1]).getTime();
-  const total = Math.max(1, end - start);
-  const toPct = (d: string) => Math.max(0, Math.min(100, ((new Date(d).getTime() - start) / total) * 100));
-  const todayPct = Math.max(0, Math.min(100, ((now - start) / total) * 100));
+const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
+  pending: "Pending",
+  in_progress: "In Progress",
+  done: "Completed",
+  delayed: "Delayed",
+};
 
+const MILESTONE_COLORS: Record<MilestoneStatus, { bar: string; bg: string; text: string }> = {
+  done: { bar: "#16a34a", bg: "#dcfce7", text: "#166534" },
+  in_progress: { bar: "#0891b2", bg: "#e0f2fe", text: "#164e63" },
+  pending: { bar: "#cbd5e1", bg: "#f1f5f9", text: "#64748b" },
+  delayed: { bar: "#ef4444", bg: "#fee2e2", text: "#991b1b" },
+};
+
+function MilestonesDeliverables({ milestones }: { milestones: Milestone[] }) {
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[820px]">
-        <div className="flex text-xs mb-2">
-          <div className="shrink-0 font-bold uppercase tracking-wide" style={{ width: "220px", color: "#94a3b8" }}>Activity</div>
-          <div className="shrink-0 text-center font-mono" style={{ width: "110px", color: "#94a3b8" }}>Responsible</div>
-          <div className="flex-1 relative h-5">
-            {["Q1", "Q2", "Q3", "Q4"].map((q, i) => (
-              <span key={q} className="absolute font-semibold" style={{ left: `${i * 25}%`, transform: "translateX(-50%)", color: "#94a3b8" }}>{q}</span>
-            ))}
-            <span className="absolute font-bold" style={{ left: `${todayPct}%`, transform: "translateX(-50%)", color: "#ef4444", top: 0, fontSize: "9px" }}>▼</span>
-          </div>
-          <div className="shrink-0 text-center font-bold uppercase tracking-wide" style={{ width: "80px", color: "#94a3b8" }}>Variance</div>
-        </div>
-        {milestones.map((m, i) => {
-          const left = toPct(m.start_date ?? m.target_date);
-          const width = Math.max(0.5, toPct(m.target_date) - left);
-          const sc = STATUS_META[m.status].dot;
+    <div className="space-y-4">
+      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Milestones & Deliverables</p>
+      <div className="space-y-3">
+        {milestones.map((ms, idx) => {
+          const c = MILESTONE_COLORS[ms.status];
           return (
-            <div key={m.id} className="flex items-center mb-2">
-              <div className="shrink-0 pr-2" style={{ width: "220px" }}>
-                <p className="text-xs font-semibold truncate" style={{ color: "#334155" }}>{i + 1}. {m.title}</p>
+            <div
+              key={ms.id}
+              className="rounded-xl p-4"
+              style={{ background: "white", border: `1px solid ${ms.status === "in_progress" ? "#bae6fd" : "#e2e8f0"}` }}
+            >
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-xs font-bold font-mono" style={{ color: "#0891b2" }}>MS-{String(idx + 1).padStart(2, "0")}</span>
+                <span className="text-xs font-semibold" style={{ color: "#1e293b" }}>{ms.title}</span>
+                <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: c.bg, color: c.text }}>
+                  {MILESTONE_STATUS_LABELS[ms.status]}
+                </span>
               </div>
-              <div className="shrink-0 text-center px-1 truncate" style={{ width: "110px" }}>
-                <p className="text-xs truncate" style={{ color: "#64748b" }}>{nameOf(m.responsible_detail)}</p>
+              {ms.objective && <p className="text-xs leading-relaxed" style={{ color: "#64748b" }}>Objective: {ms.objective}</p>}
+              <div className="flex flex-wrap gap-4 mt-2 text-xs" style={{ color: "#94a3b8" }}>
+                <span>Start: <strong style={{ color: "#475569" }}>{ms.start_date ?? "—"}</strong></span>
+                <span>Due: <strong style={{ color: "#475569" }}>{ms.target_date}</strong></span>
+                <span>Responsible: <strong style={{ color: "#475569" }}>{ms.responsible_detail ? personName(ms.responsible_detail) : "—"}</strong></span>
               </div>
-              <div className="flex-1 relative" style={{ height: "28px" }}>
-                <div className="absolute top-0 bottom-0 w-px z-10" style={{ left: `${todayPct}%`, background: "#ef4444", opacity: 0.5 }} />
-                <div className="absolute rounded" style={{ top: "4px", bottom: "4px", left: `${left}%`, width: `${width}%`, border: `1.5px solid ${sc}`, background: sc + "18" }} />
-                {m.status === "done" && (
-                  <div className="absolute rounded" style={{ top: "8px", bottom: "8px", left: `${left}%`, width: `${width}%`, background: sc }} />
-                )}
-              </div>
-              <div className="shrink-0 flex justify-center" style={{ width: "80px" }}>
-                <LatePill days={daysLate(m, now)} />
-              </div>
+              {ms.deliverable && (
+                <div className="mt-2 p-2.5 rounded-lg text-xs" style={{ background: "#f0f9ff", color: "#0369a1" }}>
+                  <span className="font-semibold">Deliverable: </span>
+                  {ms.deliverable}
+                </div>
+              )}
+              {ms.status !== "pending" && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
+                    <div className="h-full rounded-full" style={{ width: `${ms.progress_pct}%`, background: c.bar }} />
+                  </div>
+                  <span className="text-xs font-mono font-bold" style={{ color: c.bar }}>{ms.progress_pct}%</span>
+                </div>
+              )}
             </div>
           );
         })}
+        {milestones.length === 0 && <p className="text-sm" style={{ color: "#94a3b8" }}>No milestones yet.</p>}
       </div>
     </div>
   );
@@ -156,7 +143,7 @@ function WorkPlanDetail({
   now: number;
   onBack: () => void;
 }) {
-  const [tab, setTab] = useState<WPTab>("gantt");
+  const [tab, setTab] = useState<WPTab>("milestones");
   const [milestones, setMilestones] = useState<Milestone[] | null>(null);
   const [delayedOnly, setDelayedOnly] = useState(false);
   const [delayed, setDelayed] = useState<Milestone[] | null>(null);
@@ -279,7 +266,7 @@ function WorkPlanDetail({
   };
 
   const tabs: { key: WPTab; label: string }[] = [
-    { key: "gantt", label: "Gantt Chart" },
+    { key: "milestones", label: "Milestones & Deliverables" },
     { key: "activities", label: "Activities" },
     { key: "deliverables", label: "Deliverables" },
   ];
@@ -373,28 +360,7 @@ function WorkPlanDetail({
             <div className="h-40 rounded-xl animate-pulse" style={{ background: "#f1f5f9" }} />
           ) : (
             <>
-              {tab === "gantt" && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Activity Gantt Chart</p>
-                    <div className="flex items-center gap-3 ml-auto text-xs">
-                      {[
-                        { color: "rgba(0,0,0,0.15)", label: "Planned (outline)" },
-                        { color: "#059669", label: "Completed" },
-                        { color: "#ef4444", label: "Today" },
-                      ].map((l) => (
-                        <div key={l.label} className="flex items-center gap-1">
-                          <div className="w-3 h-3 rounded" style={{ background: l.color, border: `1.5px solid ${l.color}` }} />
-                          <span style={{ color: "#94a3b8" }}>{l.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="rounded-xl p-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                    <Gantt milestones={sorted} project={project} now={now} />
-                  </div>
-                </div>
-              )}
+              {tab === "milestones" && <MilestonesDeliverables milestones={milestones} />}
 
               {tab === "activities" && (
                 <div className="space-y-3">
