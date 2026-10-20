@@ -62,7 +62,7 @@ export function GenerateReportModal({ def, initial, projects, onGenerated, onClo
   const dm = DOMAIN_META[def.domain];
 
   const campuses = [...new Set(projects.map((p) => p.campus).filter(Boolean))].sort();
-  const thrusts = [...new Set(projects.map((p) => p.rei_thrust).filter(Boolean))].sort();
+  const thrusts = [...new Set(projects.map((p) => p.rde_thrust).filter(Boolean))].sort();
   const missing = def.required.filter((k) => !params[k]);
   const set = (k: ReportParam, v: string) => setParams((cur) => ({ ...cur, [k]: v }));
 
@@ -101,7 +101,7 @@ export function GenerateReportModal({ def, initial, projects, onGenerated, onClo
         return select(k, fundingTypes.options, "All funding types");
       case "status":
         return select(k, Object.entries(STATUS_LABELS), "All statuses");
-      case "rei_thrust":
+      case "rde_thrust":
         return select(k, thrusts.map((t) => [t, t]), "All RDE thrusts");
       case "year":
         return <input type="number" min={2000} max={2100} value={params.year ?? ""} onChange={(e) => set("year", e.target.value)} placeholder="All years" className={INPUT_CLS} style={INPUT_STYLE} />;

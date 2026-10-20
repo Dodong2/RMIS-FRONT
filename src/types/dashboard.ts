@@ -106,7 +106,7 @@ export interface PerformanceDashboard {
   leader_ranking: (PerformanceScore & { leader_id: number; leader: string; position: string; office: string })[];
 }
 
-export interface REIThrustAlignment {
+export interface RdeThrustAlignment {
   by_thrust: Record<string, number>;
   unaligned_count: number;
 }

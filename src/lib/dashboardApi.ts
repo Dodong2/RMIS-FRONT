@@ -16,7 +16,7 @@ import type {
   PerformanceDashboard,
   PortfolioDashboard,
   ProjectDashboard,
-  REIThrustAlignment,
+  RdeThrustAlignment,
 } from "../types/dashboard";
 
 export const dashboardApi = {
@@ -63,8 +63,8 @@ export const dashboardApi = {
     const { data } = await apiClient.get("/api/dashboard/performance/", { params });
     return data;
   },
-  getREIThrustAlignment: async (params: AnalyticsScope = {}): Promise<REIThrustAlignment> => {
-    const { data } = await apiClient.get("/api/dashboard/rei-thrust-alignment/", { params });
+  getRdeThrustAlignment: async (params: AnalyticsScope = {}): Promise<RdeThrustAlignment> => {
+    const { data } = await apiClient.get("/api/dashboard/rde-thrust-alignment/", { params });
     return data;
   },
 

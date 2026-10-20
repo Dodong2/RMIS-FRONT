@@ -24,8 +24,8 @@ const CONFIGS: Record<AdminChoiceKind, ChoiceConfig> = {
     noun: "unit",
     coded: { codeLabel: "Abbrev", codePlaceholder: "e.g. CA", titleLabel: "College", titlePlaceholder: "e.g. College of Agriculture" },
   },
-  "rei-thrusts": {
-    kind: "rei-thrusts",
+  "rde-thrusts": {
+    kind: "rde-thrusts",
     title: "RDE Thrusts",
     field: "RDE Thrust",
     placeholder: "",
@@ -241,7 +241,7 @@ export default function AdminChoicesPage({ kind }: { kind: AdminChoiceKind }) {
   return (
     <ProtectedRoute>
       <AppShell title={CONFIGS[kind].title}>
-        {kind === "rei-thrusts" ? <RdeAgendaContent /> : <ChoicesContent key={kind} config={CONFIGS[kind]} />}
+        {kind === "rde-thrusts" ? <RdeAgendaContent /> : <ChoicesContent key={kind} config={CONFIGS[kind]} />}
       </AppShell>
     </ProtectedRoute>
   );

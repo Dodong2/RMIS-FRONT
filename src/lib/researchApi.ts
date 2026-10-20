@@ -28,8 +28,8 @@ export const researchApi = {
   createProgram: async (payload: {
     title: string;
     funding_type: string;
-    rei_thrust?: string;
-    rei_priority?: string;
+    rde_thrust?: string;
+    rde_priority?: string;
     lead: number;
     start_date?: string;
   }): Promise<Program> => {
@@ -56,8 +56,8 @@ export const researchApi = {
     lead: number;
     start_date?: string;
     target_end_date?: string;
-    rei_thrust?: string;
-    rei_priority?: string;
+    rde_thrust?: string;
+    rde_priority?: string;
     sdgs: number[];
     sectors: string[];
     sector_other?: string;

@@ -48,7 +48,7 @@ export const reportsApi = {
     campus?: string;
     funding_type?: string;
     status?: string;
-    rei_thrust?: string;
+    rde_thrust?: string;
     year?: string;
     file_format: ReportFormat;
   }) => downloadReport("/api/reports/projects/", params, `project_list.${params.file_format}`),

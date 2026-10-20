@@ -13,7 +13,7 @@ export async function runServerReport(id: string, p: ReportParams, file_format: 
     case "appendix_g":
       return reportsApi.downloadAppendixG({ campus: p.campus || undefined, year: p.year || undefined, file_format });
     case "project_list":
-      return reportsApi.downloadProjectList({ ...scope, status: p.status || undefined, rei_thrust: p.rei_thrust || undefined, year: p.year || undefined });
+      return reportsApi.downloadProjectList({ ...scope, status: p.status || undefined, rde_thrust: p.rde_thrust || undefined, year: p.year || undefined });
     case "financial":
     case "compliance":
     case "personnel":

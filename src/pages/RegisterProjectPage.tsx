@@ -433,8 +433,8 @@ const blankForm = (lead: string) => ({
   is_dry_research: "true",
   start_date: "",
   target_end_date: "",
-  rei_thrust: "",
-  rei_priority: "",
+  rde_thrust: "",
+  rde_priority: "",
   sdgs: [] as string[],
   sectors: [] as string[],
   sector_other: "",
@@ -541,13 +541,13 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const [supportingDocs, setSupportingDocs] = useState<StagedFile[]>([]);
 
   const [form, setForm] = useState(init.form);
-  const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rei-thrusts": [], "cooperating-agencies": [], endorsers: [], "funding-types": [] });
+  const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rde-thrusts": [], "cooperating-agencies": [], endorsers: [], "funding-types": [] });
   const [agencies, setAgencies] = useState<string[]>(init.agencies);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
   useEffect(() => {
     let active = true;
-    (["college-units", "rei-thrusts", "cooperating-agencies", "endorsers"] as const).forEach((kind) =>
+    (["college-units", "rde-thrusts", "cooperating-agencies", "endorsers"] as const).forEach((kind) =>
       researchApi
         .getChoices(kind)
         .then((list) => active && setChoices((c) => ({ ...c, [kind]: list })))
@@ -628,8 +628,8 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
     const missing: Record<number, string[]> = {
       0: [
         ...(form.project_code.trim() ? [] : ["Project Code"]),
-        ...(form.rei_thrust ? [] : ["RDE Thrust"]),
-        ...(form.rei_priority ? [] : ["RDE Priority Area"]),
+        ...(form.rde_thrust ? [] : ["RDE Thrust"]),
+        ...(form.rde_priority ? [] : ["RDE Priority Area"]),
       ],
       1: [...teamMissing(form.lead, team), ...(form.campus ? [] : ["Campus"])],
       2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
@@ -647,7 +647,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
     { label: "Project title entered", done: !!form.title.trim(), required: true, step: 0 },
     { label: "Project code (LSPU Faculty Research Number) entered", done: !!form.project_code.trim(), required: true, step: 0 },
     { label: "Funding type selected", done: !!form.funding_type, required: true, step: 0 },
-    { label: "2024–2028 LSPU RDE Agenda thrust & priority selected", done: !!form.rei_thrust && !!form.rei_priority, required: true, step: 0 },
+    { label: "2024–2028 LSPU RDE Agenda thrust & priority selected", done: !!form.rde_thrust && !!form.rde_priority, required: true, step: 0 },
     ...(isContinuing ? [{ label: "Continuing year (2 or later) entered", done: Number(form.continuing_year) >= 2, required: true, step: 0 }] : []),
     { label: "Start and end dates provided", done: !!form.start_date && !!form.target_end_date, step: 0 },
     { label: "Project Leader identified", done: !!form.lead, required: true, step: 1 },
@@ -771,8 +771,8 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         is_dry_research: form.is_dry_research === "true",
         start_date: date(form.start_date),
         target_end_date: date(form.target_end_date),
-        rei_thrust: form.rei_thrust,
-        rei_priority: form.rei_priority,
+        rde_thrust: form.rde_thrust,
+        rde_priority: form.rde_priority,
         sdgs: form.sdgs.map(Number),
         sectors: form.sectors as Project["sectors"],
         sector_other: form.sectors.includes("others") ? form.sector_other.trim() : "",
@@ -885,8 +885,8 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         is_dry_research: form.is_dry_research === "true",
         start_date: opt(form.start_date),
         target_end_date: opt(form.target_end_date),
-        rei_thrust: opt(form.rei_thrust),
-        rei_priority: opt(form.rei_priority),
+        rde_thrust: opt(form.rde_thrust),
+        rde_priority: opt(form.rde_priority),
         sdgs: form.sdgs.map(Number),
         sectors: form.sectors,
         sector_other: form.sectors.includes("others") ? form.sector_other : undefined,
@@ -1179,10 +1179,10 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                       )}
                     </Field>
                     <RdeAgendaPicker
-                      choices={choices["rei-thrusts"]}
-                      thrust={form.rei_thrust}
-                      priority={form.rei_priority}
-                      onChange={(rei_thrust, rei_priority) => setForm((p) => ({ ...p, rei_thrust, rei_priority }))}
+                      choices={choices["rde-thrusts"]}
+                      thrust={form.rde_thrust}
+                      priority={form.rde_priority}
+                      onChange={(rde_thrust, rde_priority) => setForm((p) => ({ ...p, rde_thrust, rde_priority }))}
                       showErrors={showErrors}
                     />
                   </div>
@@ -1848,8 +1848,8 @@ async function loadEditSource(projectId: number): Promise<EditSource> {
       is_dry_research: String(p.is_dry_research),
       start_date: p.start_date ?? "",
       target_end_date: p.target_end_date ?? "",
-      rei_thrust: p.rei_thrust,
-      rei_priority: p.rei_priority,
+      rde_thrust: p.rde_thrust,
+      rde_priority: p.rde_priority,
       sdgs: p.sdgs.map(String),
       sectors: p.sectors,
       sector_other: p.sector_other,

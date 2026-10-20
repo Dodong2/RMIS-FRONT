@@ -19,7 +19,7 @@ import type {
   PortfolioCollege,
   PortfolioDashboard,
   ProjectDashboard,
-  REIThrustAlignment,
+  RdeThrustAlignment,
 } from "../types/dashboard";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -81,7 +81,7 @@ const TABS = [
   ["forecast", "Budget Forecast"],
   ["decision", "Decision Support"],
   ["compliance", "Compliance"],
-  ["rei", "RDE Thrust"],
+  ["rde", "RDE Thrust"],
   ["planning", "Planning Targets"],
   ["exports", "Data Exports"],
 ] as const;
@@ -112,7 +112,7 @@ function AnalyticsContent() {
   const [forecastDash, setForecastDash] = useState<ForecastingDashboard | null>(null);
   const [complianceDash, setComplianceDash] = useState<ComplianceDashboard | null>(null);
   const [outputDash, setOutputDash] = useState<OutputDashboard | null>(null);
-  const [reiDash, setReiDash] = useState<REIThrustAlignment | null>(null);
+  const [rdeDash, setRdeDash] = useState<RdeThrustAlignment | null>(null);
   const [portfolioDash, setPortfolioDash] = useState<PortfolioDashboard | null>(null);
   const [performanceDash, setPerformanceDash] = useState<PerformanceDashboard | null>(null);
   const [portfolioCampuses, setPortfolioCampuses] = useState<string[]>([]);
@@ -179,7 +179,7 @@ function AnalyticsContent() {
       .then((d) => alive && setForecastDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the forecasting dashboard.")));
     dashboardApi.getComplianceDashboard(scope).then((d) => alive && setComplianceDash(d)).catch(() => undefined);
-    dashboardApi.getREIThrustAlignment(scope).then((d) => alive && setReiDash(d)).catch(() => undefined);
+    dashboardApi.getRdeThrustAlignment(scope).then((d) => alive && setRdeDash(d)).catch(() => undefined);
     dashboardApi
       .getPerformanceDashboard(scope)
       .then((d) => alive && setPerformanceDash(d))
@@ -407,18 +407,18 @@ function AnalyticsContent() {
 
       {tab === "outputs" && <OutputsTab data={performanceDash} outputDash={outputDash} />}
 
-      {tab === "rei" &&
-        (!reiDash ? (
+      {tab === "rde" &&
+        (!rdeDash ? (
           <SkeletonRows />
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiBox label="RDE Thrusts Covered" value={String(Object.keys(reiDash.by_thrust).length)} color="#0d2a5e" />
-              <KpiBox label="Aligned Projects" value={String(count(reiDash.by_thrust))} color="#059669" />
-              <KpiBox label="No RDE Thrust Recorded" value={String(reiDash.unaligned_count)} sub="Needs alignment" color="#dc2626" />
+              <KpiBox label="RDE Thrusts Covered" value={String(Object.keys(rdeDash.by_thrust).length)} color="#0d2a5e" />
+              <KpiBox label="Aligned Projects" value={String(count(rdeDash.by_thrust))} color="#059669" />
+              <KpiBox label="No RDE Thrust Recorded" value={String(rdeDash.unaligned_count)} sub="Needs alignment" color="#dc2626" />
             </div>
             <ChartCard title="Projects by RDE Thrust">
-              <CountBars data={reiDash.by_thrust} labelFor={(k) => k} emptyMessage="No RDE thrust recorded on any project yet." />
+              <CountBars data={rdeDash.by_thrust} labelFor={(k) => k} emptyMessage="No RDE thrust recorded on any project yet." />
             </ChartCard>
           </>
         ))}

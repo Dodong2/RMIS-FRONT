@@ -39,7 +39,7 @@ export interface Lead {
 }
 
 /** System Admin-managed dropdown choices on Register Approved Project. */
-export type AdminChoiceKind = "college-units" | "rei-thrusts" | "cooperating-agencies" | "endorsers" | "funding-types";
+export type AdminChoiceKind = "college-units" | "rde-thrusts" | "cooperating-agencies" | "endorsers" | "funding-types";
 
 export interface AdminChoice {
   id: number;
@@ -63,8 +63,8 @@ export interface Program {
   code: string | null;
   title: string;
   funding_type: FundingType;
-  rei_thrust: string;
-  rei_priority: string;
+  rde_thrust: string;
+  rde_priority: string;
   lead: number;
   lead_detail: Lead;
   status: RecordStatus;
@@ -89,8 +89,8 @@ export interface Project {
   status: RecordStatus;
   start_date: string | null;
   target_end_date: string | null;
-  rei_thrust: string;
-  rei_priority: string;
+  rde_thrust: string;
+  rde_priority: string;
   is_continuing: boolean;
   continuing_year: number | null;
   research_type: ResearchType | "";

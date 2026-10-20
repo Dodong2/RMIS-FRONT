@@ -369,11 +369,11 @@ export default function App() {
         }
       />
       <Route
-        path="/admin/rei-thrusts"
+        path="/admin/rde-thrusts"
         element={
           <ProtectedRoute>
             <RoleGate allow={["system_admin"]}>
-              <AdminChoicesPage kind="rei-thrusts" />
+              <AdminChoicesPage kind="rde-thrusts" />
             </RoleGate>
           </ProtectedRoute>
         }

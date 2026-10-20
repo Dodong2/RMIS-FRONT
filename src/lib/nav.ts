@@ -196,7 +196,7 @@ export const NAV_SECTIONS: NavSection[] = [
         tabs: [
           { label: "Users", to: "/admin/users", icon: "userCog", tiers: ["system_admin"], ready: true },
           { label: "College Units", to: "/admin/college-units", icon: "settings", tiers: ["system_admin"], ready: true },
-          { label: "RDE Thrusts", to: "/admin/rei-thrusts", icon: "settings", tiers: ["system_admin"], ready: true },
+          { label: "RDE Thrusts", to: "/admin/rde-thrusts", icon: "settings", tiers: ["system_admin"], ready: true },
           { label: "Funding Types", to: "/admin/funding-types", icon: "settings", tiers: ["system_admin"], ready: true },
           { label: "LIB Items", to: "/admin/lib-items", icon: "settings", tiers: ["system_admin"], ready: true },
           {

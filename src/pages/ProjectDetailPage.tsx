@@ -451,8 +451,8 @@ function ProjectDetailContent() {
                 <InfoCard label="Cooperating Agencies" value={project.cooperating_agencies} />
                 {program && <InfoCard label="Research Program" value={program.title} />}
                 <InfoCard label="Project Period" value={`${project.start_date ?? "—"} – ${project.target_end_date ?? "—"}`} />
-                <InfoCard label="RDE Thrust" value={project.rei_thrust} />
-                <InfoCard label="RDE Priority Area" value={project.rei_priority} />
+                <InfoCard label="RDE Thrust" value={project.rde_thrust} />
+                <InfoCard label="RDE Priority Area" value={project.rde_priority} />
               </div>
               <div>
                 <SectionHeader>Specific Objectives</SectionHeader>

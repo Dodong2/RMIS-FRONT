@@ -42,7 +42,7 @@ export function RdeAgendaContent() {
 
   const load = () =>
     researchApi
-      .getChoices("rei-thrusts")
+      .getChoices("rde-thrusts")
       .then(setRows)
       .catch(() => {
         setRows([]);
@@ -78,24 +78,24 @@ export function RdeAgendaContent() {
 
   const addThrust = async () => {
     if (!filled(newThrust)) return notify.error("Enter both the code and the thrust.");
-    if (await run(() => researchApi.createChoice("rei-thrusts", { code: newThrust.code.trim(), title: newThrust.title.trim() }), "Thrust added.")) setNewThrust(EMPTY);
+    if (await run(() => researchApi.createChoice("rde-thrusts", { code: newThrust.code.trim(), title: newThrust.title.trim() }), "Thrust added.")) setNewThrust(EMPTY);
   };
 
   const addPriority = async () => {
     if (!newPriority || !filled(newPriority)) return notify.error("Enter both the code and the priority area.");
     const input = { code: newPriority.code.trim(), title: newPriority.title.trim(), parent: newPriority.parent };
-    if (await run(() => researchApi.createChoice("rei-thrusts", input), "Priority area added.")) setNewPriority(null);
+    if (await run(() => researchApi.createChoice("rde-thrusts", input), "Priority area added.")) setNewPriority(null);
   };
 
   const saveEdit = async (row: AdminChoice) => {
     if (!editing || !filled(editing)) return notify.error("Enter both the code and the title.");
     const input = { code: editing.code.trim(), title: editing.title.trim(), parent: row.parent ?? null };
-    if (await run(() => researchApi.updateChoice("rei-thrusts", row.id, input), "Saved.")) setEditing(null);
+    if (await run(() => researchApi.updateChoice("rde-thrusts", row.id, input), "Saved.")) setEditing(null);
   };
 
   const remove = (row: AdminChoice) => {
     if (!window.confirm(`Delete "${rdeLabel(row)}"? Projects already registered with it keep the name.`)) return;
-    run(() => researchApi.deleteChoice("rei-thrusts", row.id), "Deleted.");
+    run(() => researchApi.deleteChoice("rde-thrusts", row.id), "Deleted.");
   };
 
   const toggle = (id: number) => setOpen((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
