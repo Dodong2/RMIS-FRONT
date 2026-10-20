@@ -3,6 +3,18 @@ export type BudgetStatus = "draft" | "endorsed" | "returned" | "certified";
 
 export type LibAllocation = { period: string; amount: string };
 
+/** System Admin > LIB Items (client 2026-10-20): the items a line item picks from, under a fixed PS/MOOE/CO class. */
+export interface LibItem {
+  id: number;
+  category: LineItemCategory;
+  name: string;
+  uacs_code: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type LibItemInput = Pick<LibItem, "category" | "name" | "uacs_code" | "is_active">;
+
 export interface LineItem {
   id: number;
   budget: number;

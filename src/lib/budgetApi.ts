@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { LibAllocation, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
+import type { LibAllocation, LibItem, LibItemInput, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 
 export const budgetApi = {
   getBudgets: async (project?: number): Promise<LineItemBudget[]> => {
@@ -65,5 +65,20 @@ export const budgetApi = {
   },
   deleteLineItem: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/budget/line-items/${id}/`);
+  },
+  getLibItems: async (): Promise<LibItem[]> => {
+    const { data } = await apiClient.get("/api/budget/lib-items/");
+    return data;
+  },
+  createLibItem: async (payload: LibItemInput): Promise<LibItem> => {
+    const { data } = await apiClient.post("/api/budget/lib-items/", payload);
+    return data;
+  },
+  updateLibItem: async (id: number, payload: Partial<LibItemInput>): Promise<LibItem> => {
+    const { data } = await apiClient.patch(`/api/budget/lib-items/${id}/`, payload);
+    return data;
+  },
+  deleteLibItem: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/budget/lib-items/${id}/`);
   },
 };

@@ -19,6 +19,7 @@ import { needsTeamConfirm, teamMissing, type TeamRow } from "../lib/teamRows";
 import { ProtoModal } from "../components/common/proto";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
+import { LibItemSelect } from "../components/common/LibItemSelect";
 import { RdeAgendaPicker } from "../components/registration/RdeAgendaPicker";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { LibAllocationGrid } from "../components/registration/LibAllocationGrid";
@@ -1550,7 +1551,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                         ) : (
                           <div className="p-2 space-y-2">
                             <div className="hidden md:flex gap-2 px-1 text-xs font-semibold" style={{ color: "#64748b" }}>
-                              <span className="flex-1">Description</span>
+                              <span className="flex-1">Item</span>
                               <span className="w-28">Unit</span>
                               <span className="w-24">Qty</span>
                               <span className="w-36">Unit Cost (₱)</span>
@@ -1559,7 +1560,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                             </div>
                             {rows.map(({ r, i }) => (
                               <div key={i} className="flex flex-wrap gap-2 items-start">
-                                <input className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(e) => updateLib(i, { description: e.target.value })} placeholder="Description, e.g. Travel Expenses" />
+                                <LibItemSelect ariaLabel="Item" category={r.category} className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(description) => updateLib(i, { description })} />
                                 <select className={inputCls + " md:w-28"} style={inputSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
                                   {LIB_UNITS.map(([code, label]) => (
                                     <option key={code} value={code}>{label}</option>

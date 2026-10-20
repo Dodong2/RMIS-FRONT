@@ -10,6 +10,7 @@ import UsersListPage from "./pages/admin/UsersListPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import AdminChoicesPage from "./pages/admin/AdminChoicesPage";
+import LibItemsPage from "./pages/admin/LibItemsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import RegisterProjectPage, { EditProjectPage } from "./pages/RegisterProjectPage";
@@ -373,6 +374,16 @@ export default function App() {
           <ProtectedRoute>
             <RoleGate allow={["system_admin"]}>
               <AdminChoicesPage kind="rei-thrusts" />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/lib-items"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={["system_admin"]}>
+              <LibItemsPage />
             </RoleGate>
           </ProtectedRoute>
         }

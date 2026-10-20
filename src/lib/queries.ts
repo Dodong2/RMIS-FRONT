@@ -10,6 +10,7 @@ import { researchApi } from "./researchApi";
 export const queryKeys = {
   projects: ["projects"] as const,
   budgets: (project?: number) => (project ? (["budgets", project] as const) : (["budgets"] as const)),
+  libItems: ["lib-items"] as const,
   roles: ["roles"] as const,
   users: ["users"] as const,
   milestones: ["milestones"] as const,
@@ -52,6 +53,8 @@ export const procurementRequestsQuery = () =>
 
 export const budgetsQuery = (project?: number) =>
   queryOptions({ queryKey: queryKeys.budgets(project), queryFn: () => budgetApi.getBudgets(project) });
+
+export const libItemsQuery = queryOptions({ queryKey: queryKeys.libItems, queryFn: budgetApi.getLibItems, staleTime: 5 * 60_000 });
 
 export const rolesQuery = queryOptions({ queryKey: queryKeys.roles, queryFn: authApi.getRoles });
 

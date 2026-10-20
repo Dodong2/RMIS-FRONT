@@ -18,6 +18,7 @@ import { MoneyInput } from "../components/common/MoneyInput";
 import { Field, SkeletonRows } from "../components/common/proto";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
+import { LibItemSelect } from "../components/common/LibItemSelect";
 
 const DISBURSEMENT_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["project_leader"];
@@ -332,7 +333,7 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
               <Field label="From Line Item" required>
                 <select className={INPUT_CLS} style={bad(!row.from_line_item)} value={row.from_line_item} onChange={(e) => {
                     const src = budget.line_items.find((i) => String(i.id) === e.target.value);
-                    setRow(idx, { from_line_item: e.target.value, to_line_item: "", new_item_category: src?.category ?? "" });
+                    setRow(idx, { from_line_item: e.target.value, to_line_item: "", new_item_category: src?.category ?? "", new_item_description: "" });
                   }}>
                   <option value="">Select source item</option>
                   {budget.line_items.map((i) => (
@@ -363,8 +364,8 @@ export function RealignModal({ budget, onClose, onSaved }: { budget: LineItemBud
                 <Field label="New Item Category">
                   <input readOnly tabIndex={-1} className={INPUT_CLS} style={{ ...INPUT_STYLE, background: "#f1f5f9" }} value={from ? CATEGORY_META[from.category].full : "Same as the source item"} />
                 </Field>
-                <Field label="New Item Description" required>
-                  <input className={INPUT_CLS} style={bad(!row.new_item_description.trim())} value={row.new_item_description} onChange={(e) => setRow(idx, { new_item_description: e.target.value })} />
+                <Field label="New Item" required>
+                  <LibItemSelect ariaLabel="New Item" category={from?.category ?? ""} className={INPUT_CLS} style={bad(!row.new_item_description.trim())} value={row.new_item_description} onChange={(new_item_description) => setRow(idx, { new_item_description })} />
                 </Field>
               </div>
             )}

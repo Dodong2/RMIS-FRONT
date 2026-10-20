@@ -22,6 +22,7 @@ import { Field, Pager, ProtoModal, SkeletonRows } from "../components/common/pro
 import { pageOf } from "../lib/paging";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
+import { LibItemSelect } from "../components/common/LibItemSelect";
 
 // Client 2026-10-11: finance_budget and system_admin only certify/approve; they don't prepare LIBs or edit line items.
 const MANAGE_ROLE_CODES = ["procurement_officer_lib", "program_leader", "project_leader"];
@@ -382,7 +383,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
 
   const checks = [
     { label: "At least one line item with an amount", ok: count > 0 },
-    { label: "Every item has a description", ok: CATEGORIES.every((c) => items[c].every((i) => lineTotal(i) === 0 || i.description.trim())) },
+    { label: "Every item is picked from LIB Items", ok: CATEGORIES.every((c) => items[c].every((i) => lineTotal(i) === 0 || i.description.trim())) },
     periods
       ? { label: "Every split adds up to its item's total (or is left blank)", ok: CATEGORIES.every((c) => filled(c).every((i) => !isSplit(i) || allocated(i) === lineTotal(i))) }
       : { label: "Every item has a fiscal year", ok: CATEGORIES.every((c) => filled(c).every((i) => i.fiscalYear)) },
@@ -450,8 +451,8 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                 Remove
               </button>
             </div>
-            <Field label="Description / Particulars">
-              <input className={INPUT_CLS} style={INPUT_STYLE} value={it.description} onChange={(e) => update(cat, idx, { description: e.target.value })} placeholder="Describe the line item…" />
+            <Field label="Item">
+              <LibItemSelect ariaLabel="Item" category={cat} className={INPUT_CLS} style={INPUT_STYLE} value={it.description} onChange={(description) => update(cat, idx, { description })} />
             </Field>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Field label="Unit">
@@ -1262,14 +1263,13 @@ function LIBDetail({
                               <tr className="border-t" style={{ borderColor: "#f1f5f9", background: "#fafbfc" }}>
                                 <td className="px-3 py-2 text-xs" style={{ color: "#94a3b8" }}>New</td>
                                 <td className="px-3 py-2">
-                                  <input
+                                  <LibItemSelect
+                                    category={cat}
                                     className={cellInput}
                                     style={invalidStyle(tried && !row.description.trim())}
                                     value={row.description}
-                                    onChange={(e) => setRow(cat, { description: e.target.value })}
-                                    onKeyDown={(e) => e.key === "Enter" && addItem(cat)}
-                                    placeholder="Item description"
-                                    aria-label={`New ${cm.label} item description`}
+                                    onChange={(description) => setRow(cat, { description })}
+                                    ariaLabel={`New ${cm.label} item`}
                                   />
                                 </td>
                                 <td className="px-3 py-2 w-28">
