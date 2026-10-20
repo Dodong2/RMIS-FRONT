@@ -822,6 +822,7 @@ type BoardView = "kanban" | "list" | "workload" | "personnel";
 function ProjectTaskBoard({
   project,
   canAssign,
+  isStaff,
   userId,
   now,
   onBack,
@@ -829,6 +830,7 @@ function ProjectTaskBoard({
 }: {
   project: Project;
   canAssign: boolean;
+  isStaff: boolean;
   userId: number | undefined;
   now: number;
   onBack: () => void;
@@ -887,7 +889,7 @@ function ProjectTaskBoard({
     { key: "kanban", label: "Task Board" },
     { key: "list", label: "Task List" },
     ...(canAssign ? [{ key: "workload" as BoardView, label: "Workload" }] : []),
-    { key: "personnel", label: "Personnel" },
+    ...(isStaff ? [] : [{ key: "personnel" as BoardView, label: "Personnel" }]),
   ];
 
   return (
@@ -1433,6 +1435,7 @@ function TasksContent() {
       <ProjectTaskBoard
         project={selected}
         canAssign={canAssign}
+        isStaff={user?.role?.code === "project_staff"}
         userId={user?.pk}
         now={now}
         onBack={() => setParams({})}
