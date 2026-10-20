@@ -1,3 +1,5 @@
+import type { LineItemBudget } from "./budget";
+
 export interface ProjectDashboard {
   total_projects: number;
   by_status: Record<string, number>;
@@ -10,7 +12,14 @@ export interface BudgetDashboard {
   total_approved: number;
   total_actual: number;
   utilization_pct: number | null;
+  /** Current LIB per project in the user's scope (client 2026-10-20: the Dashboard's own rows, not /budgets/). */
+  budgets: DashboardBudgetRow[];
 }
+
+export type DashboardBudgetRow = Pick<
+  LineItemBudget,
+  "id" | "project" | "version_number" | "is_current" | "status" | "total_amount" | "exceeds_dry_cap"
+>;
 
 export interface ComplianceDashboard {
   ethics_reviews_by_status: Record<string, number>;

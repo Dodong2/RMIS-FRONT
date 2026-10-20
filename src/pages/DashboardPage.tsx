@@ -10,7 +10,7 @@ import { dashboardApi } from "../lib/dashboardApi";
 import { exportPdf, exportXlsx, type ExportSection } from "../lib/exportFiles";
 import { monitoringApi } from "../lib/monitoringApi";
 import { notify } from "../lib/notify";
-import { useBudgets, useProjects } from "../lib/queries";
+import { useProjects } from "../lib/queries";
 import { personnelApi } from "../lib/personnelApi";
 import { riskApi } from "../lib/riskApi";
 import { visibleTargets } from "../lib/nav";
@@ -19,13 +19,13 @@ import { resolveTier, type RoleTier, initialsFrom, personName } from "../lib/rol
 import type {
   BudgetDashboard,
   ComplianceDashboard,
+  DashboardBudgetRow,
   ForecastingDashboard,
   FundingAllocationDashboard,
   OutputDashboard,
   ProjectDashboard,
   TaskDashboardRow,
 } from "../types/dashboard";
-import type { LineItemBudget } from "../types/budget";
 import type { ProjectMonitoringStatus } from "../types/monitoring";
 import type { WorkloadRow } from "../types/personnel";
 import type { Project, RecordStatus } from "../types/research";
@@ -92,7 +92,7 @@ interface DashData {
   fundingDash?: FundingAllocationDashboard | null;
   taskDash?: TaskDashboardRow[] | null;
   projects?: Project[] | null;
-  budgets?: LineItemBudget[] | null;
+  budgets?: DashboardBudgetRow[] | null;
   workload?: WorkloadRow[] | null;
 }
 
@@ -1109,11 +1109,11 @@ function DashboardContent() {
 
   const [rawData, setData] = useState<DashData>({});
   const projectsQ = useProjects({ enabled: hasRole });
-  const budgetsQ = useBudgets(undefined, { enabled: hasRole });
   const data: DashData = {
     ...rawData,
     projects: projectsQ.isError ? null : projectsQ.data,
-    budgets: budgetsQ.isError ? null : budgetsQ.data,
+    // From /dashboard/budget/ so Project Staff get their projects' rows while the Budget page stays closed (Q12).
+    budgets: rawData.budgetDash === undefined ? undefined : (rawData.budgetDash?.budgets ?? null),
   };
   const [domainTab, setDomainTab] = useState<DomainTab>("projects");
   const [scope, setScope] = useState<Scope>({ level: "institution", campus: null, projectId: null });
