@@ -63,6 +63,7 @@ const uniq = (values: string[]) => [...new Set(values.filter(Boolean))].sort();
 export function QuarterlyReports() {
   const { user } = useAuth();
   const code = user?.role?.code ?? "";
+  const isStaff = code === "project_staff";
   const [reports, setReports] = useState<QuarterlyReport[] | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
@@ -111,7 +112,9 @@ export function QuarterlyReports() {
     ["college", "All Colleges", uniq(all.map((r) => r.project_info.college)).map((c) => [c, collegeName(c)])],
     ["year", "All Years", uniq(all.map((r) => String(r.year))).reverse().map((y) => [y, y])],
     ["quarter", "All Quarters", [1, 2, 3, 4].map((q) => [String(q), `Q${q}`])],
-    ["agency", "All Funding Agencies", uniq(all.flatMap((r) => r.project_info.funding_agency.split(", "))).map((a) => [a, a])],
+    ...(isStaff
+      ? []
+      : [["agency", "All Funding Agencies", uniq(all.flatMap((r) => r.project_info.funding_agency.split(", "))).map((a) => [a, a])] as (typeof filterDefs)[number]]),
     ["leader", "All Project Leaders", uniq(all.map((r) => r.project_info.leader)).map((l) => [l, l])],
     ["status", "All Status", [...Object.entries(STATUS_META).map(([k, m]) => [k, m.label] as [string, string]), ["overdue", "Overdue"]]],
   ];
@@ -181,7 +184,7 @@ export function QuarterlyReports() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 rounded-2xl p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+      <div className={`grid grid-cols-1 gap-3 rounded-2xl p-4 sm:grid-cols-2 lg:grid-cols-4 ${isStaff ? "xl:grid-cols-6" : "xl:grid-cols-7"}`} style={{ background: "white", border: "1px solid #e2e8f0" }}>
         {filterDefs.map(([key, all_, options]) => (
           <label key={key} className="flex flex-col gap-1 text-[10px] font-black uppercase tracking-wide" style={{ color: "#475569" }}>
             {filterLabels[key]}

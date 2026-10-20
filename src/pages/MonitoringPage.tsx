@@ -533,7 +533,17 @@ const PAGE_TABS = [
 ] as const;
 
 export default function MonitoringPage() {
+  const { user } = useAuth();
   const [page, setPage] = useState<(typeof PAGE_TABS)[number][0]>("monitoring");
+  if (user?.role?.code === "project_staff") {
+    return (
+      <ProtectedRoute>
+        <AppShell title="Monitoring & Evaluation">
+          <QuarterlyReports />
+        </AppShell>
+      </ProtectedRoute>
+    );
+  }
   return (
     <ProtectedRoute>
       <AppShell title="Monitoring & Evaluation">
