@@ -102,7 +102,7 @@ export function GenerateReportModal({ def, initial, projects, onGenerated, onClo
       case "status":
         return select(k, Object.entries(STATUS_LABELS), "All statuses");
       case "rei_thrust":
-        return select(k, thrusts.map((t) => [t, t]), "All REI thrusts");
+        return select(k, thrusts.map((t) => [t, t]), "All RDE thrusts");
       case "year":
         return <input type="number" min={2000} max={2100} value={params.year ?? ""} onChange={(e) => set("year", e.target.value)} placeholder="All years" className={INPUT_CLS} style={INPUT_STYLE} />;
     }

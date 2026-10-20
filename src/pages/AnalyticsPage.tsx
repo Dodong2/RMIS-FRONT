@@ -81,7 +81,7 @@ const TABS = [
   ["forecast", "Budget Forecast"],
   ["decision", "Decision Support"],
   ["compliance", "Compliance"],
-  ["rei", "REI Thrust"],
+  ["rei", "RDE Thrust"],
   ["planning", "Planning Targets"],
   ["exports", "Data Exports"],
 ] as const;
@@ -413,12 +413,12 @@ function AnalyticsContent() {
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiBox label="REI Thrusts Covered" value={String(Object.keys(reiDash.by_thrust).length)} color="#0d2a5e" />
+              <KpiBox label="RDE Thrusts Covered" value={String(Object.keys(reiDash.by_thrust).length)} color="#0d2a5e" />
               <KpiBox label="Aligned Projects" value={String(count(reiDash.by_thrust))} color="#059669" />
-              <KpiBox label="No REI Thrust Recorded" value={String(reiDash.unaligned_count)} sub="Needs alignment" color="#dc2626" />
+              <KpiBox label="No RDE Thrust Recorded" value={String(reiDash.unaligned_count)} sub="Needs alignment" color="#dc2626" />
             </div>
-            <ChartCard title="Projects by REI Thrust">
-              <CountBars data={reiDash.by_thrust} labelFor={(k) => k} emptyMessage="No REI thrust recorded on any project yet." />
+            <ChartCard title="Projects by RDE Thrust">
+              <CountBars data={reiDash.by_thrust} labelFor={(k) => k} emptyMessage="No RDE thrust recorded on any project yet." />
             </ChartCard>
           </>
         ))}

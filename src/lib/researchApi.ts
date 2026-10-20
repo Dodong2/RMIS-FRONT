@@ -29,6 +29,7 @@ export const researchApi = {
     title: string;
     funding_type: string;
     rei_thrust?: string;
+    rei_priority?: string;
     lead: number;
     start_date?: string;
   }): Promise<Program> => {
@@ -56,6 +57,7 @@ export const researchApi = {
     start_date?: string;
     target_end_date?: string;
     rei_thrust?: string;
+    rei_priority?: string;
     sdgs: number[];
     sectors: string[];
     sector_other?: string;

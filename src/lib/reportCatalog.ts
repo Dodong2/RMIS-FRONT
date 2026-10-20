@@ -22,7 +22,7 @@ const CLIENT_FORMATS: CatalogFormat[] = ["pdf", "xlsx"];
 const SCOPE: ReportParam[] = ["campus", "funding_type"];
 
 export const REPORT_DEFINITIONS: ReportDefinition[] = [
-  { id: "project_list", name: "Project Status Summary Report", domain: "project", icon: "📁", source: "server", formats: SERVER_FORMATS, params: ["campus", "funding_type", "status", "rei_thrust", "year"], required: [], description: "Filtered list of programs/projects by campus, funding type, status, REI thrust and start year." },
+  { id: "project_list", name: "Project Status Summary Report", domain: "project", icon: "📁", source: "server", formats: SERVER_FORMATS, params: ["campus", "funding_type", "status", "rei_thrust", "year"], required: [], description: "Filtered list of programs/projects by campus, funding type, status, RDE thrust and start year." },
   { id: "appendix_e", name: "Appendix E — Midterm Progress Report", domain: "monitoring", icon: "📋", source: "server", formats: SERVER_FORMATS, params: ["project"], required: ["project"], description: "LSPU-RDO-SF-017 form per project year: % accomplishment per objective (Q1–Q4) and the 6Ps matrix. Same layout in every format." },
   { id: "appendix_f", name: "Appendix F — Terminal Report", domain: "monitoring", icon: "📘", source: "server", formats: SERVER_FORMATS, params: ["project"], required: ["project"], description: "SF-16 terminal narrative report outline, filled from the project's registration and terminal report. Available once a terminal report is submitted." },
   { id: "evaluation_summary", name: "Evaluation Summary Report", domain: "monitoring", icon: "⚖️", source: "client", formats: CLIENT_FORMATS, params: ["project"], required: [], description: "Scheduled and completed panel evaluations with outcome and rubric-weighted score." },
@@ -57,7 +57,7 @@ export const PARAM_LABELS: Record<ReportParam, string> = {
   campus: "Campus",
   funding_type: "Funding Type",
   status: "Project Status",
-  rei_thrust: "REI Thrust",
+  rei_thrust: "RDE Thrust",
   year: "Year",
 };
 

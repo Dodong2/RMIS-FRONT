@@ -43,10 +43,12 @@ export type AdminChoiceKind = "college-units" | "rei-thrusts" | "cooperating-age
 
 export interface AdminChoice {
   id: number;
-  /** College Units and REI Thrusts only; `name` is built from them. Blank on entries made before the split. */
+  /** College Units and RDE Thrusts only; `name` is built from them. Blank on entries made before the split. */
   code?: string;
   title?: string;
   name: string;
+  /** RDE Thrusts only: the thrust a priority area sits under; null for a thrust (client 2026-10-20). */
+  parent?: number | null;
   /** Endorsers only. */
   designation?: string;
   /** Funding Types only: the three Manual types can be renamed but not deleted. */
@@ -54,7 +56,7 @@ export interface AdminChoice {
   created_at: string;
 }
 
-export type AdminChoiceInput = { name: string; designation?: string } | { code: string; title: string };
+export type AdminChoiceInput = { name: string; designation?: string } | { code: string; title: string; parent?: number | null };
 
 export interface Program {
   id: number;
@@ -62,6 +64,7 @@ export interface Program {
   title: string;
   funding_type: FundingType;
   rei_thrust: string;
+  rei_priority: string;
   lead: number;
   lead_detail: Lead;
   status: RecordStatus;
@@ -87,6 +90,7 @@ export interface Project {
   start_date: string | null;
   target_end_date: string | null;
   rei_thrust: string;
+  rei_priority: string;
   is_continuing: boolean;
   continuing_year: number | null;
   research_type: ResearchType | "";

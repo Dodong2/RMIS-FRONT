@@ -19,6 +19,7 @@ import { needsTeamConfirm, teamMissing, type TeamRow } from "../lib/teamRows";
 import { ProtoModal } from "../components/common/proto";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
+import { RdeAgendaPicker } from "../components/registration/RdeAgendaPicker";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { LibAllocationGrid } from "../components/registration/LibAllocationGrid";
 import { useAuth } from "../context/AuthContext";
@@ -112,7 +113,7 @@ function Field({ label, required, invalid, children, span }: { label: string; re
   );
 }
 
-/** Dropdown of System Admin-managed choices (Admin > College Units / REI Thrusts). */
+/** Dropdown of System Admin-managed choices (Admin > College Units). */
 function ChoiceSelect({ choices, value, onChange, placeholder }: { choices: AdminChoice[]; value: string; onChange: (e: { target: { value: string } }) => void; placeholder: string }) {
   return (
     <select className={inputCls} style={inputSt} value={value} onChange={onChange}>
@@ -432,6 +433,7 @@ const blankForm = (lead: string) => ({
   start_date: "",
   target_end_date: "",
   rei_thrust: "",
+  rei_priority: "",
   sdgs: [] as string[],
   sectors: [] as string[],
   sector_other: "",
@@ -623,7 +625,11 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const libSplitsMatch = isEdit || !libPeriods || filledLib.every((r) => allocatedTotal(r.allocations, libPeriods) === libRowTotal(r));
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
-      0: form.project_code.trim() ? [] : ["Project Code"],
+      0: [
+        ...(form.project_code.trim() ? [] : ["Project Code"]),
+        ...(form.rei_thrust ? [] : ["RDE Thrust"]),
+        ...(form.rei_priority ? [] : ["RDE Priority Area"]),
+      ],
       1: [...teamMissing(form.lead, team), ...(form.campus ? [] : ["Campus"])],
       2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
       3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
@@ -640,6 +646,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
     { label: "Project title entered", done: !!form.title.trim(), required: true, step: 0 },
     { label: "Project code (LSPU Faculty Research Number) entered", done: !!form.project_code.trim(), required: true, step: 0 },
     { label: "Funding type selected", done: !!form.funding_type, required: true, step: 0 },
+    { label: "2024–2028 LSPU RDE Agenda thrust & priority selected", done: !!form.rei_thrust && !!form.rei_priority, required: true, step: 0 },
     ...(isContinuing ? [{ label: "Continuing year (2 or later) entered", done: Number(form.continuing_year) >= 2, required: true, step: 0 }] : []),
     { label: "Start and end dates provided", done: !!form.start_date && !!form.target_end_date, step: 0 },
     { label: "Project Leader identified", done: !!form.lead, required: true, step: 1 },
@@ -764,6 +771,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         start_date: date(form.start_date),
         target_end_date: date(form.target_end_date),
         rei_thrust: form.rei_thrust,
+        rei_priority: form.rei_priority,
         sdgs: form.sdgs.map(Number),
         sectors: form.sectors as Project["sectors"],
         sector_other: form.sectors.includes("others") ? form.sector_other.trim() : "",
@@ -877,6 +885,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         start_date: opt(form.start_date),
         target_end_date: opt(form.target_end_date),
         rei_thrust: opt(form.rei_thrust),
+        rei_priority: opt(form.rei_priority),
         sdgs: form.sdgs.map(Number),
         sectors: form.sectors,
         sector_other: form.sectors.includes("others") ? form.sector_other : undefined,
@@ -1168,9 +1177,13 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                         <MoneyInput className={inputCls} style={inputSt} value={form.total_cost} onChange={(v) => setForm((p) => ({ ...p, total_cost: v }))} />
                       )}
                     </Field>
-                    <Field label="REI Thrust">
-                      <ChoiceSelect choices={choices["rei-thrusts"]} value={form.rei_thrust} onChange={set("rei_thrust")} placeholder="Select an REI thrust" />
-                    </Field>
+                    <RdeAgendaPicker
+                      choices={choices["rei-thrusts"]}
+                      thrust={form.rei_thrust}
+                      priority={form.rei_priority}
+                      onChange={(rei_thrust, rei_priority) => setForm((p) => ({ ...p, rei_thrust, rei_priority }))}
+                      showErrors={showErrors}
+                    />
                   </div>
                 </div>
               )}
@@ -1835,6 +1848,7 @@ async function loadEditSource(projectId: number): Promise<EditSource> {
       start_date: p.start_date ?? "",
       target_end_date: p.target_end_date ?? "",
       rei_thrust: p.rei_thrust,
+      rei_priority: p.rei_priority,
       sdgs: p.sdgs.map(String),
       sectors: p.sectors,
       sector_other: p.sector_other,

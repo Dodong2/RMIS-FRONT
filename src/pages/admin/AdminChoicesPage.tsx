@@ -7,6 +7,7 @@ import { ProtectedRoute } from "../../components/ProtectedRoute";
 import { AppShell } from "../../components/layout/AppShell";
 import { SectionCard, SkeletonRows } from "../../components/common/proto";
 import { resetFundingTypes } from "../../lib/fundingTypes";
+import { RdeAgendaContent } from "./RdeAgendaAdmin";
 
 const inputCls = "w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[#0891b2]";
 const inputSt = { borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" };
@@ -25,11 +26,11 @@ const CONFIGS: Record<AdminChoiceKind, ChoiceConfig> = {
   },
   "rei-thrusts": {
     kind: "rei-thrusts",
-    title: "REI Thrusts",
-    field: "REI Thrust",
+    title: "RDE Thrusts",
+    field: "RDE Thrust",
     placeholder: "",
-    noun: "REI thrust",
-    coded: { codeLabel: "Code", codePlaceholder: "e.g. REI-01", titleLabel: "REI Thrust", titlePlaceholder: "e.g. Agriculture, Fisheries, and Food Security" },
+    noun: "RDE thrust",
+    coded: { codeLabel: "Code", codePlaceholder: "e.g. 9", titleLabel: "RDE Thrust", titlePlaceholder: "e.g. Computing and Emerging Technologies" },
   },
   "cooperating-agencies": { kind: "cooperating-agencies", title: "Cooperating Agencies", field: "Cooperating Agency/ies", placeholder: "e.g. DOST-PCAARRD", noun: "agency" },
   endorsers: {
@@ -240,7 +241,7 @@ export default function AdminChoicesPage({ kind }: { kind: AdminChoiceKind }) {
   return (
     <ProtectedRoute>
       <AppShell title={CONFIGS[kind].title}>
-        <ChoicesContent key={kind} config={CONFIGS[kind]} />
+        {kind === "rei-thrusts" ? <RdeAgendaContent /> : <ChoicesContent key={kind} config={CONFIGS[kind]} />}
       </AppShell>
     </ProtectedRoute>
   );
