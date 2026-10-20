@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { NoActualData } from "../components/common/NoActualData";
+import { StaffDashboard } from "../components/dashboard/StaffDashboard";
 import { useAuth } from "../context/AuthContext";
 import { authApi } from "../lib/authApi";
 import { dashboardApi } from "../lib/dashboardApi";
@@ -1317,11 +1318,17 @@ function DashboardContent() {
   );
 }
 
+function DashboardSwitch() {
+  const { user } = useAuth();
+  // Client 2026-10-20: Project Staff get a dashboard of their own assigned tasks.
+  return user?.role?.code === "project_staff" ? <StaffDashboard /> : <DashboardContent />;
+}
+
 export default function DashboardPage() {
   return (
     <ProtectedRoute>
       <AppShell title="Dashboard">
-        <DashboardContent />
+        <DashboardSwitch />
       </AppShell>
     </ProtectedRoute>
   );
