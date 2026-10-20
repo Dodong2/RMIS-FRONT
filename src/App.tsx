@@ -35,7 +35,7 @@ import ProcurementPage from "./pages/ProcurementPage";
 import BudgetSyncPage from "./pages/BudgetSyncPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
-import { REGISTRATION_ROLE_CODES } from "./lib/roles";
+import { PROJECT_PAGE_ROLE_CODES, REGISTRATION_ROLE_CODES } from "./lib/roles";
 
 export default function App() {
   return (
@@ -46,7 +46,16 @@ export default function App() {
       <Route path="/register/choose-role" element={<GoogleChooseRolePage />} />
       <Route path="/registration-pending" element={<RegistrationPendingPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
-      <Route path="/projects" element={<ProjectsPage />} />
+      <Route
+        path="/projects"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={PROJECT_PAGE_ROLE_CODES} fallback={<Navigate to="/dashboard" replace />}>
+              <ProjectsPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/projects/new"
         element={
@@ -57,7 +66,16 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/projects/:id" element={<ProjectDetailPage />} />
+      <Route
+        path="/projects/:id"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={PROJECT_PAGE_ROLE_CODES} fallback={<Navigate to="/dashboard" replace />}>
+              <ProjectDetailPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/projects/:id/edit"
         element={

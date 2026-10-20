@@ -84,7 +84,7 @@ export const NAV_SECTIONS: NavSection[] = [
     heading: "Core",
     items: [
       { label: "Dashboard", to: "/dashboard", icon: "grid", tiers: "all", ready: true },
-      { label: "Project Management", to: "/projects", icon: "folder", tiers: ALL_RESEARCH, ready: true },
+      { label: "Project Management", to: "/projects", icon: "folder", tiers: ALL_RESEARCH_BUT_STAFF, ready: true },
       {
         label: "Work Plan",
         to: "/work-plan",
