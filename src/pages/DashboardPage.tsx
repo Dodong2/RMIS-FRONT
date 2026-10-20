@@ -179,7 +179,7 @@ function Loading() {
 function InstitutionWideNote() {
   return (
     <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "#f8fafc", color: "#94a3b8", border: "1px solid #e2e8f0" }}>
-      Institution-wide figures. This dashboard has no campus/project filter yet.
+      Figures for every project you can see. This tab has no campus/project filter yet.
     </p>
   );
 }
@@ -717,9 +717,19 @@ function PersonnelPanel({ data, canSeeWorkload, ids }: { data: DashData; canSeeW
   );
 }
 
-function ScopeBar({ scope, projects, onChange }: { scope: Scope; projects: Project[]; onChange: (s: Scope) => void }) {
+function ScopeBar({
+  scope,
+  projects,
+  rootLabel,
+  onChange,
+}: {
+  scope: Scope;
+  projects: Project[];
+  rootLabel: string;
+  onChange: (s: Scope) => void;
+}) {
   const crumbs: { label: string; target: Scope }[] = [
-    { label: "Institution", target: { level: "institution", campus: null, projectId: null } },
+    { label: rootLabel, target: { level: "institution", campus: null, projectId: null } },
   ];
   if (scope.campus !== null)
     crumbs.push({ label: scope.campus || "Unspecified", target: { level: "campus", campus: scope.campus, projectId: null } });
@@ -759,11 +769,13 @@ function DrillPanel({
   scope,
   data,
   scoped,
+  rootLabel,
   onChange,
 }: {
   scope: Scope;
   data: DashData;
   scoped: Project[];
+  rootLabel: string;
   onChange: (s: Scope) => void;
 }) {
   const fundingTypes = useFundingTypes();
@@ -777,7 +789,7 @@ function DrillPanel({
     const campuses = [...new Set(projects.map((p) => p.campus))].sort();
     return (
       <div className="space-y-2">
-        <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Institution → Campus</p>
+        <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>{rootLabel} → Campus</p>
         {campuses.map((campus) => {
           const projs = projects.filter((p) => p.campus === campus);
           const active = projs.filter((p) => p.status === "active").length;
@@ -1092,6 +1104,8 @@ function DashboardContent() {
   const canSeeWorkload = !!user?.role && TASK_ASSIGNER_CODES.includes(user.role.code);
   const navTargets = visibleTargets(tier, user?.role?.code);
   const canOpen = (to: string) => navTargets.includes(to);
+  // Client 2026-10-20: only university-wide roles see every project; everyone else's figures are their own projects.
+  const rootLabel = isWide ? "Institution" : "My Projects";
 
   const [rawData, setData] = useState<DashData>({});
   const projectsQ = useProjects({ enabled: hasRole });
@@ -1164,7 +1178,9 @@ function DashboardContent() {
       ? scoped[0]?.project_code ?? "Project"
       : scope.level === "campus"
         ? scope.campus || "Unspecified campus"
-        : "LSPU (Institutional)";
+        : isWide
+          ? "LSPU (Institutional)"
+          : "My Projects";
 
   if (!hasRole) {
     return (
@@ -1239,7 +1255,7 @@ function DashboardContent() {
       )}
 
       <div className="flex items-center justify-between gap-3 flex-wrap py-3 px-5 rounded-2xl" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-        <ScopeBar scope={scope} projects={data.projects ?? []} onChange={changeScope} />
+        <ScopeBar scope={scope} projects={data.projects ?? []} rootLabel={rootLabel} onChange={changeScope} />
         <button
           onClick={() => setShowReport(true)}
           disabled={data.projects === undefined}
@@ -1255,7 +1271,7 @@ function DashboardContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="rounded-2xl p-4 overflow-y-auto" style={{ background: "white", border: "1px solid #e2e8f0", maxHeight: "640px" }}>
-          <DrillPanel scope={scope} data={data} scoped={scoped} onChange={changeScope} />
+          <DrillPanel scope={scope} data={data} scoped={scoped} rootLabel={rootLabel} onChange={changeScope} />
         </div>
 
         <div className="lg:col-span-2 rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
