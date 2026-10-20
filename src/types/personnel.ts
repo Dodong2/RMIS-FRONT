@@ -42,7 +42,7 @@ export interface Task {
   /** Planned hours: Mon-Fri working days from start_date to due_date x 8, set by the server */
   estimated_hours: string | null;
   logged_hours: string;
-  /** Assignee's Work Log hours / planned hours, capped at 100 (100 when done, 0 without planned hours) */
+  /** Assignee's Work Log hours / planned hours, one decimal, capped at 100 (100 when done, 0 without planned hours) */
   progress_pct: number;
   milestone: number | null;
   tags: string[];

@@ -79,7 +79,7 @@ function StatusBadge({ s }: { s: TaskStatus }) {
 }
 
 function HoursBar({ estimated, logged }: { estimated: number; logged: number }) {
-  const pct = estimated > 0 ? Math.min(100, Math.round((logged / estimated) * 100)) : 0;
+  const pct = estimated > 0 ? Math.min(100, (logged / estimated) * 100) : 0;
   const over = estimated > 0 && logged > estimated;
   return (
     <div className="flex-1">
@@ -464,6 +464,11 @@ function TaskDetailModal({
                   {kind === "update" && (
                     <p className="text-xs" style={{ color: "#94a3b8" }}>
                       % completed is computed from your logged hours · now <strong style={{ color: "#0d2a5e" }}>{task.progress_pct}%</strong>
+                    </p>
+                  )}
+                  {kind === "update" && task.status !== "done" && !num(task.estimated_hours) && (
+                    <p className="text-xs font-semibold" style={{ color: "#b45309" }}>
+                      This task has no planned hours, so its % stays at 0. Ask your leader to set its Start and End Date.
                     </p>
                   )}
                 </div>
