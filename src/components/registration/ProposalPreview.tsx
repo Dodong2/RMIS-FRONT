@@ -27,6 +27,8 @@ export type ProposalData = {
   research_type: string;
   is_dry_research: boolean;
   study_titles: string[];
+  rde_thrust: string;
+  rde_priority: string;
   research_priority_area: string;
   research_typology: string[];
   sdgs: number[];
@@ -243,6 +245,10 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
                 <b>Study {i + 1}:</b> {t}
               </p>
             ))}
+          </Section>
+          <Section title="RDE Agenda">
+            <p><b>RDE THRUST:</b> {data.rde_thrust || "—"}</p>
+            <p><b>RDE PRIORITY AREA:</b> {data.rde_priority || "—"}</p>
           </Section>
           <Section title="Research Priority Area">
             <div className="grid grid-cols-2">
