@@ -24,6 +24,10 @@ export const notify = {
         cancel: { label: "Cancel", onClick: () => settle(false) },
         onDismiss: () => settle(false),
         onAutoClose: () => settle(false),
+        classNames: {
+          actionButton: "bg-[#dc2626]! text-white! font-bold! rounded-lg! px-3! h-8! hover:bg-[#b91c1c]!",
+          cancelButton: "bg-white! text-[#475569]! border! border-[#e2e8f0]! font-semibold! rounded-lg! px-3! h-8! hover:bg-[#f1f5f9]!",
+        },
       });
     }),
 };
