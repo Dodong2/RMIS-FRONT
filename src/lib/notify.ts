@@ -8,4 +8,22 @@ export const notify = {
   error: (message: string) => toast.error(message, { id: message, ...STAYS }),
   warning: (message: string) => toast.warning(message, { id: message, ...STAYS }),
   info: (message: string) => toast.info(message, { id: message, ...CLOSES }),
+  /** Toast with Confirm/Cancel instead of the browser's confirm() (client 2026-10-21). Resolves false when closed. */
+  confirm: (message: string, confirmLabel = "Delete") =>
+    new Promise<boolean>((resolve) => {
+      let settled = false;
+      const settle = (ok: boolean) => {
+        if (!settled) {
+          settled = true;
+          resolve(ok);
+        }
+      };
+      toast.warning(message, {
+        ...STAYS,
+        action: { label: confirmLabel, onClick: () => settle(true) },
+        cancel: { label: "Cancel", onClick: () => settle(false) },
+        onDismiss: () => settle(false),
+        onAutoClose: () => settle(false),
+      });
+    }),
 };

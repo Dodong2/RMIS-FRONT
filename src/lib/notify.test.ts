@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }));
+type ConfirmOptions = { action: { label: string; onClick: () => void }; cancel: { onClick: () => void }; onDismiss: () => void };
 vi.mock("sonner", () => ({ toast }));
 
 import { notify } from "./notify";
@@ -27,5 +28,23 @@ describe("notify", () => {
     notify.error("Network error.");
     const ids = toast.error.mock.calls.map(([, options]) => options.id);
     expect(ids).toEqual(["Network error.", "Network error."]);
+  });
+
+  it("confirm resolves true on the action and false on Cancel or close", async () => {
+    const yes = notify.confirm('Delete "Laptop"?');
+    const [message, options] = toast.warning.mock.calls[0] as [string, ConfirmOptions];
+    expect(message).toBe('Delete "Laptop"?');
+    expect(options.action.label).toBe("Delete");
+    options.action.onClick();
+    options.onDismiss();
+    await expect(yes).resolves.toBe(true);
+
+    const no = notify.confirm("Clear the form?", "Clear");
+    (toast.warning.mock.calls[1][1] as ConfirmOptions).cancel.onClick();
+    await expect(no).resolves.toBe(false);
+
+    const closed = notify.confirm("Delete?");
+    (toast.warning.mock.calls[2][1] as ConfirmOptions).onDismiss();
+    await expect(closed).resolves.toBe(false);
   });
 });

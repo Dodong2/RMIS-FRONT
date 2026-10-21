@@ -93,8 +93,8 @@ export function RdeAgendaContent() {
     if (await run(() => researchApi.updateChoice("rde-thrusts", row.id, input), "Saved.")) setEditing(null);
   };
 
-  const remove = (row: AdminChoice) => {
-    if (!window.confirm(`Delete "${rdeLabel(row)}"? Projects already registered with it keep the name.`)) return;
+  const remove = async (row: AdminChoice) => {
+    if (!(await notify.confirm(`Delete "${rdeLabel(row)}"? Projects already registered with it keep the name.`))) return;
     run(() => researchApi.deleteChoice("rde-thrusts", row.id), "Deleted.");
   };
 

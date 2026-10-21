@@ -591,8 +591,8 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
     clearDraft(draftKey);
   };
 
-  const startOver = () => {
-    if (!window.confirm("Clear everything you've entered and start a new registration?")) return;
+  const startOver = async () => {
+    if (!(await notify.confirm("Clear everything you've entered and start a new registration?", "Clear"))) return;
     discardDraft();
     onStartOver();
   };

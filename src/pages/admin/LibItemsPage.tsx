@@ -77,8 +77,8 @@ function LibItemsContent() {
     if (await run(() => budgetApi.updateLibItem(editing.id, toInput(editing)), "Saved.")) setEditing(null);
   };
   const toggleActive = (i: LibItem) => run(() => budgetApi.updateLibItem(i.id, { is_active: !i.is_active }), i.is_active ? "Deactivated." : "Activated.");
-  const remove = (i: LibItem) => {
-    if (!window.confirm(`Delete "${i.name}"? LIBs already encoded keep the name.`)) return;
+  const remove = async (i: LibItem) => {
+    if (!(await notify.confirm(`Delete "${i.name}"? LIBs already encoded keep the name.`))) return;
     run(() => budgetApi.deleteLibItem(i.id), "Deleted.");
   };
 

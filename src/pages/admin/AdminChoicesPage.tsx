@@ -168,8 +168,8 @@ function ChoicesContent({ config: { kind, field, placeholder, noun, coded, desig
     if (await run(() => researchApi.updateChoice(kind, editing.id, toInput(editing)), "Saved.")) setEditing(null);
   };
 
-  const remove = (u: AdminChoice) => {
-    if (!window.confirm(`Delete "${u.name}"? Projects already registered with it keep the name.`)) return;
+  const remove = async (u: AdminChoice) => {
+    if (!(await notify.confirm(`Delete "${u.name}"? Projects already registered with it keep the name.`))) return;
     run(() => researchApi.deleteChoice(kind, u.id), "Deleted.");
   };
 
