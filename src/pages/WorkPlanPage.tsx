@@ -49,20 +49,10 @@ function ProgressBar({ planned, actual, height = 6 }: { planned: number; actual:
   );
 }
 
-function StatusDot({ status }: { status: MilestoneStatus }) {
-  const sm = STATUS_META[status];
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sm.dot }} />
-      <span className="text-xs font-semibold" style={{ color: sm.text }}>{sm.label}</span>
-    </div>
-  );
-}
-
 const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
   pending: "Pending",
   in_progress: "In Progress",
-  done: "Completed",
+  done: "Done",
   delayed: "Delayed",
 };
 
@@ -206,7 +196,6 @@ function WorkPlanDetail({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [updating, setUpdating] = useState<number | null>(null);
   const set = (k: keyof FormState) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
@@ -311,18 +300,6 @@ function WorkPlanDetail({
       notify.error(errorMessage(err, "Could not save the activity."));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const changeStatus = async (m: Milestone, status: string) => {
-    setUpdating(m.id);
-    try {
-      await researchApi.updateMilestone(m.id, { status });
-      setReloadKey((k) => k + 1);
-    } catch (err) {
-      notify.error(errorMessage(err, "Could not update the status."));
-    } finally {
-      setUpdating(null);
     }
   };
 
@@ -452,9 +429,7 @@ function WorkPlanDetail({
                               expanded={expanded === m.id}
                               onToggle={() => setExpanded(expanded === m.id ? null : m.id)}
                               canEdit={canEdit}
-                              updating={updating === m.id}
                               onEdit={() => openEdit(m)}
-                              onStatus={(st) => changeStatus(m, st)}
                               people={people}
                               onTasksChanged={() => setReloadKey((k) => k + 1)}
                             />
@@ -606,7 +581,7 @@ function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: M
       {tasks === null ? (
         <p className="text-xs" style={{ color: "#94a3b8" }}>Loading…</p>
       ) : tasks.length === 0 ? (
-        <p className="text-xs" style={{ color: "#94a3b8" }}>No tasks yet. Without tasks, the activity's status is set by hand.</p>
+        <p className="text-xs" style={{ color: "#94a3b8" }}>No tasks yet. The activity stays Not Started until a task reaches 100%.</p>
       ) : (
         <table className="w-full text-xs">
           <tbody>
@@ -679,9 +654,7 @@ function ActivityRow({
   expanded,
   onToggle,
   canEdit,
-  updating,
   onEdit,
-  onStatus,
   people,
   onTasksChanged,
 }: {
@@ -691,13 +664,10 @@ function ActivityRow({
   expanded: boolean;
   onToggle: () => void;
   canEdit: boolean;
-  updating: boolean;
   onEdit: () => void;
-  onStatus: (s: string) => void;
   people: Lead[];
   onTasksChanged: () => void;
 }) {
-  const openTasks = m.tasks_total - m.tasks_done;
   return (
     <>
       <tr className="border-t hover:bg-slate-50 cursor-pointer" style={{ borderColor: "#f1f5f9" }} onClick={onToggle}>
@@ -725,24 +695,14 @@ function ActivityRow({
           <p style={{ color: "#94a3b8" }}>→ {m.target_date}</p>
         </td>
         <td className="px-3 py-2.5 text-xs" style={{ color: "#475569" }}>{nameOf(m.responsible_detail)}</td>
-        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-          {canEdit ? (
-            <select
-              value={m.status}
-              disabled={updating}
-              onChange={(e) => onStatus(e.target.value)}
-              className="text-xs font-semibold rounded-full px-2 py-1 border-0 outline-none"
-              style={{ background: STATUS_META[m.status].bg, color: STATUS_META[m.status].text }}
-            >
-              {Object.entries(STATUS_META).map(([k, v]) => (
-                <option key={k} value={k} disabled={k === "done" && openTasks > 0 && m.status !== "done"}>
-                  {k === "done" && openTasks > 0 && m.status !== "done" ? `Done (${openTasks} open task${openTasks !== 1 ? "s" : ""})` : v.label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <StatusDot status={m.status} />
-          )}
+        <td className="px-3 py-2.5">
+          <span
+            className="text-xs font-semibold rounded-full px-2 py-1 whitespace-nowrap"
+            style={{ background: STATUS_META[m.status].bg, color: STATUS_META[m.status].text }}
+            title="Follows the tasks: Not Started until one reaches 100%, Done when all have."
+          >
+            {STATUS_META[m.status].label}
+          </span>
         </td>
         <td className="px-3 py-2.5"><LatePill days={daysLate(m, now)} /></td>
         <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
