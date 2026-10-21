@@ -240,7 +240,9 @@ function TaskDetailModal({
       setEditing(false);
     }, "Task updated.");
 
-  const remove = () => deleteMutation.mutate();
+  const remove = async () => {
+    if (await notify.confirm(`Delete the task "${task.title}"? Its Work Logs and comments go with it.`)) deleteMutation.mutate();
+  };
 
   return (
     <Overlay onClose={onClose}>
@@ -343,7 +345,7 @@ function TaskDetailModal({
                     </button>
                     <p className="text-xs flex-1" style={{ color: d.done ? "#166534" : "#334155", textDecoration: d.done ? "line-through" : "none" }}>{d.text}</p>
                     {canAssign && (
-                      <button onClick={() => run(() => personnelApi.deleteTaskDeliverable(d.id))} className="text-xs opacity-0 group-hover:opacity-100" style={{ color: "#dc2626" }}>
+                      <button onClick={async () => (await notify.confirm(`Delete the deliverable "${d.text}"?`)) && run(() => personnelApi.deleteTaskDeliverable(d.id))} className="text-xs opacity-0 group-hover:opacity-100" style={{ color: "#dc2626" }}>
                         ✕
                       </button>
                     )}

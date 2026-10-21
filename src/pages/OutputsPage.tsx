@@ -273,7 +273,7 @@ function OutputDetailModal({
                   <button disabled={busy || actual === String(exp.manual_actual_count)} onClick={() => act(() => outputsApi.updateExpectedOutput(exp.id, { manual_actual_count: Number(actual) }), "Achieved count updated.")} className="px-3 py-2.5 rounded-xl text-xs font-bold disabled:opacity-60" style={{ background: "#e0f2fe", color: "#0369a1" }}>
                     Save
                   </button>
-                  <button disabled={busy} onClick={() => act(() => outputsApi.deleteExpectedOutput(exp.id), "Expected output removed.", true)} className="px-3 py-2.5 rounded-xl text-xs font-bold ml-auto disabled:opacity-60" style={{ background: "#fee2e2", color: "#991b1b" }}>
+                  <button disabled={busy} onClick={async () => (await notify.confirm("Remove this expected output?", "Remove")) && act(() => outputsApi.deleteExpectedOutput(exp.id), "Expected output removed.", true)} className="px-3 py-2.5 rounded-xl text-xs font-bold ml-auto disabled:opacity-60" style={{ background: "#fee2e2", color: "#991b1b" }}>
                     Remove
                   </button>
                 </div>

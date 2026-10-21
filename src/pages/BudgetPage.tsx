@@ -1243,7 +1243,7 @@ function LIBDetail({
                                     <span className="flex-1">{li.justification || "—"}</span>
                                     {canEdit && (
                                       <button
-                                        onClick={() => run(() => budgetApi.deleteLineItem(li.id), "Line item removed.")}
+                                        onClick={async () => (await notify.confirm(`Remove the line item "${li.description}"?`, "Remove")) && run(() => budgetApi.deleteLineItem(li.id), "Line item removed.")}
                                         disabled={busy}
                                         aria-label="Remove line item"
                                         title="Remove"
