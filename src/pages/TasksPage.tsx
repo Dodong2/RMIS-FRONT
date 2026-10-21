@@ -49,7 +49,7 @@ const KIND_META: Record<TaskUpdateKind, { label: string; bg: string; text: strin
 };
 
 const KANBAN_COLS: TaskStatus[] = ["pending", "in_progress", "for_review", "blocked", "done"];
-const ASSIGNEE_STATUSES: TaskStatus[] = ["in_progress", "blocked", "for_review"];
+const ASSIGNEE_STATUSES: TaskStatus[] = ["in_progress", "for_review"];
 const PRIORITY_ORDER: Record<TaskPriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-all focus:border-[#0891b2]";
@@ -481,7 +481,7 @@ function TaskDetailModal({
                   )}
                   {closed && isAssignee && !canAssign && (
                     <p className="text-xs font-semibold" style={{ color: "#059669" }}>
-                      This task is at 100%, so it is closed for Work Logs. You can still post comments.
+                      This task is at 100%, so it is Done and closed for Work Logs. You can still post comments.
                     </p>
                   )}
                 </div>
@@ -567,7 +567,7 @@ function TaskDetailModal({
                     );
                   })}
                 </div>
-                {!canAssign && <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>Submit for review when done; a leader marks it completed.</p>}
+                {!canAssign && <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>The task turns Done when your Work Logs reach 100%. Pick For Review to ask your leader to check it earlier.</p>}
               </div>
             )}
 
