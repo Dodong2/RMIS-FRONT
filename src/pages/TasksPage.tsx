@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import { personnelApi } from "../lib/personnelApi";
 import { reportsApi } from "../lib/reportsApi";
 import type { ReportFormat } from "../types/reports";
-import { researchApi } from "../lib/researchApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { assignmentsQuery, queryKeys, taskUpdatesQuery, tasksQuery, useProjects, workloadQuery } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
@@ -18,12 +17,12 @@ import type {
   TaskUpdateKind,
   WorkloadRow,
 } from "../types/personnel";
-import type { Lead, Milestone, Project, Study } from "../types/research";
+import type { Lead, Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { plannedHoursLabel, workingDays } from "../lib/taskHours";
+import { plannedHoursLabel } from "../lib/taskHours";
 
 const TASK_ASSIGNER_CODES = ["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"];
 
@@ -575,203 +574,6 @@ function TaskDetailModal({
   );
 }
 
-function CreateTaskModal({
-  project,
-  people,
-  onCreated,
-  onClose,
-}: {
-  project: Project;
-  people: Lead[];
-  onCreated: () => void;
-  onClose: () => void;
-}) {
-  const [studies, setStudies] = useState<Study[]>([]);
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
-  const [form, setForm] = useState({ title: "", description: "", assignee: "", study: "", milestone: "", priority: "medium", start_date: "", due_date: "", tags: "" });
-  const [deliverables, setDeliverables] = useState([""]);
-  const [attempted, setAttempted] = useState(false);
-  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  useEffect(() => {
-    let active = true;
-    researchApi
-      .getStudies(project.id)
-      .then((s) => active && setStudies(s))
-      .catch(() => undefined);
-    researchApi
-      .getMilestones(project.id)
-      .then((m) => active && setMilestones(m))
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [project.id]);
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const task = await personnelApi.createTask({
-        project: project.id,
-        study: form.study ? Number(form.study) : null,
-        milestone: form.milestone ? Number(form.milestone) : null,
-        title: form.title,
-        description: form.description || undefined,
-        start_date: form.start_date,
-        due_date: form.due_date,
-        assignee: Number(form.assignee),
-        priority: form.priority as TaskPriority,
-        tags: form.tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-      });
-      await Promise.all(deliverables.map((d) => d.trim()).filter(Boolean).map((d) => personnelApi.addTaskDeliverable(task.id, d)));
-    },
-    onSuccess: () => {
-      notify.success("Task assigned.");
-      onCreated();
-    },
-    onError: (err) => notify.error(errorMessage(err, "Could not create the task.")),
-  });
-  const saving = createMutation.isPending;
-
-  const create = () => {
-    setAttempted(true);
-    if (!form.title.trim() || !form.assignee || !form.start_date || !form.due_date) {
-      notify.error("Task title, assignee, Start Date and End Date are required.");
-      return;
-    }
-    if (!workingDays(form.start_date, form.due_date)) {
-      notify.error(plannedHoursLabel(form.start_date, form.due_date));
-      return;
-    }
-    createMutation.mutate();
-  };
-
-  return (
-    <Overlay onClose={onClose} width="max-w-xl">
-      <div className="px-6 py-4 flex items-center justify-between shrink-0" style={{ background: "#0d2a5e" }}>
-        <div className="min-w-0">
-          <p className="text-white font-bold">Create Task</p>
-          <p className="text-white/50 text-xs mt-0.5 truncate">{project.project_code} · {project.title}</p>
-        </div>
-        <CloseX onClick={onClose} />
-      </div>
-      <div className="p-6 overflow-y-auto space-y-4">
-        <div>
-          <label className="label-field">Task Title <span style={{ color: "#dc2626" }}>*</span></label>
-          <input
-            className={inputCls}
-            style={{ ...inputSt, borderColor: attempted && !form.title.trim() ? "#dc2626" : "#e2e8f0" }}
-            value={form.title}
-            onChange={set("title")}
-            placeholder="Short, specific task title"
-          />
-        </div>
-        <div>
-          <label className="label-field">Description</label>
-          <textarea rows={3} className={inputCls + " resize-none"} style={inputSt} value={form.description} onChange={set("description")} placeholder="Instructions, context, and acceptance criteria..." />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="label-field">Assign To <span style={{ color: "#dc2626" }}>*</span></label>
-            <select className={inputCls} style={{ ...inputSt, borderColor: attempted && !form.assignee ? "#dc2626" : "#e2e8f0" }} value={form.assignee} onChange={set("assignee")}>
-              <option value="">{people.length ? "— Select team member —" : "No one assigned to this project yet"}</option>
-              {people.map((p) => (
-                <option key={p.id} value={p.id}>{personName(p)}{personName(p) !== p.email ? ` (${p.email})` : ""}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label-field">Work Plan Milestone</label>
-            <select className={inputCls} style={inputSt} value={form.milestone} onChange={set("milestone")}>
-              <option value="">Not under a milestone</option>
-              {milestones.map((m) => (
-                <option key={m.id} value={m.id}>{m.title} (due {m.target_date})</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label-field">Study</label>
-            <select className={inputCls} style={inputSt} value={form.study} onChange={set("study")}>
-              <option value="">Whole project</option>
-              {studies.map((s) => (
-                <option key={s.id} value={s.id}>{s.title}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label-field">Priority</label>
-            <select className={inputCls} style={inputSt} value={form.priority} onChange={set("priority")}>
-              {Object.entries(PRIORITY_META).map(([k, m]) => (
-                <option key={k} value={k}>{m.icon} {m.label}</option>
-              ))}
-            </select>
-          </div>
-          {(
-            [
-              ["start_date", "Start Date"],
-              ["due_date", "End Date"],
-            ] as const
-          ).map(([field, label]) => (
-            <div key={field}>
-              <label className="label-field">{label} <span style={{ color: "#dc2626" }}>*</span></label>
-              <input
-                type="date"
-                className={inputCls}
-                style={{ ...inputSt, borderColor: attempted && !form[field] ? "#dc2626" : "#e2e8f0" }}
-                value={form[field]}
-                min={milestones.find((m) => String(m.id) === form.milestone)?.start_date ?? undefined}
-                max={milestones.find((m) => String(m.id) === form.milestone)?.target_date}
-                onChange={set(field)}
-              />
-            </div>
-          ))}
-          <p className="col-span-full text-xs font-semibold" style={{ color: "#0369a1" }}>{plannedHoursLabel(form.start_date, form.due_date)}</p>
-          <div>
-            <label className="label-field">Tags (comma-separated)</label>
-            <input className={inputCls} style={inputSt} value={form.tags} onChange={set("tags")} placeholder="e.g. data-analysis, field-work" />
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="label-field mb-0">Deliverables</label>
-            <button onClick={() => setDeliverables([...deliverables, ""])} className="text-xs font-semibold" style={{ color: "#0891b2" }}>+ Add</button>
-          </div>
-          <div className="space-y-2">
-            {deliverables.map((d, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  className={inputCls + " flex-1"}
-                  style={inputSt}
-                  value={d}
-                  onChange={(e) => {
-                    const n = [...deliverables];
-                    n[i] = e.target.value;
-                    setDeliverables(n);
-                  }}
-                  placeholder={`Deliverable ${i + 1}...`}
-                />
-                {deliverables.length > 1 && (
-                  <button onClick={() => setDeliverables(deliverables.filter((_, idx) => idx !== i))} className="px-2 rounded-xl text-xs" style={{ background: "#fee2e2", color: "#dc2626" }}>
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="px-6 py-4 border-t flex gap-3 shrink-0" style={{ borderColor: "#e2e8f0" }}>
-        <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>Cancel</button>
-        <button onClick={create} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
-          {saving ? "Creating…" : "Create Task"}
-        </button>
-      </div>
-    </Overlay>
-  );
-}
-
 function KanbanCard({ task, now, onClick }: { task: Task; now: number; onClick: () => void }) {
   const sm = STATUS_META[task.status];
   const pm = PRIORITY_META[task.priority];
@@ -848,7 +650,6 @@ function ProjectTaskBoard({
   };
   const [view, setView] = useState<BoardView>("kanban");
   const [selectedId, setSelectedId] = useState<number | null>(initialTaskId);
-  const [showCreate, setShowCreate] = useState(false);
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
   const [filterMember, setFilterMember] = useState("all");
   const [overdueOnly, setOverdueOnly] = useState(false);
@@ -914,18 +715,6 @@ function ProjectTaskBoard({
                 {[project.implementing_unit, `${team.length + 1} team member${team.length ? "s" : ""}`].filter(Boolean).join(" · ")}
               </p>
             </div>
-            {canAssign && (
-              <button
-                onClick={() => setShowCreate(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white shrink-0"
-                style={{ background: "rgba(255,255,255,0.15)" }}
-              >
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                New Task
-              </button>
-            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
             {[
@@ -1178,17 +967,6 @@ function ProjectTaskBoard({
             reload();
           }}
           onClose={() => setSelectedId(null)}
-        />
-      )}
-      {showCreate && (
-        <CreateTaskModal
-          project={project}
-          people={[project.lead_detail, ...people.filter((p) => p.id !== project.lead_detail.id)]}
-          onCreated={() => {
-            setShowCreate(false);
-            reload();
-          }}
-          onClose={() => setShowCreate(false)}
         />
       )}
     </div>
