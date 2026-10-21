@@ -164,6 +164,11 @@ function TaskDetailModal({
     tags: task.tags.join(", "),
   });
   const canUpdate = canAssign || isAssignee;
+  const closed = task.progress_pct >= 100;
+  const kinds = (Object.keys(KIND_META) as TaskUpdateKind[]).filter((k) =>
+    closed ? k !== "update" && (canAssign || k === "comment") : isAssignee || k !== "update",
+  );
+  const activeKind = kinds.includes(kind) ? kind : "comment";
   const allowedStatuses = canAssign ? (Object.keys(STATUS_META) as TaskStatus[]) : ASSIGNEE_STATUSES;
   const doneDels = task.deliverables.filter((d) => d.done).length;
 
@@ -190,7 +195,7 @@ function TaskDetailModal({
 
   const postMutation = useMutation({
     mutationFn: async () => {
-      await personnelApi.postTaskUpdate(task.id, { note: note.trim(), kind, hours: kind === "update" ? hours : undefined }, postKey);
+      await personnelApi.postTaskUpdate(task.id, { note: note.trim(), kind: activeKind, hours: activeKind === "update" ? hours : undefined }, postKey);
       setNote("");
       setHours("");
       setPostKey(crypto.randomUUID());
@@ -212,7 +217,7 @@ function TaskDetailModal({
 
   const post = () => {
     if (!note.trim()) return;
-    if (kind === "update" && !(Number(hours) > 0)) {
+    if (activeKind === "update" && !(Number(hours) > 0)) {
       notify.error("Enter the hours worked (more than 0).");
       return;
     }
@@ -304,9 +309,13 @@ function TaskDetailModal({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Deliverables</p>
-                <span className="text-xs font-mono font-bold" style={{ color: doneDels === task.deliverables.length ? "#059669" : "#0891b2" }}>
-                  {doneDels}/{task.deliverables.length}
-                </span>
+                {task.deliverables.length > 0 ? (
+                  <span className="text-xs font-mono font-bold" style={{ color: doneDels === task.deliverables.length ? "#059669" : "#0891b2" }}>
+                    {doneDels}/{task.deliverables.length}
+                  </span>
+                ) : (
+                  <span className="text-xs font-mono font-bold" style={{ color: closed ? "#059669" : "#0891b2" }}>{closed ? 1 : 0}/1</span>
+                )}
               </div>
               {task.deliverables.length > 0 && (
                 <div className="h-1 rounded-full overflow-hidden mb-2" style={{ background: "#f1f5f9" }}>
@@ -320,7 +329,7 @@ function TaskDetailModal({
                 {task.deliverables.map((d) => (
                   <div key={d.id} className="flex items-center gap-2 group">
                     <button
-                      disabled={!canUpdate || busy}
+                      disabled={!canAssign || busy}
                       onClick={() => run(() => personnelApi.setTaskDeliverableDone(d.id, !d.done))}
                       className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
                       style={{ background: d.done ? "#059669" : "#e2e8f0" }}
@@ -340,7 +349,7 @@ function TaskDetailModal({
                     )}
                   </div>
                 ))}
-                {task.deliverables.length === 0 && <p className="text-xs" style={{ color: "#94a3b8" }}>No deliverables listed.</p>}
+                {task.deliverables.length === 0 && <p className="text-xs" style={{ color: "#94a3b8" }}>The task itself is the deliverable; it counts once the task reaches 100%.</p>}
               </div>
               {canAssign && (
                 <div className="flex gap-2 mt-2">
@@ -411,7 +420,7 @@ function TaskDetailModal({
               {canUpdate && (
                 <div className="mt-3 space-y-2">
                   <div className="flex gap-1.5 flex-wrap">
-                    {(Object.keys(KIND_META) as TaskUpdateKind[]).filter((k) => isAssignee || k !== "update").map((k) => {
+                    {kinds.map((k) => {
                       const cm = KIND_META[k];
                       return (
                         <button
@@ -419,9 +428,9 @@ function TaskDetailModal({
                           onClick={() => setKind(k)}
                           className="text-xs px-2.5 py-1 rounded-lg font-semibold transition-all"
                           style={{
-                            background: kind === k ? cm.bg : "#f1f5f9",
-                            color: kind === k ? cm.text : "#94a3b8",
-                            border: `1px solid ${kind === k ? cm.text + "30" : "#e2e8f0"}`,
+                            background: activeKind === k ? cm.bg : "#f1f5f9",
+                            color: activeKind === k ? cm.text : "#94a3b8",
+                            border: `1px solid ${activeKind === k ? cm.text + "30" : "#e2e8f0"}`,
                           }}
                         >
                           {cm.label}
@@ -435,10 +444,10 @@ function TaskDetailModal({
                     rows={3}
                     className={inputCls + " resize-none"}
                     style={inputSt}
-                    placeholder={`Post a ${KIND_META[kind].label.toLowerCase()}...`}
+                    placeholder={`Post a ${KIND_META[activeKind].label.toLowerCase()}...`}
                   />
                   <div className="flex gap-2 items-center">
-                    {kind === "update" && (
+                    {activeKind === "update" && (
                       <input
                         type="number"
                         min="0.5"
@@ -460,14 +469,19 @@ function TaskDetailModal({
                       {posting ? "Posting…" : "Post"}
                     </button>
                   </div>
-                  {kind === "update" && (
+                  {activeKind === "update" && (
                     <p className="text-xs" style={{ color: "#94a3b8" }}>
                       % completed is computed from your logged hours · now <strong style={{ color: "#0d2a5e" }}>{task.progress_pct}%</strong>
                     </p>
                   )}
-                  {kind === "update" && task.status !== "done" && !num(task.estimated_hours) && (
+                  {activeKind === "update" && task.status !== "done" && !num(task.estimated_hours) && (
                     <p className="text-xs font-semibold" style={{ color: "#b45309" }}>
                       This task has no planned hours, so its % stays at 0. Ask your leader to set its Start and End Date.
+                    </p>
+                  )}
+                  {closed && isAssignee && !canAssign && (
+                    <p className="text-xs font-semibold" style={{ color: "#059669" }}>
+                      This task is at 100%, so it is closed for Work Logs. You can still post comments.
                     </p>
                   )}
                 </div>
@@ -532,7 +546,7 @@ function TaskDetailModal({
               </div>
             )}
 
-            {canUpdate && (
+            {(canAssign || (isAssignee && !closed)) && (
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Change Status</p>
                 <div className="space-y-1">
