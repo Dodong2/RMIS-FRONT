@@ -817,12 +817,11 @@ function KanbanCard({ task, now, onClick }: { task: Task; now: number; onClick: 
   );
 }
 
-type BoardView = "kanban" | "list" | "workload" | "personnel";
+type BoardView = "kanban" | "list" | "workload";
 
 function ProjectTaskBoard({
   project,
   canAssign,
-  isStaff,
   userId,
   now,
   onBack,
@@ -830,7 +829,6 @@ function ProjectTaskBoard({
 }: {
   project: Project;
   canAssign: boolean;
-  isStaff: boolean;
   userId: number | undefined;
   now: number;
   onBack: () => void;
@@ -889,7 +887,6 @@ function ProjectTaskBoard({
     { key: "kanban", label: "Task Board" },
     { key: "list", label: "Task List" },
     ...(canAssign ? [{ key: "workload" as BoardView, label: "Workload" }] : []),
-    ...(isStaff ? [] : [{ key: "personnel" as BoardView, label: "Personnel" }]),
   ];
 
   return (
@@ -1164,50 +1161,6 @@ function ProjectTaskBoard({
                   </div>
                 ))}
 
-              {view === "personnel" && (
-                <div className="space-y-4">
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Project Personnel</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {[
-                      { id: project.lead_detail.id, email: project.lead_detail.email, name: personName(project.lead_detail), role: "Project Leader", dept: project.implementing_unit },
-                      ...team.map((a) => ({ id: a.user_detail.id, email: a.user_detail.email, name: personName(a.user_detail), role: a.role_label || "Project Staff", dept: a.department })),
-                    ].map((m, i) => {
-                      const mine = all.filter((t) => t.assignee === m.id);
-                      const logged = mine.reduce((s, t) => s + num(t.logged_hours), 0);
-                      return (
-                        <div key={`${m.id}-${i}`} className="rounded-2xl p-4" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-                          <div className="flex items-start gap-3 mb-3">
-                            <div
-                              className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white text-sm shrink-0"
-                              style={{ background: "linear-gradient(135deg, #0d2a5e, #1a3f7a)" }}
-                            >
-                              {initials(m.name)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold truncate" style={{ color: "#0d2a5e" }}>{m.name}</p>
-                              <p className="text-xs font-semibold" style={{ color: "#0891b2" }}>{m.role}</p>
-                              {m.dept && <p className="text-xs truncate" style={{ color: "#94a3b8" }}>{m.dept}</p>}
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            {[
-                              { label: "Tasks", val: mine.length, color: "#0d2a5e" },
-                              { label: "Open", val: mine.filter((t) => t.status !== "done").length, color: "#0891b2" },
-                              { label: "Done", val: mine.filter((t) => t.status === "done").length, color: "#059669" },
-                            ].map((stat) => (
-                              <div key={stat.label} className="rounded-xl p-2" style={{ background: "#f8fafc" }}>
-                                <p className="text-lg font-black" style={{ color: stat.color }}>{stat.val}</p>
-                                <p className="text-xs" style={{ color: "#94a3b8" }}>{stat.label}</p>
-                              </div>
-                            ))}
-                          </div>
-                          {logged > 0 && <p className="text-xs mt-2 text-center font-mono" style={{ color: "#94a3b8" }}>{logged}h logged this project</p>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -1435,7 +1388,6 @@ function TasksContent() {
       <ProjectTaskBoard
         project={selected}
         canAssign={canAssign}
-        isStaff={user?.role?.code === "project_staff"}
         userId={user?.pk}
         now={now}
         onBack={() => setParams({})}
