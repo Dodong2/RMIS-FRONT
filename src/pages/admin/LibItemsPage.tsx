@@ -146,7 +146,7 @@ function LibItemsContent() {
         )}
         <div className="px-5 py-3 border-t" style={{ borderColor: "#e2e8f0", background: "#fafbfc" }}>
           <p className="text-xs" style={{ color: "#64748b" }}>
-            These are the only Items a line item can pick under its Object of Expenditure (PS, MOOE or CO) on the Register Approved Project LIB step, Budget Management and Realignment, and in the Excel import. The starting list follows the DBM UACS object codes. An item already used in an LIB can't be deleted; deactivate it instead. Renaming or deactivating never changes LIBs already encoded.
+            These are the only Items a line item can pick under its Object of Expenditure (PS, MOOE or CO) on the Register Approved Project LIB step, Budget Management and Realignment, and in the Excel import. The list follows the official 2027 LIB (PS, MOOE and Capital Outlay with their account codes). An item already used in an LIB can't be deleted; deactivate it instead. Renaming or deactivating never changes LIBs already encoded.
           </p>
         </div>
       </SectionCard>
