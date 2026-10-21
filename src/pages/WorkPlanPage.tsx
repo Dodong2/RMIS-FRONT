@@ -80,6 +80,7 @@ function MilestonesDeliverables({ milestones }: { milestones: Milestone[] }) {
       <div className="space-y-3">
         {milestones.map((ms, idx) => {
           const c = MILESTONE_COLORS[ms.status];
+          const barColor = ms.progress_pct === 100 ? "#059669" : ms.status === "pending" ? "#0891b2" : c.bar;
           return (
             <div
               key={ms.id}
@@ -105,12 +106,15 @@ function MilestonesDeliverables({ milestones }: { milestones: Milestone[] }) {
                   {ms.deliverable}
                 </div>
               )}
-              {ms.status !== "pending" && (
+              {(ms.tasks_total > 0 || ms.status !== "pending") && (
                 <div className="mt-2 flex items-center gap-2">
                   <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
-                    <div className="h-full rounded-full" style={{ width: `${ms.progress_pct}%`, background: c.bar }} />
+                    <div className="h-full rounded-full" style={{ width: `${ms.progress_pct}%`, background: barColor }} />
                   </div>
-                  <span className="text-xs font-mono font-bold" style={{ color: c.bar }}>{ms.progress_pct}%</span>
+                  <span className="text-xs font-mono font-bold whitespace-nowrap" style={{ color: barColor }}>
+                    {ms.tasks_total > 0 && `${ms.tasks_done}/${ms.tasks_total} tasks · `}
+                    {ms.progress_pct}%
+                  </span>
                 </div>
               )}
             </div>
