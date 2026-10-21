@@ -1,5 +1,6 @@
 import { apiClient } from "./apiClient";
 import type {
+  ProcurementDashboard,
   AnalyticsScope,
   AppendixEEntry,
   AppendixFExport,
@@ -61,6 +62,10 @@ export const dashboardApi = {
   },
   getPerformanceDashboard: async (params: AnalyticsScope = {}): Promise<PerformanceDashboard> => {
     const { data } = await apiClient.get("/api/dashboard/performance/", { params });
+    return data;
+  },
+  getProcurementDashboard: async (): Promise<ProcurementDashboard> => {
+    const { data } = await apiClient.get("/api/dashboard/procurement/");
     return data;
   },
   getRdeThrustAlignment: async (params: AnalyticsScope = {}): Promise<RdeThrustAlignment> => {

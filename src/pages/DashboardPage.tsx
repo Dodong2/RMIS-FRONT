@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { NoActualData } from "../components/common/NoActualData";
+import { ProcurementDashboard } from "../components/dashboard/ProcurementDashboard";
 import { StaffDashboard } from "../components/dashboard/StaffDashboard";
 import { useAuth } from "../context/AuthContext";
 import { authApi } from "../lib/authApi";
@@ -1106,7 +1107,8 @@ function DashboardContent() {
   const navTargets = visibleTargets(tier, user?.role?.code);
   const canOpen = (to: string) => navTargets.includes(to);
   // Client 2026-10-20: only university-wide roles see every project; everyone else's figures are their own projects.
-  const rootLabel = isWide ? "Institution" : "My Projects";
+  // Finance sees every project in its scope (all, or its assigned campus), not projects it owns (2026-10-22).
+  const rootLabel = isWide ? "Institution" : tier === "finance" ? "Projects in Scope" : "My Projects";
 
   const [rawData, setData] = useState<DashData>({});
   const projectsQ = useProjects({ enabled: hasRole });
@@ -1181,7 +1183,7 @@ function DashboardContent() {
         ? scope.campus || "Unspecified campus"
         : isWide
           ? "LSPU (Institutional)"
-          : "My Projects";
+          : rootLabel;
 
   if (!hasRole) {
     return (
@@ -1321,7 +1323,10 @@ function DashboardContent() {
 function DashboardSwitch() {
   const { user } = useAuth();
   // Client 2026-10-20: Project Staff get a dashboard of their own assigned tasks.
-  return user?.role?.code === "project_staff" ? <StaffDashboard /> : <DashboardContent />;
+  if (user?.role?.code === "project_staff") return <StaffDashboard />;
+  // 2026-10-22 (Figma ProcurementOfficerDashboard): one dashboard for every Procurement Officer - LIB account.
+  if (user?.role?.code === "procurement_officer_lib") return <ProcurementDashboard />;
+  return <DashboardContent />;
 }
 
 export default function DashboardPage() {

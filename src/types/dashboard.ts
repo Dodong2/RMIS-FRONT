@@ -1,3 +1,4 @@
+import type { ProcurementStatus } from "./financial";
 import type { LineItemBudget } from "./budget";
 
 export interface ProjectDashboard {
@@ -210,4 +211,56 @@ export interface TaskDashboardRow {
   open: number;
   overdue: number;
   done: number;
+}
+
+// GET /api/dashboard/procurement/ (Procurement Officer - LIB dashboard, 2026-10-22). Money comes as decimal strings.
+export interface ProcurementDashRow {
+  id: number;
+  request_no: string;
+  project: number;
+  project_code: string;
+  project_title: string;
+  campus: string;
+  college: string;
+  line_item: number;
+  lib_item: string;
+  category: "ps" | "mooe" | "co";
+  description: string;
+  requester: string;
+  amount: string;
+  status: ProcurementStatus;
+  status_label: string;
+  remarks: string;
+  requested_at: string;
+  received_at: string | null;
+  completed_at: string | null;
+  updated_at: string;
+  lib_adjusted: string;
+  lib_uncommitted: string;
+  available: string;
+  exceeds_available: boolean;
+  released: string | number;
+  processing_days: number | null;
+  returned_count: number;
+}
+
+export interface ProcurementDashEvent {
+  id: number;
+  procurement: number;
+  request_no: string;
+  campus: string;
+  from_status: ProcurementStatus | "";
+  from_label: string;
+  to_status: ProcurementStatus;
+  to_label: string;
+  actor: string;
+  actor_role: string;
+  remarks: string;
+  created_at: string;
+}
+
+export interface ProcurementDashboard {
+  delay_days: number;
+  requests: ProcurementDashRow[];
+  events: ProcurementDashEvent[];
 }
