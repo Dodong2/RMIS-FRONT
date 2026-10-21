@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { reportsApi } from "../lib/reportsApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { tasksQuery, useProjects } from "../lib/queries";
+import { queryKeys } from "../lib/queries";
+import type { TaskStatus } from "../types/personnel";
 import type { ReportFormat } from "../types/reports";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
@@ -12,22 +13,31 @@ import { AppShell } from "../components/layout/AppShell";
 
 const FORMATS: ReportFormat[] = ["pdf", "docx", "xlsx", "csv"];
 
+const STATUS: Record<TaskStatus, { label: string; color: string }> = {
+  pending: { label: "Pending", color: "#64748b" },
+  in_progress: { label: "In Progress", color: "#0369a1" },
+  for_review: { label: "For Review", color: "#6b21a8" },
+  blocked: { label: "Blocked", color: "#dc2626" },
+  done: { label: "Done", color: "#059669" },
+};
+
 function AccomplishmentContent() {
   const [month, setMonth] = useState(() => new Date().toLocaleDateString("en-CA").slice(0, 7));
   const [fileFormat, setFileFormat] = useState<ReportFormat>("pdf");
   const [busy, setBusy] = useState(false);
-  const tasksQ = useQuery(tasksQuery());
-  const projects = useProjects().data ?? [];
+  // Same rows and totals as the downloaded report (client 2026-10-21). Under the "tasks" key so a Work Log or a
+  // review elsewhere refreshes it.
+  const summaryQ = useQuery({
+    queryKey: [...queryKeys.tasksAll, "accomplishment", month],
+    queryFn: () => reportsApi.getAccomplishmentSummary({ month }),
+    enabled: !!month,
+  });
+  const summary = summaryQ.data;
+  const loading = summaryQ.isLoading;
 
   useEffect(() => {
-    if (tasksQ.isError) notify.error("Could not load your tasks. Check your connection and refresh.");
-  }, [tasksQ.isError]);
-
-  const accomplished = (tasksQ.data ?? [])
-    .filter((t) => t.status === "done" && t.completed_at && new Date(t.completed_at).toLocaleDateString("en-CA").startsWith(month))
-    .sort((a, b) => (a.completed_at ?? "").localeCompare(b.completed_at ?? ""));
-  const totalHours = accomplished.reduce((s, t) => s + Number(t.logged_hours || 0), 0);
-  const projectCode = (id: number) => projects.find((p) => p.id === id)?.project_code ?? `#${id}`;
+    if (summaryQ.isError) notify.error("Could not load your accomplishments. Check your connection and refresh.");
+  }, [summaryQ.isError]);
 
   const download = async () => {
     setBusy(true);
@@ -63,49 +73,58 @@ function AccomplishmentContent() {
         >
           {busy ? "Generating…" : "Download Accomplishment Report"}
         </button>
-        <div className="ml-auto flex gap-6">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Tasks Accomplished</p>
-            <p className="text-2xl font-black" style={{ color: "#059669" }}>{tasksQ.isPending ? "…" : accomplished.length}</p>
-          </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Hours Logged</p>
-            <p className="text-2xl font-black" style={{ color: "#0d2a5e" }}>{tasksQ.isPending ? "…" : totalHours}</p>
-          </div>
+        <div className="ml-auto flex flex-wrap gap-6">
+          {[
+            { label: "Tasks Accomplished", value: summary?.accomplished, color: "#059669", hint: "Approved by your leader this month" },
+            { label: "Awaiting Approval", value: summary?.awaiting_approval, color: "#6b21a8", hint: "Submitted, still For Review" },
+            { label: "Hours Logged", value: summary?.total_hours, color: "#0d2a5e", hint: "Your Work Log hours this month" },
+          ].map((k) => (
+            <div key={k.label} title={k.hint}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>{k.label}</p>
+              <p className="text-2xl font-black" style={{ color: k.color }}>{loading ? "…" : (k.value ?? 0).toLocaleString()}</p>
+            </div>
+          ))}
         </div>
       </div>
 
       <div className="rounded-2xl overflow-x-auto" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-        <table className="w-full text-sm min-w-[700px]">
+        <table className="w-full text-sm min-w-[860px]">
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["#", "Project", "Task / Activity", "Completed On", "Due Date", "Hours"].map((h) => (
+              {["#", "Project", "Task / Activity", "Status", "% Completed", "Hours (this month)", "Due Date", "Completed On"].map((h) => (
                 <th key={h} className="px-4 py-2.5 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {tasksQ.isPending ? (
+            {loading ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={8}>
                   <SkeletonRows rows={4} />
                 </td>
               </tr>
-            ) : accomplished.length === 0 ? (
+            ) : !summary?.rows.length ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8">
+                <td colSpan={8} className="px-4 py-8">
                   <NoActualData />
                 </td>
               </tr>
             ) : (
-              accomplished.map((t, i) => (
+              summary.rows.map((t, i) => (
                 <tr key={t.id} className="border-t" style={{ borderColor: "#f1f5f9" }}>
                   <td className="px-4 py-2.5 text-xs font-mono" style={{ color: "#94a3b8" }}>{i + 1}</td>
-                  <td className="px-4 py-2.5 text-xs font-mono font-semibold whitespace-nowrap" style={{ color: "#0891b2" }}>{projectCode(t.project)}</td>
-                  <td className="px-4 py-2.5 text-xs font-semibold" style={{ color: "#0d2a5e" }}>{t.title}</td>
-                  <td className="px-4 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#059669" }}>{t.completed_at ? new Date(t.completed_at).toLocaleDateString("en-CA") : "—"}</td>
+                  <td className="px-4 py-2.5 text-xs font-mono font-semibold whitespace-nowrap" style={{ color: "#0891b2" }}>{t.project_code}</td>
+                  <td className="px-4 py-2.5 text-xs font-semibold" style={{ color: "#0d2a5e" }}>
+                    {t.title}
+                    {t.notes && <p className="font-normal mt-0.5" style={{ color: "#64748b" }}>{t.notes}</p>}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs font-semibold whitespace-nowrap" style={{ color: STATUS[t.status]?.color }}>{STATUS[t.status]?.label ?? t.status}</td>
+                  <td className="px-4 py-2.5 text-xs font-mono" style={{ color: "#64748b" }}>{t.progress_pct}%</td>
+                  <td className="px-4 py-2.5 text-xs font-mono" style={{ color: "#64748b" }}>{t.hours}</td>
                   <td className="px-4 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{t.due_date ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-xs font-mono" style={{ color: "#64748b" }}>{Number(t.logged_hours || 0)}</td>
+                  <td className="px-4 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#059669" }}>
+                    {t.status === "done" && t.completed_at ? new Date(t.completed_at).toLocaleDateString("en-CA") : "—"}
+                  </td>
                 </tr>
               ))
             )}

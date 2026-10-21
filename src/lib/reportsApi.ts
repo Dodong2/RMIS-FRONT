@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { GeneratedReportLog, ReportFormat } from "../types/reports";
+import type { AccomplishmentSummary, GeneratedReportLog, ReportFormat } from "../types/reports";
 
 function extractFilename(disposition: unknown, fallback: string): string {
   if (typeof disposition !== "string") return fallback;
@@ -58,6 +58,11 @@ export const reportsApi = {
   /** Project staff Monthly Accomplishment Report, pulled from their task updates; month = "YYYY-MM", user defaults to self. */
   downloadAccomplishment: (params: { month: string; user?: number; file_format: ReportFormat }) =>
     downloadReport("/api/reports/accomplishment/", params, `accomplishment_${params.month}.${params.file_format}`),
+  /** The Accomplishment Report page's numbers and rows, identical to the download. */
+  getAccomplishmentSummary: async (params: { month: string; user?: number }): Promise<AccomplishmentSummary> => {
+    const { data } = await apiClient.get("/api/reports/accomplishment/summary/", { params });
+    return data;
+  },
   downloadModule: (
     type: "financial" | "compliance" | "personnel" | "outputs",
     params: { campus?: string; funding_type?: string; file_format: ReportFormat },
