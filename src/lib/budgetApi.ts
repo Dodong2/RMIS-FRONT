@@ -1,5 +1,5 @@
 import { apiClient } from "./apiClient";
-import type { LibAllocation, LibItem, LibItemInput, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
+import type { BudgetStep, LibAllocation, LibItem, LibItemInput, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 
 export const budgetApi = {
   getBudgets: async (project?: number): Promise<LineItemBudget[]> => {
@@ -16,20 +16,9 @@ export const budgetApi = {
     const { data } = await apiClient.post("/api/budget/budgets/", { project });
     return data;
   },
-  certifyBudget: async (id: number): Promise<LineItemBudget> => {
-    const { data } = await apiClient.post(`/api/budget/budgets/${id}/certify/`);
-    return data;
-  },
-  endorseBudget: async (id: number): Promise<LineItemBudget> => {
-    const { data } = await apiClient.post(`/api/budget/budgets/${id}/endorse/`);
-    return data;
-  },
-  returnBudget: async (id: number, remarks: string): Promise<LineItemBudget> => {
-    const { data } = await apiClient.post(`/api/budget/budgets/${id}/return/`, { remarks });
-    return data;
-  },
-  resubmitBudget: async (id: number, remarks: string): Promise<LineItemBudget> => {
-    const { data } = await apiClient.post(`/api/budget/budgets/${id}/resubmit/`, { remarks });
+  /** One step of the LIB review workflow (client 2026-10-21); "hold" needs remarks. */
+  reviewBudget: async (id: number, step: BudgetStep, remarks = ""): Promise<LineItemBudget> => {
+    const { data } = await apiClient.post(`/api/budget/budgets/${id}/${step}/`, { remarks });
     return data;
   },
 

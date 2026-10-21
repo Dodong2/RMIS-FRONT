@@ -13,7 +13,8 @@ import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel, periodLabel, periodQuarter, periodYear } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
-import type { BudgetReviewAction, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
+import type { BudgetReview, BudgetReviewAction, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
+import { LIB_STATUS_META, LIB_STATUS_ORDER, holdLabel, libActions, libToDo, type LibAction } from "../lib/libWorkflow";
 import type { BudgetRealignment, BudgetSummary, RealignmentTier } from "../types/financial";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -25,7 +26,8 @@ import { AppShell } from "../components/layout/AppShell";
 import { LibItemSelect } from "../components/common/LibItemSelect";
 
 // Client 2026-10-11: finance_budget and system_admin only certify/approve; they don't prepare LIBs or edit line items.
-const MANAGE_ROLE_CODES = ["procurement_officer_lib", "program_leader", "project_leader"];
+// Client 2026-10-21 (Q9): the Procurement Officer and Program Leaders don't encode LIBs either.
+const MANAGE_ROLE_CODES = ["project_leader"];
 const CERTIFY_ROLE_CODES = ["system_admin", "finance_budget"];
 const ENDORSE_ROLE_CODES = ["system_admin", "crc_chair"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["project_leader"];
@@ -39,12 +41,7 @@ const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; col
   co: { label: "CO", full: "Capital Outlay", color: "#059669", bg: "#d1fae5", icon: "🏗️" },
 };
 
-const STATUS_META = {
-  draft: { label: "Awaiting CRC Chair", bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" },
-  endorsed: { label: "Endorsed · Awaiting Budget Officer", bg: "#e0f2fe", text: "#0369a1", dot: "#0891b2" },
-  returned: { label: "Returned for Revision", bg: "#fee2e2", text: "#b91c1c", dot: "#ef4444" },
-  certified: { label: "Certified", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
-} as const;
+const STATUS_META = LIB_STATUS_META;
 
 const PAGE_SIZE = 10;
 
@@ -210,11 +207,27 @@ function UtilizationTab({ budget, summary }: { budget: LineItemBudget; summary: 
 }
 
 const REVIEW_META: Record<BudgetReviewAction, { icon: string; label: string; color: string }> = {
-  endorsed: { icon: "🖊️", label: "Endorsed", color: "#0369a1" },
-  returned: { icon: "↩️", label: "Returned", color: "#b91c1c" },
+  submitted: { icon: "📤", label: "Submitted", color: "#7c3aed" },
+  review_started: { icon: "🔎", label: "Review Started", color: "#0369a1" },
+  for_checking: { icon: "📋", label: "For Checking", color: "#5b21b6" },
+  ready: { icon: "🖊️", label: "Ready for Certification", color: "#0369a1" },
+  certification_started: { icon: "⏳", label: "Certification Started", color: "#1e40af" },
+  held_crc: { icon: "⏸️", label: "Put on Hold (CRC Chair)", color: "#b91c1c" },
+  held_budget: { icon: "⏸️", label: "Put on Hold (Budget Officer)", color: "#b91c1c" },
   resubmitted: { icon: "📤", label: "Resubmitted", color: "#7c3aed" },
   certified: { icon: "✅", label: "Certified", color: "#166534" },
+  endorsed: { icon: "🖊️", label: "Endorsed", color: "#0369a1" },
+  returned: { icon: "⏸️", label: "Put on Hold", color: "#b91c1c" },
 };
+
+const HOLD_ACTIONS: BudgetReviewAction[] = ["held_crc", "held_budget", "returned"];
+
+/** " — 3 line items, ₱120,000.00" for a submission's snapshot (client Q11). */
+function snapshotNote(r: BudgetReview) {
+  if (!r.snapshot.length) return "";
+  const total = r.snapshot.reduce((sum, i) => sum + Number(i.amount), 0);
+  return ` — ${r.snapshot.length} line item${r.snapshot.length !== 1 ? "s" : ""}, ${peso(total)}`;
+}
 
 function ReviewModal({
   title,
@@ -282,7 +295,7 @@ function HistoryTab({ versions }: { versions: LineItemBudget[] }) {
         key: `r${r.id}`,
         ...REVIEW_META[r.action],
         date: r.acted_at,
-        text: `LIB v${v.version_number} ${REVIEW_META[r.action].label.toLowerCase()} by ${r.acted_by_name}${r.action === "certified" ? ` — ${peso(v.total_amount)} baseline` : ""}${r.remarks ? `: “${r.remarks}”` : ""}`,
+        text: `LIB v${v.version_number} ${REVIEW_META[r.action].label.toLowerCase()} by ${r.acted_by_name}${r.action === "certified" ? ` — ${peso(v.total_amount)} baseline` : snapshotNote(r)}${r.remarks ? `: “${r.remarks}”` : ""}`,
       })),
       ...(v.certified_at && !v.reviews.some((r) => r.action === "certified") ? [{ key: `c${v.id}`, icon: "✅", label: "Certified", color: "#166534", date: v.certified_at, text: `LIB v${v.version_number} certified — ${peso(v.total_amount)} baseline` }] : []),
       { key: `d${v.id}`, icon: "📝", label: "Prepared", color: "#0369a1", date: v.created_at, text: `LIB v${v.version_number} draft created` },
@@ -414,7 +427,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
           });
         }
       }
-      notify.success(`${count} line item${count !== 1 ? "s" : ""} saved to LIB v${budget.version_number}. Awaiting Budget Officer certification.`);
+      notify.success(`${count} line item${count !== 1 ? "s" : ""} saved to LIB v${budget.version_number}. Submit it to the CRC Chair when it's complete.`);
       onDone();
     } catch (err) {
       notify.error(errorMessage(err, "The LIB could not be saved. Items saved before the error are kept."));
@@ -883,7 +896,7 @@ function LIBDetail({
   const summaryQ = useQuery({ ...budgetSummaryQuery(certifiedId), enabled: certifiedId > 0 });
   const summary: BudgetSummary | null = certifiedId > 0 ? (summaryQ.data ?? null) : null;
   const [showWizard, setShowWizard] = useState(false);
-  const [reviewing, setReviewing] = useState<"returned" | "resubmitted" | null>(null);
+  const [reviewing, setReviewing] = useState<LibAction | null>(null);
   const [tab, setTab] = useState<LIBTab>("overview");
   const [rows, setRows] = useState<Record<LineItemCategory, NewRow>>({ ps: EMPTY_ROW, mooe: EMPTY_ROW, co: EMPTY_ROW });
   const [attemptedCat, setAttemptedCat] = useState<LineItemCategory | null>(null);
@@ -940,7 +953,9 @@ function LIBDetail({
 
   const isDraft = budget?.status === "draft" || budget?.status === "returned";
   const isOwnLeader = userId !== undefined && project.lead === userId;
-  const lastReturn = budget?.status === "returned" ? [...budget.reviews].reverse().find((r) => r.action === "returned") : undefined;
+  const lastHold = budget?.status === "returned" ? [...budget.reviews].reverse().find((r) => HOLD_ACTIONS.includes(r.action)) : undefined;
+  const actions = budget ? libActions(budget.status, { isOwnLeader, canEndorse, canCertify }) : [];
+  const take = (a: LibAction, remarks = "") => run(() => budgetApi.reviewBudget(budget!.id, a.step, remarks), a.done, () => setReviewing(null));
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -991,57 +1006,28 @@ function LIBDetail({
                 <p className="text-white font-black text-lg leading-snug max-w-2xl">{project.title}</p>
                 <p className="text-sm mt-1" style={{ color: "rgba(168,196,232,0.6)" }}>
                   Created {budget.created_at.slice(0, 10)}
-                  {budget.endorsed_at ? ` · Endorsed by ${budget.endorsed_by_name} (CRC Chair) ${budget.endorsed_at.slice(0, 10)}` : ""}
+                  {budget.endorsed_at ? ` · Reviewed by ${budget.endorsed_by_name} (CRC Chair) ${budget.endorsed_at.slice(0, 10)}` : ""}
                   {budget.certified_at
                     ? ` · Certified by ${budget.certified_by_name} (Budget Officer) ${budget.certified_at.slice(0, 10)}`
-                    : budget.status === "endorsed"
-                      ? " · Not yet certified by the Budget Officer"
-                      : budget.status === "draft"
-                        ? " · Waiting for the CRC Chair's endorsement"
+                    : budget.status === "draft"
+                      ? " · Not yet submitted to the CRC Chair"
+                      : budget.status === "returned"
+                        ? ` · ${holdLabel(budget.hold_level)}`
                         : ""}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 shrink-0">
-              {canEndorse && budget.status === "draft" && (
+              {actions.map((a) => (
                 <button
-                  onClick={() => run(() => budgetApi.endorseBudget(budget.id), "LIB endorsed. It now goes to the Budget Officer.")}
-                  disabled={busy || budget.line_items.length === 0}
+                  key={a.step}
+                  onClick={() => (a.remarks ? setReviewing(a) : take(a))}
+                  disabled={busy || (a.step === "submit" && budget.line_items.length === 0)}
                   className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 disabled:opacity-50"
-                  style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+                  style={{ background: a.danger ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.15)", color: "white" }}
                 >
-                  Endorse LIB
+                  {a.label}
                 </button>
-              )}
-              {canCertify && budget.status === "endorsed" && (
-                <button
-                  onClick={() => run(() => budgetApi.certifyBudget(budget.id), "LIB certified.")}
-                  disabled={busy}
-                  className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 disabled:opacity-50"
-                  style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
-                >
-                  Certify LIB
-                </button>
-              )}
-              {((canEndorse && budget.status === "draft") || (canCertify && budget.status === "endorsed")) && (
-                <button
-                  onClick={() => setReviewing("returned")}
-                  disabled={busy}
-                  className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 disabled:opacity-50"
-                  style={{ background: "rgba(239,68,68,0.25)", color: "white" }}
-                >
-                  Return for Revision
-                </button>
-              )}
-              {isOwnLeader && budget.status === "returned" && (
-                <button
-                  onClick={() => setReviewing("resubmitted")}
-                  disabled={busy}
-                  className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 disabled:opacity-50"
-                  style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
-                >
-                  Resubmit LIB
-                </button>
-              )}
+              ))}
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
@@ -1057,10 +1043,15 @@ function LIBDetail({
             </div>
           </div>
 
-          {lastReturn && (
+          {lastHold && (
             <div className="px-6 py-3 text-xs" style={{ background: "#fef2f2", borderBottom: "1px solid #fecaca", color: "#991b1b" }}>
-              <span className="font-bold">Returned by {lastReturn.acted_by_name} on {lastReturn.acted_at.slice(0, 10)}:</span> {lastReturn.remarks}
-              {isOwnLeader && <span className="block mt-1">Edit the line items, then click “Resubmit LIB”. The Grand Total must equal the Total Project/Study Cost.</span>}
+              <span className="font-bold">{holdLabel(budget.hold_level)} ({lastHold.acted_by_name}, {lastHold.acted_at.slice(0, 10)}):</span> {lastHold.remarks}
+              {isOwnLeader && <span className="block mt-1">Edit the line items, then click “Resubmit to CRC Chair”. The Grand Total must equal the Total Project/Study Cost.</span>}
+            </div>
+          )}
+          {!isDraft && isOwnLeader && budget.status !== "certified" && (
+            <div className="px-6 py-3 text-xs" style={{ background: "#f0f9ff", borderBottom: "1px solid #bae6fd", color: "#0369a1" }}>
+              This LIB is {STATUS_META[budget.status].label} and locked while it is reviewed. You can edit it again only if it is put On Hold.
             </div>
           )}
           <div className="flex border-b overflow-x-auto" style={{ borderColor: "#e2e8f0" }}>
@@ -1342,17 +1333,13 @@ function LIBDetail({
       )}
       {reviewing && budget && (
         <ReviewModal
-          title={reviewing === "returned" ? "Return LIB for Revision" : "Resubmit LIB"}
-          hint={reviewing === "returned" ? "What should the Project Leader revise?" : "What did you change?"}
-          required={reviewing === "returned"}
-          confirm={reviewing === "returned" ? "Return to Project Leader" : "Resubmit to CRC Chair"}
+          title={reviewing.step === "hold" ? "Put LIB on Hold" : "Resubmit LIB"}
+          hint={reviewing.step === "hold" ? "What should the Project Leader correct?" : "What did you change?"}
+          required={reviewing.remarks === "required"}
+          confirm={reviewing.step === "hold" ? "Put on Hold" : "Resubmit to CRC Chair"}
           busy={busy}
           onClose={() => setReviewing(null)}
-          onSubmit={(remarks) =>
-            reviewing === "returned"
-              ? run(() => budgetApi.returnBudget(budget.id, remarks), "LIB returned to the Project Leader.", () => setReviewing(null))
-              : run(() => budgetApi.resubmitBudget(budget.id, remarks), "LIB resubmitted to the CRC Chair.", () => setReviewing(null))
-          }
+          onSubmit={(remarks) => take(reviewing, remarks)}
         />
       )}
       {showWizard && (
@@ -1618,7 +1605,7 @@ function BudgetContent() {
                 setPage(1);
               }}
             />
-            {([["all", "All"], ["draft", "Awaiting CRC Chair"], ["endorsed", "Awaiting Budget Officer"], ["returned", "Returned"], ["certified", "Certified"]] as const).map(([v, label]) => (
+            {([["all", "All"], ...LIB_STATUS_ORDER.filter((st) => budgets.some((b) => b.is_current && b.status === st)).map((st) => [st, STATUS_META[st].label])] as [typeof statusFilter, string][]).map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => {
@@ -1685,20 +1672,16 @@ function BudgetContent() {
                       );
                     })}
                   </div>
-                  {((canEndorse && b.status === "draft" && b.line_items.length > 0) || (canCertify && b.status === "endorsed")) && (
-                    <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "#fee2e2" }}>
-                      <span className="text-xs">⏳</span>
-                      <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>{b.status === "draft" ? "Awaiting CRC Chair endorsement" : "Awaiting Budget Officer certification"}</p>
-                      <span className="ml-auto text-xs font-bold" style={{ color: "#0891b2" }}>{b.status === "draft" ? "Open to endorse →" : "Open to certify →"}</span>
-                    </div>
-                  )}
-                  {b.status === "returned" && project.lead === user?.pk && (
-                    <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "#fee2e2" }}>
-                      <span className="text-xs">↩️</span>
-                      <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>Returned for revision</p>
-                      <span className="ml-auto text-xs font-bold" style={{ color: "#0891b2" }}>Open to revise →</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const todo = libToDo(b, { isOwnLeader: project.lead === user?.pk, canEndorse, canCertify });
+                    return todo && (
+                      <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: b.status === "returned" ? "#fee2e2" : "#fef3c7" }}>
+                        <span className="text-xs">{b.status === "returned" ? "⏸️" : "⏳"}</span>
+                        <p className="text-xs font-bold" style={{ color: b.status === "returned" ? "#b91c1c" : "#92400e" }}>{todo}</p>
+                        <span className="ml-auto text-xs font-bold" style={{ color: "#0891b2" }}>Open →</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })

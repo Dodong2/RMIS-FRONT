@@ -1,5 +1,6 @@
 export type LineItemCategory = "ps" | "mooe" | "co";
-export type BudgetStatus = "draft" | "endorsed" | "returned" | "certified";
+/** Client 2026-10-21 LIB workflow: endorsed = Ready for Certification, certifying = In Progress, returned = On Hold. */
+export type BudgetStatus = "draft" | "submitted" | "crc_processing" | "for_checking" | "endorsed" | "certifying" | "returned" | "certified";
 
 export type LibAllocation = { period: string; amount: string };
 
@@ -54,15 +55,32 @@ export interface LineItemBudget {
   line_items: LineItem[];
   total_amount: string;
   exceeds_dry_cap: boolean;
+  /** Who put an On Hold LIB on hold; null otherwise or for an older return. */
+  hold_level: "crc" | "budget" | null;
   reviews: BudgetReview[];
 }
 
-export type BudgetReviewAction = "endorsed" | "returned" | "resubmitted" | "certified";
+export type BudgetStep = "submit" | "start-review" | "for-checking" | "ready" | "start-certification" | "certify" | "hold" | "resubmit";
+
+export type BudgetReviewAction =
+  | "submitted"
+  | "review_started"
+  | "for_checking"
+  | "ready"
+  | "certification_started"
+  | "held_crc"
+  | "held_budget"
+  | "resubmitted"
+  | "certified"
+  | "endorsed"
+  | "returned";
 
 export interface BudgetReview {
   id: number;
   action: BudgetReviewAction;
   remarks: string;
+  /** The line items as submitted/resubmitted (client Q11); empty for other steps. */
+  snapshot: Omit<LineItem, "budget">[];
   acted_by: number;
   acted_by_name: string;
   acted_at: string;

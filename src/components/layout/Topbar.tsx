@@ -6,6 +6,7 @@ import { PROCUREMENT_EVENTS, useRealtime } from "../../hooks/useRealtime";
 import { initialsFrom, personName, resolveTier, roleLabel, roleScopeLine } from "../../lib/roles";
 import { protoRoleStyle } from "../../lib/protoRole";
 import { riskApi } from "../../lib/riskApi";
+import { libToDo } from "../../lib/libWorkflow";
 import type { User } from "../../types/auth";
 import type { RiskAlertInbox } from "../../types/risk";
 
@@ -55,14 +56,8 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
     if (!b.is_current || b.line_items.length === 0) continue;
     const p = projectsQ.data?.find((x) => x.id === b.project);
     const label = `${p?.project_code ?? `Project #${b.project}`} LIB v${b.version_number}${p ? ` · ${p.title}` : ""}`;
-    const sub =
-      isLibEndorser && b.status === "draft"
-        ? "Waiting for your endorsement"
-        : isBudgetReviewer && b.status === "endorsed"
-          ? "Endorsed by the CRC Chair · waiting for certification"
-          : isLeader && b.status === "returned" && p?.lead === userId
-            ? "Returned for revision · edit and resubmit"
-            : null;
+    // Client 2026-10-21 LIB workflow: the same to-do as the Budget page's project list; a Draft isn't a bell item.
+    const sub = b.status === "draft" ? null : libToDo(b, { isOwnLeader: isLeader && p?.lead === userId, canEndorse: isLibEndorser, canCertify: isBudgetReviewer });
     if (sub) budgetItems.push({ key: `lib${b.id}`, text: label, sub, link: `/budget?project=${b.project}`, area: "Budget" });
   }
   if (isBudgetReviewer) {
