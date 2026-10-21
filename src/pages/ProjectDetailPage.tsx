@@ -640,7 +640,6 @@ function ProjectDetailContent() {
 
           {tab === "workplan" && (
             <div>
-              <SectionHeader>Gantt Timeline</SectionHeader>
               <ActivityGantt milestones={sortedMilestones} project={project} now={now} />
             </div>
           )}
