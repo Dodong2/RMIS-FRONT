@@ -72,12 +72,19 @@ function connect() {
     clearInterval(pingTimer);
     if (socket === ws) socket = null;
     if (stopped) return;
-    if (event.code === UNAUTHORIZED) {
-      const ok = await options!.refreshToken().catch(() => false);
-      if (!ok) return;
-    }
+    // A refresh that fails on the network (tunnel/laptop down) just retries with the backoff; a refresh token that is
+    // really expired logs the user out in apiClient, which clears the token, and connect() then stops on its own.
+    if (event.code === UNAUTHORIZED) await options!.refreshToken().catch(() => false);
     scheduleReconnect();
   };
+}
+
+/** Back online, or back on this tab: reconnect now instead of waiting out the backoff. */
+function reconnectNow() {
+  if (stopped || socket || (typeof document !== "undefined" && document.visibilityState === "hidden")) return;
+  attempt = 0;
+  clearTimeout(reconnectTimer);
+  connect();
 }
 
 export function startRealtime(opts: Options) {
@@ -85,11 +92,15 @@ export function startRealtime(opts: Options) {
   if (!stopped) return;
   stopped = false;
   attempt = 0;
+  window.addEventListener("online", reconnectNow);
+  document.addEventListener("visibilitychange", reconnectNow);
   connect();
 }
 
 export function stopRealtime() {
   stopped = true;
+  window.removeEventListener("online", reconnectNow);
+  document.removeEventListener("visibilitychange", reconnectNow);
   clearTimeout(reconnectTimer);
   clearInterval(pingTimer);
   socket?.close(1000);
