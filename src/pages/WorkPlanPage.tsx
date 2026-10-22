@@ -11,6 +11,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { AppShell } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
+import { TASK_EVENTS, useRealtime } from "../hooks/useRealtime";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LatePill } from "../components/workplan/ActivityGantt";
 import { STATUS_META, activityTaskCompletion, daysLate, nameOf } from "../lib/workplan";
@@ -191,6 +192,9 @@ function WorkPlanDetail({
   const [teamRows, setTeamRows] = useState<ProjectTeamMember[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  useRealtime(TASK_EVENTS, (msg) => {
+    if (!msg.project || msg.project === project.id) setReloadKey((k) => k + 1);
+  });
   const [expanded, setExpanded] = useState<number | null>(null);
   const [editing, setEditing] = useState<Milestone | "new" | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);

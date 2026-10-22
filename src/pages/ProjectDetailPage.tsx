@@ -37,6 +37,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { EmptyOption } from "../components/common/EmptyOption";
 import { useAuth } from "../context/AuthContext";
+import { TASK_EVENTS, useRealtime } from "../hooks/useRealtime";
 import { AppShell } from "../components/layout/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -191,6 +192,10 @@ function ProjectDetailContent() {
   const [budgets, setBudgets] = useState<LineItemBudget[]>([]);
   const [studyLeaders, setStudyLeaders] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  useRealtime(TASK_EVENTS, (msg) => {
+    if (msg.project && msg.project !== projectId) return;
+    researchApi.getMilestones(projectId).then(setMilestones).catch(() => undefined);
+  });
 
   const [studyDialogOpen, setStudyDialogOpen] = useState(false);
   const [studyForm, setStudyForm] = useState({ title: "", lead: "" });

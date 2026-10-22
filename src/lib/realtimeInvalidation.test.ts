@@ -12,6 +12,10 @@ describe("keysToRefetch", () => {
     expect(keys).toHaveLength(4);
   });
 
+  it("refetches tasks, Work Logs, workload and milestones when a task changes", () => {
+    expect(keysToRefetch(["personnel.task.changed"])).toEqual([["tasks"], ["task-updates"], ["workload"], ["milestones"]]);
+  });
+
   it("ignores unmapped events and refetches everything mapped after a reconnect", () => {
     expect(keysToRefetch(["procurement.updated"])).toEqual([]);
     expect(keysToRefetch(["realtime.reconnected"], true)).toEqual(keysToRefetch(REALTIME_REFETCH_EVENTS));

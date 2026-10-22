@@ -6,6 +6,7 @@ type Options = { getToken: () => string | null; refreshToken: () => Promise<bool
 
 export const RECONNECTED = "realtime.reconnected";
 export const PROCUREMENT_EVENTS = ["procurement.created", "procurement.updated"];
+export const TASK_EVENTS = ["personnel.task.changed"];
 const UNAUTHORIZED = 4401;
 const PING_MS = 25000;
 const MAX_DELAY_MS = 30000;

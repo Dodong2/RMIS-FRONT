@@ -6,6 +6,7 @@ export const REALTIME_REFETCH: Record<string, QueryKey[]> = {
   "budget.lib.updated": [queryKeys.budgets(), queryKeys.budgetSummaries, queryKeys.projects, queryKeys.financialAll],
   "financial.realignment.created": [queryKeys.financialAll, queryKeys.budgets()],
   "financial.realignment.reviewed": [queryKeys.financialAll, queryKeys.budgets(), queryKeys.budgetSummaries],
+  "personnel.task.changed": [queryKeys.tasksAll, ["task-updates"], queryKeys.workloadAll, queryKeys.milestones],
 };
 
 export const REALTIME_REFETCH_EVENTS = Object.keys(REALTIME_REFETCH);
