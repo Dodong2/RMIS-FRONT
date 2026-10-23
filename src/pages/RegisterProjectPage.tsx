@@ -23,6 +23,7 @@ import { LibItemSelect } from "../components/common/LibItemSelect";
 import { RdeAgendaPicker } from "../components/registration/RdeAgendaPicker";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { LibAllocationGrid } from "../components/registration/LibAllocationGrid";
+import { RichTextEditor } from "../components/common/RichTextEditor";
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
 import {
@@ -590,6 +591,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rde-thrusts": [], "cooperating-agencies": [], endorsers: [], "funding-types": [] });
   const [agencies, setAgencies] = useState<string[]>(init.agencies);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
+  const setRich = (key: keyof typeof form) => (html: string) => setForm((p) => ({ ...p, [key]: html }));
 
   useEffect(() => {
     let active = true;
@@ -1411,7 +1413,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                 <div className="space-y-5">
                   <StepNote>Sections II–IV, VI, VIII, and IX of the form. Section V (6Ps), VII (beneficiaries) and XI (work plan) are on the next step; Section X (budget) has its own step.</StepNote>
                   <Field label="II. Background of the Study">
-                    <AutoTextarea minRows={6} className={inputCls} style={inputSt} value={form.background} onChange={set("background")} placeholder="Background and rationale as stated in the approved proposal" />
+                    <RichTextEditor ariaLabel="II. Background of the Study" value={form.background} onChange={setRich("background")} placeholder="Background and rationale as stated in the approved proposal" />
                   </Field>
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -1442,16 +1444,16 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                     </div>
                   </div>
                   <Field label="IV. Project Descriptions / Methodology">
-                    <AutoTextarea minRows={5} className={inputCls} style={inputSt} value={form.methodology} onChange={set("methodology")} />
+                    <RichTextEditor ariaLabel="IV. Project Descriptions / Methodology" value={form.methodology} onChange={setRich("methodology")} />
                   </Field>
                   <Field label="VI. Socio-Economic Significance">
-                    <AutoTextarea minRows={4} className={inputCls} style={inputSt} value={form.socio_economic_significance} onChange={set("socio_economic_significance")} />
+                    <RichTextEditor ariaLabel="VI. Socio-Economic Significance" value={form.socio_economic_significance} onChange={setRich("socio_economic_significance")} />
                   </Field>
                   <Field label="VIII. Monitoring / Evaluation">
-                    <AutoTextarea minRows={4} className={inputCls} style={inputSt} value={form.monitoring_evaluation} onChange={set("monitoring_evaluation")} />
+                    <RichTextEditor ariaLabel="VIII. Monitoring / Evaluation" value={form.monitoring_evaluation} onChange={setRich("monitoring_evaluation")} />
                   </Field>
                   <Field label="IX. List of References (APA format)">
-                    <AutoTextarea minRows={4} className={inputCls} style={inputSt} value={form.references} onChange={set("references")} />
+                    <RichTextEditor ariaLabel="IX. List of References" value={form.references} onChange={setRich("references")} />
                   </Field>
                   <Field label="Executive Summary (optional)">
                     <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.description} onChange={set("description")} placeholder="Short overview shown on the project page" />

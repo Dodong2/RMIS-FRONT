@@ -270,3 +270,18 @@
     transition-duration: 0.01ms !important;
   }
 }
+/* Rich text proposal sections (client 2026-10-23): editor and read view share these */
+.rich-text p { margin: 0 0 0.5rem; }
+.rich-text > :last-child { margin-bottom: 0; }
+.rich-text h2 { font-size: 1.05rem; font-weight: 700; margin: 0.75rem 0 0.35rem; }
+.rich-text h3 { font-size: 0.95rem; font-weight: 700; margin: 0.6rem 0 0.3rem; }
+.rich-text ul { list-style: disc; padding-left: 1.4rem; margin: 0 0 0.5rem; }
+.rich-text ol { list-style: decimal; padding-left: 1.4rem; margin: 0 0 0.5rem; }
+.rich-text li p { margin: 0; }
+.rich-text blockquote { border-left: 3px solid #cbd5e1; padding-left: 0.75rem; color: #475569; margin: 0 0 0.5rem; }
+.rich-text a { color: #0891b2; text-decoration: underline; }
+.rich-text table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; table-layout: fixed; }
+.rich-text th,
+.rich-text td { border: 1px solid #cbd5e1; padding: 0.25rem 0.5rem; vertical-align: top; }
+.rich-text th { background: #f1f5f9; font-weight: 600; text-align: left; }
+.rich-text .selectedCell { background: #e0f2fe; }

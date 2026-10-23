@@ -43,6 +43,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFundingTypes } from "../lib/fundingTypes";
+import { RichTextView } from "../components/common/RichTextEditor";
 
 type DetailTab = "overview" | "registration" | "team" | "workplan" | "impact" | "history" | "closure";
 
@@ -546,7 +547,9 @@ function ProjectDetailContent() {
                 .map(([heading, text]) => (
                   <div key={heading}>
                     <SectionHeader>{heading}</SectionHeader>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "#334155" }}>{text}</p>
+                    <div className="text-sm leading-relaxed" style={{ color: "#334155" }}>
+                      <RichTextView value={text} />
+                    </div>
                   </div>
                 ))}
               <div>

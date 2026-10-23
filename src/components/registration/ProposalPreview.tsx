@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ProtoModal } from "../common/proto";
+import { RichTextView } from "../common/RichTextEditor";
 import { BORDER, BUDGET_GROUPS, HEAD, SIX_P_LABELS } from "./proposalForm";
 import { PRIORITY_AREA_LABELS, RESEARCH_TYPE_LABELS, SDG_LABELS, SECTOR_LABELS, TYPOLOGY_LABELS } from "../../lib/projectOptions";
 
@@ -153,7 +154,7 @@ function WorkPlanGantt({ items, projectStart, projectEnd }: { items: ProposalDat
 }
 
 function Text({ value }: { value: string }) {
-  return value.trim() ? <p className="whitespace-pre-wrap">{value}</p> : <p style={{ color: "#94a3b8" }}>Not provided</p>;
+  return value.trim() ? <RichTextView value={value} /> : <p style={{ color: "#94a3b8" }}>Not provided</p>;
 }
 
 export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose: () => void }) {
