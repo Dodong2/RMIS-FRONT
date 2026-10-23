@@ -24,6 +24,7 @@ import { RdeAgendaPicker } from "../components/registration/RdeAgendaPicker";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { LibAllocationGrid } from "../components/registration/LibAllocationGrid";
 import { RichTextEditor } from "../components/common/RichTextEditor";
+import { registrationDraft, type RegistrationPayload } from "../lib/registrationDraft";
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
 import {
@@ -33,7 +34,6 @@ import {
   SDG_OPTIONS,
   SECTOR_OPTIONS,
   TYPOLOGY_OPTIONS,
-  dryResearchChoice,
   dryResearchValue,
 } from "../lib/projectOptions";
 
@@ -322,7 +322,7 @@ function WorkPlanExcelButton({ onRows, onErrors }: { onRows: (rows: WorkPlanImpo
   );
 }
 
-function ExcelImport() {
+function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<ProjectImportError[]>([]);
@@ -357,10 +357,24 @@ function ExcelImport() {
     setIsPreviewing(true);
     setErrors([]);
     try {
-      setPreview(await researchApi.previewImport(file));
+      setPreview((await researchApi.previewImport(file)).preview);
     } catch (err) {
       showImportErrors(err, "Could not read the workbook.");
     } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  // Nothing is registered: the dry run rolls back, and Manual Entry's Register saves it after the review.
+  const handleReview = async () => {
+    if (!file) return;
+    setIsPreviewing(true);
+    setErrors([]);
+    try {
+      const { draft } = await researchApi.previewImport(file);
+      onReview({ draft: toRegisterDraft(draft, false), fileName: file.name });
+    } catch (err) {
+      showImportErrors(err, "Could not read the workbook.");
       setIsPreviewing(false);
     }
   };
@@ -450,6 +464,15 @@ function ExcelImport() {
             {isPreviewing ? "Reading…" : "👁 View as SF-018"}
           </button>
           <button
+            onClick={handleReview}
+            disabled={isPreviewing || isUploading || !file}
+            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors hover:bg-[#c7d8ef] disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: "#e0eaf7", color: "#0d2a5e" }}
+            title="Open the workbook in Manual Entry to check and edit it, then Register"
+          >
+            ✏️ Review &amp; edit before registering
+          </button>
+          <button
             onClick={handleUpload}
             disabled={isUploading || !file}
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
@@ -536,6 +559,20 @@ const blankDraft = (lead: string): RegisterDraft => ({
   step: 0,
 });
 
+/** Wizard state for a registration: a registered project (Edit Registration, with row ids) or a workbook loaded for review. */
+const toRegisterDraft = (src: RegistrationPayload, keepIds: boolean): RegisterDraft => {
+  const d = registrationDraft(src, keepIds);
+  return {
+    ...d,
+    form: { ...blankForm(d.form.lead), ...d.form },
+    libRows: d.libRows.map((r) => ({ ...r, category: r.category as LibCategory })),
+    step: 0,
+  };
+};
+
+/** An uploaded workbook opened in Manual Entry to check and edit before registering (client 2026-10-23). */
+type ExcelDraft = { draft: RegisterDraft; fileName: string };
+
 /** A registered project loaded into the wizard for Edit Registered Project (client request 2026-10-09). */
 type EditSource = {
   project: Project;
@@ -544,7 +581,17 @@ type EditSource = {
   originalIds: Record<"team" | "outputs" | "beneficiaries" | "workPlan" | "endorsers", number[]>;
 };
 
-function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void; edit?: EditSource }) {
+function RegisterProjectContent({
+  onStartOver,
+  edit,
+  fromExcel,
+  onLoadExcel,
+}: {
+  onStartOver: () => void;
+  edit?: EditSource;
+  fromExcel?: ExcelDraft | null;
+  onLoadExcel?: (excel: ExcelDraft) => void;
+}) {
   const fundingTypes = useFundingTypes();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -554,9 +601,11 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const selfName = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() || user?.email || "";
   const draftKey = `rmis:draft:register-project:${user?.pk ?? "anon"}`;
   const [blank] = useState(() => blankDraft(isProjectLeader && user ? String(user.pk) : ""));
-  const [restored] = useState(() => (edit ? null : loadDraft<RegisterDraft>(draftKey, DRAFT_VERSION)));
+  const [restored] = useState(() => (edit || fromExcel ? null : loadDraft<RegisterDraft>(draftKey, DRAFT_VERSION)));
   const init: RegisterDraft = edit
     ? edit.draft
+    : fromExcel
+    ? { ...fromExcel.draft, form: { ...fromExcel.draft.form, ...(isProjectLeader ? { lead: blank.form.lead } : {}) } }
     : restored
     ? { ...blank, ...restored.data, form: { ...blank.form, ...restored.data.form, ...(isProjectLeader ? { lead: blank.form.lead } : {}) } }
     : blank;
@@ -1122,10 +1171,21 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
           ))}
         </div>
 
-        {mode === "excel" && <ExcelImport />}
+        {mode === "excel" && <ExcelImport onReview={(excel) => onLoadExcel?.(excel)} />}
 
         {mode === "manual" && (
           <>
+            {fromExcel && (
+              <div className="mx-5 mt-4 px-4 py-3 rounded-xl flex items-start gap-3 flex-wrap" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
+                <p className="text-xs flex-1 min-w-60" style={{ color: "#1e3a8a" }}>
+                  <span className="font-bold">Loaded from {fromExcel.fileName}.</span> Nothing is registered yet: check and edit every step, attach the
+                  documents, then Register on the last step.
+                </p>
+                <button onClick={startOver} className="text-xs font-bold px-3 py-1.5 rounded-lg shrink-0" style={{ background: "white", color: "#1e3a8a", border: "1px solid #bfdbfe" }}>
+                  Start over
+                </button>
+              </div>
+            )}
             {restored && (
               <div className="mx-5 mt-4 px-4 py-3 rounded-xl flex items-start gap-3 flex-wrap" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
                 <p className="text-xs flex-1 min-w-60" style={{ color: "#92400e" }}>
@@ -1885,10 +1945,15 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
 
 export default function RegisterProjectPage() {
   const [resetKey, setResetKey] = useState(0);
+  const [fromExcel, setFromExcel] = useState<ExcelDraft | null>(null);
+  const reopen = (excel: ExcelDraft | null) => {
+    setFromExcel(excel);
+    setResetKey((k) => k + 1);
+  };
   return (
     <ProtectedRoute>
       <AppShell title="Register Approved Project">
-        <RegisterProjectContent key={resetKey} onStartOver={() => setResetKey((k) => k + 1)} />
+        <RegisterProjectContent key={resetKey} fromExcel={fromExcel} onLoadExcel={reopen} onStartOver={() => reopen(null)} />
       </AppShell>
     </ProtectedRoute>
   );
@@ -1908,74 +1973,9 @@ async function loadEditSource(projectId: number): Promise<EditSource> {
     researchApi.getEndorsers(projectId),
     budgetApi.getBudgets(projectId),
   ]);
-  const p = project;
-  const lib = budgets.find((b) => b.is_current)?.line_items ?? [];
   const sortedStudies = byId(studies);
-  const draft: RegisterDraft = {
-    form: {
-      ...blankForm(String(p.lead)),
-      title: p.title,
-      project_code: p.project_code,
-      funding_type: p.funding_type,
-      lead_gender: p.lead_gender,
-      contact_number: p.contact_number,
-      ntp_number: p.ntp_number,
-      ntp_date: p.ntp_date ?? "",
-      toe_signed_date: p.toe_signed_date ?? "",
-      is_dry_research: dryResearchChoice(p.is_dry_research),
-      start_date: p.start_date ?? "",
-      target_end_date: p.target_end_date ?? "",
-      rde_thrust: p.rde_thrust,
-      rde_priority: p.rde_priority,
-      sdgs: p.sdgs.map(String),
-      sectors: p.sectors,
-      sector_other: p.sector_other,
-      is_continuing: String(p.is_continuing),
-      continuing_year: p.continuing_year ? String(p.continuing_year) : "",
-      research_type: p.research_type,
-      research_priority_area: p.research_priority_area,
-      research_typology: p.research_typology,
-      campus: p.campus,
-      implementing_unit: p.implementing_unit || p.college,
-      total_cost: p.total_cost ?? "",
-      background: p.background,
-      methodology: p.methodology,
-      socio_economic_significance: p.socio_economic_significance,
-      monitoring_evaluation: p.monitoring_evaluation,
-      references: p.references,
-      description: p.description,
-      expected_outcomes: p.expected_outcomes,
-      expected_impacts: p.expected_impacts,
-      proposal_submitted_on: p.proposal_submitted_on ?? "",
-      proposal_reviewed_on: p.proposal_reviewed_on ?? "",
-      proposal_approved_on: p.proposal_approved_on ?? "",
-      reviewing_body: p.reviewing_body,
-    },
-    agencies: p.cooperating_agencies ? p.cooperating_agencies.split(", ").filter(Boolean) : [],
-    objectives: (() => {
-      const list = p.objectives.split("\n").map((l) => l.replace(/^\d+[.)]\s*/, "").trim()).filter(Boolean);
-      return list.length ? list : [""];
-    })(),
-    studyTitles: sortedStudies.length ? sortedStudies.map((st) => st.title) : [""],
-    team: byId(team).map((t) => ({ id: t.id, member_role: t.member_role, name: t.name, gender: t.gender, user: t.user })),
-    beneficiaryRows: beneficiaries.length
-      ? byId(beneficiaries).map((b) => ({ id: b.id, group: b.group, description: b.description, total: String(b.total) }))
-      : [{ group: "", description: "", total: "" }],
-    outputRows: byId(outputs).map((o) => ({ id: o.id, category: o.category, description: o.description, target_count: String(o.target_count) })),
-    workPlanRows: byId(milestones).map((m) => ({ id: m.id, title: m.title, start_date: m.start_date ?? "", target_date: m.target_date, tasks: m.tasks_total })),
-    // Older LIB rows have only an amount; shown as 1 x amount so the locked step still adds up
-    libRows: lib.map((r) => ({
-      category: r.category as LibCategory,
-      description: r.description,
-      unit: r.unit,
-      quantity: r.quantity ?? "1",
-      unit_cost: r.unit_cost ?? r.amount,
-      allocations: Object.fromEntries((r.allocations ?? []).map((a) => [a.period, a.amount])),
-    })),
-    libYear: String(lib.find((r) => r.fiscal_year)?.fiscal_year ?? new Date().getFullYear()),
-    endorsers: byId(endorsers).map((e) => ({ id: e.id, role_code: e.role_code, user: e.user, name: e.name, designation: e.designation, signed_on: e.signed_on ?? "" })),
-    step: 0,
-  };
+  const lineItems = budgets.find((b) => b.is_current)?.line_items ?? [];
+  const draft = toRegisterDraft({ project, team, studies, outputs, beneficiaries, milestones, endorsers, line_items: lineItems }, true);
   return {
     project,
     draft,

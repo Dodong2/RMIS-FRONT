@@ -1,4 +1,5 @@
 import type { ProposalData } from "../components/registration/ProposalPreview";
+import type { RegistrationPayload } from "./registrationDraft";
 import { apiClient, idempotent } from "./apiClient";
 import { downloadReport } from "./reportsApi";
 import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary, WorkPlanImportRow } from "../types/research";
@@ -112,11 +113,12 @@ export const researchApi = {
     return data;
   },
   /** Same import with ?dry_run=1: nothing is saved, returns the SF-018 preview data (errors come back as a 400 like a real upload). */
-  previewImport: async (file: File): Promise<ProposalData> => {
+  /** Dry run (nothing is saved): the SF-018 preview and the draft Manual Entry loads for review (client 2026-10-23). */
+  previewImport: async (file: File): Promise<{ preview: ProposalData; draft: RegistrationPayload }> => {
     const form = new FormData();
     form.append("file", file);
     const { data } = await apiClient.post("/api/projects/import/", form, { params: { dry_run: 1 } });
-    return data.preview;
+    return data;
   },
   parseWorkPlan: async (file: File): Promise<WorkPlanImportRow[]> => {
     const form = new FormData();
