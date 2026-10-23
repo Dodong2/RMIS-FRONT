@@ -5,7 +5,7 @@ import { outputsApi } from "../lib/outputsApi";
 import type { SixPCategory } from "../types/outputs";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
-import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel, periodYear, allocatedTotal } from "../lib/libUnits";
+import { LIB_UNITS, allocationPeriods, groupLibRows, libLineTotal, libUnitLabel, periodYear, allocatedTotal } from "../lib/libUnits";
 import { notify } from "../lib/notify";
 import { clearDraft, loadDraft, saveDraft } from "../lib/formDraft";
 import type { AdminChoice, AdminChoiceKind, FundingType, Project, ProjectImportError, WorkPlanImportRow } from "../types/research";
@@ -1596,7 +1596,38 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                       </div>
                     </>
                   )}
-                  {LIB_CATEGORIES.map((cat) => {
+                  {libPeriods ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0d2a5e" }}>Allocation per Quarter</p>
+                      <LibAllocationGrid
+                        periods={libPeriods}
+                        groups={groupLibRows(libRows, LIB_CATEGORIES, libRowTotal).map((g) => ({
+                          key: g.key,
+                          label: g.label,
+                          subtotal: g.subtotal,
+                          rows: g.rows.map(({ row, index }) => ({ index, description: row.description.trim(), total: libRowTotal(row), allocations: row.allocations })),
+                        }))}
+                        onChange={(i, period, v) => updateLib(i, { allocations: { ...libRows[i].allocations, [period]: v } })}
+                        onAdd={(category) => setLibRows([...libRows, { category: category as LibCategory, description: "", unit: "unit", quantity: "", unit_cost: "" }])}
+                        onRemove={(i) => setLibRows(libRows.filter((_, idx) => idx !== i))}
+                        itemCells={(i) => {
+                          const r = libRows[i];
+                          const tableInput = "w-full px-2 py-1.5 rounded-md border text-xs outline-none focus:border-[#0891b2]";
+                          const tableSt = { borderColor: "#94a3b8", background: "white", color: "#0f172a" };
+                          return [
+                            <LibItemSelect ariaLabel="Item" category={r.category} className={tableInput} style={tableSt} value={r.description} onChange={(description) => updateLib(i, { description })} />,
+                            <select className={tableInput} style={tableSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
+                              {LIB_UNITS.map(([code, label]) => (
+                                <option key={code} value={code}>{label}</option>
+                              ))}
+                            </select>,
+                            <input type="number" min="0" step="any" className={tableInput} style={tableSt} value={r.quantity} onChange={(e) => updateLib(i, { quantity: e.target.value })} placeholder="Qty" aria-label="Qty" />,
+                            <MoneyInput className={tableInput + " text-right"} style={tableSt} value={r.unit_cost} onChange={(v) => updateLib(i, { unit_cost: v })} placeholder="0.00" aria-label="Unit Cost" />,
+                          ];
+                        }}
+                      />
+                    </div>
+                  ) : LIB_CATEGORIES.map((cat) => {
                     const rows = libRows.map((r, i) => ({ r, i })).filter(({ r }) => r.category === cat.key);
                     const subtotal = rows.reduce((sum, { r }) => sum + libRowTotal(r), 0);
                     return (
@@ -1637,21 +1668,6 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                       </div>
                     );
                   })}
-                  {libPeriods && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0d2a5e" }}>Allocation per Quarter</p>
-                      <LibAllocationGrid
-                        periods={libPeriods}
-                        groups={LIB_CATEGORIES.map((cat) => ({
-                          label: cat.label,
-                          rows: libRows
-                            .map((r, i) => ({ index: i, description: r.description.trim(), total: libRowTotal(r), allocations: r.allocations }))
-                            .filter((row, i) => libRows[i].category === cat.key && row.description && row.total > 0),
-                        }))}
-                        onChange={(i, period, v) => updateLib(i, { allocations: { ...libRows[i].allocations, [period]: v } })}
-                      />
-                    </div>
-                  )}
                   {approvedBudget > 0 && libDifference !== 0 && (
                     <div className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
                       Grand total must equal approved budget (₱{peso(approvedBudget)}). The approved budget can't be changed here; adjust the line items, or use a

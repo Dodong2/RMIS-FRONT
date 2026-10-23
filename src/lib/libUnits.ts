@@ -40,3 +40,15 @@ export const allocatedTotal = (allocations: Record<string, string> | undefined, 
 /** Total = Qty x Unit Cost, rounded to centavos like the backend. */
 export const libLineTotal = (quantity: string | number, unitCost: string | number) =>
   Math.round((Number(quantity) || 0) * (Number(unitCost) || 0) * 100) / 100;
+
+/** LIB rows per category in the given order (PS, MOOE, CO), each with its index in the LIB and the category subtotal,
+ * for the Allocation per Quarter table that holds the entries (client 2026-10-23). Empty categories are kept. */
+export const groupLibRows = <R extends { category: string }>(
+  rows: R[],
+  categories: { key: string; label: string }[],
+  total: (row: R) => number,
+) =>
+  categories.map(({ key, label }) => {
+    const members = rows.flatMap((row, index) => (row.category === key ? [{ row, index }] : []));
+    return { key, label, rows: members, subtotal: Math.round(members.reduce((sum, { row }) => sum + total(row), 0) * 100) / 100 };
+  });
