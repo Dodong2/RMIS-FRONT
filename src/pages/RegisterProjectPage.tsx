@@ -15,7 +15,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
-import { needsTeamConfirm, teamMissing, type TeamRow } from "../lib/teamRows";
+import { needsTeamConfirm, takenUserIds, teamMissing, type TeamRow } from "../lib/teamRows";
 import { ProtoModal } from "../components/common/proto";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
@@ -1243,6 +1243,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                       <div className="space-y-2">
                         {team.map((t, i) => {
                           const update = (patch: Partial<TeamRow>) => setTeam(team.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+                          const taken = takenUserIds(team, i);
                           return (
                             <div key={i} className="flex gap-2 items-start">
                               <select className={inputCls + " max-w-44"} style={inputSt} value={t.member_role} onChange={(e) => update({ member_role: e.target.value })}>
@@ -1251,7 +1252,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                               </select>
                               <UserPicker
                                 className="flex-1"
-                                users={accounts.filter((a) => String(a.id) !== form.lead && (TEAM_ROLE_CODES[t.member_role] ?? []).includes(a.role?.code ?? ""))}
+                                users={accounts.filter((a) => String(a.id) !== form.lead && !taken.has(a.id) && (TEAM_ROLE_CODES[t.member_role] ?? []).includes(a.role?.code ?? ""))}
                                 value={{ user: t.user, name: t.name }}
                                 onChange={(picked) => update(picked)}
                                 invalid={showErrors && !t.name.trim()}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { needsTeamConfirm, teamMissing } from "./teamRows";
+import { needsTeamConfirm, takenUserIds, teamMissing } from "./teamRows";
 
 const row = (member_role: string, name: string, user: number | null = null) => ({ member_role, name, gender: "", user });
 
@@ -36,5 +36,25 @@ describe("needsTeamConfirm", () => {
     expect(needsTeamConfirm(3, 1, false)).toBe(false);
     expect(needsTeamConfirm(0, 1, false)).toBe(false);
     expect(needsTeamConfirm(3, 5, false)).toBe(false);
+  });
+});
+
+describe("takenUserIds (client 2026-10-23: an account picked once is not offered again)", () => {
+  const team = [row("co_leader", "Ana", 4), row("member", "Ben", 9), row("member", "EIU Coordinators"), row("member", "Cy", 12)];
+
+  it("lists the accounts picked on the other rows", () => {
+    expect([...takenUserIds(team, 1)].sort((a, b) => a - b)).toEqual([4, 12]);
+  });
+
+  it("keeps the row's own pick available to it", () => {
+    expect(takenUserIds(team, 1).has(9)).toBe(false);
+  });
+
+  it("frees an account once its row is removed", () => {
+    expect(takenUserIds(team.filter((_, i) => i !== 3), 1).has(12)).toBe(false);
+  });
+
+  it("ignores typed names without an account", () => {
+    expect(takenUserIds([row("member", "EIU Coordinators"), row("member", "Faculty")], 0).size).toBe(0);
   });
 });

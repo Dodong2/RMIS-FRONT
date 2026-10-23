@@ -12,3 +12,8 @@ export function teamMissing(lead: string, team: TeamRow[]): string[] {
 export function needsTeamConfirm(from: number, to: number, confirmed: boolean): boolean {
   return !confirmed && from <= 1 && to > 1;
 }
+
+/** Accounts picked on the other team rows, so the picker doesn't offer them twice (client 2026-10-23). */
+export function takenUserIds(team: TeamRow[], exceptIndex: number): Set<number> {
+  return new Set(team.flatMap((t, i) => (i !== exceptIndex && t.user !== null ? [t.user] : [])));
+}
