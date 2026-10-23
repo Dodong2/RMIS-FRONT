@@ -8,7 +8,7 @@ export type Sector =
   | "information_tech"
   | "politics"
   | "others";
-export type ResearchType = "basic" | "applied";
+export type ResearchType = "basic" | "applied" | "not_applicable";
 export type PriorityArea =
   | "science_math"
   | "education_teacher_training"
@@ -81,7 +81,7 @@ export interface Project {
   ntp_number: string;
   ntp_date: string | null;
   toe_signed_date: string | null;
-  is_dry_research: boolean;
+  is_dry_research: boolean | null;
   lead: number;
   lead_detail: Lead;
   lead_gender: Gender | "";

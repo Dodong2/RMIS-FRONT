@@ -12,7 +12,23 @@ export const SECTOR_LABELS: Record<Sector, string> = {
 export const RESEARCH_TYPE_LABELS: Record<ResearchType, string> = {
   basic: "Basic Research",
   applied: "Applied Research",
+  not_applicable: "Not Applicable",
 };
+
+// Wet or Dry Research select: "na" = Not Applicable, stored as null (client 2026-10-23)
+export type DryResearchChoice = "true" | "false" | "na";
+
+export const DRY_RESEARCH_OPTIONS: [DryResearchChoice, string][] = [
+  ["true", "Dry Research"],
+  ["false", "Wet Research (i.e., with laboratory)"],
+  ["na", "Not Applicable"],
+];
+
+export const dryResearchValue = (choice: string): boolean | null => (choice === "na" ? null : choice === "true");
+
+export const dryResearchChoice = (value: boolean | null): DryResearchChoice => (value === null ? "na" : value ? "true" : "false");
+
+export const dryResearchLabel = (value: boolean | null) => (value === null ? "Not applicable" : value ? "Dry research" : "Wet research");
 
 export const PRIORITY_AREA_LABELS: Record<PriorityArea, string> = {
   science_math: "Science and Mathematics",

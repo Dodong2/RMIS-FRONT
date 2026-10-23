@@ -26,11 +26,14 @@ import { LibAllocationGrid } from "../components/registration/LibAllocationGrid"
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
 import {
+  DRY_RESEARCH_OPTIONS,
   PRIORITY_AREA_LABELS,
   RESEARCH_TYPE_LABELS,
   SDG_OPTIONS,
   SECTOR_OPTIONS,
   TYPOLOGY_OPTIONS,
+  dryResearchChoice,
+  dryResearchValue,
 } from "../lib/projectOptions";
 
 
@@ -735,7 +738,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
       co_leaders: named.filter((t) => t.role === "co_leader"),
       team: named.filter((t) => t.role !== "co_leader"),
       is_continuing: isContinuing,
-      is_dry_research: form.is_dry_research === "true",
+      is_dry_research: dryResearchValue(form.is_dry_research),
       study_titles: filledStudies,
       sdgs: form.sdgs.map(Number),
       objectives: filledObjectives,
@@ -768,7 +771,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         ntp_number: form.ntp_number.trim(),
         ntp_date: date(form.ntp_date),
         toe_signed_date: date(form.toe_signed_date),
-        is_dry_research: form.is_dry_research === "true",
+        is_dry_research: dryResearchValue(form.is_dry_research),
         start_date: date(form.start_date),
         target_end_date: date(form.target_end_date),
         rde_thrust: form.rde_thrust,
@@ -882,7 +885,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
         ntp_number: opt(form.ntp_number),
         ntp_date: opt(form.ntp_date),
         toe_signed_date: opt(form.toe_signed_date),
-        is_dry_research: form.is_dry_research === "true",
+        is_dry_research: dryResearchValue(form.is_dry_research),
         start_date: opt(form.start_date),
         target_end_date: opt(form.target_end_date),
         rde_thrust: opt(form.rde_thrust),
@@ -1150,8 +1153,9 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                     </Field>
                     <Field label="Wet or Dry Research">
                       <select className={inputCls} style={inputSt} value={form.is_dry_research} onChange={set("is_dry_research")}>
-                        <option value="true">Dry Research</option>
-                        <option value="false">Wet Research (i.e., with laboratory)</option>
+                        {DRY_RESEARCH_OPTIONS.map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
                       </select>
                     </Field>
                     <Field label="New or Continuing">
@@ -1845,7 +1849,7 @@ async function loadEditSource(projectId: number): Promise<EditSource> {
       ntp_number: p.ntp_number,
       ntp_date: p.ntp_date ?? "",
       toe_signed_date: p.toe_signed_date ?? "",
-      is_dry_research: String(p.is_dry_research),
+      is_dry_research: dryResearchChoice(p.is_dry_research),
       start_date: p.start_date ?? "",
       target_end_date: p.target_end_date ?? "",
       rde_thrust: p.rde_thrust,

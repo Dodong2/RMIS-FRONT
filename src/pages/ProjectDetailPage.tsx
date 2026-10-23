@@ -16,6 +16,7 @@ import {
   SDG_LABELS,
   SECTOR_LABELS,
   TYPOLOGY_LABELS,
+  dryResearchLabel,
 } from "../lib/projectOptions";
 import type {
   Milestone,
@@ -507,7 +508,7 @@ function ProjectDetailContent() {
                 />
                 <InfoCard label="Priority Area" value={project.research_priority_area ? PRIORITY_AREA_LABELS[project.research_priority_area] : ""} />
                 <InfoCard label="Typology" value={project.research_typology.map((t) => TYPOLOGY_LABELS[t]).join(", ")} />
-                <InfoCard label="Dry / Wet Research" value={project.is_dry_research ? "Dry research" : "Wet research"} />
+                <InfoCard label="Dry / Wet Research" value={dryResearchLabel(project.is_dry_research)} />
                 <InfoCard label="Total Project Cost" value={project.total_cost ? peso(Number(project.total_cost)) : ""} />
                 <InfoCard label="Campus" value={project.campus} />
                 <InfoCard label="College Unit" value={project.college} />

@@ -52,7 +52,7 @@ export const researchApi = {
     ntp_number?: string;
     ntp_date?: string;
     toe_signed_date?: string;
-    is_dry_research: boolean;
+    is_dry_research: boolean | null;
     lead: number;
     start_date?: string;
     target_end_date?: string;

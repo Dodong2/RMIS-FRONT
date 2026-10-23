@@ -25,7 +25,7 @@ export type ProposalData = {
   is_continuing: boolean;
   continuing_year: string;
   research_type: string;
-  is_dry_research: boolean;
+  is_dry_research: boolean | null;
   study_titles: string[];
   rde_thrust: string;
   rde_priority: string;
@@ -230,13 +230,13 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
               <Box checked={false}>Study</Box>
             </p>
             <p>
-              {Object.entries(RESEARCH_TYPE_LABELS).map(([k, label]) => (
+              {Object.entries(RESEARCH_TYPE_LABELS).filter(([k]) => k !== "not_applicable").map(([k, label]) => (
                 <Box key={k} checked={data.research_type === k}>{label}</Box>
               ))}
             </p>
             <p>
-              <Box checked={!data.is_dry_research}>Wet Research (i.e., with laboratory)</Box>
-              <Box checked={data.is_dry_research}>Dry Research</Box>
+              <Box checked={data.is_dry_research === false}>Wet Research (i.e., with laboratory)</Box>
+              <Box checked={data.is_dry_research === true}>Dry Research</Box>
             </p>
           </Section>
           <Section title="Study Component Titles">
