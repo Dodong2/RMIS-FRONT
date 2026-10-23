@@ -8,7 +8,7 @@ import { errorMessage } from "../lib/errorMessage";
 import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel, periodYear, allocatedTotal } from "../lib/libUnits";
 import { notify } from "../lib/notify";
 import { clearDraft, loadDraft, saveDraft } from "../lib/formDraft";
-import type { AdminChoice, AdminChoiceKind, FundingType, Project, ProjectImportError } from "../types/research";
+import type { AdminChoice, AdminChoiceKind, FundingType, Project, ProjectImportError, WorkPlanImportRow } from "../types/research";
 import { budgetApi } from "../lib/budgetApi";
 import { NoActualData } from "../components/common/NoActualData";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -250,6 +250,77 @@ function AddRowButton({ onClick, children }: { onClick: () => void; children: Re
   );
 }
 
+function ImportErrorTable({ errors, outcome }: { errors: ProjectImportError[]; outcome: string }) {
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #fecaca" }}>
+      <div className="px-4 py-2.5" style={{ background: "#fef2f2" }}>
+        <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>
+          {errors.length} issue{errors.length !== 1 ? "s" : ""} found · {outcome}
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr style={{ background: "#f8fafc" }}>
+              {["Sheet", "Row", "Field", "Problem"].map((h) => (
+                <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {errors.map((e, i) => (
+              <tr key={i} className="border-t" style={{ borderColor: "#f1f5f9" }}>
+                <td className="px-3 py-2 font-semibold" style={{ color: "#0d2a5e" }}>{e.sheet ?? "—"}</td>
+                <td className="px-3 py-2 font-mono" style={{ color: "#475569" }}>{e.row ?? "—"}</td>
+                <td className="px-3 py-2" style={{ color: "#475569" }}>{e.field === "non_field_errors" ? "—" : e.field}</td>
+                <td className="px-3 py-2" style={{ color: "#b91c1c" }}>{e.message}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Client 2026-10-23: fill XI. Work Plan from the template's Work Plan sheet instead of encoding each activity
+function WorkPlanExcelButton({ onRows, onErrors }: { onRows: (rows: WorkPlanImportRow[]) => void; onErrors: (errors: ProjectImportError[]) => void }) {
+  const [isReading, setIsReading] = useState(false);
+  const read = async (file: File) => {
+    setIsReading(true);
+    onErrors([]);
+    try {
+      onRows(await researchApi.parseWorkPlan(file));
+    } catch (err) {
+      const data = (err as { response?: { data?: { errors?: ProjectImportError[] } } })?.response?.data;
+      if (data?.errors?.length) {
+        onErrors(data.errors);
+        notify.error("No activities were added. Fix the rows listed below and import again.");
+      } else {
+        notify.error(errorMessage(err, "Could not read the workbook."));
+      }
+    } finally {
+      setIsReading(false);
+    }
+  };
+  return (
+    <label className="text-xs font-semibold flex items-center gap-1 cursor-pointer" style={{ color: "#0891b2", opacity: isReading ? 0.6 : 1 }}>
+      📊 {isReading ? "Reading…" : "Import from Excel"}
+      <input
+        type="file"
+        className="hidden"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        disabled={isReading}
+        onChange={(e) => {
+          const picked = e.target.files?.[0];
+          e.target.value = "";
+          if (picked) read(picked);
+        }}
+      />
+    </label>
+  );
+}
+
 function ExcelImport() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
@@ -362,36 +433,7 @@ function ExcelImport() {
         </div>
       </div>
 
-      {errors.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #fecaca" }}>
-          <div className="px-4 py-2.5" style={{ background: "#fef2f2" }}>
-            <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>
-              {errors.length} issue{errors.length !== 1 ? "s" : ""} found · nothing was saved
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  {["Sheet", "Row", "Field", "Problem"].map((h) => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "#64748b" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {errors.map((e, i) => (
-                  <tr key={i} className="border-t" style={{ borderColor: "#f1f5f9" }}>
-                    <td className="px-3 py-2 font-semibold" style={{ color: "#0d2a5e" }}>{e.sheet ?? "—"}</td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "#475569" }}>{e.row ?? "—"}</td>
-                    <td className="px-3 py-2" style={{ color: "#475569" }}>{e.field === "non_field_errors" ? "—" : e.field}</td>
-                    <td className="px-3 py-2" style={{ color: "#b91c1c" }}>{e.message}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {errors.length > 0 && <ImportErrorTable errors={errors} outcome="nothing was saved" />}
 
       <div className="flex items-center justify-between gap-3 pt-2">
         <button onClick={() => navigate("/projects")} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
@@ -540,6 +582,7 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
   const [beneficiaryRows, setBeneficiaryRows] = useState<BeneficiaryRow[]>(init.beneficiaryRows);
   const [outputRows, setOutputRows] = useState<OutputRow[]>(init.outputRows);
   const [workPlanRows, setWorkPlanRows] = useState<WorkPlanRow[]>(init.workPlanRows);
+  const [workPlanErrors, setWorkPlanErrors] = useState<ProjectImportError[]>([]);
   const [approvalDoc, setApprovalDoc] = useState<StagedFile[]>([]);
   const [supportingDocs, setSupportingDocs] = useState<StagedFile[]>([]);
 
@@ -1481,8 +1524,19 @@ function RegisterProjectContent({ onStartOver, edit }: { onStartOver: () => void
                   )}
                   <div className="flex items-center justify-between pt-2">
                     <label className="label-field mb-0">XI. Work Plan (activities / milestones)</label>
-                    <AddRowButton onClick={() => setWorkPlanRows([...workPlanRows, { title: "", start_date: "", target_date: "" }])}>Add Activity</AddRowButton>
+                    <div className="flex items-center gap-4">
+                      <WorkPlanExcelButton
+                        onErrors={setWorkPlanErrors}
+                        onRows={(rows) => {
+                          setWorkPlanRows([...workPlanRows.filter((w) => w.id || w.title.trim() || w.start_date || w.target_date), ...rows]);
+                          if (rows.length) notify.success(`${rows.length} activit${rows.length === 1 ? "y" : "ies"} added from Excel. Check them before you continue.`);
+                          else notify.error("The Work Plan sheet has no activities.");
+                        }}
+                      />
+                      <AddRowButton onClick={() => setWorkPlanRows([...workPlanRows, { title: "", start_date: "", target_date: "" }])}>Add Activity</AddRowButton>
+                    </div>
                   </div>
+                  {workPlanErrors.length > 0 && <ImportErrorTable errors={workPlanErrors} outcome="no activities were added" />}
                   {workPlanRows.length === 0 ? (
                     <p className="text-xs" style={{ color: "#94a3b8" }}>No activities yet. They can also be added later under Work Plan.</p>
                   ) : (

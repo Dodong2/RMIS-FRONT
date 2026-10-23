@@ -1,7 +1,7 @@
 import type { ProposalData } from "../components/registration/ProposalPreview";
 import { apiClient, idempotent } from "./apiClient";
 import { downloadReport } from "./reportsApi";
-import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
+import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary, WorkPlanImportRow } from "../types/research";
 import type { AdminUser } from "../types/auth";
 import type { LibAllocation, LineItemBudget } from "../types/budget";
 
@@ -117,6 +117,12 @@ export const researchApi = {
     form.append("file", file);
     const { data } = await apiClient.post("/api/projects/import/", form, { params: { dry_run: 1 } });
     return data.preview;
+  },
+  parseWorkPlan: async (file: File): Promise<WorkPlanImportRow[]> => {
+    const form = new FormData();
+    form.append("file", file);
+    const { data } = await apiClient.post("/api/projects/import-work-plan/", form);
+    return data.rows;
   },
   getTeamMembers: async (projectId: number): Promise<ProjectTeamMember[]> => {
     const { data } = await apiClient.get("/api/project-team/", { params: { project: projectId } });

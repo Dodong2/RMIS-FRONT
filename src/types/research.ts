@@ -164,6 +164,13 @@ export interface ProjectImportError {
   message: string;
 }
 
+/** One activity of a workbook's Work Plan sheet (POST projects/import-work-plan/); start_date is "" when blank. */
+export interface WorkPlanImportRow {
+  title: string;
+  start_date: string;
+  target_date: string;
+}
+
 export interface ProjectStatusHistory {
   id: number;
   project: number;
