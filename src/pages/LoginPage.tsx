@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { AuthShell } from "../components/auth/AuthShell";
 import { GoogleButton } from "../components/auth/GoogleButton";
 import { notify } from "../lib/notify";
+import { throttledMessage } from "../lib/errorMessage";
 import { AuthDivider, AuthHint, AuthInput, AuthLabel, AuthSubmit, EyeToggle } from "../components/auth/AuthFields";
 
 export default function LoginPage() {
@@ -27,8 +28,9 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login({ email, password });
-    } catch {
+    } catch (err) {
       const message =
+        throttledMessage(err) ??
         "That email and password did not match, or the account is still waiting for admin confirmation.";
       setError(message);
       notify.error(message);

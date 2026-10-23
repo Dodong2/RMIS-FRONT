@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { notify } from "../lib/notify";
+import { throttledMessage } from "../lib/errorMessage";
 import { useRoles } from "../lib/queries";
 
 export default function RegisterPage() {
@@ -68,9 +69,10 @@ export default function RegisterPage() {
         password2,
         requested_role: requestedRole ? Number(requestedRole) : null,
       });
-    } catch {
+    } catch (err) {
       notify.error(
-        "The account could not be created. The email may already be registered, or the password may be too short.",
+        throttledMessage(err) ??
+          "The account could not be created. The email may already be registered, or the password may be too short.",
       );
     } finally {
       setIsSubmitting(false);
