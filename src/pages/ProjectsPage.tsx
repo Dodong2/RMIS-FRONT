@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { assignmentsQuery, milestonesQuery, monitoringStatusQuery, useProjects } from "../lib/queries";
+import { assignmentsQuery, milestonesQuery, monitoringStatusQuery, useBudgets, useProjects } from "../lib/queries";
+import { currentLib, leaderSubmitLabel } from "../lib/projectReview";
+import { useReviewStep } from "../lib/useReviewStep";
+import { ProjectReviewWorkflow, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
 import { RESEARCH_TYPE_LABELS, SDG_COLORS, SDG_LABELS } from "../lib/projectOptions";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
-import type { FundingType, RecordStatus } from "../types/research";
+import type { FundingType, Project, RecordStatus } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
@@ -54,6 +57,16 @@ function ProjectsContent() {
   const projects = projectsResult.data ?? [];
   const isLoading = projectsResult.isPending;
   const milestones = useQuery(milestonesQuery).data ?? [];
+  // Client 2026-10-24: each project's review (Draft -> CRC Chair -> Budget Officer) runs on its LIB
+  const budgets = useBudgets().data ?? [];
+  const reviewStep = useReviewStep();
+  const submitFromCard = async (projectId: number, status: Project["review_status"]) => {
+    const lib = currentLib(budgets, projectId);
+    if (!lib) return notify.error("Prepare the LIB under Budget Management first, then submit the project.");
+    const resubmit = status !== "draft";
+    if (!(await notify.confirm(`${leaderSubmitLabel(status)}? You can't edit the project until it is returned for revision.`, "Submit"))) return;
+    reviewStep.mutate({ budget: lib.id, step: resubmit ? "resubmit" : "submit", done: resubmit ? "Revisions resubmitted to the CRC Chair." : "Project proposal submitted to the CRC Chair." });
+  };
   const assignments = useQuery(assignmentsQuery({ active: true })).data ?? [];
   const statusResults = useQueries({ queries: projects.map((p) => monitoringStatusQuery(p.id)) });
   const statuses = Object.fromEntries(
@@ -110,6 +123,8 @@ function ProjectsContent() {
           </div>
         )}
       </div>
+
+      {projects.length > 0 && <ProjectReviewWorkflow projects={projects} budgets={budgets} userId={user?.pk} roleCode={user?.role?.code ?? ""} />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {(["all", "active", "completed", "archived"] as const).map((s) => {
@@ -205,6 +220,7 @@ function ProjectsContent() {
                         {proj.project_code}
                       </span>
                       <StatusBadge status={proj.status} />
+                      <ReviewStatusBadge status={proj.review_status} />
                       {proj.research_type && (
                         <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
                           {RESEARCH_TYPE_LABELS[proj.research_type]}
@@ -243,6 +259,19 @@ function ProjectsContent() {
                     <p className="text-lg font-black font-mono" style={{ color: "#0d2a5e" }}>
                       {proj.total_cost ? peso(Number(proj.total_cost)) : "—"}
                     </p>
+                    {proj.lead === user?.pk && leaderSubmitLabel(proj.review_status) && (
+                      <button
+                        disabled={reviewStep.isPending}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          submitFromCard(proj.id, proj.review_status);
+                        }}
+                        className="mt-2 rounded-xl px-3 py-1.5 text-xs font-bold text-white hover:bg-[#1a3f7a] disabled:opacity-50"
+                        style={{ background: "#0d2a5e" }}
+                      >
+                        {leaderSubmitLabel(proj.review_status)}
+                      </button>
+                    )}
                   </div>
                 </div>
                 {proj.sdgs.length > 0 && (

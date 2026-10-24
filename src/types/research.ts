@@ -72,6 +72,17 @@ export interface Program {
   created_at: string;
 }
 
+/** Client 2026-10-24: Draft until the Project Leader submits, then the CRC Chair's and Budget Officer's reviews
+ * (backend research_projects/workflow.py, read from the project's LIB). */
+export type ReviewStatus =
+  | "draft"
+  | "submitted"
+  | "pending_research_review"
+  | "returned_research"
+  | "pending_budget_review"
+  | "returned_budget"
+  | "reviews_completed";
+
 export interface Project {
   id: number;
   program: number | null;
@@ -128,6 +139,8 @@ export interface Project {
   recommended_by_vprde_on: string | null;
   approved_by_president: string;
   created_at: string;
+  review_status: ReviewStatus;
+  review_status_label: string;
 }
 
 export interface ProjectTeamMember {
