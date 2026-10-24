@@ -14,12 +14,12 @@ Backend API base URL comes from `VITE_API_URL` in `.env.local` (Vite env vars ne
 - `src/lib/<domain>Api.ts` — one API module per backend app (`authApi.ts`, `researchApi.ts`, ...). Never call `apiClient` directly from a page component.
 - `src/types/<domain>.ts` — mirrors the backend serializer fields exactly. If a backend serializer changes, update the matching type file in the same turn.
 - shadcn components live under `@/components/ui/` (the root `@/` folder, not `src/`). Code under `src/` imports `src/` modules with relative paths.
-- `src/mocks/<domain>.ts` — prototype mock data for sections that have no backend endpoint yet. Every mocked section gets a row in `src/mocks/REGISTRY.md`.
+- No mock data (Carl, 2026-10-16). Every section shows real API data or `<NoActualData />`. A section with no backend endpoint is flagged to Carl, not mocked. `src/mocks/REGISTRY.md` only records the sections removed on 2026-09-26.
 
 ## Styling (prototype UI clone, decided 2026-09-24, supersedes the 2026-09-22 "design-system pass only" scope)
 - Pages copy the markup of `University Research Operations Website/src/components/<Name>.tsx` nearly verbatim: Tailwind classes + inline `style={{...}}` hex colors. Don't convert them to tokens or shadcn. Strip the prototype's comments.
 - shadcn is used only for behavior: Dialog, Select, Tooltip, and toasts (`notify`), restyled to match. Buttons, cards, tables, badges, and inputs are the prototype's raw elements.
-- Data rule per section: the API returns rows → real data. The API returns nothing → `<NoActualData />` (`src/components/common/NoActualData.tsx`). There's no endpoint → a mock from `src/mocks/` with no visible badge, plus a REGISTRY row.
+- Data rule per section: the API returns rows → real data. The API returns nothing → `<NoActualData />` (`src/components/common/NoActualData.tsx`). There's no endpoint → don't mock it; ask Carl (see Folder conventions).
 - Real flow, prototype look: when the prototype's flow contradicts the backend (demo logins, fake workflows), keep the real flow.
 - Access control stays on our role codes (`RoleGate`, `*_ROLE_CODES`, nav tiers). `src/lib/protoRole.ts` maps a role to the prototype's 9 roles for cosmetic branching only. Never use it for access.
 - Custom `fixed inset-0` overlays (the prototype's hand-rolled modals) must render through `createPortal(..., document.body)`. Page wrappers use `animate-fade-in`, and an element with a transform animation becomes the containing block for `fixed` children, so the overlay would only cover the content area. shadcn `Dialog` already portals.
@@ -37,4 +37,4 @@ Backend API base URL comes from `VITE_API_URL` in `.env.local` (Vite env vars ne
 - `AdminUser` (has `id`) and `User` (has `pk`) are deliberately different types — the former matches `/api/admin/*` responses, the latter matches dj-rest-auth's `/api/auth/user/`. Don't merge them.
 
 ## Session start
-Before trusting HANDOVER.md or your own memory as current, run `git log -8 --oneline` and `git status`. If there are commits or uncommitted changes you don't recognize (likely made manually, outside a Claude session), read the diff (`git show <hash>` or `git diff`) to catch up before doing anything else. Don't assume the last thing you remember is still the latest state.
+Before trusting `.claude/rules/handover.md` or your own memory as current, run `git log -8 --oneline` and `git status`. If there are commits or uncommitted changes you don't recognize (likely made manually, outside a Claude session), read the diff (`git show <hash>` or `git diff`) to catch up before doing anything else. Don't assume the last thing you remember is still the latest state.
