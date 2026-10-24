@@ -10,6 +10,7 @@ import { notify } from "../lib/notify";
 import { ActivityGantt } from "../components/workplan/ActivityGantt";
 import { PROJECT_EDIT_ROLE_CODES, REGISTRATION_ROLE_CODES, initialsFrom, personName } from "../lib/roles";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
+import { registrationOpen } from "../lib/projectReview";
 import {
   PRIORITY_AREA_LABELS,
   RESEARCH_TYPE_LABELS,
@@ -306,7 +307,8 @@ function ProjectDetailContent() {
   }
   if (!project) return <NoActualData message="Project not found" />;
   const sortedMilestones = [...milestones].sort((a, b) => (a.start_date ?? a.target_date).localeCompare(b.start_date ?? b.target_date));
-  const canEditProposal = roleCode === "system_admin" || (roleCode === "project_leader" && project.lead === user?.pk);
+  const canEditProposal =
+    registrationOpen(project.review_status) && (roleCode === "system_admin" || (roleCode === "project_leader" && project.lead === user?.pk));
 
   const libTotal = budgets.filter((b) => b.is_current).reduce((s, b) => s + Number(b.total_amount), 0);
   const duration = monthsBetween(project.start_date, project.target_end_date);

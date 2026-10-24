@@ -17,6 +17,7 @@ import { LatePill } from "../components/workplan/ActivityGantt";
 import { STATUS_META, activityTaskCompletion, daysLate, nameOf } from "../lib/workplan";
 import { plannedHoursLabel, workingDays } from "../lib/taskHours";
 import { personName } from "../lib/roles";
+import { registrationOpen, workAllowed } from "../lib/projectReview";
 
 type WPTab = "milestones" | "activities" | "deliverables";
 
@@ -184,6 +185,8 @@ function WorkPlanDetail({
 }) {
   const { user } = useAuth();
   const roleCode = user?.role?.code ?? "";
+  const canEditPlan = canEdit && registrationOpen(project.review_status);
+  const canAddTask = canEdit && workAllowed(project.review_status);
   const [tab, setTab] = useState<WPTab>("milestones");
   const [milestones, setMilestones] = useState<Milestone[] | null>(null);
   const [delayedOnly, setDelayedOnly] = useState(false);
@@ -404,7 +407,7 @@ function WorkPlanDetail({
                       >
                         {delayedOnly ? "Showing delayed only" : "Show delayed only"}
                       </button>
-                      {canEdit && (
+                      {canEditPlan && (
                         <button onClick={() => openEdit("new")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
                           + Add Activity
                         </button>
@@ -412,7 +415,7 @@ function WorkPlanDetail({
                     </div>
                   </div>
                   {activityRows.length === 0 ? (
-                    <NoActualData message={delayedOnly ? "No delayed activities" : "No actual data"} hint={canEdit && !delayedOnly ? 'Click "Add Activity" to capture the inception work plan.' : undefined} />
+                    <NoActualData message={delayedOnly ? "No delayed activities" : "No actual data"} hint={canEditPlan && !delayedOnly ? 'Click "Add Activity" to capture the inception work plan.' : undefined} />
                   ) : (
                     <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
                       <table className="w-full">
@@ -432,7 +435,9 @@ function WorkPlanDetail({
                               now={now}
                               expanded={expanded === m.id}
                               onToggle={() => setExpanded(expanded === m.id ? null : m.id)}
-                              canEdit={canEdit}
+                              canEdit={canEditPlan}
+                              canAddTask={canAddTask}
+                              taskNote={canEdit && !canAddTask ? "Tasks can be added once the Budget Officer certifies the LIB." : undefined}
                               onEdit={() => openEdit(m)}
                               people={people}
                               onTasksChanged={() => setReloadKey((k) => k + 1)}
@@ -512,7 +517,19 @@ function WorkPlanDetail({
 const TASK_STATUS_LABEL: Record<string, string> = { pending: "Pending", in_progress: "In Progress", for_review: "For Review", blocked: "Blocked", done: "Done" };
 
 /** The personnel tasks (activities) under one milestone, with "Add task" for leaders (client meeting 2026-10-01, #14). */
-function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: Milestone; canAdd: boolean; people: Lead[]; onChanged: () => void }) {
+function MilestoneTasks({
+  milestone,
+  canAdd,
+  note,
+  people,
+  onChanged,
+}: {
+  milestone: Milestone;
+  canAdd: boolean;
+  note?: string;
+  people: Lead[];
+  onChanged: () => void;
+}) {
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [reload, setReload] = useState(0);
   const [adding, setAdding] = useState(false);
@@ -581,6 +598,7 @@ function MilestoneTasks({ milestone, canAdd, people, onChanged }: { milestone: M
             + Add task
           </button>
         )}
+        {!canAdd && note && <p className="text-xs" style={{ color: "#94a3b8" }}>{note}</p>}
       </div>
       {tasks === null ? (
         <p className="text-xs" style={{ color: "#94a3b8" }}>Loading…</p>
@@ -658,6 +676,8 @@ function ActivityRow({
   expanded,
   onToggle,
   canEdit,
+  canAddTask,
+  taskNote,
   onEdit,
   people,
   onTasksChanged,
@@ -668,6 +688,8 @@ function ActivityRow({
   expanded: boolean;
   onToggle: () => void;
   canEdit: boolean;
+  canAddTask: boolean;
+  taskNote?: string;
   onEdit: () => void;
   people: Lead[];
   onTasksChanged: () => void;
@@ -741,7 +763,7 @@ function ActivityRow({
                 )}
               </div>
             </div>
-            <MilestoneTasks milestone={m} canAdd={canEdit} people={people} onChanged={onTasksChanged} />
+            <MilestoneTasks milestone={m} canAdd={canAddTask} note={taskNote} people={people} onChanged={onTasksChanged} />
           </td>
         </tr>
       )}

@@ -83,6 +83,13 @@ export function leaderSubmitLabel(status: ReviewStatus) {
   return null;
 }
 
+/** The registration (details, team, work plan) can change only while the project is a Draft or returned
+ * (backend EDITABLE_REVIEW_STATUSES, ensure_registration_open). */
+export const registrationOpen = (status: ReviewStatus) => status === "draft" || status === "returned_research" || status === "returned_budget";
+
+/** Work on the project (tasks etc.) starts once its reviews are completed (backend ensure_work_allowed, decision D5). */
+export const workAllowed = (status: ReviewStatus) => status === "reviews_completed";
+
 /** The project's current LIB (the one its review status is read from). */
 export const currentLib = (budgets: LineItemBudget[], project: number) =>
   budgets.filter((b) => b.project === project && b.is_current).sort((a, b) => b.version_number - a.version_number)[0];

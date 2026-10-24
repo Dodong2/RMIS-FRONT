@@ -7,6 +7,7 @@ import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { LIB_UNITS, allocationPeriods, groupLibRows, libLineTotal, libUnitLabel, periodYear, allocatedTotal } from "../lib/libUnits";
 import { notify } from "../lib/notify";
+import { registrationOpen, workAllowed } from "../lib/projectReview";
 import { clearDraft, loadDraft, saveDraft } from "../lib/formDraft";
 import type { AdminChoice, AdminChoiceKind, FundingType, Project, ProjectImportError, WorkPlanImportRow } from "../types/research";
 import { budgetApi } from "../lib/budgetApi";
@@ -409,7 +410,7 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
     try {
       const project = await researchApi.importProject(file);
       const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
-      notify.success(`Project ${project.project_code} registered from Excel.`);
+      notify.success(`Project ${project.project_code} registered from Excel as a Draft. Attach its Notice of Approval, NTP and MOA in Edit Registration before submitting it.`);
       if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
@@ -1119,7 +1120,7 @@ function RegisterProjectContent({
       const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
       discardDraft();
       if (failed.length) notify.error(`Project registered, but these could not be saved: ${failed.join("; ")}. Add them from the project page.`);
-      else notify.success("Project registered. The Research Proposal Form is saved under Document Management.");
+      else notify.success("Project registered as a Draft. The Research Proposal Form is saved under Document Management. Submit it for review from Projects.");
       if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
@@ -1924,10 +1925,19 @@ function RegisterProjectContent({
 
                   <div className="grid grid-cols-2 gap-3">
                     <InfoCard label="Project Code" value={form.project_code} />
-                    <InfoCard label="Initial Status" value="Ongoing (Approved / Registered)" />
+                    <InfoCard label={edit ? "Review Status" : "Initial Status"} value={edit ? edit.project.review_status_label : "Draft"} />
                     <InfoCard label="Documents Uploaded" value={String(stagedDocs.length)} />
                     <InfoCard label={edit ? "Edited On" : "Registration Date"} value={new Date().toLocaleDateString("en-PH")} />
                   </div>
+
+                  {!edit && (
+                    <div className="rounded-xl p-3" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
+                      <p className="text-xs leading-relaxed" style={{ color: "#1e40af" }}>
+                        ℹ Registering saves this project as a Draft. Its Project Leader submits it for review from Projects once the LIB, Notice of
+                        Approval, NTP and MOA are in.
+                      </p>
+                    </div>
+                  )}
 
                   <button
                     type="button"
@@ -2075,6 +2085,14 @@ function EditProjectContent() {
   const code = user?.role?.code;
   if (!(code === "system_admin" || (code === "project_leader" && source.project.lead === user?.pk))) {
     return <NoActualData message="Only the System Admin or this project's Project Leader can edit it" />;
+  }
+  if (!registrationOpen(source.project.review_status)) {
+    return (
+      <NoActualData
+        message={`This project is ${source.project.review_status_label} and can't be edited until it is returned for revision.`}
+        hint={workAllowed(source.project.review_status) ? "Budget changes go through a Realignment under Budget Management." : undefined}
+      />
+    );
   }
   return <RegisterProjectContent edit={source} onStartOver={() => undefined} />;
 }

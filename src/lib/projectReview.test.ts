@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignedReviewer, leaderSubmitLabel, reviewHistory, reviewQueues } from "./projectReview";
+import { assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed } from "./projectReview";
 import type { BudgetReview } from "../types/budget";
 
 const review = (id: number, action: BudgetReview["action"], by = "Ana Cruz", remarks = ""): BudgetReview => ({
@@ -46,5 +46,17 @@ describe("leaderSubmitLabel", () => {
     expect(leaderSubmitLabel("returned_research")).toBe("Resubmit Research Revisions");
     expect(leaderSubmitLabel("returned_budget")).toBe("Resubmit Budget Revisions");
     expect(leaderSubmitLabel("pending_research_review")).toBeNull();
+  });
+});
+
+describe("registrationOpen / workAllowed", () => {
+  const all = ["draft", "submitted", "pending_research_review", "returned_research", "pending_budget_review", "returned_budget", "reviews_completed"] as const;
+
+  it("opens the registration only for a Draft or a returned project", () => {
+    expect(all.filter(registrationOpen)).toEqual(["draft", "returned_research", "returned_budget"]);
+  });
+
+  it("allows work only once the reviews are completed", () => {
+    expect(all.filter(workAllowed)).toEqual(["reviews_completed"]);
   });
 });
