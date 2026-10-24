@@ -1105,6 +1105,10 @@ function RegisterProjectContent({
       if (data?.project_code) {
         notify.error(`Project code ${form.project_code.trim()} already exists. Use a different code.`);
         setStep(0);
+      } else if (data?.title) {
+        // Client 2026-10-24: an existing title can't be registered again
+        notify.error(String([data.title].flat()[0] || "This project already exists."));
+        setStep(0);
       } else {
         notify.error(errorMessage(err, "Could not register the project."));
       }
