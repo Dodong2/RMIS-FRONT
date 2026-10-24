@@ -5,6 +5,7 @@ import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { personName } from "../lib/roles";
+import { registrationOpen, workAllowed } from "../lib/projectReview";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { FAMILY_META, INDEXING_LABELS, IP_STATUS_LABELS, IP_TYPE_LABELS, PUBLICATION_TYPE_LABELS, SIX_P_META, type OutputFamily } from "../lib/outputsMeta";
 import type {
@@ -103,7 +104,8 @@ function OutputDetailModal({
   projectLabel,
   nameOf,
   senseName,
-  canReport,
+  canReport: canReportRole,
+  workOpen,
   onClose,
   onChanged,
 }: {
@@ -112,9 +114,11 @@ function OutputDetailModal({
   nameOf: (id: number | null) => string;
   senseName: (id: number | null) => string;
   canReport: boolean;
+  workOpen: boolean;
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const canReport = canReportRole && workOpen;
   const [tab, setTab] = useState<"detail" | "researchers" | "records">("detail");
   const [actual, setActual] = useState(item.exp ? String(item.exp.manual_actual_count) : "0");
   const [busy, setBusy] = useState(false);
@@ -415,6 +419,9 @@ function SixPsTab({ projects, canReport }: { projects: Project[]; canReport: boo
   };
 
   if (projects.length === 0) return <NoActualData message="No projects yet" />;
+  const current = projects.find((p) => String(p.id) === project);
+  const canAdd = canReport && !!current && registrationOpen(current.review_status);
+  const canCount = canReport && !!current && workAllowed(current.review_status);
 
   return (
     <div className="space-y-4">
@@ -459,7 +466,7 @@ function SixPsTab({ projects, canReport }: { projects: Project[]; canReport: boo
 
           <div className="rounded-2xl overflow-x-auto" style={{ background: "white", border: "1px solid #e2e8f0" }}>
             {data.expected_outputs.length === 0 ? (
-              <NoActualData message="No expected outputs set for this project" hint={canReport ? "Add the project's 6Ps targets below." : undefined} />
+              <NoActualData message="No expected outputs set for this project" hint={canAdd ? "Add the project's 6Ps targets below." : undefined} />
             ) : (
               <table className="w-full text-sm">
                 <TableHead cols={["6Ps Category", "Expected Output", "Target", "Actual", ""]} />
@@ -472,7 +479,7 @@ function SixPsTab({ projects, canReport }: { projects: Project[]; canReport: boo
                         <td className="px-4 py-3 text-xs" style={{ color: "#334155" }}>{row.description}</td>
                         <td className="px-4 py-3 text-xs font-mono font-bold" style={{ color: "#0891b2" }}>{row.target_count}</td>
                         <td className="px-4 py-3 text-xs">
-                          {canReport && !computed ? (
+                          {canCount && !computed ? (
                             <div className="flex items-center gap-1.5">
                               <input type="number" min="0" className="w-16 px-2 py-1 rounded-lg border text-xs outline-none" style={INPUT_STYLE} value={edits[row.id] ?? String(row.manual_actual_count)} onChange={(e) => setEdits((x) => ({ ...x, [row.id]: e.target.value }))} />
                               {edits[row.id] !== undefined && edits[row.id] !== String(row.manual_actual_count) && (
@@ -492,7 +499,7 @@ function SixPsTab({ projects, canReport }: { projects: Project[]; canReport: boo
             )}
           </div>
 
-          {canReport && (
+          {canAdd && (
             <div className="rounded-2xl p-4 flex flex-wrap items-end gap-3" style={{ background: "white", border: "1px solid #e2e8f0" }}>
               <Field label="6Ps Category" className="w-52">
                 <select className={INPUT_CLS} style={INPUT_STYLE} value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as SixPCategory }))}>
@@ -526,6 +533,7 @@ function CreativeWorksTab({ projects, canCreate, userPk, projectLabel, nameOf }:
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const workOpenFor = (id: number) => workAllowed(projects.find((p) => p.id === id)?.review_status ?? "draft");
 
   useEffect(() => {
     let active = true;
@@ -608,7 +616,7 @@ function CreativeWorksTab({ projects, canCreate, userPk, projectLabel, nameOf }:
                   <td className="px-4 py-3 text-xs font-mono" style={{ color: "#64748b" }}>{w.date_created}</td>
                   <td className="px-4 py-3 text-xs" style={{ color: "#64748b" }}>{w.rights_holder || "—"}</td>
                   <td className="px-4 py-3 text-xs">
-                    {canCreate ? (
+                    {canCreate && (!w.project || workOpenFor(w.project)) ? (
                       <label className="flex items-center gap-1.5 cursor-pointer font-bold" style={{ color: w.is_registered ? "#166534" : "#64748b" }}>
                         <input type="checkbox" checked={w.is_registered} onChange={() => toggle(w)} />
                         {w.is_registered ? "Registered" : "Not registered"}
@@ -639,7 +647,7 @@ function CreativeWorksTab({ projects, canCreate, userPk, projectLabel, nameOf }:
           <Field label="Project (optional)">
             <select className={INPUT_CLS} style={INPUT_STYLE} value={form.project} onChange={set("project")}>
               <option value="">Not tied to a project</option>
-              {projects.map((p) => (
+              {projects.filter((p) => workAllowed(p.review_status)).map((p) => (
                 <option key={p.id} value={p.id}>{p.project_code} — {p.title}</option>
               ))}
             </select>
@@ -1033,6 +1041,7 @@ function OutputsContent() {
           nameOf={nameOf}
           senseName={senseName}
           canReport={canReport}
+          workOpen={workAllowed(projectById.get(selected.project)?.review_status ?? "draft")}
           onClose={() => setSelectedKey(null)}
           onChanged={() => setReloadKey((k) => k + 1)}
         />

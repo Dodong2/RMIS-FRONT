@@ -3,6 +3,7 @@ import { outputsApi } from "../../lib/outputsApi";
 import { researchApi } from "../../lib/researchApi";
 import { errorMessage } from "../../lib/errorMessage";
 import { notify } from "../../lib/notify";
+import { registrationOpen, workAllowed } from "../../lib/projectReview";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../../lib/protoStyles";
 import { FAMILY_META, INDEXING_LABELS, IP_TYPE_LABELS, PUBLICATION_TYPE_LABELS, type OutputFamily } from "../../lib/outputsMeta";
 import type { IndexingTier, IPType, OutcomeKind, PublicationType, SenseRankedPublisher } from "../../types/outputs";
@@ -34,7 +35,11 @@ export function RegisterOutputModal({
   onSaved: () => void;
 }) {
   const [family, setFamily] = useState<OutputFamily>("publication");
-  const [project, setProject] = useState(projects[0] ? String(projects[0].id) : "");
+  const [picked, setPicked] = useState(projects[0] ? String(projects[0].id) : "");
+  // 6P targets (Technology, Partnership) are registration rows: Draft or returned only. The rest is work: reviews completed.
+  const sixP = family === "technology" || family === "partnership";
+  const eligible = projects.filter((p) => (sixP ? registrationOpen(p.review_status) : workAllowed(p.review_status)));
+  const project = eligible.some((p) => String(p.id) === picked) ? picked : eligible[0] ? String(eligible[0].id) : "";
   const [studies, setStudies] = useState<Study[]>([]);
   const [f, setF] = useState<Record<string, string>>({ published_on: today(), kind: "outcome", target_count: "1", manual_actual_count: "0" });
   const [flags, setFlags] = useState<Record<string, boolean>>({});
@@ -155,7 +160,7 @@ export function RegisterOutputModal({
       footer={
         <>
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>Cancel</button>
-          <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
+          <button onClick={save} disabled={saving || !project} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
             {saving ? "Registering…" : "Register Output"}
           </button>
         </>
@@ -182,14 +187,22 @@ export function RegisterOutputModal({
       </div>
 
       <Field label="Project" required>
-        <select className={INPUT_CLS} style={invalidStyle(attempted && !project)} value={project} onChange={(e) => {
-          setProject(e.target.value);
-          setF((p) => ({ ...p, study: "" }));
-        }}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.project_code} — {p.title}</option>
-          ))}
-        </select>
+        {eligible.length === 0 ? (
+          <p className="text-xs" style={{ color: "#92400e" }}>
+            {sixP
+              ? "No project is open for registration changes. 6P targets are added while a project is a Draft or returned for revision."
+              : "No project has completed its reviews yet. This output is recorded once the Budget Officer certifies the project's LIB."}
+          </p>
+        ) : (
+          <select className={INPUT_CLS} style={invalidStyle(attempted && !project)} value={project} onChange={(e) => {
+            setPicked(e.target.value);
+            setF((p) => ({ ...p, study: "" }));
+          }}>
+            {eligible.map((p) => (
+              <option key={p.id} value={p.id}>{p.project_code} — {p.title}</option>
+            ))}
+          </select>
+        )}
       </Field>
 
       {family === "publication" && (

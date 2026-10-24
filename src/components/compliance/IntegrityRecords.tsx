@@ -3,6 +3,7 @@ import { complianceApi } from "../../lib/complianceApi";
 import { researchApi } from "../../lib/researchApi";
 import { errorMessage } from "../../lib/errorMessage";
 import { notify } from "../../lib/notify";
+import { workAllowed, workLockedMessage } from "../../lib/projectReview";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../../lib/protoStyles";
 import type {
   AIUseDeclaration,
@@ -397,7 +398,9 @@ export function IntegrityRecords({ projects, canEncode, canManage, userPk }: { p
     }
   };
 
-  const canAdd = section === "reviews" || section === "similarity" ? canEncode : section === "misconduct" ? canManage : true;
+  const selected = projects.find((p) => String(p.id) === project);
+  const workOpen = !!selected && workAllowed(selected.review_status);
+  const canAdd = workOpen && (section === "reviews" || section === "similarity" ? canEncode : section === "misconduct" ? canManage : true);
   const rows = { reviews, similarity, ai, coi, misconduct }[section];
   const td = "px-4 py-3 text-xs";
 
@@ -428,6 +431,12 @@ export function IntegrityRecords({ projects, canEncode, canManage, userPk }: { p
           </button>
         )}
       </div>
+
+      {selected && !workOpen && (
+        <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
+          🔒 {workLockedMessage(selected.review_status_label)}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {SECTIONS.map((s) => (
@@ -464,7 +473,7 @@ export function IntegrityRecords({ projects, canEncode, canManage, userPk }: { p
                       <td className={td + " mono"} style={{ color: "#334155" }}>{r.reference_number || "—"}</td>
                       <td className={td}>
                         {canEncode ? (
-                          <select className={INLINE_SELECT} style={{ borderColor: "#e2e8f0", background: REVIEW_STATUS_META[r.status].bg, color: REVIEW_STATUS_META[r.status].color }} value={r.status} onChange={(e) => patch(() => complianceApi.updateEthicsReview(r.id, { status: e.target.value }))}>
+                          <select disabled={!workOpen} className={INLINE_SELECT} style={{ borderColor: "#e2e8f0", background: REVIEW_STATUS_META[r.status].bg, color: REVIEW_STATUS_META[r.status].color }} value={r.status} onChange={(e) => patch(() => complianceApi.updateEthicsReview(r.id, { status: e.target.value }))}>
                             {Object.entries(REVIEW_STATUS_META).map(([k, m]) => (
                               <option key={k} value={k}>{m.label}</option>
                             ))}
@@ -537,7 +546,7 @@ export function IntegrityRecords({ projects, canEncode, canManage, userPk }: { p
                       <td className={td + " max-w-[240px]"} style={{ color: "#64748b" }}>{c.mitigation_measures || "—"}</td>
                       <td className={td}>
                         {canManage ? (
-                          <select className={INLINE_SELECT} style={{ borderColor: "#e2e8f0", background: COI_STATUS_META[c.status].bg, color: COI_STATUS_META[c.status].color }} value={c.status} onChange={(e) => patch(() => complianceApi.updateCOIDisclosure(c.id, { status: e.target.value }))}>
+                          <select disabled={!workOpen} className={INLINE_SELECT} style={{ borderColor: "#e2e8f0", background: COI_STATUS_META[c.status].bg, color: COI_STATUS_META[c.status].color }} value={c.status} onChange={(e) => patch(() => complianceApi.updateCOIDisclosure(c.id, { status: e.target.value }))}>
                             {Object.entries(COI_STATUS_META).map(([k, m]) => (
                               <option key={k} value={k}>{m.label}</option>
                             ))}
@@ -564,7 +573,7 @@ export function IntegrityRecords({ projects, canEncode, canManage, userPk }: { p
                       <td className={td} style={{ color: "#64748b" }}>{c.referred_to}</td>
                       <td className={td}>
                         {canManage ? (
-                          <select className={INLINE_SELECT} style={{ borderColor: "#e2e8f0", background: MISCONDUCT_STATUS_META[c.status].bg, color: MISCONDUCT_STATUS_META[c.status].color }} value={c.status} onChange={(e) => patch(() => complianceApi.updateMisconductCase(c.id, { status: e.target.value }))}>
+                          <select disabled={!workOpen} className={INLINE_SELECT} style={{ borderColor: "#e2e8f0", background: MISCONDUCT_STATUS_META[c.status].bg, color: MISCONDUCT_STATUS_META[c.status].color }} value={c.status} onChange={(e) => patch(() => complianceApi.updateMisconductCase(c.id, { status: e.target.value }))}>
                             {Object.entries(MISCONDUCT_STATUS_META).map(([k, m]) => (
                               <option key={k} value={k}>{m.label}</option>
                             ))}
