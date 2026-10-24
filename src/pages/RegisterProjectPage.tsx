@@ -161,6 +161,14 @@ function AutoTextarea({ minRows = 1, className = "", ...props }: TextareaHTMLAtt
 
 type StagedFile = { key: string; file: File; progress: number; status: "uploading" | "done" | "error"; token?: string; error?: string };
 
+// Client 2026-10-24: Step 7's three required attachments, each saved as its own document type
+type ApprovalDocType = "notice_of_approval" | "ntp" | "moa";
+const APPROVAL_DOCS: { type: ApprovalDocType; label: string }[] = [
+  { type: "notice_of_approval", label: "Notice of Approval" },
+  { type: "ntp", label: "Notice to Proceed (NTP)" },
+  { type: "moa", label: "Memorandum of Agreement (MOA)" },
+];
+
 // Client 2026-10-24 (register_error.png): name each registration part that failed and why, e.g. "LIB (reason)",
 // "2× Work plan activity (reason)". A request that never got an answer shows the browser's error (e.g. Network Error).
 function failedParts(labels: string[], results: PromiseSettledResult<unknown>[]): string[] {
@@ -591,6 +599,8 @@ type EditSource = {
   draft: RegisterDraft;
   studyIds: number[];
   originalIds: Record<"team" | "outputs" | "beneficiaries" | "workPlan" | "endorsers", number[]>;
+  /** File names of the attachments already saved, so Step 7 counts them as attached */
+  savedDocs: Partial<Record<ApprovalDocType, string>>;
 };
 
 function RegisterProjectContent({
@@ -645,8 +655,16 @@ function RegisterProjectContent({
   const [outputRows, setOutputRows] = useState<OutputRow[]>(init.outputRows);
   const [workPlanRows, setWorkPlanRows] = useState<WorkPlanRow[]>(init.workPlanRows);
   const [workPlanErrors, setWorkPlanErrors] = useState<ProjectImportError[]>([]);
-  const [approvalDoc, setApprovalDoc] = useState<StagedFile[]>([]);
   const [supportingDocs, setSupportingDocs] = useState<StagedFile[]>([]);
+  const [approvalDocs, setApprovalDocs] = useState<Record<ApprovalDocType, StagedFile[]>>({ notice_of_approval: [], ntp: [], moa: [] });
+  const setApprovalDoc = (type: ApprovalDocType): Dispatch<SetStateAction<StagedFile[]>> => (next) =>
+    setApprovalDocs((docs) => ({ ...docs, [type]: typeof next === "function" ? next(docs[type]) : next }));
+  const approvalAttached = (type: ApprovalDocType) => approvalDocs[type].some((f) => f.status === "done") || !!edit?.savedDocs[type];
+  const missingApprovalDocs = APPROVAL_DOCS.filter((d) => !approvalAttached(d.type)).map((d) => d.label);
+  const stagedDocs: { file: StagedFile; type: ApprovalDocType | "other" }[] = [
+    ...APPROVAL_DOCS.flatMap((d) => approvalDocs[d.type].map((file) => ({ file, type: d.type }))),
+    ...supportingDocs.map((file) => ({ file, type: "other" as const })),
+  ];
 
   const [form, setForm] = useState(init.form);
   const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rde-thrusts": [], "cooperating-agencies": [], endorsers: [], "funding-types": [] });
@@ -725,7 +743,7 @@ function RegisterProjectContent({
       .then((list) => setChoices((c) => ({ ...c, endorsers: list })))
       .catch(() => notify.error("Could not load the endorser list."));
   const isContinuing = form.is_continuing === "true";
-  const uploadsPending = [...approvalDoc, ...supportingDocs].some((f) => f.status !== "done");
+  const uploadsPending = stagedDocs.some((d) => d.file.status !== "done");
   const approvedBudget = Number(form.total_cost) || 0;
   const libGrandTotal = libRows.reduce((sum, r) => sum + libRowTotal(r), 0);
   const libDifference = Math.round((libGrandTotal - approvedBudget) * 100) / 100;
@@ -748,7 +766,11 @@ function RegisterProjectContent({
         ...(libMatchesBudget ? [] : [`a Grand Total equal to the approved budget (₱${peso(approvedBudget)})`]),
         ...(libSplitsMatch ? [] : ["a quarterly allocation that adds up to every item's total"]),
       ],
-      6: [...(form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"]), ...(uploadsPending ? ["the document uploads"] : [])],
+      6: [
+        ...(form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"]),
+        ...missingApprovalDocs,
+        ...(uploadsPending ? ["the document uploads"] : []),
+      ],
     };
     return missing[i] ?? [];
   };
@@ -772,7 +794,7 @@ function RegisterProjectContent({
     { label: "LIB Grand Total equals the approved budget", done: libMatchesBudget, required: true, step: 5 },
     ...(libPeriods ? [{ label: "Every LIB item's allocation adds up to its total", done: libSplitsMatch, required: true, step: 5 }] : []),
     { label: "Approval reference number provided", done: !!form.ntp_number.trim(), required: true, step: 6 },
-    { label: "Approval document attached", done: approvalDoc.length > 0, step: 6 },
+    ...APPROVAL_DOCS.map((d) => ({ label: `${d.label} attached`, done: approvalAttached(d.type), required: true, step: 6 })),
     { label: "All document uploads finished", done: !uploadsPending, required: true, step: 6 },
     { label: "Registration certification checked", done: certified, required: true, step: 7 },
   ];
@@ -960,9 +982,9 @@ function RegisterProjectContent({
             Promise.resolve() as Promise<unknown>,
           ),
         ],
-        ...[...approvalDoc, ...supportingDocs].map((f): Part => [
-          `Document ${f.file.name}`,
-          documentApi.registerStagedDocument({ project: id, document_type: "other", stage: "inception", staged_token: f.token! }),
+        ...stagedDocs.map(({ file, type }): Part => [
+          `Document ${file.file.name}`,
+          documentApi.registerStagedDocument({ project: id, document_type: type, stage: "inception", staged_token: file.token! }),
         ]),
       ];
       const failed = failedParts(parts.map(([label]) => label), await Promise.allSettled(parts.map(([, promise]) => promise)));
@@ -1088,9 +1110,9 @@ function RegisterProjectContent({
           "Work plan activity",
           researchApi.createMilestone({ project: project.id, title: w.title.trim(), start_date: w.start_date || undefined, target_date: w.target_date }),
         ]),
-        ...[...approvalDoc, ...supportingDocs].map((f): [string, Promise<unknown>] => [
-          `Document ${f.file.name}`,
-          documentApi.registerStagedDocument({ project: project.id, document_type: "other", stage: "inception", staged_token: f.token! }),
+        ...stagedDocs.map(({ file, type }): [string, Promise<unknown>] => [
+          `Document ${file.file.name}`,
+          documentApi.registerStagedDocument({ project: project.id, document_type: type, stage: "inception", staged_token: file.token! }),
         ]),
       ];
       const failed = failedParts(parts.map(([label]) => label), await Promise.allSettled(parts.map(([, promise]) => promise)));
@@ -1853,9 +1875,14 @@ function RegisterProjectContent({
                     })}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Approval Document (Notice of Approval / NTP / MOA)" span>
-                      <FilePick label="Click to upload the approval document" files={approvalDoc} onChange={setApprovalDoc} />
-                    </Field>
+                    {APPROVAL_DOCS.map((d) => (
+                      <Field key={d.type} label={d.label} required invalid={showErrors && !approvalAttached(d.type)}>
+                        <FilePick label={`Click to upload the ${d.label}`} files={approvalDocs[d.type]} onChange={setApprovalDoc(d.type)} />
+                        {edit?.savedDocs[d.type] && approvalDocs[d.type].length === 0 && (
+                          <p className="mt-1 text-xs" style={{ color: "#166534" }}>✓ Saved: {edit.savedDocs[d.type]} · upload to replace it with a new version</p>
+                        )}
+                      </Field>
+                    ))}
                     <Field label="Supporting Documents (optional)" span>
                       <FilePick label="Click to upload supporting documents" files={supportingDocs} multiple onChange={setSupportingDocs} />
                     </Field>
@@ -1898,7 +1925,7 @@ function RegisterProjectContent({
                   <div className="grid grid-cols-2 gap-3">
                     <InfoCard label="Project Code" value={form.project_code} />
                     <InfoCard label="Initial Status" value="Ongoing (Approved / Registered)" />
-                    <InfoCard label="Documents Uploaded" value={String(approvalDoc.length + supportingDocs.length)} />
+                    <InfoCard label="Documents Uploaded" value={String(stagedDocs.length)} />
                     <InfoCard label={edit ? "Edited On" : "Registration Date"} value={new Date().toLocaleDateString("en-PH")} />
                   </div>
 
@@ -2007,6 +2034,9 @@ async function loadEditSource(projectId: number): Promise<EditSource> {
     researchApi.getEndorsers(projectId),
     budgetApi.getBudgets(projectId),
   ]);
+  const documents = await documentApi.getDocuments({ project: projectId, current_only: true }).catch(() => []);
+  const savedDocs: EditSource["savedDocs"] = {};
+  for (const d of APPROVAL_DOCS) savedDocs[d.type] = documents.find((doc) => doc.document_type === d.type)?.file_name;
   const sortedStudies = byId(studies);
   const lineItems = budgets.find((b) => b.is_current)?.line_items ?? [];
   const draft = toRegisterDraft({ project, team, studies, outputs, beneficiaries, milestones, endorsers, line_items: lineItems }, true);
@@ -2021,6 +2051,7 @@ async function loadEditSource(projectId: number): Promise<EditSource> {
       workPlan: milestones.map((m) => m.id),
       endorsers: endorsers.map((e) => e.id),
     },
+    savedDocs,
   };
 }
 
