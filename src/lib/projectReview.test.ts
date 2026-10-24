@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed } from "./projectReview";
+import { assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage } from "./projectReview";
 import type { BudgetReview } from "../types/budget";
 
 const review = (id: number, action: BudgetReview["action"], by = "Ana Cruz", remarks = ""): BudgetReview => ({
@@ -58,5 +58,11 @@ describe("registrationOpen / workAllowed", () => {
 
   it("allows work only once the reviews are completed", () => {
     expect(all.filter(workAllowed)).toEqual(["reviews_completed"]);
+  });
+
+  it("explains the lock with the backend's words", () => {
+    expect(workLockedMessage("Draft")).toBe(
+      "This project is Draft. Work on it starts once its reviews are completed (the Budget Officer certifies its LIB).",
+    );
   });
 });

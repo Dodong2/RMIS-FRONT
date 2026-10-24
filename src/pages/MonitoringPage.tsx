@@ -5,6 +5,7 @@ import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { notify } from "../lib/notify";
 import { personName } from "../lib/roles";
+import { workAllowed, workLockedMessage } from "../lib/projectReview";
 import type { EscalationStatus, ProjectEvaluation, ProjectMonitoringStatus } from "../types/monitoring";
 import type { ExpectedVsActual } from "../types/outputs";
 import type { Project } from "../types/research";
@@ -291,6 +292,7 @@ function MonitoringContent() {
 
   const nameOf = (id: number | null) => (id === null ? "—" : id === user?.pk ? personName(user) : names.get(id) ?? `User #${id}`);
   const project = projects?.find((p) => p.id === projectId) ?? null;
+  const workOpen = !!project && workAllowed(project.review_status);
   const indicators = useMemo(() => (status && status.project === projectId ? buildIndicators(status, eva) : []), [status, eva, projectId]);
   const loaded = !!status && status.project === projectId;
   const count = (s: IndicatorStatus) => indicators.filter((i) => i.status === s).length;
@@ -513,12 +515,17 @@ function MonitoringContent() {
                 </div>
               )}
 
-              {tab === "evaluations" && <EvaluationsPanel project={project.id} canEvaluate={can(EVALUATE_ROLE_CODES)} reloadKey={reloadKey} onChanged={changed} />}
-              {tab === "reports" && <ProgressReportsPanel project={project.id} objectives={project.objectives} canReport={can(REPORT_ROLE_CODES)} canCertify={can(CERTIFY_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />}
-              {tab === "extensions" && (
-                <ExtensionsPanel project={project} canRequest={can(EXT_REQUEST_ROLE_CODES)} canEndorse={can(EXT_ENDORSE_ROLE_CODES)} canApprove={can(EXT_APPROVE_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />
+              {!workOpen && (tab === "reports" || tab === "extensions" || tab === "renewal") && (
+                <div className="mb-4 rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
+                  🔒 {workLockedMessage(project.review_status_label)}
+                </div>
               )}
-              {tab === "renewal" && <RenewalPanel project={project.id} canReport={can(REPORT_ROLE_CODES)} canDecide={can(RENEWAL_DECIDE_ROLE_CODES)} onChanged={changed} reloadKey={reloadKey} />}
+              {tab === "evaluations" && <EvaluationsPanel project={project.id} canEvaluate={can(EVALUATE_ROLE_CODES)} reloadKey={reloadKey} onChanged={changed} />}
+              {tab === "reports" && <ProgressReportsPanel project={project.id} objectives={project.objectives} canReport={workOpen && can(REPORT_ROLE_CODES)} canCertify={can(CERTIFY_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />}
+              {tab === "extensions" && (
+                <ExtensionsPanel project={project} canRequest={workOpen && can(EXT_REQUEST_ROLE_CODES)} canEndorse={can(EXT_ENDORSE_ROLE_CODES)} canApprove={can(EXT_APPROVE_ROLE_CODES)} nameOf={nameOf} onChanged={changed} reloadKey={reloadKey} />
+              )}
+              {tab === "renewal" && <RenewalPanel project={project.id} canReport={workOpen && can(REPORT_ROLE_CODES)} canDecide={can(RENEWAL_DECIDE_ROLE_CODES)} onChanged={changed} reloadKey={reloadKey} />}
             </div>
           </div>
         </>

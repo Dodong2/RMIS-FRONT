@@ -5,6 +5,7 @@ import { researchApi } from "../../lib/researchApi";
 import { downloadReport, reportErrorMessage } from "../../lib/reportsApi";
 import { errorMessage } from "../../lib/errorMessage";
 import { notify } from "../../lib/notify";
+import { workAllowed } from "../../lib/projectReview";
 import { useAuth } from "../../context/AuthContext";
 import { RECONNECTED, useRealtime } from "../../hooks/useRealtime";
 import { ProtoModal, SkeletonRows } from "../common/proto";
@@ -315,6 +316,7 @@ function CreateReportModal({ onClose, onCreated }: { onClose: () => void; onCrea
     }
   };
 
+  const eligible = (projects ?? []).filter((p) => workAllowed(p.review_status));
   const years = [now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2];
   return (
     <ProtoModal
@@ -340,13 +342,17 @@ function CreateReportModal({ onClose, onCreated }: { onClose: () => void; onCrea
         <SkeletonRows rows={2} />
       ) : projects.length === 0 ? (
         <p className="text-sm" style={{ color: "#64748b" }}>You don't lead any registered project yet.</p>
+      ) : eligible.length === 0 ? (
+        <p className="text-sm" style={{ color: "#64748b" }}>
+          None of your projects has completed its reviews yet. A quarterly report starts once the Budget Officer certifies the project's LIB.
+        </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-xs font-bold sm:col-span-3" style={{ color: "#475569" }}>
             Project
             <select value={form.project} onChange={(e) => setForm({ ...form, project: e.target.value })} className={SELECT} style={SELECT_STYLE}>
               <option value="">Select a project</option>
-              {projects.map((p) => (
+              {eligible.map((p) => (
                 <option key={p.id} value={p.id}>{p.project_code} — {p.title}</option>
               ))}
             </select>

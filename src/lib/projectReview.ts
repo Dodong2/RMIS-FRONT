@@ -90,6 +90,10 @@ export const registrationOpen = (status: ReviewStatus) => status === "draft" || 
 /** Work on the project (tasks etc.) starts once its reviews are completed (backend ensure_work_allowed, decision D5). */
 export const workAllowed = (status: ReviewStatus) => status === "reviews_completed";
 
+/** The backend's refusal for work on such a project, shown before anyone tries. */
+export const workLockedMessage = (label: string) =>
+  `This project is ${label}. Work on it starts once its reviews are completed (the Budget Officer certifies its LIB).`;
+
 /** The project's current LIB (the one its review status is read from). */
 export const currentLib = (budgets: LineItemBudget[], project: number) =>
   budgets.filter((b) => b.project === project && b.is_current).sort((a, b) => b.version_number - a.version_number)[0];

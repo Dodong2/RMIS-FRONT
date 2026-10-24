@@ -9,6 +9,7 @@ import { assignmentsQuery, queryKeys, taskUpdatesQuery, tasksQuery, useProjects,
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { initialsFrom, personName } from "../lib/roles";
+import { workAllowed, workLockedMessage } from "../lib/projectReview";
 import type {
   Task,
   TaskPriority,
@@ -103,6 +104,14 @@ function ProgressBar({ pct }: { pct: number }) {
   );
 }
 
+function WorkLockedBanner({ label }: { label: string }) {
+  return (
+    <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
+      🔒 {workLockedMessage(label)}
+    </div>
+  );
+}
+
 function Overlay({ children, onClose, width = "max-w-2xl" }: { children: React.ReactNode; onClose: () => void; width?: string }) {
   return createPortal(
     <div
@@ -136,12 +145,14 @@ function TaskDetailModal({
   task,
   canAssign,
   isAssignee,
+  workOpen,
   onDeleted,
   onClose,
 }: {
   task: Task;
   canAssign: boolean;
   isAssignee: boolean;
+  workOpen: boolean;
   onDeleted: (id: number) => void;
   onClose: () => void;
 }) {
@@ -163,7 +174,8 @@ function TaskDetailModal({
     due_date: task.due_date ?? "",
     tags: task.tags.join(", "),
   });
-  const canUpdate = canAssign || isAssignee;
+  const canUpdate = workOpen && (canAssign || isAssignee);
+  const canWorkAssign = workOpen && canAssign;
   const closed = task.progress_pct >= 100;
   const kinds = (Object.keys(KIND_META) as TaskUpdateKind[]).filter((k) =>
     closed ? k !== "update" && (canAssign || k === "comment") : isAssignee || k !== "update",
@@ -331,7 +343,7 @@ function TaskDetailModal({
                 {task.deliverables.map((d) => (
                   <div key={d.id} className="flex items-center gap-2 group">
                     <button
-                      disabled={!canAssign || busy}
+                      disabled={!canWorkAssign || busy}
                       onClick={() => run(() => personnelApi.setTaskDeliverableDone(d.id, !d.done))}
                       className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
                       style={{ background: d.done ? "#059669" : "#e2e8f0" }}
@@ -353,7 +365,7 @@ function TaskDetailModal({
                 ))}
                 {task.deliverables.length === 0 && <p className="text-xs" style={{ color: "#94a3b8" }}>The task itself is the deliverable; it counts once the task reaches 100%.</p>}
               </div>
-              {canAssign && (
+              {canWorkAssign && (
                 <div className="flex gap-2 mt-2">
                   <input
                     className={inputCls + " py-1.5 text-xs"}
@@ -419,6 +431,11 @@ function TaskDetailModal({
                 )}
               </div>
 
+              {!workOpen && (canAssign || isAssignee) && (
+                <p className="mt-3 text-xs font-semibold" style={{ color: "#92400e" }}>
+                  🔒 Work Logs, comments and task changes open once the project's reviews are completed (the Budget Officer certifies its LIB).
+                </p>
+              )}
               {canUpdate && (
                 <div className="mt-3 space-y-2">
                   <div className="flex gap-1.5 flex-wrap">
@@ -548,7 +565,7 @@ function TaskDetailModal({
               </div>
             )}
 
-            {(canAssign || (isAssignee && !closed)) && (
+            {workOpen && (canAssign || (isAssignee && !closed)) && (
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Change Status</p>
                 <div className="space-y-1">
@@ -575,9 +592,11 @@ function TaskDetailModal({
 
             {canAssign && !editing && (
               <div className="space-y-2">
-                <button onClick={() => setEditing(true)} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
-                  Edit Task
-                </button>
+                {workOpen && (
+                  <button onClick={() => setEditing(true)} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
+                    Edit Task
+                  </button>
+                )}
                 <button onClick={remove} disabled={busy} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "#fee2e2", color: "#dc2626" }}>
                   Delete Task
                 </button>
@@ -658,6 +677,7 @@ function ProjectTaskBoard({
   const teamData = useQuery(assignmentsQuery({ project: project.id, active: true })).data;
   const team = useMemo(() => teamData ?? [], [teamData]);
   const workloadQ = useQuery({ ...workloadQuery(project.id), enabled: canAssign });
+  const workOpen = workAllowed(project.review_status);
   const workload: WorkloadRow[] | null = workloadQ.isError ? [] : (workloadQ.data ?? null);
   const reload = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.tasksAll });
@@ -718,6 +738,8 @@ function ProjectTaskBoard({
         <span style={{ color: "#cbd5e1" }}>/</span>
         <span className="text-xs font-mono font-semibold" style={{ color: "#64748b" }}>{project.project_code}</span>
       </div>
+
+      {!workOpen && <WorkLockedBanner label={project.review_status_label} />}
 
       <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
         <div className="px-6 py-5" style={{ background: "linear-gradient(135deg, #0d2a5e 0%, #1a3f7a 100%)" }}>
@@ -977,6 +999,7 @@ function ProjectTaskBoard({
           task={selected}
           canAssign={canAssign}
           isAssignee={selected.assignee === userId}
+          workOpen={workOpen}
           onDeleted={(id) => {
             setSelectedId(null);
             queryClient.setQueryData<Task[]>(queryKeys.tasks({ project: project.id }), (prev) => prev?.filter((x) => x.id !== id));
