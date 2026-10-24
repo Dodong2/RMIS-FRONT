@@ -161,6 +161,18 @@ function AutoTextarea({ minRows = 1, className = "", ...props }: TextareaHTMLAtt
 
 type StagedFile = { key: string; file: File; progress: number; status: "uploading" | "done" | "error"; token?: string; error?: string };
 
+// Client 2026-10-24 (register_error.png): name each registration part that failed and why, e.g. "LIB (reason)",
+// "2× Work plan activity (reason)". A request that never got an answer shows the browser's error (e.g. Network Error).
+function failedParts(labels: string[], results: PromiseSettledResult<unknown>[]): string[] {
+  const counts = new Map<string, number>();
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled") return;
+    const key = `${labels[i]} (${errorMessage(r.reason, (r.reason as Error)?.message || "no answer from the server")})`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+  return [...counts].map(([key, n]) => (n > 1 ? `${n}× ${key}` : key));
+}
+
 function FilePick({ label, files, multiple, onChange }: { label: string; files: StagedFile[]; multiple?: boolean; onChange: Dispatch<SetStateAction<StagedFile[]>> }) {
   const patch = (key: string, p: Partial<StagedFile>) => onChange((list) => list.map((f) => (f.key === key ? { ...f, ...p } : f)));
   const upload = (entry: StagedFile) => {
@@ -899,14 +911,16 @@ function RegisterProjectContent({
         reviewing_body: form.reviewing_body,
       });
       const removed = (key: keyof EditSource["originalIds"], rows: { id?: number }[]) => source.originalIds[key].filter((oid) => !rows.some((r) => r.id === oid));
-      const results = await Promise.allSettled([
-        ...removed("team", filledTeam).map((x) => researchApi.deleteTeamMember(x)),
-        ...filledTeam.map((t) => {
+      type Part = [string, Promise<unknown>];
+      const parts: Part[] = [
+        ...removed("team", filledTeam).map((x): Part => ["Team member (remove)", researchApi.deleteTeamMember(x)]),
+        ...filledTeam.map((t): Part => {
           const row = { member_role: t.member_role, name: t.name.trim(), gender: t.gender, user: t.user };
-          return t.id ? researchApi.updateTeamMember(t.id, row) : researchApi.createTeamMember({ project: id, ...row });
+          return ["Team member", t.id ? researchApi.updateTeamMember(t.id, row) : researchApi.createTeamMember({ project: id, ...row })];
         }),
         // Registered studies can't be removed here (client 2026-10-09), so the first rows are always the saved ones
-        ...studyTitles.map((title, i) =>
+        ...studyTitles.map((title, i): Part => [
+          "Study",
           i < source.studyIds.length
             ? title.trim()
               ? researchApi.updateStudy(source.studyIds[i], { title: title.trim() })
@@ -914,41 +928,46 @@ function RegisterProjectContent({
             : title.trim()
               ? researchApi.createStudy({ project: id, title: title.trim() })
               : Promise.resolve(),
-        ),
-        ...removed("outputs", filledOutputs).map((x) => outputsApi.deleteExpectedOutput(x)),
-        ...filledOutputs.map((o) => {
+        ]),
+        ...removed("outputs", filledOutputs).map((x): Part => ["6P expected output (remove)", outputsApi.deleteExpectedOutput(x)]),
+        ...filledOutputs.map((o): Part => {
           const row = { category: o.category as SixPCategory, description: o.description.trim(), target_count: Number(o.target_count) || 1 };
-          return o.id ? outputsApi.updateExpectedOutput(o.id, row) : outputsApi.createExpectedOutput({ project: id, ...row });
+          return ["6P expected output", o.id ? outputsApi.updateExpectedOutput(o.id, row) : outputsApi.createExpectedOutput({ project: id, ...row })];
         }),
-        ...removed("beneficiaries", filledBeneficiaries).map((x) => researchApi.deleteBeneficiary(x)),
-        ...filledBeneficiaries.map((b) => {
+        ...removed("beneficiaries", filledBeneficiaries).map((x): Part => ["Target beneficiary (remove)", researchApi.deleteBeneficiary(x)]),
+        ...filledBeneficiaries.map((b): Part => {
           const row = { group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 };
-          return b.id ? researchApi.updateBeneficiary(b.id, row) : researchApi.createBeneficiary({ project: id, ...row });
+          return ["Target beneficiary", b.id ? researchApi.updateBeneficiary(b.id, row) : researchApi.createBeneficiary({ project: id, ...row })];
         }),
-        ...removed("workPlan", filledWorkPlan).map((x) => researchApi.deleteMilestone(x)),
-        ...filledWorkPlan.map((w) =>
+        ...removed("workPlan", filledWorkPlan).map((x): Part => ["Work plan activity (remove)", researchApi.deleteMilestone(x)]),
+        ...filledWorkPlan.map((w): Part => [
+          "Work plan activity",
           w.id
             ? researchApi.updateMilestone(w.id, { title: w.title.trim(), start_date: w.start_date || null, target_date: w.target_date })
             : researchApi.createMilestone({ project: id, title: w.title.trim(), start_date: w.start_date || undefined, target_date: w.target_date }),
-        ),
-        ...removed("endorsers", filledEndorsers).map((x) => researchApi.deleteEndorser(x)),
+        ]),
+        ...removed("endorsers", filledEndorsers).map((x): Part => ["Annex A endorser (remove)", researchApi.deleteEndorser(x)]),
         // Annex A is listed in id order, so new endorsers are added one after another
-        filledEndorsers.reduce(
-          (chain, e) =>
-            chain.then(() =>
-              e.id
-                ? researchApi.updateEndorser(e.id, { name: e.name.trim(), designation: e.designation.trim(), signed_on: e.signed_on || null })
-                : researchApi.createEndorser({ project: id, role_code: e.role_code, user: e.user, name: e.name.trim(), designation: e.designation.trim(), signed_on: e.signed_on || null }),
-            ),
-          Promise.resolve() as Promise<unknown>,
-        ),
-        ...[...approvalDoc, ...supportingDocs].map((f) =>
+        [
+          "Annex A endorsers",
+          filledEndorsers.reduce(
+            (chain, e) =>
+              chain.then(() =>
+                e.id
+                  ? researchApi.updateEndorser(e.id, { name: e.name.trim(), designation: e.designation.trim(), signed_on: e.signed_on || null })
+                  : researchApi.createEndorser({ project: id, role_code: e.role_code, user: e.user, name: e.name.trim(), designation: e.designation.trim(), signed_on: e.signed_on || null }),
+              ),
+            Promise.resolve() as Promise<unknown>,
+          ),
+        ],
+        ...[...approvalDoc, ...supportingDocs].map((f): Part => [
+          `Document ${f.file.name}`,
           documentApi.registerStagedDocument({ project: id, document_type: "other", stage: "inception", staged_token: f.token! }),
-        ),
-      ]);
-      const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        ]),
+      ];
+      const failed = failedParts(parts.map(([label]) => label), await Promise.allSettled(parts.map(([, promise]) => promise)));
       const formSaved = await documentApi.saveProposalForm(id).then(() => true, () => false);
-      if (failed.length) notify.error(`Project saved, but ${failed.length} row(s) could not be saved: ${errorMessage(failed[0].reason, "")}`);
+      if (failed.length) notify.error(`Project saved, but these could not be saved: ${failed.join("; ")}.`);
       else notify.success("Changes saved. A new version of the Research Proposal Form is under Document Management.");
       if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
       navigate(`/projects/${id}`);
@@ -1014,59 +1033,70 @@ function RegisterProjectContent({
         proposal_approved_on: opt(form.proposal_approved_on),
         reviewing_body: opt(form.reviewing_body),
       }, requestKey);
-      const results = await Promise.allSettled([
-        ...filledTeam.map((t) =>
+      const parts: [string, Promise<unknown>][] = [
+        ...filledTeam.map((t): [string, Promise<unknown>] => [
+          "Team member",
           researchApi.createTeamMember({ project: project.id, member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined, user: t.user }),
-        ),
-        ...filledStudies.map((title) => researchApi.createStudy({ project: project.id, title })),
+        ]),
+        ...filledStudies.map((title): [string, Promise<unknown>] => ["Study", researchApi.createStudy({ project: project.id, title })]),
         ...(filledLib.length
           ? [
-              researchApi.createProjectLib(
-                project.id,
-                filledLib.map((r) => ({
-                  category: r.category,
-                  description: r.description.trim(),
-                  fiscal_year: (libPeriods ? Number(form.start_date.slice(0, 4)) : Number(libYear)) || null,
-                  unit: r.unit,
-                  quantity: r.quantity,
-                  unit_cost: r.unit_cost,
-                  ...(libPeriods ? { allocations: libPeriods.map((period) => ({ period, amount: r.allocations?.[period] || "0" })) } : {}),
-                })),
-                `${requestKey}-lib`,
-              ),
+              [
+                "LIB",
+                researchApi.createProjectLib(
+                  project.id,
+                  filledLib.map((r) => ({
+                    category: r.category,
+                    description: r.description.trim(),
+                    fiscal_year: (libPeriods ? Number(form.start_date.slice(0, 4)) : Number(libYear)) || null,
+                    unit: r.unit,
+                    quantity: r.quantity,
+                    unit_cost: r.unit_cost,
+                    ...(libPeriods ? { allocations: libPeriods.map((period) => ({ period, amount: r.allocations?.[period] || "0" })) } : {}),
+                  })),
+                  `${requestKey}-lib`,
+                ),
+              ] as [string, Promise<unknown>],
             ]
           : []),
-        filledEndorsers.reduce(
-          (chain, e) =>
-            chain.then(() =>
-              researchApi.createEndorser({
-                project: project.id,
-                role_code: e.role_code,
-                user: e.user,
-                name: e.name.trim(),
-                designation: e.designation.trim(),
-                signed_on: e.signed_on || null,
-              }),
-            ),
-          Promise.resolve() as Promise<unknown>,
-        ),
-        ...filledBeneficiaries.map((b) =>
+        [
+          "Annex A endorsers",
+          filledEndorsers.reduce(
+            (chain, e) =>
+              chain.then(() =>
+                researchApi.createEndorser({
+                  project: project.id,
+                  role_code: e.role_code,
+                  user: e.user,
+                  name: e.name.trim(),
+                  designation: e.designation.trim(),
+                  signed_on: e.signed_on || null,
+                }),
+              ),
+            Promise.resolve() as Promise<unknown>,
+          ),
+        ],
+        ...filledBeneficiaries.map((b): [string, Promise<unknown>] => [
+          "Target beneficiary",
           researchApi.createBeneficiary({ project: project.id, group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 }),
-        ),
-        ...filledOutputs.map((o) =>
+        ]),
+        ...filledOutputs.map((o): [string, Promise<unknown>] => [
+          "6P expected output",
           outputsApi.createExpectedOutput({ project: project.id, category: o.category as SixPCategory, description: o.description.trim(), target_count: Number(o.target_count) || 1 }),
-        ),
-        ...filledWorkPlan.map((w) =>
+        ]),
+        ...filledWorkPlan.map((w): [string, Promise<unknown>] => [
+          "Work plan activity",
           researchApi.createMilestone({ project: project.id, title: w.title.trim(), start_date: w.start_date || undefined, target_date: w.target_date }),
-        ),
-        ...[...approvalDoc, ...supportingDocs].map((f) =>
+        ]),
+        ...[...approvalDoc, ...supportingDocs].map((f): [string, Promise<unknown>] => [
+          `Document ${f.file.name}`,
           documentApi.registerStagedDocument({ project: project.id, document_type: "other", stage: "inception", staged_token: f.token! }),
-        ),
-      ]);
+        ]),
+      ];
+      const failed = failedParts(parts.map(([label]) => label), await Promise.allSettled(parts.map(([, promise]) => promise)));
       const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
       discardDraft();
-      const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed) notify.error(`Project registered, but ${failed} team/study/LIB/endorser/beneficiary/6P/work plan/document row(s) failed to save. Add them from the project page.`);
+      if (failed.length) notify.error(`Project registered, but these could not be saved: ${failed.join("; ")}. Add them from the project page.`);
       else notify.success("Project registered. The Research Proposal Form is saved under Document Management.");
       if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
       navigate(`/projects/${project.id}`);
