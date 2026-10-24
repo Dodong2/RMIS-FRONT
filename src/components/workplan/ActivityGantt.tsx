@@ -1,5 +1,5 @@
 import type { Milestone, Project } from "../../types/research";
-import { STATUS_META, daysLate, nameOf } from "../../lib/workplan";
+import { STATUS_META, daysLate, ganttQuarters, nameOf } from "../../lib/workplan";
 
 export function LatePill({ days }: { days: number }) {
   if (days === 0) return <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ background: "#f1f5f9", color: "#64748b" }}>—</span>;
@@ -13,8 +13,10 @@ export function LatePill({ days }: { days: number }) {
 function Gantt({ milestones, project, now }: { milestones: Milestone[]; project: Project; now: number }) {
   if (milestones.length === 0) return <p className="text-sm py-4 text-center" style={{ color: "#94a3b8" }}>No activities defined yet.</p>;
   const dates = milestones.flatMap((m) => [m.start_date, m.target_date]).filter(Boolean).sort() as string[];
-  const start = new Date(project.start_date ?? dates[0]).getTime();
-  const end = new Date(project.target_end_date ?? dates[dates.length - 1]).getTime();
+  const startDate = project.start_date ?? dates[0];
+  const endDate = project.target_end_date ?? dates[dates.length - 1];
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
   const total = Math.max(1, end - start);
   const toPct = (d: string) => Math.max(0, Math.min(100, ((new Date(d).getTime() - start) / total) * 100));
   const todayPct = Math.max(0, Math.min(100, ((now - start) / total) * 100));
@@ -26,8 +28,9 @@ function Gantt({ milestones, project, now }: { milestones: Milestone[]; project:
           <div className="shrink-0 font-bold uppercase tracking-wide" style={{ width: "220px", color: "#94a3b8" }}>Activity</div>
           <div className="shrink-0 text-center font-mono" style={{ width: "110px", color: "#94a3b8" }}>Responsible</div>
           <div className="flex-1 relative h-5">
-            {["Q1", "Q2", "Q3", "Q4"].map((q, i) => (
-              <span key={q} className="absolute font-semibold" style={{ left: `${i * 25}%`, transform: "translateX(-50%)", color: "#94a3b8" }}>{q}</span>
+            {/* Client 2026-10-24: every project year's quarters, not Q1-Q4 across the whole period */}
+            {ganttQuarters(startDate, endDate).map((q) => (
+              <span key={q.label} className="absolute font-semibold whitespace-nowrap" style={{ left: `${q.pct}%`, transform: "translateX(-50%)", color: "#94a3b8" }}>{q.label}</span>
             ))}
             <span className="absolute font-bold" style={{ left: `${todayPct}%`, transform: "translateX(-50%)", color: "#ef4444", top: 0, fontSize: "9px" }}>▼</span>
           </div>
