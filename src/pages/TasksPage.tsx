@@ -533,7 +533,7 @@ function TaskDetailModal({
               <ProgressBar pct={task.progress_pct} />
             </div>
 
-            {canAssign && task.status === "for_review" && (
+            {canWorkAssign && task.status === "for_review" && (
               <div className="rounded-xl p-3 space-y-2" style={{ background: "#faf5ff", border: "1px solid #e9d5ff" }}>
                 <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#6b21a8" }}>Review Submission</p>
                 <textarea
