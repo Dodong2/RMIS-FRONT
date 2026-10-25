@@ -1,3 +1,5 @@
+> **STALE (2026-10-25):** the branch workflow and module notes below are history. Work is on `main`, Carl pushes and runs every `migrate`, tasks are gated by `dss/CLAUDE.md` (GO TASK N). The current state is in "Last thing done" at the bottom.
+
 # RMIS Frontend — Current Status
 
 ## Client changes 2026-10-01/02 — READ THIS FIRST
@@ -678,12 +680,21 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-02: every frontend task of the 2026-10-01 client plan and the 2026-10-02 follow-ups is committed on
-`feat/client-changes-2026-10-01` (see the section at the top). Checks per commit: `npx tsc -b`, eslint on touched files,
-`npm run build`. Not browser-tested by me; Carl tests with the guide. Older history (mock removal, P13–P15, the
-2026-09-26 SF-018 registration) is in git log.
+2026-10-23 to 2026-10-24, all on `main` and pushed (see `git log`). Each commit: `npx tsc -b`, eslint, vitest (92/92 at
+the end), `npm run build`.
+- 429 rate-limit message (`1efa489`).
+- Registration fixes, Tasks 2b-6: "Not Applicable" wet/dry (`5c75112`); no duplicate team picks (`9f3bda7`); Work Plan
+  from Excel in Manual Entry (`da50504`); LIB entered inside the Allocation per Quarter table (`3c0b7aa`); TipTap rich
+  text Step 4 + RichTextView preview (`84ff8c2`); editable Excel upload before registering (`39103bc`).
+- Tasks 8-13: toast names the failed parts (`2a9e228`); Activity Gantt Y1 Q1.. per project year (`1268428`);
+  duplicate-title toast (`e5d1b44`); Step 7 Notice of Approval/NTP/MOA required (`7a60c4e`); CRC Chair no longer
+  registers (`0dfc333`); Figma ProjectReviewWorkflow above the project list + PL Submit (`7a608fc`,
+  `lib/projectReview.ts`); UI follows the registration lock and work gate (`baeeaa7`, `609c5b6`, `f7eeebb`, `24974e4`).
+- CLAUDE.md: no mock data rule (`4156b7d`).
+- 2026-10-25: no frontend change (Task 9 was backend-only; the SF-018 preview already shows rich text).
 
 ## Next thing to do in this repo
-1. Carl's browser test (guide PART 3, Checkpoints A–D in the backend todo); fix what it finds.
-2. Still open from before: show `error_detail` on the Audit Logs page; `critical` risk level badges; permission
-   matrix + user scope screens (re-verify against `src` first).
+1. Carl's browser checks of the review workflow per role: project_leader submits a Draft; crc_chair/finance_budget
+   don't see Drafts; Tasks/Monitoring/Outputs/Compliance controls stay hidden until the LIB is certified.
+2. Optional, not approved yet: disable Verify in Compliance if the backend gets a Verify gate.
+3. Wait for the client's next changes. Every task goes through `dss/CLAUDE.md` (plan -> GO TASK N -> report -> STOP).
