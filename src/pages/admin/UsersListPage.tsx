@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { authApi } from "../../lib/authApi";
 import { researchApi } from "../../lib/researchApi";
 import { errorMessage } from "../../lib/errorMessage";
@@ -134,8 +135,13 @@ function PermissionModal({ role, matrix, onClose }: { role: Role; matrix: Permis
 }
 
 function ProfileModal({ user, onSaved, onClose }: { user: AdminUser; onSaved: (u: AdminUser) => void; onClose: () => void }) {
-  const [form, setForm] = useState({ first_name: user.first_name, last_name: user.last_name, office: user.office, position: user.position });
+  const [form, setForm] = useState({
+    first_name: user.first_name, last_name: user.last_name, office: user.office, position: user.position,
+    staff_id: user.staff_id ?? "", gender: user.gender, campus: user.campus, college_unit: user.college_unit,
+    mobile_number: user.mobile_number,
+  });
   const [isSaving, setIsSaving] = useState(false);
+  const options = useQuery({ queryKey: ["registration-options"], queryFn: authApi.getRegistrationOptions }).data;
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
 
   const handleSave = async () => {
@@ -182,6 +188,33 @@ function ProfileModal({ user, onSaved, onClose }: { user: AdminUser; onSaved: (u
       </Field>
       <Field label="Office">
         <input value={form.office} onChange={set("office")} className={INPUT_CLS} style={INPUT_STYLE} placeholder="e.g. CTE, Siniloan Campus" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Staff ID">
+          <input value={form.staff_id} onChange={(e) => setForm((p) => ({ ...p, staff_id: e.target.value.replace(/\D/g, "") }))} inputMode="numeric" maxLength={6} className={INPUT_CLS} style={INPUT_STYLE} placeholder="6 digits" />
+        </Field>
+        <Field label="Gender">
+          <select value={form.gender} onChange={set("gender")} className={INPUT_CLS} style={INPUT_STYLE}>
+            <option value="">Not set</option>
+            {(options?.genders ?? []).map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+          </select>
+        </Field>
+      </div>
+      <Field label="Campus">
+        <select value={form.campus} onChange={set("campus")} className={INPUT_CLS} style={INPUT_STYLE}>
+          <option value="">Not set</option>
+          {(options?.campuses ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </Field>
+      <Field label="College Unit">
+        <select value={form.college_unit} onChange={set("college_unit")} className={INPUT_CLS} style={INPUT_STYLE}>
+          <option value="">Not set</option>
+          {form.college_unit && !options?.college_units.includes(form.college_unit) && <option value={form.college_unit}>{form.college_unit}</option>}
+          {(options?.college_units ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </Field>
+      <Field label="Mobile Number">
+        <input value={form.mobile_number} onChange={set("mobile_number")} type="tel" className={INPUT_CLS} style={INPUT_STYLE} placeholder="09171234567 or +639171234567" />
       </Field>
     </ProtoModal>
   );
@@ -425,6 +458,11 @@ function UserDetailModal({
           { label: "Role", val: user.role?.name ?? "—" },
           { label: "Office", val: user.office || "—" },
           { label: "Position", val: user.position || "—" },
+          { label: "Staff ID", val: user.staff_id || "—" },
+          { label: "Gender", val: user.gender ? user.gender[0].toUpperCase() + user.gender.slice(1) : "—" },
+          { label: "Campus", val: user.campus || "—" },
+          { label: "College Unit", val: user.college_unit || "—" },
+          { label: "Mobile", val: user.mobile_number || "—" },
           { label: "Account Status", val: ACCOUNT_STATUS_META[user.account_status].label },
           { label: "Joined", val: fmtDate(user.date_joined) },
         ].map((item) => (

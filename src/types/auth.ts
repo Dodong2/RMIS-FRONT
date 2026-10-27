@@ -55,7 +55,15 @@ export interface RegistrationOptions {
 
 export type AccountState = "unverified" | "pending_approval" | "rejected" | "suspended" | "deactivated";
 
-export interface PendingUser {
+export interface ProfileDetails {
+  staff_id: string | null;
+  gender: Gender | "";
+  campus: string;
+  college_unit: string;
+  mobile_number: string;
+}
+
+export interface PendingUser extends ProfileDetails {
   id: number;
   email: string;
   full_name: string;
@@ -66,7 +74,7 @@ export interface PendingUser {
 
 export type AccountStatus = "active" | "suspended" | "deactivated";
 
-export interface AdminUser {
+export interface AdminUser extends ProfileDetails {
   id: number;
   email: string;
   full_name: string;

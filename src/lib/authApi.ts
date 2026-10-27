@@ -67,6 +67,9 @@ export const authApi = {
     const { data } = await apiClient.get("/api/admin/users/");
     return data;
   },
+  rejectRegistration: async (userId: number, reason: string): Promise<void> => {
+    await apiClient.post(`/api/admin/pending-users/${userId}/reject/`, { reason });
+  },
   assignRole: async (userId: number, roleId: number): Promise<void> => {
     await apiClient.patch(`/api/admin/pending-users/${userId}/assign-role/`, { role_id: roleId });
   },
@@ -82,7 +85,17 @@ export const authApi = {
   },
   updateUserProfile: async (
     userId: number,
-    profile: { first_name: string; last_name: string; office: string; position: string },
+    profile: {
+      first_name: string;
+      last_name: string;
+      office: string;
+      position: string;
+      staff_id: string;
+      gender: string;
+      campus: string;
+      college_unit: string;
+      mobile_number: string;
+    },
   ): Promise<AdminUser> => {
     const { data } = await apiClient.patch(`/api/admin/users/${userId}/profile/`, profile);
     return data;
