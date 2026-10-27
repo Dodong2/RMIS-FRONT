@@ -100,7 +100,7 @@ export const authApi = {
     const { data } = await apiClient.patch(`/api/admin/users/${userId}/profile/`, profile);
     return data;
   },
-  updateUserScope: async (userId: number, scope: { campus: string; college: string }): Promise<{ id: number; scope: UserScope }> => {
+  updateUserScope: async (userId: number, scope: { campus: string; college: string }): Promise<{ id: number; scope: UserScope; campus: string }> => {
     const { data } = await apiClient.patch(`/api/admin/users/${userId}/scope/`, scope);
     return data;
   },

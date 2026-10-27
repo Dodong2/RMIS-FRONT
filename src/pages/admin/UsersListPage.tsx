@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { authApi } from "../../lib/authApi";
-import { researchApi } from "../../lib/researchApi";
 import { errorMessage } from "../../lib/errorMessage";
 import { notify } from "../../lib/notify";
 import { protoRoleStyle } from "../../lib/protoRole";
@@ -221,7 +220,7 @@ function ProfileModal({ user, onSaved, onClose }: { user: AdminUser; onSaved: (u
 }
 
 function ScopeModal({ user, campuses, onSaved, onClose }: { user: AdminUser; campuses: string[]; onSaved: (u: AdminUser) => void; onClose: () => void }) {
-  const [campus, setCampus] = useState(user.scope?.campus ?? "");
+  const [campus, setCampus] = useState(user.campus ?? "");
   const [college, setCollege] = useState(user.scope?.college ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -229,7 +228,7 @@ function ScopeModal({ user, campuses, onSaved, onClose }: { user: AdminUser; cam
     setIsSaving(true);
     try {
       const res = await authApi.updateUserScope(user.id, { campus: campus.trim(), college: college.trim() });
-      onSaved({ ...user, scope: res.scope });
+      onSaved({ ...user, scope: res.scope, campus: res.campus });
       notify.success("Scope updated.");
       onClose();
     } catch (err) {
@@ -255,15 +254,15 @@ function ScopeModal({ user, campuses, onSaved, onClose }: { user: AdminUser; cam
       }
     >
       <p className="text-xs font-bold px-3 py-2 rounded-lg" style={{ background: "#f0f9ff", color: "#0369a1" }}>
-        Leave a field blank to clear it. A blank campus means university-wide access. Campus and college limit what campus-scoped roles see.
+        The campus is the account's own campus (from registration). For CRC/CRD, Finance/Accounting/Budget, RIUH and Procurement it limits the projects they see; a blank campus means university-wide. College narrows it further.
       </p>
       <Field label="Campus">
-        <input list="scope-campuses" value={campus} onChange={(e) => setCampus(e.target.value)} className={INPUT_CLS} style={INPUT_STYLE} placeholder="e.g. Santa Cruz" />
-        <datalist id="scope-campuses">
+        <select value={campus} onChange={(e) => setCampus(e.target.value)} className={INPUT_CLS} style={INPUT_STYLE}>
+          <option value="">No campus (university-wide)</option>
           {campuses.map((c) => (
-            <option key={c} value={c} />
+            <option key={c} value={c}>{c}</option>
           ))}
-        </datalist>
+        </select>
       </Field>
       <Field label="College">
         <input value={college} onChange={(e) => setCollege(e.target.value)} className={INPUT_CLS} style={INPUT_STYLE} placeholder="e.g. CCS" />
@@ -577,9 +576,9 @@ function UsersListContent() {
     authApi.getPendingUsers().then((p) => alive && setPendingCount(p.length)).catch(() => undefined);
     authApi.getPermissionMatrix().then((m) => alive && setMatrix(m)).catch(() => undefined);
     authApi.getAuditLogs().then((l) => alive && setAuditLogs(l.filter((x) => x.path.startsWith("/api/admin/")))).catch(() => alive && setAuditLogs([]));
-    researchApi
-      .getProjects()
-      .then((p) => alive && setCampusOptions([...new Set(p.map((x) => x.campus).filter(Boolean))].sort()))
+    authApi
+      .getRegistrationOptions()
+      .then((o) => alive && setCampusOptions(o.campuses))
       .catch(() => undefined);
     return () => {
       alive = false;
@@ -588,15 +587,14 @@ function UsersListContent() {
 
   const patchUser = (next: AdminUser) => setUsers((prev) => prev.map((u) => (u.id === next.id ? next : u)));
 
-  const scopeCampuses = useMemo(() => [...new Set(users.map((u) => u.scope?.campus).filter((c): c is string => !!c))].sort(), [users]);
-  const allCampuses = useMemo(() => [...new Set([...campusOptions, ...scopeCampuses])].sort(), [campusOptions, scopeCampuses]);
+  const scopeCampuses = useMemo(() => [...new Set(users.map((u) => u.campus).filter((c): c is string => !!c))].sort(), [users]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
       const matchSearch = !q || [u.full_name, u.email, u.office, u.position, u.role?.name ?? ""].some((v) => v.toLowerCase().includes(q));
       const matchRole = roleFilter === "all" || String(u.role?.id ?? "") === roleFilter;
-      const matchCampus = campusFilter === "all" || (campusFilter === "" ? !u.scope?.campus : u.scope?.campus === campusFilter);
+      const matchCampus = campusFilter === "all" || (campusFilter === "" ? !u.campus : u.campus === campusFilter);
       const matchStatus = statusFilter === "all" || u.account_status === statusFilter;
       return matchSearch && matchRole && matchCampus && matchStatus;
     });
@@ -669,7 +667,7 @@ function UsersListContent() {
   const assignmentGroups = useMemo(() => {
     const groups = new Map<string, Map<string, AdminUser[]>>();
     for (const u of filtered) {
-      const campus = u.scope?.campus ?? "";
+      const campus = u.campus ?? "";
       const college = u.scope?.college ?? "";
       if (!groups.has(campus)) groups.set(campus, new Map());
       const byCollege = groups.get(campus)!;
@@ -851,7 +849,7 @@ function UsersListContent() {
                     {[
                       { icon: "M3 8l9-5 9 5v10a1 1 0 01-1 1H4a1 1 0 01-1-1V8z", val: u.email },
                       { icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", val: u.office || "No office on file" },
-                      { icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z", val: [u.scope?.college, u.scope?.campus].filter(Boolean).join(" · ") || "University-wide" },
+                      { icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z", val: [u.scope?.college, u.campus].filter(Boolean).join(" · ") || "University-wide" },
                       { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", val: `Joined: ${fmtDate(u.date_joined)}` },
                     ].map((item, i) => (
                       <div key={i} className="flex items-center gap-2" style={{ color: "#64748b" }}>
@@ -997,7 +995,7 @@ function UsersListContent() {
         />
       )}
       {profileUser && <ProfileModal user={profileUser} onSaved={patchUser} onClose={() => setProfileUser(null)} />}
-      {scopeUser && <ScopeModal user={scopeUser} campuses={allCampuses} onSaved={patchUser} onClose={() => setScopeUser(null)} />}
+      {scopeUser && <ScopeModal user={scopeUser} campuses={campusOptions} onSaved={patchUser} onClose={() => setScopeUser(null)} />}
       {permRole && <PermissionModal role={permRole} matrix={matrix} onClose={() => setPermRole(null)} />}
       {confirmDeactivate && (
         <ConfirmDeactivateModal user={confirmDeactivate} isWorking={workingId === confirmDeactivate.id} onConfirm={() => runAction(confirmDeactivate, "deactivate")} onClose={() => setConfirmDeactivate(null)} />

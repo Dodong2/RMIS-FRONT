@@ -668,6 +668,9 @@ function RegisterProjectContent({
   ];
 
   const [form, setForm] = useState(init.form);
+  // Client 2026-10-27: a project is on its Project Leader's campus (the backend refuses another one).
+  const leadCampus = accounts.find((u) => String(u.id) === form.lead)?.campus ?? "";
+  const projectCampus = leadCampus || form.campus;
   const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rde-thrusts": [], "cooperating-agencies": [], endorsers: [], "funding-types": [] });
   const [agencies, setAgencies] = useState<string[]>(init.agencies);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
@@ -759,7 +762,7 @@ function RegisterProjectContent({
         ...(form.rde_thrust ? [] : ["RDE Thrust"]),
         ...(form.rde_priority ? [] : ["RDE Priority Area"]),
       ],
-      1: [...teamMissing(form.lead, team), ...(form.campus ? [] : ["Campus"])],
+      1: [...teamMissing(form.lead, team), ...(projectCampus ? [] : ["Campus"])],
       2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
       3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
       4: beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim()) ? [] : ["every Target Beneficiaries row"],
@@ -783,7 +786,7 @@ function RegisterProjectContent({
     ...(isContinuing ? [{ label: "Continuing year (2 or later) entered", done: Number(form.continuing_year) >= 2, required: true, step: 0 }] : []),
     { label: "Start and end dates provided", done: !!form.start_date && !!form.target_end_date, step: 0 },
     { label: "Project Leader identified", done: !!form.lead, required: true, step: 1 },
-    { label: "Campus selected", done: !!form.campus, required: true, step: 1 },
+    { label: "Campus selected", done: !!projectCampus, required: true, step: 1 },
     { label: "College Unit - Implementing Unit selected", done: !!form.implementing_unit, step: 1 },
     { label: "At least 1 sector selected", done: form.sectors.length > 0 && (!form.sectors.includes("others") || !!form.sector_other.trim()), required: true, step: 2 },
     { label: "At least 1 SDG selected", done: form.sdgs.length > 0, required: true, step: 2 },
@@ -913,7 +916,7 @@ function RegisterProjectContent({
         research_type: form.research_type as Project["research_type"],
         research_priority_area: form.research_priority_area as Project["research_priority_area"],
         research_typology: form.research_typology as Project["research_typology"],
-        campus: form.campus,
+        campus: projectCampus,
         college: form.implementing_unit,
         implementing_unit: form.implementing_unit,
         cooperating_agencies: agencies.join(", "),
@@ -1034,7 +1037,7 @@ function RegisterProjectContent({
         research_type: opt(form.research_type),
         research_priority_area: opt(form.research_priority_area),
         research_typology: form.research_typology,
-        campus: opt(form.campus),
+        campus: opt(projectCampus),
         // One dropdown since client feedback 2026-10-06; stored in both fields so the SF-018 form, reports and lists stay filled.
         college: opt(form.implementing_unit),
         implementing_unit: opt(form.implementing_unit),
@@ -1444,15 +1447,23 @@ function RegisterProjectContent({
                           key={c.name}
                           type="button"
                           onClick={() => setForm((p) => ({ ...p, campus: c.name }))}
-                          className="p-3 rounded-xl border-2 text-left transition-all"
-                          style={{ borderColor: form.campus === c.name ? c.color : "#e2e8f0", background: form.campus === c.name ? c.bg : "white" }}
+                          disabled={!!leadCampus}
+                          className="p-3 rounded-xl border-2 text-left transition-all disabled:cursor-not-allowed"
+                          style={{
+                            borderColor: projectCampus === c.name ? c.color : "#e2e8f0",
+                            background: projectCampus === c.name ? c.bg : "white",
+                            opacity: leadCampus && projectCampus !== c.name ? 0.45 : 1,
+                          }}
                         >
                           <p className="text-sm font-black" style={{ color: c.color }}>{c.name}</p>
                           <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{c.name} Campus</p>
                         </button>
                       ))}
                     </div>
-                    {showErrors && !form.campus && <p className="mt-1 text-xs font-semibold" style={{ color: "#dc2626" }}>Required</p>}
+                    {leadCampus && (
+                      <p className="mt-1 text-xs" style={{ color: "#64748b" }}>Campus follows the Project Leader's campus ({leadCampus}).</p>
+                    )}
+                    {showErrors && !projectCampus && <p className="mt-1 text-xs font-semibold" style={{ color: "#dc2626" }}>Required</p>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="College Unit - Implementing Unit" span>
