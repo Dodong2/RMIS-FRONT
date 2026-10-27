@@ -2,9 +2,8 @@
  * Mirrors accounts/management/commands/seed_roles.py.
  *
  * Permission checks are written against `tier`, never against `code` — same rule
- * the backend's HasAccess class follows. Program Leader and Project Leader share
- * the `project_management` tier, so they see the same navigation without either
- * code being listed twice anywhere.
+ * the backend's HasAccess class follows. Nine roles since 2026-10-27: DRD merged
+ * into CRC/CRD (crc_chair), Program and Study Leaders into project_leader.
  *
  * Keep this file in sync whenever the client revises the role list.
  */
@@ -47,15 +46,9 @@ export const ROLE_META: Record<string, RoleMeta> = {
     tier: "institution_oversight",
     scopeLine: "Institution-wide research oversight",
   },
-  drd: {
-    code: "drd",
-    name: "DRD",
-    tier: "institution_oversight",
-    scopeLine: "Institution-wide research oversight",
-  },
   crc_chair: {
     code: "crc_chair",
-    name: "CRC Chairperson",
+    name: "CRC/CRD",
     tier: "campus_coordination",
     scopeLine: "Research coordination across your campus",
   },
@@ -77,23 +70,11 @@ export const ROLE_META: Record<string, RoleMeta> = {
     tier: "procurement",
     scopeLine: "Procurement requests and supplier records",
   },
-  program_leader: {
-    code: "program_leader",
-    name: "Program Leader",
-    tier: "project_management",
-    scopeLine: "Programs and projects you lead",
-  },
   project_leader: {
     code: "project_leader",
-    name: "Project Leader",
+    name: "Project Leader/Program Leader/Study Leader",
     tier: "project_management",
     scopeLine: "Projects you lead",
-  },
-  study_leader: {
-    code: "study_leader",
-    name: "Study Leader",
-    tier: "study_management",
-    scopeLine: "Studies you lead",
   },
   project_staff: {
     code: "project_staff",
@@ -145,7 +126,7 @@ export function initialsFrom(value?: string | null): string {
  * code, lead, or program. Client 2026-10-24: the CRC Chair reviews submitted projects and no longer registers them,
  * but keeps editing (e.g. the Closure status).
  */
-export const REGISTRATION_ROLE_CODES = ["system_admin", "drd", "riuh", "project_leader"];
-export const PROJECT_EDIT_ROLE_CODES = [...REGISTRATION_ROLE_CODES, "crc_chair", "program_leader", "study_leader"];
+export const REGISTRATION_ROLE_CODES = ["system_admin", "riuh", "project_leader"];
+export const PROJECT_EDIT_ROLE_CODES = [...REGISTRATION_ROLE_CODES, "crc_chair"];
 /** Client 2026-10-20: Project Management is not for Project Staff; they reach their work through Personnel & Tasks. */
 export const PROJECT_PAGE_ROLE_CODES = Object.keys(ROLE_META).filter((code) => code !== "project_staff");

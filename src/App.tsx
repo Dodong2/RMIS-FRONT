@@ -111,12 +111,10 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
                 "finance_budget",
                 "procurement_officer_lib",
-                "program_leader",
                 "project_leader",
               ]}
             >
@@ -129,7 +127,7 @@ export default function App() {
         path="/budget-sync"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "vprei", "university_admin", "drd", "finance_budget"]}>
+            <RoleGate allow={["system_admin", "vprei", "university_admin", "finance_budget"]}>
               <BudgetSyncPage />
             </RoleGate>
           </ProtectedRoute>
@@ -139,7 +137,7 @@ export default function App() {
         path="/budget/forecast"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "vprei", "university_admin", "drd", "finance_budget"]}>
+            <RoleGate allow={["system_admin", "vprei", "university_admin", "finance_budget"]}>
               <BudgetForecastPage />
             </RoleGate>
           </ProtectedRoute>
@@ -149,7 +147,7 @@ export default function App() {
         path="/decision-support"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "vprei", "university_admin", "drd", "finance_budget"]}>
+            <RoleGate allow={["system_admin", "vprei", "university_admin", "finance_budget"]}>
               <DecisionSupportPage />
             </RoleGate>
           </ProtectedRoute>
@@ -164,10 +162,8 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
-                "program_leader",
                 "project_leader",
               ]}
             >
@@ -185,7 +181,6 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
                 "finance_budget",
@@ -205,7 +200,6 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
                 "procurement_officer_lib",
@@ -225,12 +219,9 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
-                "program_leader",
                 "project_leader",
-                "study_leader",
               ]}
             >
               <WorkPlanPage />
@@ -247,12 +238,9 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
-                "program_leader",
                 "project_leader",
-                "study_leader",
               ]}
             >
               <StaffPage />
@@ -267,10 +255,8 @@ export default function App() {
             <RoleGate
               allow={[
                 "system_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
-                "program_leader",
                 "project_leader",
               ]}
             >
@@ -288,14 +274,11 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
                 "finance_budget",
                 "procurement_officer_lib",
-                "program_leader",
                 "project_leader",
-                "study_leader",
               ]}
             >
               <BudgetPage />
@@ -312,11 +295,9 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
                 "finance_budget",
-                "program_leader",
                 "project_leader",
               ]}
             >
@@ -334,12 +315,9 @@ export default function App() {
                 "system_admin",
                 "vprei",
                 "university_admin",
-                "drd",
                 "crc_chair",
                 "riuh",
-                "program_leader",
                 "project_leader",
-                "study_leader",
               ]}
             >
               <CompliancePage />
@@ -452,7 +430,7 @@ export default function App() {
         path="/procurement"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "vprei", "university_admin", "drd", "procurement_officer_lib", "finance_budget", "program_leader", "project_leader"]}>
+            <RoleGate allow={["system_admin", "vprei", "university_admin", "procurement_officer_lib", "finance_budget", "project_leader"]}>
               <ProcurementPage />
             </RoleGate>
           </ProtectedRoute>

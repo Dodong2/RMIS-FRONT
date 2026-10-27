@@ -29,7 +29,7 @@ import { notify } from "../lib/notify";
 import { personName } from "../lib/roles";
 import { UserSelect } from "../components/common/UserPicker";
 
-const MANAGE_CODES = ["system_admin", "crc_chair", "drd", "riuh"];
+const MANAGE_CODES = ["system_admin", "crc_chair", "riuh"];
 const CLEARANCE_CODES = [...MANAGE_CODES, "procurement_officer_lib"];
 
 const STATUS_LABELS: Record<ChangeStatus, string> = {
@@ -40,9 +40,9 @@ const STATUS_LABELS: Record<ChangeStatus, string> = {
 };
 
 const LEAD_ROLE_BY_RECORD = {
-  program: "program_leader",
+  program: "project_leader",
   project: "project_leader",
-  study: "study_leader",
+  study: "project_leader",
 } as const;
 
 type RecordType = keyof typeof LEAD_ROLE_BY_RECORD;

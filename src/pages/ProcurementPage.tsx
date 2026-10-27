@@ -20,7 +20,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { PROCUREMENT_EVENTS, useRealtime } from "../hooks/useRealtime";
 import { STATUS_META } from "../lib/procurementStatus";
 
-const REQUEST_ROLE_CODES = ["system_admin", "program_leader", "project_leader"];
+const REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
 const UPDATE_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
 const DELAY_DAYS = 30;
 

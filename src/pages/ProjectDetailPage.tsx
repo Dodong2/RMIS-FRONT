@@ -254,7 +254,7 @@ function ProjectDetailContent() {
 
   useEffect(() => {
     if (!canRegister) return;
-    researchApi.getUsersByRole("study_leader").then(setStudyLeaders).catch(() => undefined);
+    researchApi.getUsersByRole("project_leader").then(setStudyLeaders).catch(() => undefined);
   }, [canRegister]);
 
   const handleCreateStudy = async () => {
@@ -847,7 +847,7 @@ function ProjectDetailContent() {
                   </button>
                 </div>
               ) : (
-                <p className="text-xs" style={{ color: "#94a3b8" }}>Only the System Admin or CRC Chairperson can close a project.</p>
+                <p className="text-xs" style={{ color: "#94a3b8" }}>Only the System Admin or CRC/CRD can close a project.</p>
               )}
             </div>
           )}
@@ -878,7 +878,7 @@ function ProjectDetailContent() {
                   <SelectValue placeholder="Select leader" />
                 </SelectTrigger>
                 <SelectContent>
-                  {studyLeaders.length === 0 && <EmptyOption message="No active study leaders yet" />}
+                  {studyLeaders.length === 0 && <EmptyOption message="No active Project Leaders yet" />}
                   {studyLeaders.map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>{u.full_name}{u.full_name !== u.email ? ` (${u.email})` : ""}</SelectItem>
                   ))}

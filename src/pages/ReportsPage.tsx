@@ -20,7 +20,7 @@ import { GenerateReportModal } from "../components/reports/GenerateReportModal";
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
 
-const REPORT_LOG_VIEW_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
+const REPORT_LOG_VIEW_ROLE_CODES = ["system_admin", "riuh", "vprei"];
 
 type Tab = "catalog" | "history" | "submitted";
 type SubmittedKind = "monthly" | "midterm" | "terminal";

@@ -21,7 +21,7 @@ import { registrationOpen, workAllowed } from "../lib/projectReview";
 
 type WPTab = "milestones" | "activities" | "deliverables";
 
-const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "program_leader", "project_leader", "study_leader"];
+const MILESTONE_ROLE_CODES = ["system_admin", "crc_chair", "project_leader"];
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-all focus:border-[#0891b2]";
 const inputSt = { borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" };

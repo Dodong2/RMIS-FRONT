@@ -12,7 +12,7 @@ import type { RiskAlertInbox } from "../../types/risk";
 
 const BUDGET_REVIEWER_ROLE_CODES = ["system_admin", "finance_budget"];
 const LIB_ENDORSER_ROLE_CODES = ["system_admin", "crc_chair"];
-const PROCUREMENT_LEADER_ROLE_CODES = ["program_leader", "project_leader"];
+const PROCUREMENT_LEADER_ROLE_CODES = ["project_leader"];
 const PROCUREMENT_OFFICE_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
 
 interface TopbarProps {

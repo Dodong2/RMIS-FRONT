@@ -20,8 +20,8 @@ import type {
 import type { Project } from "../../types/research";
 
 const PREPARE_ROLE_CODES = ["project_leader"];
-const REVIEW_ROLE_CODES = ["riuh", "crc_chair", "drd", "vprei"];
-const APPROVE_ROLE_CODES = ["drd", "vprei"];
+const REVIEW_ROLE_CODES = ["riuh", "crc_chair", "vprei"];
+const APPROVE_ROLE_CODES = ["vprei"];
 const EDITABLE: QuarterlyReportStatus[] = ["draft", "returned_for_revision"];
 const QUARTERLY_EVENTS = ["monitoring.quarterly.changed"];
 

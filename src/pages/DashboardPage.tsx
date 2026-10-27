@@ -45,11 +45,8 @@ type DomainTab = "projects" | "budget" | "compliance" | "outputs" | "me" | "risk
 const TASK_ASSIGNER_CODES = [
   "system_admin",
   "crc_chair",
-  "drd",
   "riuh",
-  "program_leader",
   "project_leader",
-  "study_leader",
 ];
 
 const WIDE_TIERS: RoleTier[] = ["system_admin", "institution_oversight"];

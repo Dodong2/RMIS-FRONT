@@ -172,7 +172,7 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/analytics",
         icon: "chart",
         tiers: [...OVERSIGHT, "finance"],
-        roles: ["procurement_officer_lib", "program_leader", "project_leader"],
+        roles: ["procurement_officer_lib", "project_leader"],
         ready: true,
       },
       {
@@ -235,7 +235,6 @@ export const NAV_SECTIONS: NavSection[] = [
             to: "/leader-load",
             icon: "activity",
             tiers: ["system_admin", "campus_coordination", "college_oversight", "project_management"],
-            roles: ["drd"],
             ready: true,
           },
           {

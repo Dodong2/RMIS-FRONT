@@ -28,7 +28,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 
 const MANAGE_ROLE_CODES = ["system_admin", "riuh"];
-const REPORT_ROLE_CODES = ["system_admin", "riuh", "project_leader", "study_leader"];
+const REPORT_ROLE_CODES = ["system_admin", "riuh", "project_leader"];
 const CREATIVE_WORK_ROLE_CODES = [...REPORT_ROLE_CODES, "project_staff"];
 
 type StatusKey = "published" | "disclosed" | "filed" | "registered" | "adopted" | "met" | "in_progress" | "outcome" | "impact";

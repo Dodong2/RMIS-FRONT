@@ -16,7 +16,7 @@ import { EarlyWarningPanel } from "../components/risks/EarlyWarning";
 import { CatChip, IdentifyRiskModal, LevelBadge, RiskCard, RiskDetailModal, RiskHeatMap, StatusBadge, UpdateRiskModal } from "../components/risks/RiskParts";
 import { useAuth } from "../context/AuthContext";
 
-const MANAGE_ROLE_CODES = ["system_admin", "drd", "vprei", "crc_chair", "riuh", "program_leader", "project_leader"];
+const MANAGE_ROLE_CODES = ["system_admin", "vprei", "crc_chair", "riuh", "project_leader"];
 
 type Tab = "register" | "heatmap" | "mitigation" | "flags" | "alerts";
 

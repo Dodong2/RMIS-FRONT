@@ -26,7 +26,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 
-const MANAGE_CODES = ["system_admin", "crc_chair", "drd", "riuh"];
+const MANAGE_CODES = ["system_admin", "crc_chair", "riuh"];
 const LEVELS = [1, 2, 3];
 const LEVEL_COLORS: Record<number, string> = { 1: "#0891b2", 2: "#1a3f7a", 3: "#0d2a5e" };
 

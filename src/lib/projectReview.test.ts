@@ -22,9 +22,9 @@ describe("assignedReviewer", () => {
   });
 
   it("is whoever took the review step, or the reviewing role before anyone has", () => {
-    expect(assignedReviewer("submitted", project, [review(1, "submitted", "Dr. Herminia Ramos")])).toEqual({ name: "CRC Chairperson", role: "CRC Chairperson" });
+    expect(assignedReviewer("submitted", project, [review(1, "submitted", "Dr. Herminia Ramos")])).toEqual({ name: "CRC/CRD", role: "CRC/CRD" });
     expect(assignedReviewer("pending_research_review", project, [review(1, "submitted"), review(2, "review_started", "Engr. Cruz")]))
-      .toEqual({ name: "Engr. Cruz", role: "CRC Chairperson" });
+      .toEqual({ name: "Engr. Cruz", role: "CRC/CRD" });
     expect(assignedReviewer("pending_budget_review", project, [review(3, "ready", "Engr. Cruz")])).toEqual({ name: "Budget Officer", role: "Budget Officer" });
   });
 });
@@ -34,7 +34,7 @@ describe("reviewHistory", () => {
     const events = reviewHistory([review(1, "submitted", "PL"), review(2, "held_crc", "CRC", "Clarify the methodology")]);
 
     expect(events.map((e) => [e.action, e.actor, e.actorRole, e.toStatus, e.comments])).toEqual([
-      ["Returned for revision", "CRC", "CRC Chairperson", "Returned for Revision – Research", "Clarify the methodology"],
+      ["Returned for revision", "CRC", "CRC/CRD", "Returned for Revision – Research", "Clarify the methodology"],
       ["Project proposal submitted", "PL", "Project Leader", "Submitted", ""],
     ]);
   });

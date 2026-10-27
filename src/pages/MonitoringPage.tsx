@@ -19,12 +19,12 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { RECONNECTED, useRealtime } from "../hooks/useRealtime";
 
-const REPORT_ROLE_CODES = ["system_admin", "riuh", "project_leader", "study_leader", "project_staff"];
+const REPORT_ROLE_CODES = ["system_admin", "riuh", "project_leader", "project_staff"];
 const CERTIFY_ROLE_CODES = ["system_admin", "riuh"];
-const EVALUATE_ROLE_CODES = ["system_admin", "vprei", "drd", "crc_chair"];
-const RENEWAL_DECIDE_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
-const EXT_REQUEST_ROLE_CODES = ["system_admin", "program_leader", "project_leader"];
-const EXT_ENDORSE_ROLE_CODES = ["system_admin", "drd", "crc_chair"];
+const EVALUATE_ROLE_CODES = ["system_admin", "vprei", "crc_chair"];
+const RENEWAL_DECIDE_ROLE_CODES = ["system_admin", "riuh", "vprei"];
+const EXT_REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
+const EXT_ENDORSE_ROLE_CODES = ["system_admin", "crc_chair"];
 const EXT_APPROVE_ROLE_CODES = ["system_admin", "university_admin"];
 
 type IndicatorType = "output" | "outcome" | "process";

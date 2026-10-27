@@ -34,7 +34,7 @@ export function reviewQueues(projects: { review_status: ReviewStatus }[]) {
   };
 }
 
-const CRC = "CRC Chairperson";
+const CRC = "CRC/CRD";
 const BUDGET = "Budget Officer";
 const LEADER = "Project Leader";
 

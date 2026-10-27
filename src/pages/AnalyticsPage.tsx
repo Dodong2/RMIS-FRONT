@@ -35,7 +35,7 @@ import { ProjectsTab } from "../components/analytics/ProjectsTab";
 import { PortfolioTab } from "../components/analytics/PortfolioTab";
 import { ChartCard, CountBars, EmptyChart, HBar, KpiBox } from "../components/analytics/ProtoCharts";
 
-const MANAGE_TARGET_ROLE_CODES = ["system_admin", "riuh", "drd", "vprei"];
+const MANAGE_TARGET_ROLE_CODES = ["system_admin", "riuh", "vprei"];
 
 
 const PROJECT_STATUS_META: Record<string, { label: string; color: string }> = {

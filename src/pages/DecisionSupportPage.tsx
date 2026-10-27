@@ -24,8 +24,8 @@ import { NoActualData } from "../components/common/NoActualData";
 import { MoneyInput } from "../components/common/MoneyInput";
 import { useFundingTypes } from "../lib/fundingTypes";
 
-const DSS_ROLE_CODES = ["system_admin", "drd", "vprei"];
-const DECISION_ROLE_CODES = ["system_admin", "drd", "vprei", "university_admin"];
+const DSS_ROLE_CODES = ["system_admin", "vprei"];
+const DECISION_ROLE_CODES = ["system_admin", "vprei", "university_admin"];
 
 type IndicatorDomain = "budget" | "performance" | "outputs" | "compliance" | "risk";
 type ScoreGrade = "excellent" | "good" | "average" | "poor" | "critical";

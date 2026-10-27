@@ -64,7 +64,7 @@ const GENDERS = [
 
 // Add Member lists the registered accounts that fit the row (client 2026-10-09); a typed name still works for people or groups without one
 const TEAM_ROLE_CODES: Record<string, string[]> = {
-  co_leader: ["project_leader", "study_leader", "program_leader"],
+  co_leader: ["project_leader"],
   member: ["project_staff"],
 };
 

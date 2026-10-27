@@ -17,7 +17,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
-const FORECAST_ROLE_CODES = ["system_admin", "drd", "vprei", "finance_budget"];
+const FORECAST_ROLE_CODES = ["system_admin", "vprei", "finance_budget"];
 const FORECASTABLE_FUNDING_TYPES = ["institutional", "externally_funded"];
 
 type Method = "arima" | "burn_rate" | "linear_trend" | "moving_average" | "percent_completion";

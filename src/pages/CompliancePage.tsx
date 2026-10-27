@@ -18,7 +18,7 @@ import { IntegrityRecords } from "../components/compliance/IntegrityRecords";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 
-const ENCODE_ROLE_CODES = ["system_admin", "riuh", "program_leader", "project_leader", "study_leader"];
+const ENCODE_ROLE_CODES = ["system_admin", "riuh", "project_leader"];
 const MANAGE_ROLE_CODES = ["system_admin", "riuh"];
 const DUE_SOON_DAYS = 7;
 const DAY = 86400000;

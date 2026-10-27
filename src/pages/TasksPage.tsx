@@ -25,7 +25,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { plannedHoursLabel } from "../lib/taskHours";
 
-const TASK_ASSIGNER_CODES = ["system_admin", "crc_chair", "drd", "riuh", "program_leader", "project_leader", "study_leader"];
+const TASK_ASSIGNER_CODES = ["system_admin", "crc_chair", "riuh", "project_leader"];
 
 const STATUS_META: Record<TaskStatus, { label: string; bg: string; text: string; dot: string; col: string }> = {
   pending: { label: "To Do", bg: "#f1f5f9", text: "#475569", dot: "#94a3b8", col: "#e2e8f0" },

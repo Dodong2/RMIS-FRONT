@@ -12,7 +12,7 @@ export const CAT_META: Record<RiskCategory, { label: string; color: string; bg: 
 
 export const LEVEL_META: Record<RiskLevel, { label: string; color: string; bg: string; heat: string; range: string; action: string }> = {
   critical: { label: "Critical", color: "#dc2626", bg: "#fee2e2", heat: "#fca5a5", range: "17–25", action: "Escalation to VP / DRD" },
-  high: { label: "High", color: "#ea580c", bg: "#ffedd5", heat: "#fdba74", range: "10–16", action: "Notice to RIUH and CRC Chairperson" },
+  high: { label: "High", color: "#ea580c", bg: "#ffedd5", heat: "#fdba74", range: "10–16", action: "Notice to RIUH and CRC/CRD" },
   medium: { label: "Medium", color: "#f59e0b", bg: "#fef3c7", heat: "#fde68a", range: "5–9", action: "Reminder to the Project Leader" },
   low: { label: "Low", color: "#059669", bg: "#d1fae5", heat: "#bbf7d0", range: "1–4", action: "Monitor only" },
 };
@@ -35,9 +35,9 @@ export function levelOf(score: number): RiskLevel {
 }
 
 export const ALERT_ROUTING: Record<Exclude<RiskLevel, "low">, { to: string; roles: string[] }> = {
-  medium: { to: "Project Leader", roles: ["program_leader", "project_leader"] },
-  high: { to: "RIUH + CRC Chairperson", roles: ["riuh", "crc_chair"] },
-  critical: { to: "VP-REI / DRD", roles: ["vprei", "drd"] },
+  medium: { to: "Project Leader", roles: ["project_leader"] },
+  high: { to: "RIUH + CRC/CRD", roles: ["riuh", "crc_chair"] },
+  critical: { to: "VP-REI", roles: ["vprei"] },
 };
 
 export const FLAG_LABELS: Record<keyof ProjectRiskFlags, string> = {

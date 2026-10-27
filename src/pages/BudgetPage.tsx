@@ -875,7 +875,6 @@ function LIBDetail({
   canEndorse,
   userId,
   roleCode,
-  isStudyLeader,
   onBack,
 }: {
   project: Project;
@@ -884,7 +883,6 @@ function LIBDetail({
   canEndorse: boolean;
   userId: number | undefined;
   roleCode: string;
-  isStudyLeader: boolean;
   onBack: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -1079,11 +1077,6 @@ function LIBDetail({
             {tab === "overview" && (
               <div className="space-y-5">
                 {budget.exceeds_dry_cap && <DryCapWarning />}
-                {isStudyLeader && (
-                  <div className="rounded-xl px-4 py-3 text-xs" style={{ background: "#f0f9ff", border: "1px solid #bae6fd", color: "#0369a1" }}>
-                    Read-only view. Per-study allocation isn't tracked yet, so this shows the whole project LIB.
-                  </div>
-                )}
                 {budget.line_items.length === 0 ? (
                   <NoActualData hint={canManage && isDraft ? 'Add PS, MOOE, or CO items under "Line Items".' : undefined} />
                 ) : (
@@ -1518,7 +1511,6 @@ function BudgetContent() {
         canEndorse={canEndorse}
         userId={user?.pk}
         roleCode={code}
-        isStudyLeader={code === "study_leader"}
         onBack={() => setParams({})}
       />
     );
