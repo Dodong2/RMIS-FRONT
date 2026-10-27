@@ -1,4 +1,4 @@
-> **STALE (2026-10-25):** the branch workflow and module notes below are history. Work is on `main`, Carl pushes and runs every `migrate`, tasks are gated by `dss/CLAUDE.md` (GO TASK N). The current state is in "Last thing done" at the bottom.
+> **STALE (2026-10-25, still true 2026-10-27):** the branch workflow and module notes below are history. Work is on `main`, Carl pushes and runs every `migrate`, tasks are gated by `dss/CLAUDE.md` (GO TASK N). The current state is in "Last thing done" at the bottom.
 
 # RMIS Frontend — Current Status
 
@@ -680,21 +680,26 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-23 to 2026-10-24, all on `main` and pushed (see `git log`). Each commit: `npx tsc -b`, eslint, vitest (92/92 at
-the end), `npm run build`.
-- 429 rate-limit message (`1efa489`).
-- Registration fixes, Tasks 2b-6: "Not Applicable" wet/dry (`5c75112`); no duplicate team picks (`9f3bda7`); Work Plan
-  from Excel in Manual Entry (`da50504`); LIB entered inside the Allocation per Quarter table (`3c0b7aa`); TipTap rich
-  text Step 4 + RichTextView preview (`84ff8c2`); editable Excel upload before registering (`39103bc`).
-- Tasks 8-13: toast names the failed parts (`2a9e228`); Activity Gantt Y1 Q1.. per project year (`1268428`);
-  duplicate-title toast (`e5d1b44`); Step 7 Notice of Approval/NTP/MOA required (`7a60c4e`); CRC Chair no longer
-  registers (`0dfc333`); Figma ProjectReviewWorkflow above the project list + PL Submit (`7a608fc`,
-  `lib/projectReview.ts`); UI follows the registration lock and work gate (`baeeaa7`, `609c5b6`, `f7eeebb`, `24974e4`).
-- CLAUDE.md: no mock data rule (`4156b7d`).
-- 2026-10-25: no frontend change (Task 9 was backend-only; the SF-018 preview already shows rich text).
+2026-10-27 batch, all on `main`, paired with rmis-backend `8a438e3`..`3bca5cb`. Memory note: `nine-roles-auth-cleanup-2026-10-27`. After every commit: vitest (99/99), `npx tsc -b`, `npm run build` and eslint on the changed files. A full `eslint src` still has 3 errors in `src/context/AuthContext.tsx`; they predate the batch (`e61de98`, 2026-10-13) and the file is untouched.
+- **Registration** (`c0a1b42`):
+  - `components/auth/RegistrationProfileFields.tsx` is shared by Request Access and the Google "One More Step" page: Gender, Staff ID (6 digits), Campus, College Unit, Mobile and Role (no System Admin). It is filled from `GET auth/registration-options/`.
+  - `lib/registration.ts` (plus its test) holds the same rules as the backend and reads the backend's field errors.
+  - New `/verify-email` page: posts uid/token once and offers a resend when it fails.
+  - Login shows `account_state` and a "Send me a new verification link" button. Registration Pending explains the two steps.
+- **Admin** (`e6988cf`):
+  - Pending Registrations has Campus / College Unit and Staff ID · Gender · Mobile columns, plus a Reject modal with a reason.
+  - Edit Profile has Staff ID, Gender, Campus, College Unit and Mobile; the System Admin's `000000` is set there.
+- **9 roles** (`a76d062`):
+  - `roles.ts` drops DRD, Program Leader and Study Leader and uses the labels CRC/CRD and "Project Leader/Program Leader/Study Leader".
+  - Every RoleGate, nav entry and `*_ROLE_CODES` list matches the backend. Quarterly approve is VPREI only.
+  - Study and program leads are Project Leaders. Alerts and review labels say CRC/CRD.
+- **Campus** (`dcde2a4`):
+  - User & Access reads `User.campus`: the Scope modal (a select of the 4 campuses), the filter, the grouping and the card.
+  - The wizard's campus cards are locked to the chosen Project Leader's campus.
 
 ## Next thing to do in this repo
-1. Carl's browser checks of the review workflow per role: project_leader submits a Draft; crc_chair/finance_budget
-   don't see Drafts; Tasks/Monitoring/Outputs/Compliance controls stay hidden until the LIB is certified.
-2. Optional, not approved yet: disable Verify in Compliance if the backend gets a Verify gate.
-3. Wait for the client's next changes. Every task goes through `dss/CLAUDE.md` (plan -> GO TASK N -> report -> STOP).
+1. Carl:
+   - Push `c0a1b42`, `e6988cf`, `a76d062` and `dcde2a4` (plus this handover) and deploy with the backend.
+   - Browser checks: the full registration flow (e-mail and Google), Pending Reject, the CRC/CRD and Project Leader nav, Quarterly (CRC/CRD reviews only), the campus lock in the wizard, and the Scope modal.
+2. Optional, not approved: fix the 3 old eslint errors in `AuthContext.tsx`; disable Verify in Compliance if the backend gets a Verify gate.
+3. Wait for the client's next changes. Every task goes through `dss/CLAUDE.md` (plan, then GO TASK N, then report, then STOP).
