@@ -4,7 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import { AuthShell } from "../components/auth/AuthShell";
 import { GoogleButton } from "../components/auth/GoogleButton";
 import { notify } from "../lib/notify";
-import { throttledMessage } from "../lib/errorMessage";
+import { authApi } from "../lib/authApi";
+import { errorMessage, throttledMessage } from "../lib/errorMessage";
+import { loginBlock } from "../lib/registration";
+import type { AccountState } from "../types/auth";
 import { AuthDivider, AuthHint, AuthInput, AuthLabel, AuthSubmit, EyeToggle } from "../components/auth/AuthFields";
 
 export default function LoginPage() {
@@ -13,6 +16,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [blockedState, setBlockedState] = useState<AccountState | null>(null);
+  const [isResending, setIsResending] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGooglePending, setIsGooglePending] = useState(false);
@@ -20,6 +25,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
     setError("");
+    setBlockedState(null);
     setAttempted(true);
     if (!email.trim() || !password) {
       notify.error("Enter your email and password to sign in.");
@@ -29,13 +35,25 @@ export default function LoginPage() {
     try {
       await login({ email, password });
     } catch (err) {
-      const message =
-        throttledMessage(err) ??
-        "That email and password did not match, or the account is still waiting for admin confirmation.";
+      const blocked = loginBlock(err);
+      const message = throttledMessage(err) ?? blocked?.message ?? "That email and password did not match.";
+      setBlockedState(blocked?.state ?? null);
       setError(message);
       notify.error(message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setIsResending(true);
+    try {
+      const { detail } = await authApi.resendVerification(email.trim());
+      notify.success(detail);
+    } catch (err) {
+      notify.error(errorMessage(err, "A new link could not be sent. Try again in a moment."));
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -97,6 +115,17 @@ export default function LoginPage() {
             <EyeToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
           </div>
           {error && <AuthHint tone="error">{error}</AuthHint>}
+          {blockedState === "unverified" && (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={isResending}
+              className="mt-2 text-xs font-bold hover:underline disabled:opacity-60"
+              style={{ color: "#0891b2" }}
+            >
+              {isResending ? "Sending…" : "Send me a new verification link"}
+            </button>
+          )}
         </div>
 
         <AuthSubmit busy={isSubmitting} busyLabel="Signing in…">Sign In</AuthSubmit>

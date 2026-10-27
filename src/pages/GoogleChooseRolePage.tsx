@@ -1,33 +1,30 @@
-import { useState, useEffect, type SyntheticEvent } from "react";
+import { useState, type SyntheticEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../lib/authApi";
 import { supabase } from "../lib/supabaseClient";
 import { AuthShell } from "../components/auth/AuthShell";
-import { AUTH_SELECT_TRIGGER, AuthHint, AuthInput, AuthLabel, AuthSubmit } from "../components/auth/AuthFields";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AuthHint, AuthInput, AuthLabel, AuthSubmit } from "../components/auth/AuthFields";
+import { RegistrationProfileFields } from "../components/auth/RegistrationProfileFields";
 import { notify } from "../lib/notify";
-import { useRoles } from "../lib/queries";
+import { errorMessage } from "../lib/errorMessage";
+import { EMPTY_PROFILE, fieldErrors, profilePayload, profileProblems, type RegistrationProfile } from "../lib/registration";
 
 export default function GoogleChooseRolePage() {
   const navigate = useNavigate();
-  const rolesQ = useRoles();
-  const roles = rolesQ.data ?? [];
-  const rolesLoading = rolesQ.isPending;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [requestedRole, setRequestedRole] = useState("");
+  const [profile, setProfile] = useState<RegistrationProfile>(EMPTY_PROFILE);
+  const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [attempted, setAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (rolesQ.isError) notify.error("The role list could not be loaded. Reload the page to try again.");
-  }, [rolesQ.isError]);
+  const problems = profileProblems(profile);
+  const profileErrors = { ...(attempted ? problems : {}), ...serverErrors };
+
+  const changeProfile = (patch: Partial<RegistrationProfile>) => {
+    setProfile((p) => ({ ...p, ...patch }));
+    setServerErrors((errors) => Object.fromEntries(Object.entries(errors).filter(([field]) => !(field in patch))));
+  };
 
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
@@ -38,26 +35,31 @@ export default function GoogleChooseRolePage() {
       return;
     }
     setAttempted(true);
-    if (!firstName.trim() || !lastName.trim() || !requestedRole) {
-      notify.error("Fill in your first and last name and choose the role you are requesting before you submit.");
+    if (!firstName.trim() || !lastName.trim() || Object.keys(problems).length) {
+      notify.error("Fill in every field. The ones still missing or invalid are marked in red.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await authApi.googleRequestRole(token, Number(requestedRole), { first_name: firstName.trim(), last_name: lastName.trim() });
+      await authApi.googleRequestRole(token, {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        ...profilePayload(profile),
+      });
       sessionStorage.removeItem("pending_google_token");
       await supabase.auth.signOut();
       navigate("/registration-pending");
-    } catch {
-      notify.error("The request could not be submitted. Try again in a moment.");
+    } catch (err) {
+      setServerErrors(fieldErrors(err));
+      notify.error(errorMessage(err, "The request could not be submitted. Check the fields marked in red and try again."));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <AuthShell title="One More Step" subtitle="Tell us your name and the role you need so an administrator can review it">
+    <AuthShell title="One More Step" subtitle="Complete your details so an administrator can review your request">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -85,28 +87,10 @@ export default function GoogleChooseRolePage() {
             />
           </div>
         </div>
-        <div>
-          <AuthLabel htmlFor="role" required>Role You Are Requesting</AuthLabel>
-          {rolesLoading ? (
-            <div className="h-12 w-full rounded-xl animate-pulse" style={{ background: "#e2e8f0" }} />
-          ) : (
-            <Select value={requestedRole} onValueChange={setRequestedRole} disabled={roles.length === 0}>
-              <SelectTrigger id="role" className={AUTH_SELECT_TRIGGER} aria-invalid={attempted && !requestedRole}>
-                <SelectValue placeholder={roles.length === 0 ? "No roles available" : "Choose a role"} />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem key={role.id} value={String(role.id)}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <AuthHint>Your Google account is already verified. Only your name and role are still needed.</AuthHint>
-        </div>
+        <RegistrationProfileFields value={profile} onChange={changeProfile} errors={profileErrors} />
+        <AuthHint>Your Google account is already verified, so no password or verification e-mail is needed.</AuthHint>
 
-        <AuthSubmit busy={isSubmitting} busyLabel="Submitting…" disabled={rolesLoading}>
+        <AuthSubmit busy={isSubmitting} busyLabel="Submitting…">
           Submit Request
         </AuthSubmit>
       </form>

@@ -27,14 +27,33 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface RegisterPayload {
+export type Gender = "male" | "female";
+
+export interface RegistrationProfilePayload {
+  gender: Gender | "";
+  campus: string;
+  college_unit: string;
+  mobile_number: string;
+  staff_id: string;
+  requested_role: number | null;
+}
+
+export interface RegisterPayload extends RegistrationProfilePayload {
   email: string;
   first_name: string;
   last_name: string;
   password: string;
   password2: string;
-  requested_role: number | null;
 }
+
+export interface RegistrationOptions {
+  campuses: string[];
+  college_units: string[];
+  roles: Role[];
+  genders: { value: Gender; label: string }[];
+}
+
+export type AccountState = "unverified" | "pending_approval" | "rejected" | "suspended" | "deactivated";
 
 export interface PendingUser {
   id: number;

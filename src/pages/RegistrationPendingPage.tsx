@@ -3,7 +3,7 @@ import { AuthShell } from "../components/auth/AuthShell";
 
 export default function RegistrationPendingPage() {
   return (
-    <AuthShell title="Request Received" subtitle="Your account is waiting for approval">
+    <AuthShell title="Request Received" subtitle="Two steps before your account opens">
       <div className="space-y-5">
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl" style={{ background: "#d1fae5", border: "1px solid #6ee7b7" }}>
           <svg width="20" height="20" fill="none" stroke="#059669" strokeWidth="2" viewBox="0 0 24 24" className="shrink-0 mt-0.5">
@@ -12,15 +12,19 @@ export default function RegistrationPendingPage() {
           <div className="text-sm leading-relaxed">
             <p className="font-black" style={{ color: "#065f46" }}>What happens next</p>
             <p className="mt-1" style={{ color: "#047857" }}>
-              A system administrator reviews your request and assigns your role. You will get an email at the address
-              you registered once that is done, and you can sign in from there.
+              1. If you registered with your e-mail and password, open the verification link we sent to your e-mail
+              within 48 hours. If you signed up with Google, your e-mail is already verified.
+            </p>
+            <p className="mt-1" style={{ color: "#047857" }}>
+              2. A system administrator then reviews your request and assigns your role. You will get an e-mail once
+              that is done, and you can sign in from there.
             </p>
           </div>
         </div>
 
         <p className="text-sm" style={{ color: "#64748b" }}>
-          Nothing is needed from you in the meantime. If a week passes with no email, contact the Research and
-          Development Office.
+          No verification e-mail? Check your spam folder, or sign in with your e-mail and password to send a new
+          link. If a week passes with no answer, contact the Research and Development Office.
         </p>
 
         <Link

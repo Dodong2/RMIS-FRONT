@@ -3,6 +3,8 @@ import type {
   AuthTokens,
   LoginPayload,
   RegisterPayload,
+  RegistrationOptions,
+  RegistrationProfilePayload,
   User,
   Role,
   PendingUser,
@@ -21,6 +23,18 @@ export const authApi = {
   },
   register: async (payload: RegisterPayload): Promise<void> => {
     await apiClient.post("/api/auth/register/", payload);
+  },
+  getRegistrationOptions: async (): Promise<RegistrationOptions> => {
+    const { data } = await apiClient.get("/api/auth/registration-options/");
+    return data;
+  },
+  verifyEmail: async (uid: string, token: string): Promise<{ detail: string }> => {
+    const { data } = await apiClient.post("/api/auth/verify-email/", { uid, token });
+    return data;
+  },
+  resendVerification: async (email: string): Promise<{ detail: string }> => {
+    const { data } = await apiClient.post("/api/auth/resend-verification/", { email });
+    return data;
   },
   logout: async (): Promise<void> => {
     await apiClient.post("/api/auth/logout/");
@@ -41,14 +55,9 @@ export const authApi = {
   },
   googleRequestRole: async (
     supabaseAccessToken: string,
-    requestedRoleId: number,
-    name: { first_name: string; last_name: string },
+    payload: RegistrationProfilePayload & { first_name: string; last_name: string },
   ): Promise<void> => {
-    await apiClient.post("/api/auth/google/request/", {
-      supabase_access_token: supabaseAccessToken,
-      requested_role: requestedRoleId,
-      ...name,
-    });
+    await apiClient.post("/api/auth/google/request/", { supabase_access_token: supabaseAccessToken, ...payload });
   },
   getPendingUsers: async (): Promise<PendingUser[]> => {
     const { data } = await apiClient.get("/api/admin/pending-users/");
