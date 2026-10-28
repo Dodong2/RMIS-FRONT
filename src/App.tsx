@@ -27,6 +27,7 @@ import DocumentsPage from "./pages/DocumentsPage";
 import OutputsPage from "./pages/OutputsPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import AccomplishmentPage from "./pages/AccomplishmentPage";
+import ProfilePage from "./pages/ProfilePage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BudgetForecastPage from "./pages/BudgetForecastPage";
 import DecisionSupportPage from "./pages/DecisionSupportPage";
@@ -326,6 +327,7 @@ export default function App() {
         }
       />
       <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
       <Route
         path="/admin/pending-users"
         element={

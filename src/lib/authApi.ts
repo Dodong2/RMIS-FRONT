@@ -14,6 +14,9 @@ import type {
   UserScope,
   PermissionMatrix,
   TemporaryReplacement,
+  SelfProfile,
+  SelfProfileUpdate,
+  PasswordChangePayload,
 } from "../types/auth";
 
 export const authApi = {
@@ -42,6 +45,17 @@ export const authApi = {
   getCurrentUser: async (): Promise<User> => {
     const { data } = await apiClient.get("/api/auth/user/");
     return data;
+  },
+  getProfile: async (): Promise<SelfProfile> => {
+    const { data } = await apiClient.get("/api/auth/profile/");
+    return data;
+  },
+  updateProfile: async (profile: SelfProfileUpdate): Promise<SelfProfile> => {
+    const { data } = await apiClient.patch("/api/auth/profile/", profile);
+    return data;
+  },
+  changePassword: async (payload: PasswordChangePayload): Promise<void> => {
+    await apiClient.post("/api/auth/password/change/", payload);
   },
   getRoles: async (): Promise<Role[]> => {
     const { data } = await apiClient.get("/api/roles/");

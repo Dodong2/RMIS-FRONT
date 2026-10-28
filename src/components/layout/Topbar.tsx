@@ -246,8 +246,11 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
         {isLoading ? (
           <div className="hidden md:block h-11 w-40 rounded-xl animate-pulse" style={{ background: "#e2e8f0" }} />
         ) : (
-          <div
-            className="hidden md:flex items-center gap-2.5 px-3 py-2 rounded-xl"
+          <button
+            type="button"
+            onClick={() => navigate("/profile")}
+            title="My profile"
+            className="hidden md:flex items-center gap-2.5 px-3 py-2 rounded-xl text-left"
             style={{ background: roleStyle.bg, border: `1px solid ${roleStyle.color}30` }}
           >
             <div
@@ -264,7 +267,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
                 {user?.role ? roleLabel(user.role) : "Role pending"}
               </p>
             </div>
-          </div>
+          </button>
         )}
       </div>
     </header>

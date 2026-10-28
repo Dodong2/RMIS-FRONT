@@ -15,6 +15,7 @@ export interface User {
   is_active: boolean;
   office: string;
   position: string;
+  has_password: boolean;
 }
 
 export interface AuthTokens {
@@ -61,6 +62,27 @@ export interface ProfileDetails {
   campus: string;
   college_unit: string;
   mobile_number: string;
+}
+
+export interface SelfProfileUpdate {
+  first_name: string;
+  last_name: string;
+  gender: Gender | "";
+  mobile_number: string;
+}
+
+export interface SelfProfile extends ProfileDetails, SelfProfileUpdate {
+  email: string;
+  role: Role | null;
+  registration_method: "email" | "google";
+  profile_edit_count: number;
+  edits_left: number;
+}
+
+export interface PasswordChangePayload {
+  old_password: string;
+  new_password1: string;
+  new_password2: string;
 }
 
 export interface PendingUser extends ProfileDetails {
