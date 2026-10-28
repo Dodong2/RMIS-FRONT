@@ -68,6 +68,20 @@ const TEAM_ROLE_CODES: Record<string, string[]> = {
   member: ["project_staff"],
 };
 
+// Picking an account fills its saved profile in (client 2026-10-28); the fields stay editable for this project.
+const leadDefaults = (account?: AdminUser) => ({ lead_gender: account?.gender ?? "", contact_number: account?.mobile_number ?? "" });
+
+function ProfileNote({ account, withMobile = false }: { account?: AdminUser; withMobile?: boolean }) {
+  if (!account) return null;
+  const missing = [!account.gender && "gender", withMobile && !account.mobile_number && "mobile number"].filter(Boolean).join(" and ");
+  return (
+    <p className="mt-1 text-xs" style={{ color: "#64748b" }}>
+      Campus: {account.campus || "not set on the profile"}
+      {missing && ` · No ${missing} on this account's profile; fill it in here.`}
+    </p>
+  );
+}
+
 const MODES = [
   ["manual", "✍️ Manual Entry"],
   ["excel", "📊 Upload via Excel"],
@@ -669,7 +683,8 @@ function RegisterProjectContent({
 
   const [form, setForm] = useState(init.form);
   // Client 2026-10-27: a project is on its Project Leader's campus (the backend refuses another one).
-  const leadCampus = accounts.find((u) => String(u.id) === form.lead)?.campus ?? "";
+  const leadAccount = accounts.find((u) => String(u.id) === form.lead);
+  const leadCampus = leadAccount?.campus ?? "";
   const projectCampus = leadCampus || form.campus;
   const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rde-thrusts": [], "cooperating-agencies": [], endorsers: [], "funding-types": [] });
   const [agencies, setAgencies] = useState<string[]>(init.agencies);
@@ -686,7 +701,12 @@ function RegisterProjectContent({
     );
     researchApi
       .getActiveUsers()
-      .then((list) => active && setAccounts(list))
+      .then((list) => {
+        if (!active) return;
+        setAccounts(list);
+        const self = !isEdit && user?.role?.code === "project_leader" ? list.find((a) => a.id === user.pk) : undefined;
+        if (self) setForm((p) => (p.lead_gender || p.contact_number ? p : { ...p, ...leadDefaults(self) }));
+      })
       .catch(() => undefined);
     if (!user || user.role?.code === "project_leader") return;
     researchApi
@@ -696,7 +716,7 @@ function RegisterProjectContent({
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, isEdit]);
 
   const submittedRef = useRef(false);
   const [savedAt, setSavedAt] = useState<string | null>(restored?.savedAt ?? null);
@@ -1366,7 +1386,16 @@ function RegisterProjectContent({
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Project Leader" required invalid={bad("lead")} span>
-                      <select className={inputCls + " disabled:opacity-80"} style={inputSt} value={form.lead} onChange={set("lead")} disabled={isProjectLeader || isEdit}>
+                      <select
+                        className={inputCls + " disabled:opacity-80"}
+                        style={inputSt}
+                        value={form.lead}
+                        onChange={(e) => {
+                          const lead = e.target.value;
+                          setForm((p) => ({ ...p, lead, ...leadDefaults(accounts.find((u) => String(u.id) === lead)) }));
+                        }}
+                        disabled={isProjectLeader || isEdit}
+                      >
                         <option value="">
                           {projectLeaders.length || isProjectLeader
                             ? "Select project leader..."
@@ -1383,6 +1412,7 @@ function RegisterProjectContent({
                           <option key={u.id} value={u.id}>{u.full_name && u.full_name !== u.email ? `${u.full_name} (${u.email})` : u.email}</option>
                         ))}
                       </select>
+                      <ProfileNote account={leadAccount} withMobile={!isEdit} />
                     </Field>
                     <Field label="Project Leader Gender">
                       <select className={inputCls} style={inputSt} value={form.lead_gender} onChange={set("lead_gender")}>
@@ -1415,14 +1445,18 @@ function RegisterProjectContent({
                                 <option value="co_leader">Co-Project Leader</option>
                                 <option value="member">Team Member</option>
                               </select>
-                              <UserPicker
-                                className="flex-1"
-                                users={accounts.filter((a) => String(a.id) !== form.lead && !taken.has(a.id) && (TEAM_ROLE_CODES[t.member_role] ?? []).includes(a.role?.code ?? ""))}
-                                value={{ user: t.user, name: t.name }}
-                                onChange={(picked) => update(picked)}
-                                invalid={showErrors && !t.name.trim()}
-                                placeholder="Search an account, or type a name/group (e.g. EIU Coordinators)"
-                              />
+                              <div className="flex-1 min-w-0">
+                                <UserPicker
+                                  users={accounts.filter((a) => String(a.id) !== form.lead && !taken.has(a.id) && (TEAM_ROLE_CODES[t.member_role] ?? []).includes(a.role?.code ?? ""))}
+                                  value={{ user: t.user, name: t.name }}
+                                  onChange={(picked) =>
+                                    update(picked.user ? { ...picked, gender: accounts.find((a) => a.id === picked.user)?.gender ?? "" } : picked)
+                                  }
+                                  invalid={showErrors && !t.name.trim()}
+                                  placeholder="Search an account, or type a name/group (e.g. EIU Coordinators)"
+                                />
+                                <ProfileNote account={t.user ? accounts.find((a) => a.id === t.user) : undefined} />
+                              </div>
                               <select className={inputCls + " max-w-32"} style={inputSt} value={t.gender} onChange={(e) => update({ gender: e.target.value })}>
                                 <option value="">Gender</option>
                                 {GENDERS.map((g) => (

@@ -63,7 +63,7 @@ export function UserPicker({
             >
               <p className="text-sm font-semibold" style={{ color: "#1e293b" }}>{u.full_name}</p>
               <p className="text-xs" style={{ color: "#94a3b8" }}>
-                {[u.full_name !== u.email ? u.email : "", u.role?.name, u.position].filter(Boolean).join(" · ")}
+                {[u.full_name !== u.email ? u.email : "", u.role?.name, u.position, u.campus].filter(Boolean).join(" · ")}
               </p>
             </button>
           ))}
