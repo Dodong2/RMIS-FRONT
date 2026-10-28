@@ -1,4 +1,4 @@
-> **STALE (2026-10-25, still true 2026-10-27):** the branch workflow and module notes below are history. Work is on `main`, Carl pushes and runs every `migrate`, tasks are gated by `dss/CLAUDE.md` (GO TASK N). The current state is in "Last thing done" at the bottom.
+> **STALE (2026-10-25, still true 2026-10-28):** the branch workflow and module notes below are history. Work is on `main`, Carl pushes and runs every `migrate`, tasks are gated by `dss/CLAUDE.md` (GO TASK N). The current state is in "Last thing done" at the bottom.
 
 # RMIS Frontend — Current Status
 
@@ -680,26 +680,18 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-27 batch, all on `main`, paired with rmis-backend `8a438e3`..`3bca5cb`. Memory note: `nine-roles-auth-cleanup-2026-10-27`. After every commit: vitest (99/99), `npx tsc -b`, `npm run build` and eslint on the changed files. A full `eslint src` still has 3 errors in `src/context/AuthContext.tsx`; they predate the batch (`e61de98`, 2026-10-13) and the file is untouched.
-- **Registration** (`c0a1b42`):
-  - `components/auth/RegistrationProfileFields.tsx` is shared by Request Access and the Google "One More Step" page: Gender, Staff ID (6 digits), Campus, College Unit, Mobile and Role (no System Admin). It is filled from `GET auth/registration-options/`.
-  - `lib/registration.ts` (plus its test) holds the same rules as the backend and reads the backend's field errors.
-  - New `/verify-email` page: posts uid/token once and offers a resend when it fails.
-  - Login shows `account_state` and a "Send me a new verification link" button. Registration Pending explains the two steps.
-- **Admin** (`e6988cf`):
-  - Pending Registrations has Campus / College Unit and Staff ID · Gender · Mobile columns, plus a Reject modal with a reason.
-  - Edit Profile has Staff ID, Gender, Campus, College Unit and Mobile; the System Admin's `000000` is set there.
-- **9 roles** (`a76d062`):
-  - `roles.ts` drops DRD, Program Leader and Study Leader and uses the labels CRC/CRD and "Project Leader/Program Leader/Study Leader".
-  - Every RoleGate, nav entry and `*_ROLE_CODES` list matches the backend. Quarterly approve is VPREI only.
-  - Study and program leads are Project Leaders. Alerts and review labels say CRC/CRD.
-- **Campus** (`dcde2a4`):
-  - User & Access reads `User.campus`: the Scope modal (a select of the 4 campuses), the filter, the grouping and the card.
-  - The wizard's campus cards are locked to the chosen Project Leader's campus.
+2026-10-28 Task 2 (Profile page), on `main`, PUSHED, paired with rmis-backend `a79e72a`/`14b38f4`. Memory note: `profile-task2-2026-10-28`. vitest 99/99, `npx tsc -b`, `npm run build` clean, eslint clean on the changed files (the 3 old `AuthContext.tsx` errors from `e61de98` are still there, untouched).
+- **Profile page** (`a768881`):
+  - The Topbar name-and-role chip opens `/profile` (every role): First/Last Name, Gender, Mobile, Campus, College Unit, Role, Staff ID, Email, Password, all read-only; Campus and College Unit say the System Admin sets them.
+  - Edit Profile modal: the 4 editable fields, refuses a no-change save, shows the backend's field errors and the edits left. After 3 edits the page says it is locked and the button is disabled (backend enforces it).
+  - Password: Change Password (current, new, confirm) for e-mail accounts; "Signed in with Google — no password" when `has_password` is false.
+  - `authApi` gets getProfile/updateProfile/changePassword; `User` gets `has_password`.
+- **Register Project Step 2** (`3828e10`): picking a Project Leader fills Gender and Contact No. from the account (still editable); a leader registering their own project gets their own profile when both are blank. Picking a team account fills its gender. Picked accounts and the UserPicker list show the campus, with a note when the profile lacks gender/mobile. Edit Registration fills nothing. Payloads unchanged.
+- The 2026-10-27 batch (`c0a1b42`, `e6988cf`, `a76d062`, `dcde2a4`: registration, Pending Reject, 9 roles, campus) is pushed too.
 
 ## Next thing to do in this repo
 1. Carl:
-   - Push `c0a1b42`, `e6988cf`, `a76d062` and `dcde2a4` (plus this handover) and deploy with the backend.
-   - Browser checks: the full registration flow (e-mail and Google), Pending Reject, the CRC/CRD and Project Leader nav, Quarterly (CRC/CRD reviews only), the campus lock in the wizard, and the Scope modal.
-2. Optional, not approved: fix the 3 old eslint errors in `AuthContext.tsx`; disable Verify in Compliance if the backend gets a Verify gate.
+   - Deploy with the backend (both pushed; accounts 0028 already migrated).
+   - Browser checks: /profile (edit counter + lock, read-only Campus/College, password change, Google account), Step 2 autofill, plus the still-open 2026-10-27 checks (registration with e-mail and Google, Pending Reject, CRC/CRD and Project Leader nav, Quarterly, wizard campus lock, Scope modal).
+2. Known gaps, not approved: the Topbar chip is hidden below `md`, so phones have no Profile link; fix the 3 old eslint errors in `AuthContext.tsx`; disable Verify in Compliance if the backend gets a Verify gate.
 3. Wait for the client's next changes. Every task goes through `dss/CLAUDE.md` (plan, then GO TASK N, then report, then STOP).
