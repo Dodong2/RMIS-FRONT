@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { errorMessage } from "../../lib/errorMessage";
 import { libActions, type LibAction } from "../../lib/libWorkflow";
 import { notify } from "../../lib/notify";
-import { REVIEW_STATUS_LABELS, REVIEW_STATUS_STYLE, assignedReviewer, currentLib, leaderSubmitLabel, reviewHistory, reviewQueues, rowActions } from "../../lib/projectReview";
+import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, currentLib, leaderSubmitLabel, reviewHistory, reviewQueues, rowActions } from "../../lib/projectReview";
 import { documentsQuery, queryKeys } from "../../lib/queries";
 import { researchApi } from "../../lib/researchApi";
 import { SubmitConfirmDialog } from "./SubmitConfirmDialog";
@@ -70,7 +70,7 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
               ["Research queue", queues.research],
               ["Budget queue", queues.budget],
               ["Returned", queues.returned],
-              ["Reviews completed", queues.completed],
+              ["Active", queues.completed],
             ] as const
           ).map(([label, value]) => (
             <div key={label} className="rounded-xl bg-slate-50 p-3">
@@ -89,12 +89,33 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
             onChange={(e) => setFilter(e.target.value as ReviewStatus | "all")}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 outline-none"
             aria-label="Review status"
+            aria-describedby="review-status-meaning"
           >
             <option value="all">All review statuses</option>
             {(Object.keys(REVIEW_STATUS_LABELS) as ReviewStatus[]).map((s) => (
-              <option key={s} value={s}>{REVIEW_STATUS_LABELS[s]}</option>
+              <option key={s} value={s} title={REVIEW_STATUS_MEANINGS[s]}>{REVIEW_STATUS_LABELS[s]}</option>
             ))}
           </select>
+        </div>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p id="review-status-meaning" className="text-xs text-slate-500">
+            {filter === "all" ? "Showing every review status. Pick one to see only those proposals and what it means." : (
+              <>
+                <ReviewStatusBadge status={filter} /> <span className="ml-1">{REVIEW_STATUS_MEANINGS[filter]}</span>
+              </>
+            )}
+          </p>
+          <details className="text-xs text-slate-500">
+            <summary className="cursor-pointer font-semibold" style={{ color: "#0891b2" }}>What do the statuses mean?</summary>
+            <dl className="mt-2 space-y-1.5 rounded-xl border border-slate-200 bg-white p-3">
+              {(Object.keys(REVIEW_STATUS_LABELS) as ReviewStatus[]).map((s) => (
+                <div key={s} className="flex flex-wrap items-start gap-2">
+                  <dt><ReviewStatusBadge status={s} /></dt>
+                  <dd className="flex-1 min-w-48 text-slate-600">{REVIEW_STATUS_MEANINGS[s]}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200">

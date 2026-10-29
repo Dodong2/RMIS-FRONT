@@ -79,6 +79,7 @@ export type ReviewStatus =
   | "submitted"
   | "pending_research_review"
   | "returned_research"
+  | "for_budget_review"
   | "pending_budget_review"
   | "returned_budget"
   | "reviews_completed";

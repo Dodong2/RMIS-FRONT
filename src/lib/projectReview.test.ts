@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions } from "./projectReview";
+import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions } from "./projectReview";
 import type { BudgetReview } from "../types/budget";
 
 const review = (id: number, action: BudgetReview["action"], by = "Ana Cruz", remarks = ""): BudgetReview => ({
@@ -8,8 +8,8 @@ const review = (id: number, action: BudgetReview["action"], by = "Ana Cruz", rem
 
 describe("reviewQueues", () => {
   it("counts the research queue, budget queue, returned and completed projects", () => {
-    const statuses = ["submitted", "pending_research_review", "pending_budget_review", "returned_research", "returned_budget", "reviews_completed", "draft"] as const;
-    expect(reviewQueues(statuses.map((review_status) => ({ review_status })))).toEqual({ research: 2, budget: 1, returned: 2, completed: 1 });
+    const statuses = ["submitted", "pending_research_review", "for_budget_review", "pending_budget_review", "returned_research", "returned_budget", "reviews_completed", "draft"] as const;
+    expect(reviewQueues(statuses.map((review_status) => ({ review_status })))).toEqual({ research: 2, budget: 2, returned: 2, completed: 1 });
   });
 });
 
@@ -25,7 +25,9 @@ describe("assignedReviewer", () => {
     expect(assignedReviewer("submitted", project, [review(1, "submitted", "Dr. Herminia Ramos")])).toEqual({ name: "CRC/CRD", role: "CRC/CRD" });
     expect(assignedReviewer("pending_research_review", project, [review(1, "submitted"), review(2, "review_started", "Engr. Cruz")]))
       .toEqual({ name: "Engr. Cruz", role: "CRC/CRD" });
-    expect(assignedReviewer("pending_budget_review", project, [review(3, "ready", "Engr. Cruz")])).toEqual({ name: "Budget Officer", role: "Budget Officer" });
+    expect(assignedReviewer("for_budget_review", project, [review(3, "ready", "Engr. Cruz")])).toEqual({ name: "Budget Officer", role: "Budget Officer" });
+    expect(assignedReviewer("pending_budget_review", project, [review(3, "ready"), review(4, "certification_started", "M. Santos")]))
+      .toEqual({ name: "M. Santos", role: "Budget Officer" });
   });
 });
 
@@ -34,7 +36,7 @@ describe("reviewHistory", () => {
     const events = reviewHistory([review(1, "submitted", "PL"), review(2, "held_crc", "CRC", "Clarify the methodology")]);
 
     expect(events.map((e) => [e.action, e.actor, e.actorRole, e.toStatus, e.comments])).toEqual([
-      ["Returned for revision", "CRC", "CRC/CRD", "Returned for Revision – Research", "Clarify the methodology"],
+      ["Returned for revision", "CRC", "CRC/CRD", "Returned for Revision - CRC/CRD", "Clarify the methodology"],
       ["Project proposal submitted", "PL", "Project Leader", "Submitted", ""],
     ]);
   });
@@ -50,7 +52,7 @@ describe("leaderSubmitLabel", () => {
 });
 
 describe("registrationOpen / workAllowed", () => {
-  const all = ["draft", "submitted", "pending_research_review", "returned_research", "pending_budget_review", "returned_budget", "reviews_completed"] as const;
+  const all = ["draft", "submitted", "pending_research_review", "returned_research", "for_budget_review", "pending_budget_review", "returned_budget", "reviews_completed"] as const;
 
   it("opens the registration only for a Draft or a returned project", () => {
     expect(all.filter(registrationOpen)).toEqual(["draft", "returned_research", "returned_budget"]);
@@ -77,7 +79,7 @@ describe("rowActions (Task 16, 2026-10-30)", () => {
   });
 
   it("hides edit, delete and Open Review from the leader while a reviewer has the proposal", () => {
-    for (const status of ["submitted", "pending_research_review", "pending_budget_review"] as const) {
+    for (const status of ["submitted", "pending_research_review", "for_budget_review", "pending_budget_review"] as const) {
       expect(rowActions(status, leader)).toEqual({ edit: false, remove: false, openReview: false });
     }
   });
@@ -95,5 +97,24 @@ describe("rowActions (Task 16, 2026-10-30)", () => {
   it("keeps Open Review for the reviewers and gives them no edit or delete", () => {
     expect(rowActions("submitted", reviewer)).toEqual({ edit: false, remove: false, openReview: true });
     expect(rowActions("draft", admin)).toEqual({ edit: true, remove: true, openReview: true });
+  });
+});
+
+describe("review statuses (Task 17, 2026-10-30)", () => {
+  it("uses the client's labels, the same on the leader's and the CRC/CRD's dashboard", () => {
+    expect(REVIEW_STATUS_LABELS).toEqual({
+      draft: "Draft", submitted: "Submitted", pending_research_review: "Ongoing Review - CRC/CRD",
+      returned_research: "Returned for Revision - CRC/CRD", for_budget_review: "For Budget Review",
+      pending_budget_review: "Ongoing Review - Budget", returned_budget: "Returned Review - Budget", reviews_completed: "Active",
+    });
+  });
+
+  it("explains every status and colours Active green, each status with its own colour", () => {
+    for (const status of Object.keys(REVIEW_STATUS_LABELS) as (keyof typeof REVIEW_STATUS_LABELS)[]) {
+      expect(REVIEW_STATUS_MEANINGS[status].length).toBeGreaterThan(20);
+    }
+    expect(REVIEW_STATUS_MEANINGS.for_budget_review).toContain("forwarded");
+    expect(REVIEW_STATUS_STYLE.reviews_completed).toContain("green");
+    expect(new Set(Object.values(REVIEW_STATUS_STYLE)).size).toBe(Object.keys(REVIEW_STATUS_STYLE).length);
   });
 });

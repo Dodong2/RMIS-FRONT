@@ -4,31 +4,47 @@ import { nameOf } from "./workplan";
 
 /** Client 2026-10-24 (Figma ProjectReviewWorkflow): the project's review status, read from its LIB by the backend
  * (research_projects/workflow.py). Badge classes follow the prototype's STATUS_STYLE. */
+// Task 17 (2026-10-30): one colour per status, Active green; the label is always shown, so colour is never the only cue
 export const REVIEW_STATUS_STYLE: Record<ReviewStatus, string> = {
-  draft: "bg-slate-100 text-slate-700 ring-slate-200",
+  draft: "bg-slate-100 text-slate-700 ring-slate-300",
   submitted: "bg-blue-50 text-blue-700 ring-blue-200",
-  pending_research_review: "bg-cyan-50 text-cyan-700 ring-cyan-200",
-  returned_research: "bg-amber-50 text-amber-700 ring-amber-200",
+  pending_research_review: "bg-cyan-50 text-cyan-800 ring-cyan-200",
+  returned_research: "bg-amber-50 text-amber-800 ring-amber-200",
+  for_budget_review: "bg-indigo-50 text-indigo-700 ring-indigo-200",
   pending_budget_review: "bg-violet-50 text-violet-700 ring-violet-200",
-  returned_budget: "bg-orange-50 text-orange-700 ring-orange-200",
-  reviews_completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  returned_budget: "bg-orange-50 text-orange-800 ring-orange-200",
+  reviews_completed: "bg-green-100 text-green-800 ring-green-300",
 };
 
+// The client's labels (Task 17), the same as the backend's review_status_label
 export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   draft: "Draft",
   submitted: "Submitted",
-  pending_research_review: "Pending Research Review",
-  returned_research: "Returned for Revision – Research",
-  pending_budget_review: "Pending Budget Review",
-  returned_budget: "Returned for Revision – Budget",
-  reviews_completed: "Reviews Completed",
+  pending_research_review: "Ongoing Review - CRC/CRD",
+  returned_research: "Returned for Revision - CRC/CRD",
+  for_budget_review: "For Budget Review",
+  pending_budget_review: "Ongoing Review - Budget",
+  returned_budget: "Returned Review - Budget",
+  reviews_completed: "Active",
+};
+
+// What each status means (Task 17), shown with the status filter on every Project Management dashboard
+export const REVIEW_STATUS_MEANINGS: Record<ReviewStatus, string> = {
+  draft: "Saved by the Project Leader but not submitted; not visible to CRC/CRD or Finance/Accounting/Budget.",
+  submitted: "The Project Leader has submitted the proposal and it is awaiting CRC/CRD review.",
+  pending_research_review: "CRC/CRD is currently reviewing the proposal.",
+  returned_research: "CRC/CRD returned the proposal to the Project Leader for correction.",
+  for_budget_review: "CRC/CRD has forwarded the proposal to Finance/Accounting/Budget.",
+  pending_budget_review: "Finance/Accounting/Budget is currently reviewing the proposal for approval and certification.",
+  returned_budget: "Finance/Accounting/Budget returned the proposal for the appropriate corrections or review action.",
+  reviews_completed: "Finance/Accounting/Budget has approved and certified the proposal; it is available to the Project Leader for the next project-management activities.",
 };
 
 export function reviewQueues(projects: { review_status: ReviewStatus }[]) {
   const count = (...statuses: ReviewStatus[]) => projects.filter((p) => statuses.includes(p.review_status)).length;
   return {
     research: count("submitted", "pending_research_review"),
-    budget: count("pending_budget_review"),
+    budget: count("for_budget_review", "pending_budget_review"),
     returned: count("returned_research", "returned_budget"),
     completed: count("reviews_completed"),
   };
@@ -44,6 +60,7 @@ export function assignedReviewer(status: ReviewStatus, project: { lead_detail: L
   const last = (action: BudgetReview["action"]) => [...reviews].reverse().find((r) => r.action === action)?.acted_by_name;
   if (status === "submitted") return { name: CRC, role: CRC };
   if (status === "pending_research_review") return { name: last("review_started") ?? CRC, role: CRC };
+  if (status === "for_budget_review") return { name: BUDGET, role: BUDGET };
   if (status === "pending_budget_review") return { name: last("certification_started") ?? BUDGET, role: BUDGET };
   return { name: nameOf(project.lead_detail), role: LEADER };
 }
@@ -53,8 +70,8 @@ const ACTION_META: Record<BudgetReview["action"], { action: string; role: string
   resubmitted: { action: "Revisions resubmitted", role: LEADER, to: "submitted" },
   review_started: { action: "Research review started", role: CRC, to: "pending_research_review" },
   for_checking: { action: "Marked For Checking", role: CRC, to: "pending_research_review" },
-  ready: { action: "Research review completed", role: CRC, to: "pending_budget_review" },
-  endorsed: { action: "Research review completed", role: CRC, to: "pending_budget_review" },
+  ready: { action: "Research review completed · forwarded to Budget", role: CRC, to: "for_budget_review" },
+  endorsed: { action: "Research review completed · forwarded to Budget", role: CRC, to: "for_budget_review" },
   certification_started: { action: "Budget review started", role: BUDGET, to: "pending_budget_review" },
   certified: { action: "Budget review completed · LIB certified", role: BUDGET, to: "reviews_completed" },
   held_crc: { action: "Returned for revision", role: CRC, to: "returned_research" },
