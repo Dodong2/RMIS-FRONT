@@ -1590,7 +1590,7 @@ function BudgetContent() {
             <input
               className={INPUT_CLS + " flex-1 min-w-48"}
               style={INPUT_STYLE}
-              placeholder="Search project code, title, or PI…"
+              placeholder="Search NTP, title, or PI…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);

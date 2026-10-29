@@ -37,7 +37,7 @@ export function ProjectsTab({ data }: { data: PerformanceDashboard | null }) {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ background: "#f0f4f8" }}>
-                  {["Project Code", "Title", "Program", "Status", "Physical %", "Financial %", "Milestones"].map((h) => (
+                  {["NTP", "Title", "Program", "Status", "Physical %", "Financial %", "Milestones"].map((h) => (
                     <th key={h} className="px-3 py-2 text-left text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>
                       {h}
                     </th>
