@@ -37,7 +37,7 @@ export function ProjectsTab({ data }: { data: PerformanceDashboard | null }) {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ background: "#f0f4f8" }}>
-                  {["NTP", "Title", "Program", "Status", "Physical %", "Financial %", "Milestones"].map((h) => (
+                  {["NTP", "Title", "Status", "Physical %", "Financial %", "Milestones"].map((h) => (
                     <th key={h} className="px-3 py-2 text-left text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>
                       {h}
                     </th>
@@ -51,7 +51,6 @@ export function ProjectsTab({ data }: { data: PerformanceDashboard | null }) {
                     <td className="px-3 py-2.5 text-xs max-w-[200px]">
                       <p className="line-clamp-2 font-medium" style={{ color: "#0d2a5e" }} title={p.title}>{p.title}</p>
                     </td>
-                    <td className="px-3 py-2.5 text-xs" style={{ color: "#64748b" }}>{p.priority_area || "—"}</td>
                     <td className="px-3 py-2.5">
                       <span className="text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
                         {STATUS_LABELS[p.status] ?? p.status}

@@ -6,8 +6,6 @@ import { countAxis } from "./format";
 import { ChartCard, EmptyChart, HBar } from "./ProtoCharts";
 import { useTip } from "./useTip";
 
-const PRIORITY_COLORS = ["#0d2a5e", "#9f1239", "#065f46", "#f59e0b", "#f472b6", "#0891b2", "#7c3aed", "#ea580c", "#64748b"];
-
 const STATUS_META: [string, string, string][] = [
   ["active", "Active", "#059669"],
   ["completed", "Completed", "#0d2a5e"],
@@ -34,8 +32,6 @@ export function PortfolioTab({ data }: { data: PortfolioDashboard | null }) {
   if (!data) return <SkeletonRows />;
 
   const total = data.total_projects;
-  const areas = Object.entries(data.by_priority_area).sort((a, b) => b[1] - a[1]);
-  const areaMax = Math.max(0, ...areas.map(([, n]) => n));
   const sdgs = Object.entries(data.by_sdg)
     .map(([num, count]) => ({ num: Number(num), count }))
     .sort((a, b) => b.count - a.count || a.num - b.num);
@@ -57,41 +53,23 @@ export function PortfolioTab({ data }: { data: PortfolioDashboard | null }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <ChartCard title="Projects by Research Priority Area">
-          <Meta left="Compare thematic priorities across registered projects." right={`${areas.length} focus areas · ${total} projects`} />
-          {areas.length === 0 ? (
-            <EmptyChart message="No projects registered yet." />
-          ) : (
-            <>
-              {areas.map(([label, n], i) => (
-                <HBar key={label} label={label} val={n} max={areaMax} color={PRIORITY_COLORS[i % PRIORITY_COLORS.length]} valLabel={String(n)} />
+      <ChartCard title="Projects by SDG Alignment">
+        <Meta left="See which Sustainable Development Goals current projects address." right={`${sdgs.length} SDGs · ${sdgAllocations} project allocations`} />
+        {sdgs.length === 0 ? (
+          <EmptyChart message="No SDGs tagged on projects yet." />
+        ) : (
+          <>
+            <div className="max-h-80 overflow-y-auto pr-1">
+              {sdgs.map((s) => (
+                <HBar key={s.num} label={`SDG ${s.num}`} val={s.count} max={sdgMax} color={SDG_COLORS[s.num] ?? "#64748b"} valLabel={String(s.count)} />
               ))}
-              <p className="text-xs mt-3" style={{ color: "#334155" }}>
-                <strong>{areas[0][0]}</strong> is the dominant priority area, with <strong>{areas[0][1]} project(s)</strong>.
-              </p>
-            </>
-          )}
-        </ChartCard>
-
-        <ChartCard title="Projects by SDG Alignment">
-          <Meta left="See which Sustainable Development Goals current projects address." right={`${sdgs.length} SDGs · ${sdgAllocations} project allocations`} />
-          {sdgs.length === 0 ? (
-            <EmptyChart message="No SDGs tagged on projects yet." />
-          ) : (
-            <>
-              <div className="max-h-80 overflow-y-auto pr-1">
-                {sdgs.map((s) => (
-                  <HBar key={s.num} label={`SDG ${s.num}`} val={s.count} max={sdgMax} color={SDG_COLORS[s.num] ?? "#64748b"} valLabel={String(s.count)} />
-                ))}
-              </div>
-              <p className="text-xs mt-3" style={{ color: "#334155" }}>
-                The top SDGs addressed by current projects are <strong>{sdgs.slice(0, 5).map((s) => `SDG ${s.num}`).join(", ")}</strong>.
-              </p>
-            </>
-          )}
-        </ChartCard>
-      </div>
+            </div>
+            <p className="text-xs mt-3" style={{ color: "#334155" }}>
+              The top SDGs addressed by current projects are <strong>{sdgs.slice(0, 5).map((s) => `SDG ${s.num}`).join(", ")}</strong>.
+            </p>
+          </>
+        )}
+      </ChartCard>
 
       <ChartCard title="Projects by College">
         <Meta left="Compare college-level project totals, broken down by status. Unit: Number of Projects (Y-axis)" right={`${colleges.length} colleges · ${collegeProjects} projects`} />
