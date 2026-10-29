@@ -34,7 +34,7 @@ const DOC_TYPE_META: Record<DocumentType, { label: string; icon: string; color: 
   terminal_report: { label: "Terminal Report", icon: "🏁", color: "#166534", bg: "#d1fae5" },
   accomplishment_report: { label: "Accomplishment Report", icon: "📈", color: "#0369a1", bg: "#e0f2fe" },
   proposal_form: { label: "Research Proposal Form", icon: "📝", color: "#92400e", bg: "#fef3c7" },
-  notice_of_approval: { label: "Notice of Approval", icon: "✅", color: "#166534", bg: "#d1fae5" },
+  notice_of_approval: { label: "Approve Proposal", icon: "✅", color: "#166534", bg: "#d1fae5" },
   ntp: { label: "Notice to Proceed (NTP)", icon: "🚦", color: "#0d2a5e", bg: "#e0eaf7" },
   moa: { label: "Memorandum of Agreement (MOA)", icon: "🖋", color: "#7c3aed", bg: "#fdf4ff" },
   thesis: { label: "Thesis", icon: "🎓", color: "#7c3aed", bg: "#fdf4ff" },

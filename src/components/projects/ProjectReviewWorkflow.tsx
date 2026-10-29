@@ -13,7 +13,7 @@ import type { Project, ReviewStatus } from "../../types/research";
 const ENDORSE_ROLE_CODES = ["system_admin", "crc_chair"];
 const CERTIFY_ROLE_CODES = ["system_admin", "finance_budget"];
 const DOC_LABELS: Partial<Record<DocumentType, string>> = {
-  notice_of_approval: "Notice of Approval",
+  notice_of_approval: "Approve Proposal",
   ntp: "Notice to Proceed (NTP)",
   moa: "Memorandum of Agreement (MOA)",
   proposal_form: "Research Proposal Form (SF-018)",

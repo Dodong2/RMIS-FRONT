@@ -175,13 +175,32 @@ function AutoTextarea({ minRows = 1, className = "", ...props }: TextareaHTMLAtt
 
 type StagedFile = { key: string; file: File; progress: number; status: "uploading" | "done" | "error"; token?: string; error?: string };
 
-// Client 2026-10-24: the three required attachments, on Supporting Documents (Step 5) since 2026-10-29,, each saved as its own document type
+// Supporting Documents (Step 5), each saved as its own document type (client 2026-10-24). Task 13 (2026-10-29): Approve
+// Proposal (code notice_of_approval) and the NTP are required, the MOA is optional; "Other" files are type "other".
 type ApprovalDocType = "notice_of_approval" | "ntp" | "moa";
-const APPROVAL_DOCS: { type: ApprovalDocType; label: string }[] = [
-  { type: "notice_of_approval", label: "Notice of Approval" },
-  { type: "ntp", label: "Notice to Proceed (NTP)" },
-  { type: "moa", label: "Memorandum of Agreement (MOA)" },
+const APPROVAL_DOCS: { type: ApprovalDocType; label: string; required: boolean }[] = [
+  { type: "notice_of_approval", label: "Approve Proposal", required: true },
+  { type: "ntp", label: "Notice to Proceed", required: true },
+  { type: "moa", label: "MOA", required: false },
 ];
+
+// Task 13: View opens the uploaded file through a short-lived signed URL. The tab is opened before the request so the
+// browser doesn't block it as a pop-up; a PDF shows in it, Word and Excel files download.
+async function openDocument(getUrl: () => Promise<string>) {
+  const tab = window.open("", "_blank");
+  try {
+    const url = await getUrl();
+    if (tab) {
+      tab.opener = null;
+      tab.location.href = url;
+    } else {
+      window.open(url, "_blank", "noopener");
+    }
+  } catch (err) {
+    tab?.close();
+    notify.error(errorMessage(err, "Could not open the file."));
+  }
+}
 
 // Client 2026-10-24 (register_error.png): name each registration part that failed and why, e.g. "LIB (reason)",
 // "2× Work plan activity (reason)". A request that never got an answer shows the browser's error (e.g. Network Error).
@@ -245,6 +264,11 @@ function FilePick({ label, files, multiple, onChange }: { label: string; files: 
               {f.status === "error" && (
                 <button type="button" onClick={() => upload(f)} className="text-xs font-semibold" style={{ color: "#0891b2" }}>
                   Retry
+                </button>
+              )}
+              {f.status === "done" && f.token && (
+                <button type="button" onClick={() => openDocument(() => documentApi.stagedFileUrl(f.token!))} className="text-xs font-semibold" style={{ color: "#0891b2" }}>
+                  View
                 </button>
               )}
               <button type="button" onClick={() => onChange((list) => list.filter((x) => x.key !== f.key))} className="text-red-400 hover:text-red-600" aria-label={`Remove ${f.file.name}`}>
@@ -443,7 +467,7 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
     try {
       const project = await researchApi.importProject(file);
       const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
-      notify.success(`Project ${project.project_code} registered from Excel as a Draft. Attach its Notice of Approval, NTP and MOA in Edit Registration before submitting it.`);
+      notify.success(`Project ${project.project_code} registered from Excel as a Draft. Attach its Approve Proposal and Notice to Proceed in Edit Registration before submitting it.`);
       if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
@@ -660,7 +684,7 @@ type EditSource = {
   studyIds: number[];
   originalIds: Record<"team" | "outputs" | "beneficiaries" | "workPlan" | "endorsers", number[]>;
   /** File names of the attachments already saved, so Supporting Documents counts them as attached */
-  savedDocs: Partial<Record<ApprovalDocType, string>>;
+  savedDocs: Partial<Record<ApprovalDocType, { id: number; file_name: string }>>;
 };
 
 function RegisterProjectContent({
@@ -695,7 +719,8 @@ function RegisterProjectContent({
   const [showPreview, setShowPreview] = useState(false);
   const [leadersBlocked, setLeadersBlocked] = useState(false);
   const [accounts, setAccounts] = useState<AdminUser[]>([]);
-  const [endorsers, setEndorsers] = useState<EndorserRow[]>(init.endorsers);
+  // Annex A left the wizard (Task 13); rows loaded from Edit or an older Excel are kept as they are
+  const [endorsers] = useState<EndorserRow[]>(init.endorsers);
   const [libRows, setLibRows] = useState<LibRow[]>(init.libRows);
   const [libYear, setLibYear] = useState(init.libYear);
   // Task 12: the picked LIB workbook stays here while its failure or replace modal is open; nothing reaches the table until it passes
@@ -724,7 +749,7 @@ function RegisterProjectContent({
   const setApprovalDoc = (type: ApprovalDocType): Dispatch<SetStateAction<StagedFile[]>> => (next) =>
     setApprovalDocs((docs) => ({ ...docs, [type]: typeof next === "function" ? next(docs[type]) : next }));
   const approvalAttached = (type: ApprovalDocType) => approvalDocs[type].some((f) => f.status === "done") || !!edit?.savedDocs[type];
-  const missingApprovalDocs = APPROVAL_DOCS.filter((d) => !approvalAttached(d.type)).map((d) => d.label);
+  const missingApprovalDocs = APPROVAL_DOCS.filter((d) => d.required && !approvalAttached(d.type)).map((d) => d.label);
   const stagedDocs: { file: StagedFile; type: ApprovalDocType | "other" }[] = [
     ...APPROVAL_DOCS.flatMap((d) => approvalDocs[d.type].map((file) => ({ file, type: d.type }))),
     ...supportingDocs.map((file) => ({ file, type: "other" as const })),
@@ -741,7 +766,7 @@ function RegisterProjectContent({
 
   useEffect(() => {
     let active = true;
-    (["college-units", "rde-thrusts", "cooperating-agencies", "endorsers"] as const).forEach((kind) =>
+    (["college-units", "rde-thrusts", "cooperating-agencies"] as const).forEach((kind) =>
       researchApi
         .getChoices(kind)
         .then((list) => active && setChoices((c) => ({ ...c, [kind]: list })))
@@ -806,14 +831,6 @@ function RegisterProjectContent({
   const filledEndorsers = endorsers.filter((e) => e.name.trim());
   const filledLib = libRows.filter((r) => r.description.trim() && libRowTotal(r) > 0);
   const updateLib = (i: number, patch: Partial<LibRow>) => setLibRows((rows) => rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
-  const updateEndorser = (i: number, patch: Partial<EndorserRow>) => setEndorsers((rows) => rows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
-  const pickEndorser = (i: number, name: string) =>
-    updateEndorser(i, { role_code: "", user: null, name, designation: choices.endorsers.find((c) => c.name === name)?.designation ?? "" });
-  const reloadEndorserChoices = () =>
-    researchApi
-      .getChoices("endorsers")
-      .then((list) => setChoices((c) => ({ ...c, endorsers: list })))
-      .catch(() => notify.error("Could not load the endorser list."));
   const isContinuing = form.is_continuing === "true";
   const uploadsPending = stagedDocs.some((d) => d.file.status !== "done");
   const approvedBudget = Number(form.total_cost) || 0;
@@ -905,7 +922,7 @@ function RegisterProjectContent({
     { label: "LIB line items entered", done: filledLib.length > 0, step: 3 },
     { label: "LIB Grand Total equals the approved budget", done: libMatchesBudget, required: true, step: 3 },
     ...(libPeriods ? [{ label: "Every LIB item's allocation adds up to its total", done: libSplitsMatch, required: true, step: 3 }] : []),
-    ...APPROVAL_DOCS.map((d) => ({ label: `${d.label} attached`, done: approvalAttached(d.type), required: true, step: 4 })),
+    ...APPROVAL_DOCS.filter((d) => d.required).map((d) => ({ label: `${d.label} attached`, done: approvalAttached(d.type), required: true, step: 4 })),
     { label: "All document uploads finished", done: !uploadsPending, required: true, step: 4 },
     { label: "Registration certification checked", done: certified, required: true, step: 5 },
   ];
@@ -1957,79 +1974,30 @@ function RegisterProjectContent({
               {step === 4 && (
                 <div className="space-y-4">
                   <StepNote>
-                    The Notice of Approval, NTP and MOA (required), other supporting documents, and the approval references and Annex A endorsement page. Review,
-                    endorsement, and approval happen outside RMIS; these are recorded as read-only references. The NTP number is on Project Details.
+                    Attach the Approve Proposal and the Notice to Proceed (required), and the MOA and any other file (optional). Use View to check an
+                    uploaded file. The NTP No. on Project Details is the project's reference.
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Notice to Proceed Date">
-                      <input type="date" className={inputCls} style={inputSt} value={form.ntp_date} onChange={set("ntp_date")} />
-                    </Field>
-                    <Field label="TOE Signed Date">
-                      <input type="date" className={inputCls} style={inputSt} value={form.toe_signed_date} onChange={set("toe_signed_date")} />
-                    </Field>
-                    <Field label="Reviewing Body">
-                      <input className={inputCls} style={inputSt} value={form.reviewing_body} onChange={set("reviewing_body")} placeholder="e.g. ITRC, ETRC, CRC" />
-                    </Field>
-                    <Field label="Proposal Reviewed On">
-                      <input type="date" className={inputCls} style={inputSt} value={form.proposal_reviewed_on} onChange={set("proposal_reviewed_on")} />
-                    </Field>
-                    <Field label="Date Submitted (Project Leader)">
-                      <input type="date" className={inputCls} style={inputSt} value={form.proposal_submitted_on} onChange={set("proposal_submitted_on")} />
-                    </Field>
-                    <Field label="Date Approved (University President)">
-                      <input type="date" className={inputCls} style={inputSt} value={form.proposal_approved_on} onChange={set("proposal_approved_on")} />
-                    </Field>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Annex A · Endorsement Page</p>
-                    <AddRowButton onClick={() => setEndorsers([...endorsers, { role_code: "", user: null, name: "", designation: "", signed_on: "" }])}>Add Endorser</AddRowButton>
-                  </div>
-                  <p className="text-xs" style={{ color: "#94a3b8" }}>
-                    Pick the endorser's name; the designation fills in by itself. Add Endorser again for every other signatory. The list is kept by the
-                    System Admin under Administration &gt; Endorsers.
-                    {user?.role?.code === "system_admin" && (
-                      <>
-                        {" "}
-                        <a href="/admin/endorsers" target="_blank" rel="noreferrer" className="font-semibold" style={{ color: "#0891b2" }}>Manage the list</a>
-                        {" · "}
-                        <button type="button" onClick={reloadEndorserChoices} className="font-semibold" style={{ color: "#0891b2" }}>Reload</button>
-                      </>
-                    )}
-                  </p>
-                  {endorsers.length === 0 && <p className="text-xs" style={{ color: "#94a3b8" }}>No endorsers added.</p>}
-                  <div className="space-y-2">
-                    {endorsers.map((e, i) => {
-                      const listed = choices.endorsers.some((c) => c.name === e.name);
-                      return (
-                        <div key={i} className="rounded-xl p-3 grid grid-cols-1 md:grid-cols-3 gap-2 relative" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                          <select className={inputCls} style={inputSt} value={e.name} onChange={(ev) => pickEndorser(i, ev.target.value)} aria-label="Endorser">
-                            <option value="">{choices.endorsers.length ? "Select the endorser..." : "No endorsers yet, ask the System Admin to add them"}</option>
-                            {e.name && !listed && <option value={e.name}>{e.name}</option>}
-                            {choices.endorsers.map((c) => (
-                              <option key={c.id} value={c.name}>{c.name}</option>
-                            ))}
-                          </select>
-                          <input className={inputCls} style={inputSt} value={e.designation} onChange={(ev) => updateEndorser(i, { designation: ev.target.value })} placeholder="Designation, e.g. Dean/Associate Dean" />
-                          <div className="flex gap-2 items-start">
-                            <input type="date" className={inputCls} style={inputSt} value={e.signed_on} onChange={(ev) => updateEndorser(i, { signed_on: ev.target.value })} aria-label="Date signed" />
-                            <RemoveButton onClick={() => setEndorsers(endorsers.filter((_, idx) => idx !== i))} label="Remove endorser" />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {APPROVAL_DOCS.map((d) => (
-                      <Field key={d.type} label={d.label} required invalid={showErrors && !approvalAttached(d.type)}>
+                      <Field key={d.type} label={d.required ? d.label : `${d.label} (optional)`} required={d.required} invalid={d.required && showErrors && !approvalAttached(d.type)}>
                         <FilePick label={`Click to upload the ${d.label}`} files={approvalDocs[d.type]} onChange={setApprovalDoc(d.type)} />
                         {edit?.savedDocs[d.type] && approvalDocs[d.type].length === 0 && (
-                          <p className="mt-1 text-xs" style={{ color: "#166534" }}>✓ Saved: {edit.savedDocs[d.type]} · upload to replace it with a new version</p>
+                          <p className="mt-1 text-xs flex items-center gap-2" style={{ color: "#166534" }}>
+                            <span className="truncate">✓ Saved: {edit.savedDocs[d.type]!.file_name} · upload to replace it with a new version</span>
+                            <button
+                              type="button"
+                              onClick={() => openDocument(() => documentApi.getDocument(edit.savedDocs[d.type]!.id).then((doc) => doc.download_url ?? Promise.reject(new Error("The file link is not available right now."))))}
+                              className="font-semibold shrink-0"
+                              style={{ color: "#0891b2" }}
+                            >
+                              View
+                            </button>
+                          </p>
                         )}
                       </Field>
                     ))}
-                    <Field label="Supporting Documents (optional)" span>
-                      <FilePick label="Click to upload supporting documents" files={supportingDocs} multiple onChange={setSupportingDocs} />
+                    <Field label="Other (optional)">
+                      <FilePick label="Click to upload other files" files={supportingDocs} multiple onChange={setSupportingDocs} />
                     </Field>
                   </div>
                 </div>
@@ -2190,7 +2158,10 @@ async function loadEditSource(projectId: number): Promise<EditSource> {
   ]);
   const documents = await documentApi.getDocuments({ project: projectId, current_only: true }).catch(() => []);
   const savedDocs: EditSource["savedDocs"] = {};
-  for (const d of APPROVAL_DOCS) savedDocs[d.type] = documents.find((doc) => doc.document_type === d.type)?.file_name;
+  for (const d of APPROVAL_DOCS) {
+    const doc = documents.find((x) => x.document_type === d.type);
+    if (doc) savedDocs[d.type] = { id: doc.id, file_name: doc.file_name };
+  }
   const sortedStudies = byId(studies);
   const lineItems = budgets.find((b) => b.is_current)?.line_items ?? [];
   const draft = toRegisterDraft({ project, team, studies, outputs, beneficiaries, milestones, endorsers, line_items: lineItems }, true);

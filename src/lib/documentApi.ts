@@ -56,6 +56,11 @@ export const documentApi = {
     });
     return data;
   },
+  /** Task 13: a short-lived signed URL of the user's own staged upload, for View before Register. */
+  stagedFileUrl: async (staged_token: string): Promise<string> => {
+    const { data } = await apiClient.post("/api/documents/documents/staged-url/", { staged_token });
+    return data.url;
+  },
   registerStagedDocument: async (payload: { project: number; document_type: DocumentType; stage?: DocumentStage; staged_token: string }): Promise<ProjectDocument> => {
     const { data } = await apiClient.post("/api/documents/documents/", payload);
     return data;
