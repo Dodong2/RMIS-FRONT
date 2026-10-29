@@ -41,8 +41,14 @@ describe("registrationDraft (Edit Registration and Excel review, client 2026-10-
     expect(d.agencies).toEqual(["DOST", "LGU of Siniloan"]);
     expect(d.objectives).toEqual(["Train teachers", "Map communities"]);
     expect(d.studyTitles).toEqual(["Study A", "Study B"]);
-    expect(d.libRows).toEqual([{ category: "mooe", description: "Training Expenses", unit: "lot", quantity: "1.00", unit_cost: "10000.00", allocations: { Y1Q1: "10000.00" } }]);
+    expect(d.libRows).toEqual([{ category: "mooe", description: "Training Expenses", specification: "", unit: "lot", quantity: "1.00", unit_cost: "10000.00", allocations: { Y1Q1: "10000.00" } }]);
     expect(d.libYear).toBe("2026");
+  });
+
+  it("carries each LIB row's Specification (Task 12); a row without one reads as blank", () => {
+    const withSpec = { ...payload, line_items: [{ ...payload.line_items[0], description: "Office Supplies Expenses", specification: "PAPER, 80 gsm" }] };
+    expect(registrationDraft(withSpec, true).libRows[0]).toMatchObject({ description: "Office Supplies Expenses", specification: "PAPER, 80 gsm" });
+    expect(registrationDraft(payload, true).libRows[0].specification).toBe("");
   });
 
   it("keeps the row ids when editing a registered project", () => {

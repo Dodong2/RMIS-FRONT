@@ -21,6 +21,8 @@ export interface LineItem {
   budget: number;
   category: LineItemCategory;
   description: string;
+  /** Task 12: SF-018 Section X's specific item under the LIB Item, e.g. "PAPER, 80 gsm"; "" when none */
+  specification: string;
   amount: string;
   unit: string;
   quantity: string | null;

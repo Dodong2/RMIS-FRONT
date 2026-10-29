@@ -4,8 +4,8 @@ import { allocatedTotal, periodQuarter, periodYear } from "../../lib/libUnits";
 
 export type AllocationGridRow = { index: number; description: string; total: number; allocations?: Record<string, string> };
 export type AllocationGridGroup = { key: string; label: string; subtotal: number; rows: AllocationGridRow[] };
-/** The Item, Unit, Qty and Unit Cost inputs of one LIB row. */
-export type ItemCells = [ReactNode, ReactNode, ReactNode, ReactNode];
+/** The Item, Specification, Unit, Qty and Unit Cost inputs of one LIB row. */
+export type ItemCells = [ReactNode, ReactNode, ReactNode, ReactNode, ReactNode];
 
 const peso = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const line = "1px solid #cbd5e1";
@@ -13,7 +13,7 @@ const yearLine = "2px solid #1e3a8a";
 const cell = { border: line };
 const head = { ...cell, background: "#1e3a8a", color: "white" };
 const subHead = { ...cell, background: "#dbeafe", color: "#0d2a5e" };
-const ITEM_HEADERS: [string, number][] = [["Item", 220], ["Unit", 96], ["Qty", 76], ["Unit Cost (₱)", 130], ["Total (₱)", 120]];
+const ITEM_HEADERS: [string, number][] = [["Item", 220], ["Specification", 200], ["Unit", 96], ["Qty", 76], ["Unit Cost (₱)", 130], ["Total (₱)", 120]];
 
 /** Client 2026-10-23: the LIB is entered inside the Allocation per Quarter table, PS / MOOE / CO each with its own items. */
 export function LibAllocationGrid({
@@ -51,7 +51,7 @@ export function LibAllocationGrid({
                 <th
                   key={h}
                   rowSpan={multiYear ? 2 : 1}
-                  className={`px-3 py-2 font-bold ${i === 0 ? "text-left sticky left-0 z-10" : i === 4 ? "text-right" : "text-left"}`}
+                  className={`px-3 py-2 font-bold ${i === 0 ? "text-left sticky left-0 z-10" : i === 5 ? "text-right" : "text-left"}`}
                   style={{ ...head, minWidth: width }}
                 >
                   {h}
@@ -103,11 +103,12 @@ export function LibAllocationGrid({
                 : g.rows.map((r) => {
                     const allocated = allocatedTotal(r.allocations, periods);
                     const ok = allocated === r.total;
-                    const [item, unit, qty, unitCost] = itemCells(r.index);
+                    const [item, specification, unit, qty, unitCost] = itemCells(r.index);
                     const label = r.description || "New item";
                     return (
                       <tr key={r.index}>
                         <td className="p-1 sticky left-0 z-[1] bg-white" style={cell}>{item}</td>
+                        <td className="p-1" style={cell}>{specification}</td>
                         <td className="p-1" style={cell}>{unit}</td>
                         <td className="p-1" style={cell}>{qty}</td>
                         <td className="p-1" style={cell}>{unitCost}</td>
@@ -143,7 +144,7 @@ export function LibAllocationGrid({
                     );
                   })),
               <tr key={`${g.key}-subtotal`}>
-                <td colSpan={4} className="px-3 py-1.5 text-right font-semibold" style={{ ...cell, color: "#64748b" }}>
+                <td colSpan={5} className="px-3 py-1.5 text-right font-semibold" style={{ ...cell, color: "#64748b" }}>
                   <span className="sticky left-3">Subtotal</span>
                 </td>
                 <td className="px-3 py-1.5 text-right font-mono font-bold whitespace-nowrap" style={{ ...cell, color: "#0d2a5e" }}>{peso(g.subtotal)}</td>

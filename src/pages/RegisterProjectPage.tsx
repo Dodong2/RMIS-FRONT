@@ -97,8 +97,9 @@ const SIX_P_FORM: [SixPCategory, string][] = [
   ["places_partnerships", "Places/Partnerships"],
   ["policies", "Policy Recommendations"],
 ];
-// `allocations` = period (Y1Q1..YnQ4 or Q1..Q4) -> amount; drafts saved before 2026-10-16 don't have it
-type LibRow = { category: LibCategory; description: string; unit: string; quantity: string; unit_cost: string; allocations?: Record<string, string> };
+// `allocations` = period (Y1Q1..YnQ4 or Q1..Q4) -> amount; drafts saved before 2026-10-16 don't have it. `specification`
+// (Task 12) = the specific item under the LIB Item; drafts saved before 2026-10-29 don't have it
+type LibRow = { category: LibCategory; description: string; specification?: string; unit: string; quantity: string; unit_cost: string; allocations?: Record<string, string> };
 type LibCategory = "ps" | "mooe" | "co";
 
 const LIB_CATEGORIES: { key: LibCategory; label: string }[] = [
@@ -1136,6 +1137,7 @@ function RegisterProjectContent({
         line_items: filledLib.map((r) => ({
           category: r.category,
           description: r.description.trim(),
+          specification: (r.specification ?? "").trim(),
           fiscal_year: (libPeriods ? Number(form.start_date.slice(0, 4)) : Number(libYear)) || null,
           unit: r.unit,
           quantity: r.quantity,
@@ -1765,6 +1767,7 @@ function RegisterProjectContent({
                           const tableSt = { borderColor: "#94a3b8", background: "white", color: "#0f172a" };
                           return [
                             <LibItemSelect ariaLabel="Item" category={r.category} className={tableInput} style={tableSt} value={r.description} onChange={(description) => updateLib(i, { description })} />,
+                            <input className={tableInput} style={tableSt} value={r.specification ?? ""} onChange={(e) => updateLib(i, { specification: e.target.value })} maxLength={300} placeholder="e.g. PAPER, 80 gsm (optional)" aria-label="Specification" />,
                             <select className={tableInput} style={tableSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
                               {LIB_UNITS.map(([code, label]) => (
                                 <option key={code} value={code}>{label}</option>
@@ -1791,6 +1794,7 @@ function RegisterProjectContent({
                           <div className="p-2 space-y-2">
                             <div className="hidden md:flex gap-2 px-1 text-xs font-semibold" style={{ color: "#64748b" }}>
                               <span className="flex-1">Item</span>
+                              <span className="w-48">Specification</span>
                               <span className="w-28">Unit</span>
                               <span className="w-24">Qty</span>
                               <span className="w-36">Unit Cost (₱)</span>
@@ -1800,6 +1804,7 @@ function RegisterProjectContent({
                             {rows.map(({ r, i }) => (
                               <div key={i} className="flex flex-wrap gap-2 items-start">
                                 <LibItemSelect ariaLabel="Item" category={r.category} className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(description) => updateLib(i, { description })} />
+                                <input className={inputCls + " md:w-48"} style={inputSt} value={r.specification ?? ""} onChange={(e) => updateLib(i, { specification: e.target.value })} maxLength={300} placeholder="Specification (optional)" aria-label="Specification" />
                                 <select className={inputCls + " md:w-28"} style={inputSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
                                   {LIB_UNITS.map(([code, label]) => (
                                     <option key={code} value={code}>{label}</option>

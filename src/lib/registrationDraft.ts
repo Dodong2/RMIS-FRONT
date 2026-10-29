@@ -76,6 +76,7 @@ export function registrationDraft(src: RegistrationPayload, keepIds: boolean) {
     libRows: src.line_items.map((r) => ({
       category: r.category as string,
       description: r.description,
+      specification: r.specification ?? "",
       unit: r.unit,
       quantity: r.quantity ?? "1",
       unit_cost: r.unit_cost ?? r.amount,
