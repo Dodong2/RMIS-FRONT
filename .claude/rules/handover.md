@@ -85,7 +85,7 @@ automatically — most pages needed zero code changes for this pass.
   says how to restore them from `1379772`. This conflicts with the CLAUDE.md "no endpoint → mock" rule, which hasn't been
   changed yet (see open questions).
 - Module 1 (Auth/RBAC pages): done, stable.
-- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code — see "Last thing done"; the notes below are history.** UI
+- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code (typed uppercase) — see "Last thing done"; the notes below are history.** UI
   reworked 2026-09-22 per client request: ProjectsPage's two inline "Register
   a Program"/"Register a Project" forms (the project one had 20+ fields) were
   pulled out into dedicated pages (RegisterProgramPage at /programs/new,
@@ -680,20 +680,15 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-29 Tasks 3 and 4, on `main`, NOT pushed, paired with rmis-backend `c700efa`/`783ddfb`. Memory note: `tasks-3-4-2026-10-29`. vitest 99/99, `npx tsc -b`, `npm run build` clean, eslint clean on the changed files.
-- **Dashboard** (`6bfef48`, concern.png of 2026-10-26): the Scope bar ("SCOPE: My Projects" + Generate Report) is gone for every role, with its report modal. The DrillPanel has "← Back" on the campus level (to the root) and the project level (to its campus). Reports page's Generate Report and `exportFiles` unchanged.
-- **Register Approved Project** (`936f330`): 8 steps became 6:
-  1. Project Details: every field required (Title, NTP, Funding, Basic/Applied, Wet/Dry, New/Continuing, dates, Total Cost, RDE, Sector, Priority Area, Typology, SDGs, 2+ Study titles, Objectives, II/IV/VI/VIII/IX, Executive Summary, Outcomes, Impacts, 6Ps, Beneficiaries). NTP replaces Project Code (read-only in Edit except for the System Admin). Basic/Applied, Wet/Dry and New/Continuing start unselected; N/A stays valid.
-  2. Proponents & Team, 3. Work Plan, 4. Budget (LIB): unchanged.
-  5. Supporting Documents (was Endorsement & Approval): NOA/NTP/MOA required, other docs, approval references and Annex A (optional).
-  6. Validate & Register: checklist lists each missing Project Details item.
-  - Register is one `POST projects/` with every table (all-or-nothing); a table error names table + row and jumps to its step. Documents are attached after, as before. Edit Registration still saves row by row. `DRAFT_VERSION` 2.
-- **Labels** (`7bdcdd1`, `0f28a53`): "Project Code" is "NTP" on the Budget search, the Analytics project table and the project page ("NTP (Project Code)").
+2026-10-29, on `main`. Memory note: `tasks-3-4-2026-10-29`.
+- **NTP uppercase** (`2abd745`, NOT pushed, paired with rmis-backend `6512364`): the Register Approved Project NTP input uppercases as it is typed; placeholder is the client's example `e.g. LSPU-RD-GRANT-SIN-2024-001`. The backend uppercases too (API, Excel). `npx tsc -b`, eslint on the file, vitest 99/99. Not browser-tested. Known quirk: typing lowercase in the middle of a filled NTP moves the cursor to the end.
+- **Tasks 3 and 4** (`6bfef48`, `936f330`, `7bdcdd1`, `0f28a53`, PUSHED by Carl 2026-10-29):
+  - Dashboard: Scope bar and Generate Report removed for every role; DrillPanel has "← Back".
+  - Register Approved Project is 6 steps (Project Details all required, Team, Work Plan, LIB, Supporting Documents with NOA/NTP/MOA required, Validate). NTP replaces Project Code (read-only in Edit except for the System Admin). One all-or-nothing `POST projects/`. `DRAFT_VERSION` 2.
+  - Labels: "Project Code" shows as "NTP" / "NTP (Project Code)".
 
 ## Next thing to do in this repo
-1. Carl:
-   - Browser-test locally, then push + deploy with the backend (together). No migration.
-   - Checks: Dashboard as the 7 DashboardContent roles (bar gone, Back works, campus filter refetches); register as system_admin, riuh and project_leader (empty Step 1 shows every required item; full registration saves every table; duplicate NTP returns to Step 1); Edit Registration (NTP locked for the leader, changeable for the System Admin); Excel with the NEW template (old file with only a Project Code gives a clear error); LIB submit with 1 study is refused.
+1. Carl: push frontend `2abd745` with backend `6512364`, then browser-check: lowercase NTP shows uppercase; a case-only duplicate NTP gives the "already used" toast; the leader still can't change the NTP in Edit. No migration.
 2. Open client questions: Q-B (TOE date/document, required? which step) and Q-E ("Upload approved proposal"). Don't build either until answered.
-3. Known gaps, not approved: Topbar chip hidden below `md` (no Profile link on phones); 3 old eslint errors in `AuthContext.tsx`; `researchApi.createProjectLib` is no longer used by the wizard (endpoint kept).
+3. Known gaps, not approved: NTP cursor jump (above); Topbar chip hidden below `md` (no Profile link on phones); 3 old eslint errors in `AuthContext.tsx`; `researchApi.createProjectLib` is no longer used by the wizard (endpoint kept).
 4. Every task goes through `dss/CLAUDE.md` (plan, then GO TASK N, then report, then STOP).
