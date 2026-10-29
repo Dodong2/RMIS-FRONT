@@ -33,9 +33,11 @@ const payload: RegistrationPayload = {
 describe("registrationDraft (Edit Registration and Excel review, client 2026-10-23)", () => {
   it("maps the registration into the wizard's fields", () => {
     const d = registrationDraft(payload, true);
-    expect([d.form.title, d.form.project_code, d.form.is_dry_research, d.form.sdgs, d.form.implementing_unit]).toEqual([
-      "Bridging Academia", "LSPU-X1", "na", ["4", "11"], "CTE",
+    // The NTP number is the project code since 2026-10-29; the wizard keeps only the NTP
+    expect([d.form.title, d.form.ntp_number, d.form.is_dry_research, d.form.is_continuing, d.form.sdgs, d.form.implementing_unit]).toEqual([
+      "Bridging Academia", "NTP-1", "na", "false", ["4", "11"], "CTE",
     ]);
+    expect("project_code" in d.form).toBe(false);
     expect(d.agencies).toEqual(["DOST", "LGU of Siniloan"]);
     expect(d.objectives).toEqual(["Train teachers", "Map communities"]);
     expect(d.studyTitles).toEqual(["Study A", "Study B"]);

@@ -6,6 +6,18 @@ import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program
 import type { AdminUser } from "../types/auth";
 import type { LibAllocation, LineItemBudget } from "../types/budget";
 
+
+/** A draft LIB line item as registration sends it (POST projects/ line_items, POST projects/<id>/lib/). */
+export type LibLineInput = {
+  category: string;
+  description: string;
+  fiscal_year: number | null;
+  unit: string;
+  quantity: string;
+  unit_cost: string;
+  allocations?: LibAllocation[];
+};
+
 export const researchApi = {
   getChoices: async (kind: AdminChoiceKind): Promise<AdminChoice[]> => {
     const { data } = await apiClient.get(`/api/${kind}/`);
@@ -48,9 +60,8 @@ export const researchApi = {
   createProject: async (payload: {
     program: number | null;
     title: string;
-    project_code: string;
     funding_type: string;
-    ntp_number?: string;
+    ntp_number: string;
     ntp_date?: string;
     toe_signed_date?: string;
     is_dry_research: boolean | null;
@@ -96,6 +107,14 @@ export const researchApi = {
     recommended_by_vprde?: string;
     recommended_by_vprde_on?: string;
     approved_by_president?: string;
+    // Client 2026-10-29 (Task 4): the form's tables, saved with the project all-or-nothing
+    team?: { member_role: string; name: string; gender?: string; user: number | null }[];
+    studies?: { title: string }[];
+    outputs?: { category: string; description: string; target_count: number }[];
+    beneficiaries?: { group: string; description: string; total: number }[];
+    milestones?: { title: string; start_date?: string; target_date: string }[];
+    endorsers?: Omit<ProjectEndorser, "id" | "project">[];
+    line_items?: LibLineInput[];
   }, idempotencyKey?: string): Promise<Project> => {
     const { data } = await apiClient.post("/api/projects/", payload, idempotent(idempotencyKey));
     return data;
@@ -149,15 +168,7 @@ export const researchApi = {
   },
   createProjectLib: async (
     projectId: number,
-    lineItems: {
-      category: string;
-      description: string;
-      fiscal_year: number | null;
-      unit: string;
-      quantity: string;
-      unit_cost: string;
-      allocations?: LibAllocation[];
-    }[],
+    lineItems: LibLineInput[],
     idempotencyKey?: string,
   ): Promise<LineItemBudget> => {
     const { data } = await apiClient.post(`/api/projects/${projectId}/lib/`, { line_items: lineItems }, idempotent(idempotencyKey));

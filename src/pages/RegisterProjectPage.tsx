@@ -25,6 +25,7 @@ import { RdeAgendaPicker } from "../components/registration/RdeAgendaPicker";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { LibAllocationGrid } from "../components/registration/LibAllocationGrid";
 import { RichTextEditor } from "../components/common/RichTextEditor";
+import { isRichTextEmpty } from "../lib/richText";
 import { registrationDraft, type RegistrationPayload } from "../lib/registrationDraft";
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
@@ -49,11 +50,9 @@ const CAMPUSES = [
 const WIZARD_STEPS = [
   { label: "Project Details", icon: "📋" },
   { label: "Proponents & Team", icon: "👥" },
-  { label: "Classification", icon: "🌱" },
-  { label: "Proposal Content", icon: "📝" },
-  { label: "6Ps, Beneficiaries & Work Plan", icon: "🎯" },
+  { label: "Work Plan", icon: "🎯" },
   { label: "Budget (LIB)", icon: "💰" },
-  { label: "Endorsement & Approval", icon: "🔖" },
+  { label: "Supporting Documents", icon: "📎" },
   { label: "Validate & Register", icon: "✅" },
 ];
 
@@ -176,7 +175,7 @@ function AutoTextarea({ minRows = 1, className = "", ...props }: TextareaHTMLAtt
 
 type StagedFile = { key: string; file: File; progress: number; status: "uploading" | "done" | "error"; token?: string; error?: string };
 
-// Client 2026-10-24: Step 7's three required attachments, each saved as its own document type
+// Client 2026-10-24: the three required attachments, on Supporting Documents (Step 5) since 2026-10-29,, each saved as its own document type
 type ApprovalDocType = "notice_of_approval" | "ntp" | "moa";
 const APPROVAL_DOCS: { type: ApprovalDocType; label: string }[] = [
   { type: "notice_of_approval", label: "Notice of Approval" },
@@ -522,11 +521,35 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
   );
 }
 
-const DRAFT_VERSION = 1;
+/** Where each table of the one-request registration (client 2026-10-29) is entered, to jump there on its error. */
+const TABLE_STEPS: Record<string, [string, number]> = {
+  team: ["Project Team", 1],
+  studies: ["Study Component Titles", 0],
+  outputs: ["6Ps", 0],
+  beneficiaries: ["Target Beneficiaries", 0],
+  milestones: ["Work Plan", 2],
+  endorsers: ["Annex A endorsers", 4],
+  line_items: ["Budget (LIB)", 3],
+};
+
+/** The first readable message of a DRF error value: a string, a list, {field: [...]} or {row, errors}. */
+function firstMessage(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.length ? firstMessage(value[0]) : "";
+  if (value && typeof value === "object") {
+    const v = value as Record<string, unknown>;
+    if ("row" in v) return `row ${v.row}: ${firstMessage(v.errors)}`;
+    const [key, inner] = Object.entries(v)[0] ?? [];
+    return key === undefined ? "" : key === "non_field_errors" ? firstMessage(inner) : `${key}: ${firstMessage(inner)}`;
+  }
+  return "";
+}
+
+// 2: six steps and the NTP as the code (client 2026-10-29); older drafts point at other steps
+const DRAFT_VERSION = 2;
 
 const blankForm = (lead: string) => ({
   title: "",
-  project_code: "",
   funding_type: "",
   lead,
   lead_gender: "",
@@ -534,7 +557,7 @@ const blankForm = (lead: string) => ({
   ntp_number: "",
   ntp_date: "",
   toe_signed_date: "",
-  is_dry_research: "true",
+  is_dry_research: "",
   start_date: "",
   target_end_date: "",
   rde_thrust: "",
@@ -542,7 +565,7 @@ const blankForm = (lead: string) => ({
   sdgs: [] as string[],
   sectors: [] as string[],
   sector_other: "",
-  is_continuing: "false",
+  is_continuing: "",
   continuing_year: "",
   research_type: "",
   research_priority_area: "",
@@ -614,7 +637,7 @@ type EditSource = {
   draft: RegisterDraft;
   studyIds: number[];
   originalIds: Record<"team" | "outputs" | "beneficiaries" | "workPlan" | "endorsers", number[]>;
-  /** File names of the attachments already saved, so Step 7 counts them as attached */
+  /** File names of the attachments already saved, so Supporting Documents counts them as attached */
   savedDocs: Partial<Record<ApprovalDocType, string>>;
 };
 
@@ -775,62 +798,82 @@ function RegisterProjectContent({
   // Client 2026-10-14/10-17: each item is split per quarter of each project year (yearly.png), adding up to its total
   const libPeriods = allocationPeriods(form.start_date, form.target_end_date);
   const libSplitsMatch = isEdit || !libPeriods || filledLib.every((r) => allocatedTotal(r.allocations, libPeriods) === libRowTotal(r));
+  const outputsComplete = outputRows.length > 0 && outputRows.every((o) => o.category && o.description.trim());
+  const beneficiariesComplete = beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim());
+  // Client 2026-10-29 (Task 4): every Project Details field is required, as the backend enforces
+  const detailsRequired: [keyof typeof form, string][] = [
+    ["title", "Title"],
+    ["ntp_number", "NTP"],
+    ["funding_type", "Funding Type"],
+    ["research_type", "Basic or Applied Research"],
+    ["is_dry_research", "Wet or Dry Research"],
+    ["is_continuing", "New or Continuing"],
+    ["start_date", "Start Date"],
+    ["target_end_date", "End Date"],
+    ["total_cost", "Total Project/Study Cost"],
+    ["research_priority_area", "Research Priority Area"],
+    ["research_typology", "Research Typology"],
+    ["sdgs", "SDGs"],
+    ["description", "Executive Summary"],
+    ["expected_outcomes", "Anticipated Outcomes"],
+    ["expected_impacts", "Long-term Potential Impacts"],
+  ];
+  const richRequired: [keyof typeof form, string][] = [
+    ["background", "II. Background of the Study"],
+    ["methodology", "IV. Methodology"],
+    ["socio_economic_significance", "VI. Socio-Economic Significance"],
+    ["monitoring_evaluation", "VIII. Monitoring / Evaluation"],
+    ["references", "IX. List of References"],
+  ];
+  const isBlank = (k: keyof typeof form) => (Array.isArray(form[k]) ? form[k].length === 0 : !String(form[k]).trim());
+  const detailsMissing = [
+    ...detailsRequired.filter(([k]) => isBlank(k)).map(([, label]) => label),
+    ...(isContinuing && Number(form.continuing_year) < 2 ? ["Continuing Year"] : []),
+    ...(form.rde_thrust ? [] : ["RDE Thrust"]),
+    ...(form.rde_priority ? [] : ["RDE Priority Area"]),
+    ...(form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : []),
+    ...(filledStudies.length >= 2 ? [] : ["at least 2 Study Component Titles"]),
+    ...(filledObjectives.length ? [] : ["III. Objectives of the Study"]),
+    ...richRequired.filter(([k]) => isRichTextEmpty(String(form[k]))).map(([, label]) => label),
+    ...(outputsComplete ? [] : ["V. 6Ps (at least one complete row)"]),
+    ...(beneficiariesComplete ? [] : ["every Target Beneficiaries row"]),
+  ];
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
-      0: [
-        ...(form.project_code.trim() ? [] : ["Project Code"]),
-        ...(form.rde_thrust ? [] : ["RDE Thrust"]),
-        ...(form.rde_priority ? [] : ["RDE Priority Area"]),
-      ],
+      0: detailsMissing,
       1: [...teamMissing(form.lead, team), ...(projectCampus ? [] : ["Campus"])],
-      2: form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : [],
-      3: filledObjectives.length ? [] : ["III. Objectives of the Study"],
-      4: beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim()) ? [] : ["every Target Beneficiaries row"],
-      5: [
+      3: [
         ...(libMatchesBudget ? [] : [`a Grand Total equal to the approved budget (₱${peso(approvedBudget)})`]),
         ...(libSplitsMatch ? [] : ["a quarterly allocation that adds up to every item's total"]),
       ],
-      6: [
-        ...(form.ntp_number.trim() ? [] : ["Approval Reference Number (NTP No.)"]),
-        ...missingApprovalDocs,
-        ...(uploadsPending ? ["the document uploads"] : []),
-      ],
+      4: [...missingApprovalDocs, ...(uploadsPending ? ["the document uploads"] : [])],
     };
     return missing[i] ?? [];
   };
   const checks: { label: string; done: boolean; required?: boolean; step: number }[] = [
-    { label: "Project title entered", done: !!form.title.trim(), required: true, step: 0 },
-    { label: "Project code (LSPU Faculty Research Number) entered", done: !!form.project_code.trim(), required: true, step: 0 },
-    { label: "Funding type selected", done: !!form.funding_type, required: true, step: 0 },
-    { label: "2024–2028 LSPU RDE Agenda thrust & priority selected", done: !!form.rde_thrust && !!form.rde_priority, required: true, step: 0 },
-    ...(isContinuing ? [{ label: "Continuing year (2 or later) entered", done: Number(form.continuing_year) >= 2, required: true, step: 0 }] : []),
-    { label: "Start and end dates provided", done: !!form.start_date && !!form.target_end_date, step: 0 },
+    ...detailsMissing.map((label) => ({ label: `Project Details: ${label}`, done: false, required: true, step: 0 })),
+    ...(detailsMissing.length ? [] : [{ label: "Project Details complete", done: true, required: true, step: 0 }]),
     { label: "Project Leader identified", done: !!form.lead, required: true, step: 1 },
     { label: "Campus selected", done: !!projectCampus, required: true, step: 1 },
     { label: "College Unit - Implementing Unit selected", done: !!form.implementing_unit, step: 1 },
-    { label: "At least 1 sector selected", done: form.sectors.length > 0 && (!form.sectors.includes("others") || !!form.sector_other.trim()), required: true, step: 2 },
-    { label: "At least 1 SDG selected", done: form.sdgs.length > 0, required: true, step: 2 },
-    { label: "Background of the study written", done: !!form.background.trim(), step: 3 },
-    { label: "At least 1 objective defined", done: filledObjectives.length > 0, required: true, step: 3 },
-    { label: "Methodology written", done: !!form.methodology.trim(), step: 3 },
-    { label: "Every target beneficiary row complete", done: stepMissing(4).length === 0, required: true, step: 4 },
-    { label: "LIB line items entered", done: filledLib.length > 0, step: 5 },
-    { label: "LIB Grand Total equals the approved budget", done: libMatchesBudget, required: true, step: 5 },
-    ...(libPeriods ? [{ label: "Every LIB item's allocation adds up to its total", done: libSplitsMatch, required: true, step: 5 }] : []),
-    { label: "Approval reference number provided", done: !!form.ntp_number.trim(), required: true, step: 6 },
-    ...APPROVAL_DOCS.map((d) => ({ label: `${d.label} attached`, done: approvalAttached(d.type), required: true, step: 6 })),
-    { label: "All document uploads finished", done: !uploadsPending, required: true, step: 6 },
-    { label: "Registration certification checked", done: certified, required: true, step: 7 },
+    { label: "Work plan activities entered", done: filledWorkPlan.length > 0, step: 2 },
+    { label: "LIB line items entered", done: filledLib.length > 0, step: 3 },
+    { label: "LIB Grand Total equals the approved budget", done: libMatchesBudget, required: true, step: 3 },
+    ...(libPeriods ? [{ label: "Every LIB item's allocation adds up to its total", done: libSplitsMatch, required: true, step: 3 }] : []),
+    ...APPROVAL_DOCS.map((d) => ({ label: `${d.label} attached`, done: approvalAttached(d.type), required: true, step: 4 })),
+    { label: "All document uploads finished", done: !uploadsPending, required: true, step: 4 },
+    { label: "Registration certification checked", done: certified, required: true, step: 5 },
   ];
   const canReach = (i: number) => i <= step || Array.from({ length: i }, (_, j) => j).every((j) => stepMissing(j).length === 0);
   const showErrors = attempted || triedSteps.includes(step);
   const completed = checks.filter((c) => c.done).length;
   const missingRequired = checks.filter((c) => c.required && !c.done);
   const completenessOk = completed === checks.length;
-  const bad = (k: keyof typeof form) => showErrors && (Array.isArray(form[k]) ? form[k].length === 0 : !String(form[k]).trim());
+  const bad = (k: keyof typeof form) => showErrors && isBlank(k);
+  const badRich = (k: keyof typeof form) => showErrors && isRichTextEmpty(String(form[k]));
 
   const handleNext = async () => {
-    if (step === 6 && uploadsPending) {
+    if (step === 4 && uploadsPending) {
       notify.error("Wait for the document uploads to finish, or retry/remove the failed ones.");
       return;
     }
@@ -838,7 +881,7 @@ function RegisterProjectContent({
     if (missing.length) {
       setTriedSteps((t) => (t.includes(step) ? t : [...t, step]));
       notify.error(
-        step === 5 && !libMatchesBudget
+        step === 3 && !libMatchesBudget
           ? `Grand total must equal approved budget (₱${peso(approvedBudget)}). Difference: ₱${peso(libDifference)}.`
           : step === 1 && missing.some((m) => m.startsWith("the member of"))
             ? `Fill in ${missing.join(", ")}, or remove the empty team row with ✕, before going to the next step.`
@@ -846,11 +889,12 @@ function RegisterProjectContent({
       );
       return;
     }
-    if (step === 0 && form.project_code.trim() !== edit?.project.project_code) {
+    // The NTP number is the project code (client 2026-10-29), so the code check covers it
+    if (step === 0 && form.ntp_number.trim() !== edit?.project.ntp_number) {
       setIsCheckingCode(true);
       try {
-        if (!(await researchApi.isProjectCodeAvailable(form.project_code.trim()))) {
-          notify.error(`Project code ${form.project_code.trim()} already exists. Use a different code.`);
+        if (!(await researchApi.isProjectCodeAvailable(form.ntp_number.trim()))) {
+          notify.error(`NTP ${form.ntp_number.trim()} is already used by another project. Check the number.`);
           return;
         }
       } catch {
@@ -918,7 +962,6 @@ function RegisterProjectContent({
     try {
       await researchApi.updateProject(id, {
         title: form.title.trim(),
-        ...(codeLocked ? {} : { project_code: form.project_code.trim() }),
         funding_type: form.funding_type as FundingType,
         ntp_number: form.ntp_number.trim(),
         ntp_date: date(form.ntp_date),
@@ -1035,13 +1078,13 @@ function RegisterProjectContent({
     setIsCreating(true);
     const opt = (v: string) => v.trim() || undefined;
     try {
+      // Client 2026-10-29 (Task 4): the project and its tables in one request, saved all-or-nothing
       const project = await researchApi.createProject({
         program: null,
         title: form.title,
-        project_code: form.project_code,
         funding_type: form.funding_type,
         lead: Number(form.lead),
-        ntp_number: opt(form.ntp_number),
+        ntp_number: form.ntp_number.trim(),
         ntp_date: opt(form.ntp_date),
         toe_signed_date: opt(form.toe_signed_date),
         is_dry_research: dryResearchValue(form.is_dry_research),
@@ -1078,83 +1121,47 @@ function RegisterProjectContent({
         proposal_reviewed_on: opt(form.proposal_reviewed_on),
         proposal_approved_on: opt(form.proposal_approved_on),
         reviewing_body: opt(form.reviewing_body),
+        team: filledTeam.map((t) => ({ member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined, user: t.user })),
+        studies: filledStudies.map((title) => ({ title })),
+        outputs: filledOutputs.map((o) => ({ category: o.category, description: o.description.trim(), target_count: Number(o.target_count) || 1 })),
+        beneficiaries: filledBeneficiaries.map((b) => ({ group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 })),
+        milestones: filledWorkPlan.map((w) => ({ title: w.title.trim(), start_date: w.start_date || undefined, target_date: w.target_date })),
+        endorsers: filledEndorsers.map((e) => ({ role_code: e.role_code, user: e.user, name: e.name.trim(), designation: e.designation.trim(), signed_on: e.signed_on || null })),
+        line_items: filledLib.map((r) => ({
+          category: r.category,
+          description: r.description.trim(),
+          fiscal_year: (libPeriods ? Number(form.start_date.slice(0, 4)) : Number(libYear)) || null,
+          unit: r.unit,
+          quantity: r.quantity,
+          unit_cost: r.unit_cost,
+          ...(libPeriods ? { allocations: libPeriods.map((period) => ({ period, amount: r.allocations?.[period] || "0" })) } : {}),
+        })),
       }, requestKey);
-      const parts: [string, Promise<unknown>][] = [
-        ...filledTeam.map((t): [string, Promise<unknown>] => [
-          "Team member",
-          researchApi.createTeamMember({ project: project.id, member_role: t.member_role, name: t.name.trim(), gender: t.gender || undefined, user: t.user }),
-        ]),
-        ...filledStudies.map((title): [string, Promise<unknown>] => ["Study", researchApi.createStudy({ project: project.id, title })]),
-        ...(filledLib.length
-          ? [
-              [
-                "LIB",
-                researchApi.createProjectLib(
-                  project.id,
-                  filledLib.map((r) => ({
-                    category: r.category,
-                    description: r.description.trim(),
-                    fiscal_year: (libPeriods ? Number(form.start_date.slice(0, 4)) : Number(libYear)) || null,
-                    unit: r.unit,
-                    quantity: r.quantity,
-                    unit_cost: r.unit_cost,
-                    ...(libPeriods ? { allocations: libPeriods.map((period) => ({ period, amount: r.allocations?.[period] || "0" })) } : {}),
-                  })),
-                  `${requestKey}-lib`,
-                ),
-              ] as [string, Promise<unknown>],
-            ]
-          : []),
-        [
-          "Annex A endorsers",
-          filledEndorsers.reduce(
-            (chain, e) =>
-              chain.then(() =>
-                researchApi.createEndorser({
-                  project: project.id,
-                  role_code: e.role_code,
-                  user: e.user,
-                  name: e.name.trim(),
-                  designation: e.designation.trim(),
-                  signed_on: e.signed_on || null,
-                }),
-              ),
-            Promise.resolve() as Promise<unknown>,
-          ),
-        ],
-        ...filledBeneficiaries.map((b): [string, Promise<unknown>] => [
-          "Target beneficiary",
-          researchApi.createBeneficiary({ project: project.id, group: b.group.trim(), description: b.description.trim(), total: Number(b.total) || 0 }),
-        ]),
-        ...filledOutputs.map((o): [string, Promise<unknown>] => [
-          "6P expected output",
-          outputsApi.createExpectedOutput({ project: project.id, category: o.category as SixPCategory, description: o.description.trim(), target_count: Number(o.target_count) || 1 }),
-        ]),
-        ...filledWorkPlan.map((w): [string, Promise<unknown>] => [
-          "Work plan activity",
-          researchApi.createMilestone({ project: project.id, title: w.title.trim(), start_date: w.start_date || undefined, target_date: w.target_date }),
-        ]),
-        ...stagedDocs.map(({ file, type }): [string, Promise<unknown>] => [
-          `Document ${file.file.name}`,
-          documentApi.registerStagedDocument({ project: project.id, document_type: type, stage: "inception", staged_token: file.token! }),
-        ]),
-      ];
+      const parts: [string, Promise<unknown>][] = stagedDocs.map(({ file, type }) => [
+        `Document ${file.file.name}`,
+        documentApi.registerStagedDocument({ project: project.id, document_type: type, stage: "inception", staged_token: file.token! }),
+      ]);
       const failed = failedParts(parts.map(([label]) => label), await Promise.allSettled(parts.map(([, promise]) => promise)));
       const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
       discardDraft();
-      if (failed.length) notify.error(`Project registered, but these could not be saved: ${failed.join("; ")}. Add them from the project page.`);
+      if (failed.length) notify.error(`Project registered, but these could not be saved: ${failed.join("; ")}. Add them under Edit Registration.`);
       else notify.success("Project registered as a Draft. The Research Proposal Form is saved under Document Management. Submit it for review from Projects.");
       if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
       const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
-      if (data?.project_code) {
-        notify.error(`Project code ${form.project_code.trim()} already exists. Use a different code.`);
+      if (data?.ntp_number) {
+        notify.error(firstMessage(data.ntp_number));
         setStep(0);
       } else if (data?.title) {
         // Client 2026-10-24: an existing title can't be registered again
-        notify.error(String([data.title].flat()[0] || "This project already exists."));
+        notify.error(firstMessage(data.title) || "This project already exists.");
         setStep(0);
+      } else if (data?.errors && typeof data.errors === "object") {
+        const [table, detail] = Object.entries(data.errors as Record<string, unknown>)[0];
+        const [label, tableStep] = TABLE_STEPS[table] ?? [table, 0];
+        notify.error(`${label}: ${firstMessage(detail)}. Nothing was registered.`);
+        setStep(tableStep);
       } else {
         notify.error(errorMessage(err, "Could not register the project."));
       }
@@ -1303,21 +1310,21 @@ function RegisterProjectContent({
 
             <div className="p-6">
               {step === 0 && (
-                <div className="space-y-4">
-                  <StepNote>Section I of the Research Proposal Form. The internal ID is assigned automatically; the official code is the LSPU Faculty Research Number.</StepNote>
+                <div className="space-y-5">
+                  <StepNote>Section I, the classification, the study components, Sections II–IX and the 6Ps and beneficiaries (V, VII) of the Research Proposal Form. Every field here is required (client 2026-10-29); the NTP number is the project's official code.</StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Title" required invalid={bad("title")} span>
                       <AutoTextarea className={inputCls} style={inputSt} value={form.title} onChange={set("title")} placeholder="Full official title of the research project" />
                     </Field>
-                    <Field label="Project Code (LSPU Faculty Research Number)" required invalid={bad("project_code")}>
+                    <Field label="NTP (Notice to Proceed No.)" required invalid={bad("ntp_number")}>
                       <input
                         className={inputCls + " read-only:opacity-70"}
                         style={inputSt}
-                        value={form.project_code}
-                        onChange={set("project_code")}
+                        value={form.ntp_number}
+                        onChange={set("ntp_number")}
                         readOnly={codeLocked}
-                        title={codeLocked ? "Only the System Admin can change the code of a registered project" : undefined}
-                        placeholder="e.g. FRN-2026-001"
+                        title={codeLocked ? "Only the System Admin can change the NTP of a registered project" : undefined}
+                        placeholder="e.g. RES-2026-041"
                       />
                     </Field>
                     <Field label="Funding Type" required invalid={bad("funding_type")}>
@@ -1328,23 +1335,25 @@ function RegisterProjectContent({
                         ))}
                       </select>
                     </Field>
-                    <Field label="Basic or Applied Research">
+                    <Field label="Basic or Applied Research" required invalid={bad("research_type")}>
                       <select className={inputCls} style={inputSt} value={form.research_type} onChange={set("research_type")}>
-                        <option value="">Basic or applied...</option>
+                        <option value="">Select research type...</option>
                         {Object.entries(RESEARCH_TYPE_LABELS).map(([k, v]) => (
                           <option key={k} value={k}>{v}</option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="Wet or Dry Research">
+                    <Field label="Wet or Dry Research" required invalid={bad("is_dry_research")}>
                       <select className={inputCls} style={inputSt} value={form.is_dry_research} onChange={set("is_dry_research")}>
+                        <option value="">Select wet or dry...</option>
                         {DRY_RESEARCH_OPTIONS.map(([k, v]) => (
                           <option key={k} value={k}>{v}</option>
                         ))}
                       </select>
                     </Field>
-                    <Field label="New or Continuing">
+                    <Field label="New or Continuing" required invalid={bad("is_continuing")}>
                       <select className={inputCls} style={inputSt} value={form.is_continuing} onChange={set("is_continuing")}>
+                        <option value="">Select new or continuing...</option>
                         <option value="false">New Proposal</option>
                         <option value="true">Continuing</option>
                       </select>
@@ -1354,13 +1363,13 @@ function RegisterProjectContent({
                         <input type="number" min="2" className={inputCls} style={inputSt} value={form.continuing_year} onChange={set("continuing_year")} placeholder="e.g. 2 for Year 2" />
                       </Field>
                     )}
-                    <Field label="Start Date">
+                    <Field label="Start Date" required invalid={bad("start_date")}>
                       <input type="date" className={inputCls} style={inputSt} value={form.start_date} onChange={set("start_date")} />
                     </Field>
-                    <Field label="End Date">
+                    <Field label="End Date" required invalid={bad("target_end_date")}>
                       <input type="date" className={inputCls} style={inputSt} value={form.target_end_date} onChange={set("target_end_date")} />
                     </Field>
-                    <Field label="Total Project/Study Cost (PHP ₱)">
+                    <Field label="Total Project/Study Cost (PHP ₱)" required invalid={bad("total_cost")}>
                       {isEdit ? (
                         <input readOnly className={inputCls + " opacity-70"} style={inputSt} value={form.total_cost ? `₱${peso(Number(form.total_cost))}` : "—"} title="Approved budget; changes go through Realignment" />
                       ) : (
@@ -1375,6 +1384,165 @@ function RegisterProjectContent({
                       showErrors={showErrors}
                     />
                   </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Field label="Sector" required invalid={bad("sectors")}>
+                      <MultiSelect invalid={bad("sectors")} options={SECTOR_OPTIONS} value={form.sectors} onChange={(next) => setForm((p) => ({ ...p, sectors: next }))} placeholder="Select sector" />
+                    </Field>
+                    {form.sectors.includes("others") && (
+                      <Field label="Specify Sector (Others)" required invalid={bad("sector_other")}>
+                        <input className={inputCls} style={inputSt} value={form.sector_other} onChange={set("sector_other")} placeholder="Other sector" />
+                      </Field>
+                    )}
+                    <Field label="Research Priority Area" required invalid={bad("research_priority_area")}>
+                      <select className={inputCls} style={inputSt} value={form.research_priority_area} onChange={set("research_priority_area")}>
+                        <option value="">Select priority area...</option>
+                        {Object.entries(PRIORITY_AREA_LABELS).map(([k, v]) => (
+                          <option key={k} value={k}>{v}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Research Typology" required invalid={bad("research_typology")}>
+                      <MultiSelect invalid={bad("research_typology")} options={TYPOLOGY_OPTIONS} value={form.research_typology} onChange={(next) => setForm((p) => ({ ...p, research_typology: next }))} placeholder="Select typology" />
+                    </Field>
+                    <Field label="Sustainable Development Goals (SDGs)" required invalid={bad("sdgs")} span>
+                      <MultiSelect invalid={bad("sdgs")} options={SDG_OPTIONS} value={form.sdgs} onChange={(next) => setForm((p) => ({ ...p, sdgs: next }))} placeholder="Select SDGs (1–17)" />
+                    </Field>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="label-field mb-0">
+                        Study Component Titles<span style={{ color: "#dc2626" }}> *</span>
+                      </label>
+                      <AddRowButton onClick={() => setStudyTitles([...studyTitles, ""])}>Add Study</AddRowButton>
+                    </div>
+                    {showErrors && filledStudies.length < 2 && <p className="mb-2 text-xs font-semibold" style={{ color: "#dc2626" }}>A project is composed of two or more studies</p>}
+                    <div className="space-y-2">
+                      {studyTitles.map((title, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                          <span className="mt-2.5 text-xs font-bold shrink-0" style={{ color: "#0891b2", width: "52px" }}>Study {i + 1}</span>
+                          <AutoTextarea
+                            value={title}
+                            onChange={(e) => setStudyTitles(studyTitles.map((t, idx) => (idx === i ? e.target.value : t)))}
+                            className={inputCls + " flex-1"}
+                            style={inputSt}
+                            placeholder={`Title of Study ${i + 1}`}
+                          />
+                          {studyTitles.length > 1 && i >= (edit?.studyIds.length ?? 0) && (
+                            <RemoveButton onClick={() => setStudyTitles(studyTitles.filter((_, idx) => idx !== i))} label="Remove study" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Field label="II. Background of the Study" required invalid={badRich("background")}>
+                    <RichTextEditor ariaLabel="II. Background of the Study" value={form.background} onChange={setRich("background")} placeholder="Background and rationale as stated in the approved proposal" />
+                  </Field>
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="label-field mb-0">
+                        III. Objectives of the Study<span style={{ color: "#dc2626" }}> *</span>
+                      </label>
+                      <AddRowButton onClick={() => setObjectives([...objectives, ""])}>Add Objective</AddRowButton>
+                    </div>
+                    {showErrors && filledObjectives.length === 0 && <p className="mb-2 text-xs font-semibold" style={{ color: "#dc2626" }}>Add at least one objective</p>}
+                    <div className="space-y-2">
+                      {objectives.map((obj, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                          <span className="mt-2.5 text-sm font-bold shrink-0" style={{ color: "#0891b2", width: "20px" }}>{i + 1}.</span>
+                          <AutoTextarea
+                            value={obj}
+                            onChange={(e) => {
+                              const n = [...objectives];
+                              n[i] = e.target.value;
+                              setObjectives(n);
+                            }}
+                            className={inputCls + " flex-1"}
+                            style={inputSt}
+                            placeholder={`Objective ${i + 1}...`}
+                          />
+                          {objectives.length > 1 && <RemoveButton onClick={() => setObjectives(objectives.filter((_, idx) => idx !== i))} label="Remove objective" />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Field label="IV. Project Descriptions / Methodology" required invalid={badRich("methodology")}>
+                    <RichTextEditor ariaLabel="IV. Project Descriptions / Methodology" value={form.methodology} onChange={setRich("methodology")} />
+                  </Field>
+                  <Field label="VI. Socio-Economic Significance" required invalid={badRich("socio_economic_significance")}>
+                    <RichTextEditor ariaLabel="VI. Socio-Economic Significance" value={form.socio_economic_significance} onChange={setRich("socio_economic_significance")} />
+                  </Field>
+                  <Field label="VIII. Monitoring / Evaluation" required invalid={badRich("monitoring_evaluation")}>
+                    <RichTextEditor ariaLabel="VIII. Monitoring / Evaluation" value={form.monitoring_evaluation} onChange={setRich("monitoring_evaluation")} />
+                  </Field>
+                  <Field label="IX. List of References (APA format)" required invalid={badRich("references")}>
+                    <RichTextEditor ariaLabel="IX. List of References" value={form.references} onChange={setRich("references")} />
+                  </Field>
+                  <Field label="Executive Summary" required invalid={bad("description")}>
+                    <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.description} onChange={set("description")} placeholder="Short overview shown on the project page" />
+                  </Field>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Field label="Anticipated Outcomes" required invalid={bad("expected_outcomes")}>
+                      <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.expected_outcomes} onChange={set("expected_outcomes")} placeholder="One per line" />
+                    </Field>
+                    <Field label="Long-term Potential Impacts" required invalid={bad("expected_impacts")}>
+                      <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.expected_impacts} onChange={set("expected_impacts")} placeholder="One per line" />
+                    </Field>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="label-field mb-0">
+                      V. Quantifiable Expected Outputs (6Ps)<span style={{ color: "#dc2626" }}> *</span>
+                    </label>
+                    <AddRowButton onClick={() => setOutputRows([...outputRows, { category: "", description: "", target_count: "1" }])}>Add Output</AddRowButton>
+                  </div>
+                  {showErrors && !outputsComplete && <p className="text-xs font-semibold" style={{ color: "#dc2626" }}>Add at least one 6P, and fill in the item and particulars of every row</p>}
+                  {outputRows.length === 0 ? (
+                    <p className="text-xs" style={{ color: "#94a3b8" }}>No 6Ps yet. Add at least one.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {outputRows.map((o, i) => {
+                        const update = (patch: Partial<OutputRow>) => setOutputRows(outputRows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+                        return (
+                          <div key={i} className="flex gap-2 items-start">
+                            <select className={inputCls + " max-w-52"} style={inputSt} value={o.category} onChange={(e) => update({ category: e.target.value as SixPCategory })}>
+                              <option value="">Item…</option>
+                              {SIX_P_FORM.map(([code, label]) => (
+                                <option key={code} value={code}>{label}</option>
+                              ))}
+                            </select>
+                            <textarea rows={2} className={inputCls + " flex-1 resize-y"} style={inputSt} value={o.description} onChange={(e) => update({ description: e.target.value })} placeholder="Particulars" />
+                            <input type="number" min="1" className={inputCls + " max-w-24"} style={inputSt} value={o.target_count} onChange={(e) => update({ target_count: e.target.value })} placeholder="Qty" aria-label="Quantity" />
+                            <RemoveButton onClick={() => setOutputRows(outputRows.filter((_, idx) => idx !== i))} label="Remove output" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <label className="label-field mb-0">
+                      VII. Target Beneficiaries<span style={{ color: "#dc2626" }}> *</span>
+                    </label>
+                    <AddRowButton onClick={() => setBeneficiaryRows([...beneficiaryRows, { group: "", description: "", total: "" }])}>Add Group</AddRowButton>
+                  </div>
+                  <div className="space-y-2">
+                    {beneficiaryRows.map((b, i) => {
+                      const rowSt = (v: string) => ({ ...inputSt, borderColor: showErrors && !v.trim() ? "#dc2626" : inputSt.borderColor });
+                      const update = (patch: Partial<BeneficiaryRow>) =>
+                        setBeneficiaryRows(beneficiaryRows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+                      return (
+                        <div key={i} className="flex gap-2 items-start">
+                          <input className={inputCls + " max-w-56"} style={rowSt(b.group)} value={b.group} onChange={(e) => update({ group: e.target.value })} placeholder="Group, e.g. Faculty" />
+                          <input className={inputCls + " flex-1"} style={rowSt(b.description)} value={b.description} onChange={(e) => update({ description: e.target.value })} placeholder="Description" />
+                          <input type="number" min="0" className={inputCls + " max-w-24"} style={rowSt(b.total)} value={b.total} onChange={(e) => update({ total: e.target.value })} placeholder="Total" />
+                          {beneficiaryRows.length > 1 && <RemoveButton onClick={() => setBeneficiaryRows(beneficiaryRows.filter((_, idx) => idx !== i))} label="Remove group" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {filledBeneficiaries.length > 0 && (
+                    <p className="text-xs font-semibold" style={{ color: "#64748b" }}>
+                      Total beneficiaries: {filledBeneficiaries.reduce((sum, b) => sum + (Number(b.total) || 0), 0).toLocaleString("en-PH")}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1517,175 +1685,7 @@ function RegisterProjectContent({
 
               {step === 2 && (
                 <div className="space-y-4">
-                  <StepNote>
-                    Sector, research priority area, typology, the 17 Sustainable Development Goals, and the study component titles. Sector and SDGs allow
-                    more than one. A project is composed of two or more studies.
-                  </StepNote>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Sector" required invalid={bad("sectors")}>
-                      <MultiSelect invalid={bad("sectors")} options={SECTOR_OPTIONS} value={form.sectors} onChange={(next) => setForm((p) => ({ ...p, sectors: next }))} placeholder="Select sector" />
-                    </Field>
-                    {form.sectors.includes("others") && (
-                      <Field label="Specify Sector (Others)" required invalid={bad("sector_other")}>
-                        <input className={inputCls} style={inputSt} value={form.sector_other} onChange={set("sector_other")} placeholder="Other sector" />
-                      </Field>
-                    )}
-                    <Field label="Research Priority Area">
-                      <select className={inputCls} style={inputSt} value={form.research_priority_area} onChange={set("research_priority_area")}>
-                        <option value="">Select priority area...</option>
-                        {Object.entries(PRIORITY_AREA_LABELS).map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Research Typology">
-                      <MultiSelect options={TYPOLOGY_OPTIONS} value={form.research_typology} onChange={(next) => setForm((p) => ({ ...p, research_typology: next }))} placeholder="Select typology" />
-                    </Field>
-                    <Field label="Sustainable Development Goals (SDGs)" required invalid={bad("sdgs")} span>
-                      <MultiSelect invalid={bad("sdgs")} options={SDG_OPTIONS} value={form.sdgs} onChange={(next) => setForm((p) => ({ ...p, sdgs: next }))} placeholder="Select SDGs (1–17)" />
-                    </Field>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="label-field mb-0">Study Component Titles</label>
-                      <AddRowButton onClick={() => setStudyTitles([...studyTitles, ""])}>Add Study</AddRowButton>
-                    </div>
-                    <div className="space-y-2">
-                      {studyTitles.map((title, i) => (
-                        <div key={i} className="flex gap-2 items-start">
-                          <span className="mt-2.5 text-xs font-bold shrink-0" style={{ color: "#0891b2", width: "52px" }}>Study {i + 1}</span>
-                          <AutoTextarea
-                            value={title}
-                            onChange={(e) => setStudyTitles(studyTitles.map((t, idx) => (idx === i ? e.target.value : t)))}
-                            className={inputCls + " flex-1"}
-                            style={inputSt}
-                            placeholder={`Title of Study ${i + 1}`}
-                          />
-                          {studyTitles.length > 1 && i >= (edit?.studyIds.length ?? 0) && (
-                            <RemoveButton onClick={() => setStudyTitles(studyTitles.filter((_, idx) => idx !== i))} label="Remove study" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                <div className="space-y-5">
-                  <StepNote>Sections II–IV, VI, VIII, and IX of the form. Section V (6Ps), VII (beneficiaries) and XI (work plan) are on the next step; Section X (budget) has its own step.</StepNote>
-                  <Field label="II. Background of the Study">
-                    <RichTextEditor ariaLabel="II. Background of the Study" value={form.background} onChange={setRich("background")} placeholder="Background and rationale as stated in the approved proposal" />
-                  </Field>
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="label-field mb-0">
-                        III. Objectives of the Study<span style={{ color: "#dc2626" }}> *</span>
-                      </label>
-                      <AddRowButton onClick={() => setObjectives([...objectives, ""])}>Add Objective</AddRowButton>
-                    </div>
-                    {showErrors && filledObjectives.length === 0 && <p className="mb-2 text-xs font-semibold" style={{ color: "#dc2626" }}>Add at least one objective</p>}
-                    <div className="space-y-2">
-                      {objectives.map((obj, i) => (
-                        <div key={i} className="flex gap-2 items-start">
-                          <span className="mt-2.5 text-sm font-bold shrink-0" style={{ color: "#0891b2", width: "20px" }}>{i + 1}.</span>
-                          <AutoTextarea
-                            value={obj}
-                            onChange={(e) => {
-                              const n = [...objectives];
-                              n[i] = e.target.value;
-                              setObjectives(n);
-                            }}
-                            className={inputCls + " flex-1"}
-                            style={inputSt}
-                            placeholder={`Objective ${i + 1}...`}
-                          />
-                          {objectives.length > 1 && <RemoveButton onClick={() => setObjectives(objectives.filter((_, idx) => idx !== i))} label="Remove objective" />}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <Field label="IV. Project Descriptions / Methodology">
-                    <RichTextEditor ariaLabel="IV. Project Descriptions / Methodology" value={form.methodology} onChange={setRich("methodology")} />
-                  </Field>
-                  <Field label="VI. Socio-Economic Significance">
-                    <RichTextEditor ariaLabel="VI. Socio-Economic Significance" value={form.socio_economic_significance} onChange={setRich("socio_economic_significance")} />
-                  </Field>
-                  <Field label="VIII. Monitoring / Evaluation">
-                    <RichTextEditor ariaLabel="VIII. Monitoring / Evaluation" value={form.monitoring_evaluation} onChange={setRich("monitoring_evaluation")} />
-                  </Field>
-                  <Field label="IX. List of References (APA format)">
-                    <RichTextEditor ariaLabel="IX. List of References" value={form.references} onChange={setRich("references")} />
-                  </Field>
-                  <Field label="Executive Summary (optional)">
-                    <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.description} onChange={set("description")} placeholder="Short overview shown on the project page" />
-                  </Field>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Anticipated Outcomes (optional)">
-                      <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.expected_outcomes} onChange={set("expected_outcomes")} placeholder="One per line" />
-                    </Field>
-                    <Field label="Long-term Potential Impacts (optional)">
-                      <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.expected_impacts} onChange={set("expected_impacts")} placeholder="One per line" />
-                    </Field>
-                  </div>
-                </div>
-              )}
-
-              {step === 4 && (
-                <div className="space-y-4">
-                  <StepNote>Section V (6Ps expected outputs) and XI (work plan) are optional here and can be added later. Section VII needs one row per beneficiary group with its total.</StepNote>
-                  <div className="flex items-center justify-between">
-                    <label className="label-field mb-0">V. Quantifiable Expected Outputs (6Ps)</label>
-                    <AddRowButton onClick={() => setOutputRows([...outputRows, { category: "", description: "", target_count: "1" }])}>Add Output</AddRowButton>
-                  </div>
-                  {outputRows.length === 0 ? (
-                    <p className="text-xs" style={{ color: "#94a3b8" }}>No 6Ps yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {outputRows.map((o, i) => {
-                        const update = (patch: Partial<OutputRow>) => setOutputRows(outputRows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
-                        return (
-                          <div key={i} className="flex gap-2 items-start">
-                            <select className={inputCls + " max-w-52"} style={inputSt} value={o.category} onChange={(e) => update({ category: e.target.value as SixPCategory })}>
-                              <option value="">Item…</option>
-                              {SIX_P_FORM.map(([code, label]) => (
-                                <option key={code} value={code}>{label}</option>
-                              ))}
-                            </select>
-                            <textarea rows={2} className={inputCls + " flex-1 resize-y"} style={inputSt} value={o.description} onChange={(e) => update({ description: e.target.value })} placeholder="Particulars" />
-                            <input type="number" min="1" className={inputCls + " max-w-24"} style={inputSt} value={o.target_count} onChange={(e) => update({ target_count: e.target.value })} placeholder="Qty" aria-label="Quantity" />
-                            <RemoveButton onClick={() => setOutputRows(outputRows.filter((_, idx) => idx !== i))} label="Remove output" />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <label className="label-field mb-0">
-                      VII. Target Beneficiaries<span style={{ color: "#dc2626" }}> *</span>
-                    </label>
-                    <AddRowButton onClick={() => setBeneficiaryRows([...beneficiaryRows, { group: "", description: "", total: "" }])}>Add Group</AddRowButton>
-                  </div>
-                  <div className="space-y-2">
-                    {beneficiaryRows.map((b, i) => {
-                      const rowSt = (v: string) => ({ ...inputSt, borderColor: showErrors && !v.trim() ? "#dc2626" : inputSt.borderColor });
-                      const update = (patch: Partial<BeneficiaryRow>) =>
-                        setBeneficiaryRows(beneficiaryRows.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
-                      return (
-                        <div key={i} className="flex gap-2 items-start">
-                          <input className={inputCls + " max-w-56"} style={rowSt(b.group)} value={b.group} onChange={(e) => update({ group: e.target.value })} placeholder="Group, e.g. Faculty" />
-                          <input className={inputCls + " flex-1"} style={rowSt(b.description)} value={b.description} onChange={(e) => update({ description: e.target.value })} placeholder="Description" />
-                          <input type="number" min="0" className={inputCls + " max-w-24"} style={rowSt(b.total)} value={b.total} onChange={(e) => update({ total: e.target.value })} placeholder="Total" />
-                          {beneficiaryRows.length > 1 && <RemoveButton onClick={() => setBeneficiaryRows(beneficiaryRows.filter((_, idx) => idx !== i))} label="Remove group" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {filledBeneficiaries.length > 0 && (
-                    <p className="text-xs font-semibold" style={{ color: "#64748b" }}>
-                      Total beneficiaries: {filledBeneficiaries.reduce((sum, b) => sum + (Number(b.total) || 0), 0).toLocaleString("en-PH")}
-                    </p>
-                  )}
+                  <StepNote>Section XI, the work plan. Optional here: activities can also be added later under Work Plan.</StepNote>
                   <div className="flex items-center justify-between pt-2">
                     <label className="label-field mb-0">XI. Work Plan (activities / milestones)</label>
                     <div className="flex items-center gap-4">
@@ -1730,7 +1730,7 @@ function RegisterProjectContent({
                 </div>
               )}
 
-              {step === 5 && (
+              {step === 3 && (
                 <fieldset disabled={isEdit} className="space-y-4 min-w-0">
                   {edit && (
                     <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
@@ -1853,15 +1853,13 @@ function RegisterProjectContent({
                 </fieldset>
               )}
 
-              {step === 6 && (
+              {step === 4 && (
                 <div className="space-y-4">
                   <StepNote>
-                    Approval references and the Annex A endorsement page. Review, endorsement, and approval happen outside RMIS; these are recorded as read-only references.
+                    The Notice of Approval, NTP and MOA (required), other supporting documents, and the approval references and Annex A endorsement page. Review,
+                    endorsement, and approval happen outside RMIS; these are recorded as read-only references. The NTP number is on Project Details.
                   </StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Approval Reference Number (NTP No.)" required invalid={bad("ntp_number")}>
-                      <input className={inputCls} style={inputSt} value={form.ntp_number} onChange={set("ntp_number")} placeholder="e.g. RES-2026-041" />
-                    </Field>
                     <Field label="Notice to Proceed Date">
                       <input type="date" className={inputCls} style={inputSt} value={form.ntp_date} onChange={set("ntp_date")} />
                     </Field>
@@ -1936,7 +1934,7 @@ function RegisterProjectContent({
                 </div>
               )}
 
-              {step === 7 && (
+              {step === 5 && (
                 <div className="space-y-4">
                   <div className="rounded-xl overflow-hidden" style={{ border: `2px solid ${completenessOk ? "#22c55e" : "#f59e0b"}` }}>
                     <div className="px-4 py-3 flex items-center justify-between" style={{ background: completenessOk ? "#f0fdf4" : "#fffbeb" }}>
@@ -1969,7 +1967,7 @@ function RegisterProjectContent({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <InfoCard label="Project Code" value={form.project_code} />
+                    <InfoCard label="NTP (Project Code)" value={form.ntp_number} />
                     <InfoCard label={edit ? "Review Status" : "Initial Status"} value={edit ? edit.project.review_status_label : "Draft"} />
                     <InfoCard label="Documents Uploaded" value={String(stagedDocs.length)} />
                     <InfoCard label={edit ? "Edited On" : "Registration Date"} value={new Date().toLocaleDateString("en-PH")} />
@@ -2031,11 +2029,11 @@ function RegisterProjectContent({
               {step < WIZARD_STEPS.length - 1 ? (
                 <button
                   onClick={handleNext}
-                  disabled={isCheckingCode || (step === 6 && uploadsPending)}
+                  disabled={isCheckingCode || (step === 4 && uploadsPending)}
                   className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
                   style={{ background: "#0891b2" }}
                 >
-                  {isCheckingCode ? "Checking code…" : step === 6 && uploadsPending ? "Waiting for uploads…" : "Next →"}
+                  {isCheckingCode ? "Checking NTP…" : step === 4 && uploadsPending ? "Waiting for uploads…" : "Next →"}
                 </button>
               ) : (
                 <button
