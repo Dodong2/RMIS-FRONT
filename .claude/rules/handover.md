@@ -1,4 +1,4 @@
-> **STALE (2026-10-25, still true 2026-10-28):** the branch workflow and module notes below are history. Work is on `main`, Carl pushes and runs every `migrate`, tasks are gated by `dss/CLAUDE.md` (GO TASK N). The current state is in "Last thing done" at the bottom.
+> **STALE (2026-10-25, still true 2026-10-29):** the branch workflow and module notes below are history. Work is on `main`, Carl pushes and runs every `migrate`, tasks are gated by `dss/CLAUDE.md` (GO TASK N). The current state is in "Last thing done" at the bottom.
 
 # RMIS Frontend — Current Status
 
@@ -85,7 +85,7 @@ automatically — most pages needed zero code changes for this pass.
   says how to restore them from `1379772`. This conflicts with the CLAUDE.md "no endpoint → mock" rule, which hasn't been
   changed yet (see open questions).
 - Module 1 (Auth/RBAC pages): done, stable.
-- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. UI
+- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code — see "Last thing done"; the notes below are history.** UI
   reworked 2026-09-22 per client request: ProjectsPage's two inline "Register
   a Program"/"Register a Project" forms (the project one had 20+ fields) were
   pulled out into dedicated pages (RegisterProgramPage at /programs/new,
@@ -680,18 +680,20 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-28 Task 2 (Profile page), on `main`, PUSHED, paired with rmis-backend `a79e72a`/`14b38f4`. Memory note: `profile-task2-2026-10-28`. vitest 99/99, `npx tsc -b`, `npm run build` clean, eslint clean on the changed files (the 3 old `AuthContext.tsx` errors from `e61de98` are still there, untouched).
-- **Profile page** (`a768881`):
-  - The Topbar name-and-role chip opens `/profile` (every role): First/Last Name, Gender, Mobile, Campus, College Unit, Role, Staff ID, Email, Password, all read-only; Campus and College Unit say the System Admin sets them.
-  - Edit Profile modal: the 4 editable fields, refuses a no-change save, shows the backend's field errors and the edits left. After 3 edits the page says it is locked and the button is disabled (backend enforces it).
-  - Password: Change Password (current, new, confirm) for e-mail accounts; "Signed in with Google — no password" when `has_password` is false.
-  - `authApi` gets getProfile/updateProfile/changePassword; `User` gets `has_password`.
-- **Register Project Step 2** (`3828e10`): picking a Project Leader fills Gender and Contact No. from the account (still editable); a leader registering their own project gets their own profile when both are blank. Picking a team account fills its gender. Picked accounts and the UserPicker list show the campus, with a note when the profile lacks gender/mobile. Edit Registration fills nothing. Payloads unchanged.
-- The 2026-10-27 batch (`c0a1b42`, `e6988cf`, `a76d062`, `dcde2a4`: registration, Pending Reject, 9 roles, campus) is pushed too.
+2026-10-29 Tasks 3 and 4, on `main`, NOT pushed, paired with rmis-backend `c700efa`/`783ddfb`. Memory note: `tasks-3-4-2026-10-29`. vitest 99/99, `npx tsc -b`, `npm run build` clean, eslint clean on the changed files.
+- **Dashboard** (`6bfef48`, concern.png of 2026-10-26): the Scope bar ("SCOPE: My Projects" + Generate Report) is gone for every role, with its report modal. The DrillPanel has "← Back" on the campus level (to the root) and the project level (to its campus). Reports page's Generate Report and `exportFiles` unchanged.
+- **Register Approved Project** (`936f330`): 8 steps became 6:
+  1. Project Details: every field required (Title, NTP, Funding, Basic/Applied, Wet/Dry, New/Continuing, dates, Total Cost, RDE, Sector, Priority Area, Typology, SDGs, 2+ Study titles, Objectives, II/IV/VI/VIII/IX, Executive Summary, Outcomes, Impacts, 6Ps, Beneficiaries). NTP replaces Project Code (read-only in Edit except for the System Admin). Basic/Applied, Wet/Dry and New/Continuing start unselected; N/A stays valid.
+  2. Proponents & Team, 3. Work Plan, 4. Budget (LIB): unchanged.
+  5. Supporting Documents (was Endorsement & Approval): NOA/NTP/MOA required, other docs, approval references and Annex A (optional).
+  6. Validate & Register: checklist lists each missing Project Details item.
+  - Register is one `POST projects/` with every table (all-or-nothing); a table error names table + row and jumps to its step. Documents are attached after, as before. Edit Registration still saves row by row. `DRAFT_VERSION` 2.
+- **Labels** (`7bdcdd1`, `0f28a53`): "Project Code" is "NTP" on the Budget search, the Analytics project table and the project page ("NTP (Project Code)").
 
 ## Next thing to do in this repo
 1. Carl:
-   - Deploy with the backend (both pushed; accounts 0028 already migrated).
-   - Browser checks: /profile (edit counter + lock, read-only Campus/College, password change, Google account), Step 2 autofill, plus the still-open 2026-10-27 checks (registration with e-mail and Google, Pending Reject, CRC/CRD and Project Leader nav, Quarterly, wizard campus lock, Scope modal).
-2. Known gaps, not approved: the Topbar chip is hidden below `md`, so phones have no Profile link; fix the 3 old eslint errors in `AuthContext.tsx`; disable Verify in Compliance if the backend gets a Verify gate.
-3. Wait for the client's next changes. Every task goes through `dss/CLAUDE.md` (plan, then GO TASK N, then report, then STOP).
+   - Browser-test locally, then push + deploy with the backend (together). No migration.
+   - Checks: Dashboard as the 7 DashboardContent roles (bar gone, Back works, campus filter refetches); register as system_admin, riuh and project_leader (empty Step 1 shows every required item; full registration saves every table; duplicate NTP returns to Step 1); Edit Registration (NTP locked for the leader, changeable for the System Admin); Excel with the NEW template (old file with only a Project Code gives a clear error); LIB submit with 1 study is refused.
+2. Open client questions: Q-B (TOE date/document, required? which step) and Q-E ("Upload approved proposal"). Don't build either until answered.
+3. Known gaps, not approved: Topbar chip hidden below `md` (no Profile link on phones); 3 old eslint errors in `AuthContext.tsx`; `researchApi.createProjectLib` is no longer used by the wizard (endpoint kept).
+4. Every task goes through `dss/CLAUDE.md` (plan, then GO TASK N, then report, then STOP).
