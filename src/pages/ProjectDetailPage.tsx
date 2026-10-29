@@ -557,7 +557,7 @@ function ProjectDetailContent() {
               <div>
                 <SectionHeader>Approval Information (read-only reference)</SectionHeader>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <InfoCard label="NTP / Approval Reference No." value={project.ntp_number} />
+                  <InfoCard label="NTP (Project Code)" value={project.ntp_number} />
                   <InfoCard label="NTP Date" value={project.ntp_date ?? ""} />
                   <InfoCard label="TOE Signed" value={project.toe_signed_date ?? ""} />
                   <InfoCard label="Proposal Submitted" value={project.proposal_submitted_on ?? ""} />
