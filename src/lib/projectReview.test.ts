@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions } from "./projectReview";
+import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions, newestFirst, matchesProjectSearch, REVIEW_PAGE_SIZE } from "./projectReview";
 import type { BudgetReview } from "../types/budget";
+import { pageOf } from "./paging";
 
 const review = (id: number, action: BudgetReview["action"], by = "Ana Cruz", remarks = ""): BudgetReview => ({
   id, action, remarks, snapshot: [], acted_by: id, acted_by_name: by, acted_at: `2026-10-2${id}T09:30:00+08:00`,
@@ -116,5 +117,32 @@ describe("review statuses (Task 17, 2026-10-30)", () => {
     expect(REVIEW_STATUS_MEANINGS.for_budget_review).toContain("forwarded");
     expect(REVIEW_STATUS_STYLE.reviews_completed).toContain("green");
     expect(new Set(Object.values(REVIEW_STATUS_STYLE)).size).toBe(Object.keys(REVIEW_STATUS_STYLE).length);
+  });
+});
+
+describe("Project Management list (Task 16, 2026-10-30)", () => {
+  const project = (id: number, created_at: string, extra: Partial<{ project_code: string; title: string; campus: string; full_name: string }> = {}) => ({
+    id, created_at, project_code: extra.project_code ?? `P-${id}`, title: extra.title ?? `Project ${id}`, campus: extra.campus ?? "Siniloan",
+    lead_detail: { id: 9, email: "pl@lspu.test", full_name: extra.full_name ?? "Ana Reyes" },
+  });
+
+  it("lists the latest projects first, ties by newest id", () => {
+    const rows = [project(1, "2026-10-01T08:00:00Z"), project(3, "2026-10-20T08:00:00Z"), project(2, "2026-10-20T08:00:00Z")];
+    expect(newestFirst(rows).map((p) => p.id)).toEqual([3, 2, 1]);
+  });
+
+  it("searches the code, title, leader and campus, ignoring case", () => {
+    const p = project(1, "2026-10-01T08:00:00Z", { project_code: "LSPU-2027-01", title: "Bridging Academia", full_name: "Ana Reyes", campus: "Sta. Cruz" });
+    for (const q of ["lspu-2027", "academia", "reyes", "sta. cruz", "  "]) expect(matchesProjectSearch(p, q)).toBe(true);
+    expect(matchesProjectSearch(p, "siniloan")).toBe(false);
+  });
+
+  it("shows at most five per page with no project on two pages", () => {
+    const rows = newestFirst(Array.from({ length: 12 }, (_, i) => project(i + 1, `2026-10-${String(i + 1).padStart(2, "0")}T08:00:00Z`)));
+    const pages = [1, 2, 3].map((n) => pageOf(rows, n, REVIEW_PAGE_SIZE));
+    expect(pages.map((p) => p.rows.length)).toEqual([5, 5, 2]);
+    expect(pages[0].rows[0].id).toBe(12);
+    expect(new Set(pages.flatMap((p) => p.rows.map((r) => r.id))).size).toBe(12);
+    expect(pageOf(rows, 9, REVIEW_PAGE_SIZE).page).toBe(3);
   });
 });

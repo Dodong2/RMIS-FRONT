@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { assignmentsQuery, milestonesQuery, monitoringStatusQuery, useBudgets, useProjects } from "../lib/queries";
-import { currentLib, leaderSubmitLabel } from "../lib/projectReview";
+import { REVIEW_PAGE_SIZE, currentLib, leaderSubmitLabel, newestFirst } from "../lib/projectReview";
+import { pageOf } from "../lib/paging";
+import { Pager } from "../components/common/proto";
 import { useReviewStep } from "../lib/useReviewStep";
 import { ProjectReviewWorkflow, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
 import { SubmitConfirmDialog } from "../components/projects/SubmitConfirmDialog";
@@ -96,7 +98,7 @@ function ProjectsContent() {
   }, {});
 
   const q = search.toLowerCase();
-  const visible = projects.filter((p) => {
+  const visible = newestFirst(projects).filter((p) => {
     const matchStatus = filterStatus === "all" || p.status === filterStatus;
     const matchType = filterType === "all" || p.funding_type === filterType;
     const matchSdg = filterSdg === "all" || p.sdgs.includes(Number(filterSdg));
@@ -107,6 +109,10 @@ function ProjectsContent() {
       p.cooperating_agencies.toLowerCase().includes(q);
     return matchStatus && matchType && matchSdg && matchSearch;
   });
+  // Task 16 (2026-10-30): the cards are paged too, five a page, back to page 1 when a filter changes
+  const cardKey = [filterStatus, filterType, filterSdg, search].join("|");
+  const [cardPage, setCardPage] = useState({ key: cardKey, n: 1 });
+  const cards = pageOf(visible, cardPage.key === cardKey ? cardPage.n : 1, REVIEW_PAGE_SIZE);
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -217,7 +223,7 @@ function ProjectsContent() {
             <p className="text-sm font-semibold" style={{ color: "#64748b" }}>No projects match your filters.</p>
           </div>
         ) : (
-          visible.map((proj) => {
+          cards.rows.map((proj) => {
             const ms = milestones.filter((m) => m.project === proj.id);
             const msDone = ms.filter((m) => m.status === "done").length;
             const team = assignments.filter((a) => a.project === proj.id).length + 1;
@@ -334,6 +340,7 @@ function ProjectsContent() {
             );
           })
         )}
+        <Pager page={cards.page} pageCount={cards.pageCount} total={visible.length} size={REVIEW_PAGE_SIZE} onPage={(n) => setCardPage({ key: cardKey, n })} />
       </div>
     </div>
   );

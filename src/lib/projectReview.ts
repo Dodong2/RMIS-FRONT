@@ -116,6 +116,22 @@ export function rowActions(status: ReviewStatus, viewer: { isOwnLeader: boolean;
   };
 }
 
+// Task 16 (2026-10-30): the review list shows five proposals a page, the latest registered first
+export const REVIEW_PAGE_SIZE = 5;
+
+export const newestFirst = <T extends { id: number; created_at: string }>(rows: T[]) =>
+  [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
+
+/** Search over what the list shows: code, title, Project Leader and campus. The list is already the user's own scope. */
+export function matchesProjectSearch(
+  p: { project_code: string; title: string; campus?: string | null; lead_detail?: { email: string; full_name?: string | null } | null },
+  query: string,
+) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return [p.project_code, p.title, p.campus, p.lead_detail?.full_name, p.lead_detail?.email].some((v) => (v ?? "").toLowerCase().includes(q));
+}
+
 /** Work on the project (tasks etc.) starts once its reviews are completed (backend ensure_work_allowed, decision D5). */
 export const workAllowed = (status: ReviewStatus) => status === "reviews_completed";
 

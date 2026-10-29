@@ -7,7 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { errorMessage } from "../../lib/errorMessage";
 import { libActions, type LibAction } from "../../lib/libWorkflow";
 import { notify } from "../../lib/notify";
-import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, currentLib, leaderSubmitLabel, reviewHistory, reviewQueues, rowActions } from "../../lib/projectReview";
+import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, currentLib, leaderSubmitLabel, reviewHistory, reviewQueues, rowActions, REVIEW_PAGE_SIZE, matchesProjectSearch, newestFirst } from "../../lib/projectReview";
+import { pageOf } from "../../lib/paging";
+import { Pager } from "../common/proto";
 import { documentsQuery, queryKeys } from "../../lib/queries";
 import { researchApi } from "../../lib/researchApi";
 import { SubmitConfirmDialog } from "./SubmitConfirmDialog";
@@ -57,8 +59,13 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
     },
     onError: (err) => notify.error(errorMessage(err, "The draft could not be deleted.")),
   });
+  const [search, setSearch] = useState("");
   const queues = reviewQueues(projects);
-  const rows = projects.filter((p) => filter === "all" || p.review_status === filter);
+  const rows = newestFirst(projects).filter((p) => (filter === "all" || p.review_status === filter) && matchesProjectSearch(p, search));
+  // Back to page 1 whenever the search or the status filter changes (the UsersListPage pattern)
+  const pageKey = `${filter}|${search}`;
+  const [pageState, setPageState] = useState({ key: pageKey, n: 1 });
+  const shown = pageOf(rows, pageState.key === pageKey ? pageState.n : 1, REVIEW_PAGE_SIZE);
   const selected = projects.find((p) => p.id === selectedId);
 
   return (
@@ -84,6 +91,13 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
           <p className="text-xs text-slate-500">
             Showing {rows.length} workflow record{rows.length === 1 ? "" : "s"}
           </p>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search code, title, leader or campus…"
+            aria-label="Search proposals"
+            className="ml-auto w-full sm:w-64 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#0891b2]"
+          />
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as ReviewStatus | "all")}
@@ -131,10 +145,10 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
               <tbody className="divide-y divide-slate-100">
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-xs text-slate-400">No projects with this review status.</td>
+                    <td colSpan={7} className="px-4 py-6 text-center text-xs text-slate-400">No projects match this search or review status.</td>
                   </tr>
                 )}
-                {rows.map((project) => {
+                {shown.rows.map((project) => {
                   const lib = currentLib(budgets, project.id);
                   const reviews = lib?.reviews ?? [];
                   const reviewer = assignedReviewer(project.review_status, project, reviews);
@@ -202,6 +216,7 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
               </tbody>
             </table>
           </div>
+          <Pager page={shown.page} pageCount={shown.pageCount} total={rows.length} size={REVIEW_PAGE_SIZE} onPage={(n) => setPageState({ key: pageKey, n })} />
         </div>
       </div>
 
