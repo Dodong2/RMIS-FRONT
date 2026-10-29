@@ -24,14 +24,11 @@ import { LibItemSelect } from "../components/common/LibItemSelect";
 import { RdeAgendaPicker } from "../components/registration/RdeAgendaPicker";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { LibAllocationGrid } from "../components/registration/LibAllocationGrid";
-import { RichTextEditor } from "../components/common/RichTextEditor";
-import { isRichTextEmpty } from "../lib/richText";
 import { registrationDraft, type RegistrationPayload } from "../lib/registrationDraft";
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
 import {
   DRY_RESEARCH_OPTIONS,
-  PRIORITY_AREA_LABELS,
   RESEARCH_TYPE_LABELS,
   SDG_OPTIONS,
   SECTOR_OPTIONS,
@@ -568,6 +565,8 @@ const blankForm = (lead: string) => ({
   is_continuing: "",
   continuing_year: "",
   research_type: "",
+  // Research Priority Area and the Proposal Content fields left the form (client 2026-10-29, Tasks 6/8); they stay in the
+  // state so Edit and an Excel review send back the values they loaded instead of dropping them
   research_priority_area: "",
   research_typology: [] as string[],
   campus: "",
@@ -712,7 +711,6 @@ function RegisterProjectContent({
   const [choices, setChoices] = useState<Record<AdminChoiceKind, AdminChoice[]>>({ "college-units": [], "rde-thrusts": [], "cooperating-agencies": [], endorsers: [], "funding-types": [] });
   const [agencies, setAgencies] = useState<string[]>(init.agencies);
   const set = (key: keyof typeof form) => (e: { target: { value: string } }) => setForm((p) => ({ ...p, [key]: e.target.value }));
-  const setRich = (key: keyof typeof form) => (html: string) => setForm((p) => ({ ...p, [key]: html }));
 
   useEffect(() => {
     let active = true;
@@ -811,19 +809,8 @@ function RegisterProjectContent({
     ["start_date", "Start Date"],
     ["target_end_date", "End Date"],
     ["total_cost", "Total Project/Study Cost"],
-    ["research_priority_area", "Research Priority Area"],
     ["research_typology", "Research Typology"],
     ["sdgs", "SDGs"],
-    ["description", "Executive Summary"],
-    ["expected_outcomes", "Anticipated Outcomes"],
-    ["expected_impacts", "Long-term Potential Impacts"],
-  ];
-  const richRequired: [keyof typeof form, string][] = [
-    ["background", "II. Background of the Study"],
-    ["methodology", "IV. Methodology"],
-    ["socio_economic_significance", "VI. Socio-Economic Significance"],
-    ["monitoring_evaluation", "VIII. Monitoring / Evaluation"],
-    ["references", "IX. List of References"],
   ];
   const isBlank = (k: keyof typeof form) => (Array.isArray(form[k]) ? form[k].length === 0 : !String(form[k]).trim());
   const detailsMissing = [
@@ -834,7 +821,6 @@ function RegisterProjectContent({
     ...(form.sectors.length === 0 ? ["Sector"] : form.sectors.includes("others") && !form.sector_other.trim() ? ["Sector (Others)"] : []),
     ...(filledStudies.length >= 2 ? [] : ["at least 2 Study Component Titles"]),
     ...(filledObjectives.length ? [] : ["III. Objectives of the Study"]),
-    ...richRequired.filter(([k]) => isRichTextEmpty(String(form[k]))).map(([, label]) => label),
     ...(outputsComplete ? [] : ["V. 6Ps (at least one complete row)"]),
     ...(beneficiariesComplete ? [] : ["every Target Beneficiaries row"]),
   ];
@@ -870,7 +856,6 @@ function RegisterProjectContent({
   const missingRequired = checks.filter((c) => c.required && !c.done);
   const completenessOk = completed === checks.length;
   const bad = (k: keyof typeof form) => showErrors && isBlank(k);
-  const badRich = (k: keyof typeof form) => showErrors && isRichTextEmpty(String(form[k]));
 
   const handleNext = async () => {
     if (step === 4 && uploadsPending) {
@@ -1311,7 +1296,7 @@ function RegisterProjectContent({
             <div className="p-6">
               {step === 0 && (
                 <div className="space-y-5">
-                  <StepNote>Section I, the classification, the study components, Sections II–IX and the 6Ps and beneficiaries (V, VII) of the Research Proposal Form. Every field here is required (client 2026-10-29); the NTP number is the project's official code.</StepNote>
+                  <StepNote>Section I, the classification, the RDE Agenda, the study components, III. Objectives and the 6Ps and beneficiaries (V, VII) of the Research Proposal Form. Every field here is required (client 2026-10-29); the NTP number is the project's official code.</StepNote>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Field label="Title" required invalid={bad("title")} span>
                       <AutoTextarea className={inputCls} style={inputSt} value={form.title} onChange={set("title")} placeholder="Full official title of the research project" />
@@ -1393,14 +1378,6 @@ function RegisterProjectContent({
                         <input className={inputCls} style={inputSt} value={form.sector_other} onChange={set("sector_other")} placeholder="Other sector" />
                       </Field>
                     )}
-                    <Field label="Research Priority Area" required invalid={bad("research_priority_area")}>
-                      <select className={inputCls} style={inputSt} value={form.research_priority_area} onChange={set("research_priority_area")}>
-                        <option value="">Select priority area...</option>
-                        {Object.entries(PRIORITY_AREA_LABELS).map(([k, v]) => (
-                          <option key={k} value={k}>{v}</option>
-                        ))}
-                      </select>
-                    </Field>
                     <Field label="Research Typology" required invalid={bad("research_typology")}>
                       <MultiSelect invalid={bad("research_typology")} options={TYPOLOGY_OPTIONS} value={form.research_typology} onChange={(next) => setForm((p) => ({ ...p, research_typology: next }))} placeholder="Select typology" />
                     </Field>
@@ -1434,9 +1411,6 @@ function RegisterProjectContent({
                       ))}
                     </div>
                   </div>
-                  <Field label="II. Background of the Study" required invalid={badRich("background")}>
-                    <RichTextEditor ariaLabel="II. Background of the Study" value={form.background} onChange={setRich("background")} placeholder="Background and rationale as stated in the approved proposal" />
-                  </Field>
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <label className="label-field mb-0">
@@ -1464,29 +1438,6 @@ function RegisterProjectContent({
                         </div>
                       ))}
                     </div>
-                  </div>
-                  <Field label="IV. Project Descriptions / Methodology" required invalid={badRich("methodology")}>
-                    <RichTextEditor ariaLabel="IV. Project Descriptions / Methodology" value={form.methodology} onChange={setRich("methodology")} />
-                  </Field>
-                  <Field label="VI. Socio-Economic Significance" required invalid={badRich("socio_economic_significance")}>
-                    <RichTextEditor ariaLabel="VI. Socio-Economic Significance" value={form.socio_economic_significance} onChange={setRich("socio_economic_significance")} />
-                  </Field>
-                  <Field label="VIII. Monitoring / Evaluation" required invalid={badRich("monitoring_evaluation")}>
-                    <RichTextEditor ariaLabel="VIII. Monitoring / Evaluation" value={form.monitoring_evaluation} onChange={setRich("monitoring_evaluation")} />
-                  </Field>
-                  <Field label="IX. List of References (APA format)" required invalid={badRich("references")}>
-                    <RichTextEditor ariaLabel="IX. List of References" value={form.references} onChange={setRich("references")} />
-                  </Field>
-                  <Field label="Executive Summary" required invalid={bad("description")}>
-                    <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.description} onChange={set("description")} placeholder="Short overview shown on the project page" />
-                  </Field>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="Anticipated Outcomes" required invalid={bad("expected_outcomes")}>
-                      <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.expected_outcomes} onChange={set("expected_outcomes")} placeholder="One per line" />
-                    </Field>
-                    <Field label="Long-term Potential Impacts" required invalid={bad("expected_impacts")}>
-                      <AutoTextarea minRows={3} className={inputCls} style={inputSt} value={form.expected_impacts} onChange={set("expected_impacts")} placeholder="One per line" />
-                    </Field>
                   </div>
                   <div className="flex items-center justify-between">
                     <label className="label-field mb-0">

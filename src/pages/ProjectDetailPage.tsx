@@ -509,7 +509,7 @@ function ProjectDetailContent() {
                   label="Sector"
                   value={project.sectors.map((c) => (c === "others" ? project.sector_other || "Others" : SECTOR_LABELS[c])).join(", ")}
                 />
-                <InfoCard label="Priority Area" value={project.research_priority_area ? PRIORITY_AREA_LABELS[project.research_priority_area] : ""} />
+                {project.research_priority_area && <InfoCard label="Priority Area" value={PRIORITY_AREA_LABELS[project.research_priority_area]} />}
                 <InfoCard label="Typology" value={project.research_typology.map((t) => TYPOLOGY_LABELS[t]).join(", ")} />
                 <InfoCard label="Dry / Wet Research" value={dryResearchLabel(project.is_dry_research)} />
                 <InfoCard label="Total Project Cost" value={project.total_cost ? peso(Number(project.total_cost)) : ""} />

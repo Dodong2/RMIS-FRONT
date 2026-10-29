@@ -59,6 +59,16 @@ describe("registrationDraft (Edit Registration and Excel review, client 2026-10-
     expect(d.workPlanRows[0]).toEqual({ title: "Logistics", start_date: "2026-01-01", target_date: "2026-03-31", tasks: 2 });
   });
 
+  it("keeps the values of the fields that left the form, so saving sends them back unchanged (client 2026-10-29)", () => {
+    const old = { ...project, research_priority_area: "health", methodology: "<p>How</p>", description: "Summary", expected_impacts: "Jobs" } as Project;
+    for (const editing of [true, false]) {
+      const d = registrationDraft({ ...payload, project: old }, editing);
+      expect([d.form.research_priority_area, d.form.background, d.form.methodology, d.form.description, d.form.expected_impacts]).toEqual([
+        "health", "<p>Why</p>", "<p>How</p>", "Summary", "Jobs",
+      ]);
+    }
+  });
+
   it("starts empty lists with one blank row where the wizard expects one", () => {
     const d = registrationDraft({ ...payload, studies: [], beneficiaries: [], project: { ...project, objectives: "" } }, false);
     expect([d.studyTitles, d.objectives, d.beneficiaryRows]).toEqual([[""], [""], [{ group: "", description: "", total: "" }]]);
