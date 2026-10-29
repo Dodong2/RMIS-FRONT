@@ -1321,10 +1321,10 @@ function RegisterProjectContent({
                         className={inputCls + " read-only:opacity-70"}
                         style={inputSt}
                         value={form.ntp_number}
-                        onChange={set("ntp_number")}
+                        onChange={(e) => set("ntp_number")({ target: { value: e.target.value.toUpperCase() } })}
                         readOnly={codeLocked}
                         title={codeLocked ? "Only the System Admin can change the NTP of a registered project" : undefined}
-                        placeholder="e.g. RES-2026-041"
+                        placeholder="e.g. LSPU-RD-GRANT-SIN-2024-001"
                       />
                     </Field>
                     <Field label="Funding Type" required invalid={bad("funding_type")}>
