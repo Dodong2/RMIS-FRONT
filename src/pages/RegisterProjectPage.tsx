@@ -20,6 +20,7 @@ import { needsTeamConfirm, takenUserIds, teamMissing, type TeamRow } from "../li
 import { duplicateWorkPlanRows } from "../lib/workPlanRows";
 import { libRowsFromImport, libTableHasEntries } from "../lib/libImport";
 import { ProtoModal } from "../components/common/proto";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
 import { LibItemSelect } from "../components/common/LibItemSelect";
@@ -1127,13 +1128,37 @@ function RegisterProjectContent({
     }
   };
 
-  const handleCreate = async () => {
+  const requiredDone = () => {
     setAttempted(true);
-    if (missingRequired.length) {
-      notify.error(`Complete the required items first: ${missingRequired.map((c) => c.label.toLowerCase()).join("; ")}.`);
-      setStep(missingRequired[0].step);
+    if (!missingRequired.length) return true;
+    notify.error(`Complete the required items first: ${missingRequired.map((c) => c.label.toLowerCase()).join("; ")}.`);
+    setStep(missingRequired[0].step);
+    return false;
+  };
+
+  // Task 15 (2026-10-30): the project's own Project Leader may submit right away; anyone else saves a Draft for them
+  const canSubmitNow = !edit && isProjectLeader && form.lead === String(user?.pk);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+
+  // Task 15: submitting = registering the Draft (project, tables, documents) and then the LIB's Submit, the same step as
+  // Submit Project Proposal on Project Management. The CRC/CRD e-mail goes only after the backend accepts the submit.
+  const submitRegistered = async (projectId: number, failed: string[]) => {
+    if (failed.length) {
+      notify.error(`Saved as a Draft, but not submitted: these could not be saved: ${failed.join("; ")}. Add them under Edit Registration, then submit it from Project Management.`);
       return;
     }
+    try {
+      const lib = (await budgetApi.getBudgets(projectId)).find((b) => b.is_current);
+      if (!lib) throw new Error("The project has no LIB.");
+      await budgetApi.reviewBudget(lib.id, "submit");
+      notify.success("Proposal submitted. The CRC/CRD of your campus have been notified, and it can no longer be edited.");
+    } catch (err) {
+      notify.error(`Saved as a Draft, but not submitted: ${errorMessage(err, "the submission failed")}. Submit it from Project Management.`);
+    }
+  };
+
+  const handleCreate = async (submit = false) => {
+    if (!requiredDone()) return;
     if (edit) return handleSave(edit);
     setIsCreating(true);
     const opt = (v: string) => v.trim() || undefined;
@@ -1205,9 +1230,14 @@ function RegisterProjectContent({
       const failed = failedParts(parts.map(([label]) => label), await Promise.allSettled(parts.map(([, promise]) => promise)));
       const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
       discardDraft();
-      if (failed.length) notify.error(`Project registered, but these could not be saved: ${failed.join("; ")}. Add them under Edit Registration.`);
-      else notify.success("Project registered as a Draft. The Research Proposal Form is saved under Document Management. Submit it for review from Projects.");
       if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
+      if (submit) {
+        await submitRegistered(project.id, failed);
+        navigate("/projects");
+        return;
+      }
+      if (failed.length) notify.error(`Saved as a Draft, but these could not be saved: ${failed.join("; ")}. Add them under Edit Registration.`);
+      else notify.success("Saved as a Draft. You can still edit it, and submit it from Project Management when it is ready.");
       navigate(`/projects/${project.id}`);
     } catch (err) {
       const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
@@ -2104,23 +2134,59 @@ function RegisterProjectContent({
                   {isCheckingCode ? "Checking NTP…" : step === 4 && uploadsPending ? "Waiting for uploads…" : "Next →"}
                 </button>
               ) : (
-                <button
-                  onClick={handleCreate}
-                  disabled={isCreating}
-                  className="px-5 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-60"
-                  style={{ background: missingRequired.length === 0 ? "#0d2a5e" : "#94a3b8" }}
-                >
-                  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  {edit ? (isCreating ? "Saving…" : "Save Changes") : isCreating ? "Registering…" : "Register Project"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleCreate()}
+                    disabled={isCreating}
+                    className={`px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 disabled:opacity-60 ${canSubmitNow ? "" : "text-white"}`}
+                    style={canSubmitNow ? { background: "#f1f5f9", color: "#0d2a5e", border: "1px solid #cbd5e1" } : { background: missingRequired.length === 0 ? "#0d2a5e" : "#94a3b8" }}
+                  >
+                    {edit ? (isCreating ? "Saving…" : "Save Changes") : isCreating ? "Saving…" : "Save as a Draft"}
+                  </button>
+                  {canSubmitNow && (
+                    <button
+                      onClick={() => requiredDone() && setConfirmSubmit(true)}
+                      disabled={isCreating}
+                      className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+                      style={{ background: missingRequired.length === 0 ? "#0d2a5e" : "#94a3b8" }}
+                    >
+                      Submit this proposal
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </>
         )}
       </div>
       {showPreview && <ProposalPreview data={previewData()} onClose={() => setShowPreview(false)} />}
+      <Dialog open={confirmSubmit} onOpenChange={(open) => !isCreating && setConfirmSubmit(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle style={{ color: "#0d2a5e" }}>Submit this proposal?</DialogTitle>
+            <DialogDescription className="font-semibold" style={{ color: "#b91c1c" }}>
+              Once you continue this submission, you cannot edit your proposal.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm" style={{ color: "#475569" }}>It goes to the CRC/CRD of your campus for review. You can edit it again only if it is returned for revision.</p>
+          <DialogFooter>
+            <button onClick={() => setConfirmSubmit(false)} disabled={isCreating} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                await handleCreate(true);
+                setConfirmSubmit(false);
+              }}
+              disabled={isCreating}
+              className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: "#0d2a5e" }}
+            >
+              {isCreating ? "Submitting…" : "Continue submission"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
