@@ -480,9 +480,9 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
   return (
     <div className="p-6 space-y-5">
       <StepNote>
-        Fill in the RMIS template, which follows the Research Proposal Form (LSPU-RDO-SF-018): project details, team, the 17 SDGs, proposal
-        sections, 6Ps expected outputs, target beneficiaries, budget requirements (QTR1–QTR4), work plan, and the Annex A endorsement page. The
-        whole workbook registers as one project. If any row has an error, nothing is saved and every error is listed.
+        Fill in the RMIS template, which follows the Research Proposal Form (LSPU-RDO-SF-018): project details, team, studies, III. Objectives,
+        the 17 SDGs, 6Ps expected outputs, target beneficiaries, X. Budget Requirements (with Specification and the quarters of each project year)
+        and XI. Work Plan. The whole workbook registers as one project. If any row has an error, nothing is saved and every error is listed.
       </StepNote>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -988,7 +988,6 @@ function RegisterProjectContent({
     const named = filledTeam.map((t) => ({ name: t.name.trim(), gender: t.gender, role: t.member_role }));
     return {
       ...form,
-      college: form.implementing_unit,
       cooperating_agencies: agencies.join(", "),
       lead_name: lead?.full_name || lead?.email || "",
       lead_email: lead?.email,
@@ -1004,6 +1003,7 @@ function RegisterProjectContent({
       budget: filledLib.map((r) => ({
         category: r.category,
         description: r.description,
+        specification: (r.specification ?? "").trim(),
         unit: libUnitLabel(r.unit),
         quantity: Number(r.quantity) || 0,
         unit_cost: Number(r.unit_cost) || 0,
@@ -1012,7 +1012,6 @@ function RegisterProjectContent({
       })),
       allocation_periods: libPeriods ?? [],
       work_plan: filledWorkPlan.map((w) => ({ title: w.title.trim(), start_date: w.start_date || null, target_date: w.target_date })),
-      endorsers: filledEndorsers.map((e) => ({ name: e.name, designation: e.designation, signed_on: e.signed_on || null })),
     };
   };
 

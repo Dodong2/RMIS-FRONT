@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { ProtoModal } from "../common/proto";
-import { RichTextView } from "../common/RichTextEditor";
 import { BORDER, BUDGET_GROUPS, HEAD, SIX_P_LABELS } from "./proposalForm";
-import { PRIORITY_AREA_LABELS, RESEARCH_TYPE_LABELS, SDG_LABELS, SECTOR_LABELS, TYPOLOGY_LABELS } from "../../lib/projectOptions";
+import { RESEARCH_TYPE_LABELS, SDG_LABELS, SECTOR_LABELS, TYPOLOGY_LABELS } from "../../lib/projectOptions";
 
 export type ProposalPerson = { name: string; gender?: string };
 
+/** What the Preview shows (Task 14, 2026-10-29): only the current registration fields, the same for Manual Entry and
+ * Upload via Excel. Fields that left the registration (Priority Area, II/IV/VI/VIII/IX, Annex A) are not part of it. */
 export type ProposalData = {
   title: string;
   lead_name: string;
@@ -18,7 +19,6 @@ export type ProposalData = {
   total_cost: string;
   implementing_unit: string;
   campus: string;
-  college: string;
   contact_number: string;
   cooperating_agencies: string;
   sectors: string[];
@@ -30,20 +30,15 @@ export type ProposalData = {
   study_titles: string[];
   rde_thrust: string;
   rde_priority: string;
-  research_priority_area: string;
   research_typology: string[];
   sdgs: number[];
-  background: string;
   objectives: string[];
-  methodology: string;
   outputs: { category: string; description: string; target_count: number | string }[];
-  socio_economic_significance: string;
   beneficiaries: { group: string; description: string; total: number | string }[];
-  monitoring_evaluation: string;
-  references: string;
   budget: {
     category: string;
     description: string;
+    specification?: string;
     unit: string;
     quantity: number | null;
     unit_cost: number | null;
@@ -53,8 +48,6 @@ export type ProposalData = {
   /** Y1..Yn or Q1-Q4 (client meeting 2026-10-14); the per-period columns show only when some item is split */
   allocation_periods?: string[];
   work_plan: { title: string; start_date?: string | null; target_date?: string | null }[];
-  endorsers: { name: string; designation: string; signed_on: string | null }[];
-  proposal_submitted_on: string;
 };
 
 
@@ -153,11 +146,25 @@ function WorkPlanGantt({ items, projectStart, projectEnd }: { items: ProposalDat
   );
 }
 
-function Text({ value }: { value: string }) {
-  return value.trim() ? <RichTextView value={value} /> : <p style={{ color: "#94a3b8" }}>Not provided</p>;
+export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose: () => void }) {
+  return (
+    <ProtoModal
+      title="Research Proposal Form Preview"
+      subtitle="LSPU-RDO-SF-018 · built from what was entered; check it against the signed form before registering"
+      onClose={onClose}
+      width="max-w-4xl"
+    >
+      <ProposalSheet data={data} />
+    </ProtoModal>
+  );
 }
 
-export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose: () => void }) {
+/** A line of Section I that shows only when it has a value (optional fields aren't shown blank, Task 14). */
+function OptionalLine({ label, value }: { label: string; value: string }) {
+  return value ? <p>{label}: {value}</p> : null;
+}
+
+export function ProposalSheet({ data }: { data: ProposalData }) {
   const budgetTotal = data.budget.reduce((s, r) => s + r.total, 0);
   const periods = data.budget.some((r) => r.allocations?.length) ? (data.allocation_periods ?? []) : [];
   const periodSum = (rows: ProposalData["budget"], p: string) =>
@@ -168,12 +175,6 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
     ));
 
   return (
-    <ProtoModal
-      title="Research Proposal Form Preview"
-      subtitle="LSPU-RDO-SF-018 · built from what was entered; check it against the signed form before registering"
-      onClose={onClose}
-      width="max-w-4xl"
-    >
       <div className="mx-auto max-w-3xl p-6 shadow-sm" style={{ background: "white", border: "1px solid #e2e8f0", color: "#1e293b", fontFamily: "'Times New Roman', Georgia, serif" }}>
         <div className="text-center mb-3">
           <p className="text-xs">Republic of the Philippines</p>
@@ -188,28 +189,30 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
           </Section>
           <div className="text-xs" style={{ border: BORDER, borderTop: "none" }}>
             <p className="px-2 py-0.5 font-bold" style={{ ...HEAD, borderBottom: BORDER }}>PROJECT LEADER/GENDER: {withGender({ name: data.lead_name, gender: data.lead_gender }) || "—"}</p>
-            <p className="px-2 py-0.5 font-bold" style={{ ...HEAD, borderBottom: BORDER }}>CO-PROJECT LEADER/GENDER: {data.co_leaders.map(withGender).join("; ") || "—"}</p>
-            <p className="px-2 py-0.5 font-bold" style={{ ...HEAD, borderBottom: BORDER }}>PROJECT TEAM/GENDER:</p>
-            {data.team.length === 0 ? (
-              <p className="px-2 py-0.5" style={{ color: "#94a3b8", borderBottom: BORDER }}>None listed</p>
-            ) : (
-              data.team.map((m, i) => (
-                <div key={i} className="flex" style={{ borderBottom: BORDER }}>
-                  <span className="w-36 px-2 py-0.5 italic font-bold shrink-0" style={{ borderRight: BORDER }}>Team Member {i + 1}</span>
-                  <span className="px-2 py-0.5">{withGender(m)}</span>
-                </div>
-              ))
+            {data.co_leaders.length > 0 && (
+              <p className="px-2 py-0.5 font-bold" style={{ ...HEAD, borderBottom: BORDER }}>CO-PROJECT LEADER/GENDER: {data.co_leaders.map(withGender).join("; ")}</p>
+            )}
+            {data.team.length > 0 && (
+              <>
+                <p className="px-2 py-0.5 font-bold" style={{ ...HEAD, borderBottom: BORDER }}>PROJECT TEAM/GENDER:</p>
+                {data.team.map((m, i) => (
+                  <div key={i} className="flex" style={{ borderBottom: BORDER }}>
+                    <span className="w-36 px-2 py-0.5 italic font-bold shrink-0" style={{ borderRight: BORDER }}>Team Member {i + 1}</span>
+                    <span className="px-2 py-0.5">{withGender(m)}</span>
+                  </div>
+                ))}
+              </>
             )}
             <div className="px-2 py-1 space-y-0.5 font-bold">
               <p>DURATION: {[fmtDate(data.start_date), fmtDate(data.target_end_date)].filter(Boolean).join(" – ") || "—"}</p>
               <p>START DATE: {fmtDate(data.start_date) || "—"}</p>
               <p>END DATE: {fmtDate(data.target_end_date) || "—"}</p>
               <p>TOTAL PROJECT/STUDY COST: PhP {data.total_cost ? Number(data.total_cost).toLocaleString("en-PH", { minimumFractionDigits: 2 }) : "—"}</p>
-              <p>IMPLEMENTING UNIT: {data.implementing_unit || "—"}</p>
+              <OptionalLine label="IMPLEMENTING UNIT" value={data.implementing_unit} />
               <p>CAMPUS: {data.campus ? `${data.campus} Campus` : "—"}</p>
-              <p>CONTACT NO/S.: {data.contact_number || "—"}</p>
-              <p>E-MAIL ADDRESS: {data.lead_email || "—"}</p>
-              <p>COOPERATING AGENCY/IES: {data.cooperating_agencies || ""}</p>
+              <OptionalLine label="CONTACT NO/S." value={data.contact_number} />
+              <OptionalLine label="E-MAIL ADDRESS" value={data.lead_email ?? ""} />
+              <OptionalLine label="COOPERATING AGENCY/IES" value={data.cooperating_agencies} />
             </div>
           </div>
           <Section title="Sector">
@@ -241,7 +244,8 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
             </p>
           </Section>
           <Section title="Study Component Titles">
-            {(data.study_titles.length ? data.study_titles : ["", ""]).map((t, i) => (
+            {data.study_titles.length === 0 && <p style={{ color: "#94a3b8" }}>None entered</p>}
+            {data.study_titles.map((t, i) => (
               <p key={i}>
                 <b>Study {i + 1}:</b> {t}
               </p>
@@ -250,13 +254,6 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
           <Section title="RDE Agenda">
             <p><b>RDE THRUST:</b> {data.rde_thrust || "—"}</p>
             <p><b>RDE PRIORITY AREA:</b> {data.rde_priority || "—"}</p>
-          </Section>
-          <Section title="Research Priority Area">
-            <div className="grid grid-cols-2">
-              {Object.entries(PRIORITY_AREA_LABELS).map(([k, label]) => (
-                <Box key={k} checked={data.research_priority_area === k}>{label}</Box>
-              ))}
-            </div>
           </Section>
           <Section title="Research Typology">
             <div className="grid grid-cols-2">
@@ -268,9 +265,6 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
           <Section title="Sustainable Development Goals (SDGs)">
             {data.sdgs.length ? data.sdgs.map((n) => `SDG ${n} — ${SDG_LABELS[n]}`).join("; ") : <span style={{ color: "#94a3b8" }}>None selected</span>}
           </Section>
-          <Section title="II. Background of the Study">
-            <Text value={data.background} />
-          </Section>
           <Section title="III. Objectives of the Study">
             {data.objectives.length ? (
               <ol className="list-decimal pl-6">
@@ -279,11 +273,8 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
                 ))}
               </ol>
             ) : (
-              <Text value="" />
+              <p style={{ color: "#94a3b8" }}>None entered</p>
             )}
-          </Section>
-          <Section title="IV. Project Descriptions/Methodology">
-            <Text value={data.methodology} />
           </Section>
           <Section title="V. Quantifiable Expected Outputs: 6Ps">
             {data.outputs.length ? (
@@ -306,11 +297,8 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
                 </tbody>
               </table>
             ) : (
-              <p style={{ color: "#94a3b8" }}>Set under Research Outputs after registration, or through the Excel upload.</p>
+              <p style={{ color: "#94a3b8" }}>None entered</p>
             )}
-          </Section>
-          <Section title="VI. Socio-Economic Significance">
-            <Text value={data.socio_economic_significance} />
           </Section>
           <Section title="VII. Target Beneficiaries">
             <table className="w-full" style={{ borderCollapse: "collapse" }}>
@@ -332,12 +320,6 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
                 ))}
               </tbody>
             </table>
-          </Section>
-          <Section title="VIII. Monitoring/Evaluation">
-            <Text value={data.monitoring_evaluation} />
-          </Section>
-          <Section title="IX. List of References">
-            <Text value={data.references} />
           </Section>
           <Section title="X. Budget Requirements">
             {data.budget.length === 0 ? (
@@ -362,7 +344,10 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
                       </tr>,
                       ...rows.map((r, i) => (
                         <tr key={`${g.key}${i}`}>
-                          <td className="px-1 pl-4" style={{ border: BORDER }}>{r.description}</td>
+                          <td className="px-1 pl-4" style={{ border: BORDER }}>
+                            {r.description}
+                            {r.specification && <div className="italic">{r.specification}</div>}
+                          </td>
                           <td className="px-1 text-center" style={{ border: BORDER }}>{r.unit}</td>
                           <td className="px-1 text-right" style={{ border: BORDER }}>{r.quantity ?? ""}</td>
                           <td className="px-1 text-right" style={{ border: BORDER }}>{r.unit_cost != null ? peso(r.unit_cost) : ""}</td>
@@ -390,53 +375,10 @@ export function ProposalPreview({ data, onClose }: { data: ProposalData; onClose
             {data.work_plan.length ? (
               <WorkPlanGantt items={data.work_plan} projectStart={data.start_date} projectEnd={data.target_end_date} />
             ) : (
-              <p style={{ color: "#94a3b8" }}>Set under Work Plan after registration, or through the Excel upload.</p>
+              <p style={{ color: "#94a3b8" }}>No activities entered.</p>
             )}
           </Section>
         </div>
-
-        <div className="mt-8">
-          <p className="text-center text-sm">Annex A</p>
-          <p className="text-center text-sm font-bold mb-2">ENDORSEMENT PAGE</p>
-          <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
-            <tbody>
-              <tr style={HEAD}>
-                <td colSpan={2} className="px-2 font-bold" style={{ border: BORDER }}>SUBMITTED BY:</td>
-              </tr>
-              <tr>
-                <td className="px-2 w-36" style={{ border: BORDER }}>Name</td>
-                <td className="px-2 font-bold" style={{ border: BORDER }}>
-                  {(data.lead_name || "—").toUpperCase()} <span className="font-normal">· Project Leader{data.proposal_submitted_on ? ` · ${fmtDate(data.proposal_submitted_on)}` : ""}</span>
-                </td>
-              </tr>
-              {data.endorsers.length > 0 && (
-                <tr style={HEAD}>
-                  <td colSpan={2} className="px-2 font-bold" style={{ border: BORDER }}>ENDORSED, NOTED, RECOMMENDED AND APPROVED BY (in order):</td>
-                </tr>
-              )}
-              {data.endorsers.map((e, i) => [
-                <tr key={`n${i}`}>
-                  <td className="px-2" style={{ border: BORDER }}>Name</td>
-                  <td className="px-2 font-bold" style={{ border: BORDER }}>{e.name.toUpperCase()}</td>
-                </tr>,
-                <tr key={`d${i}`}>
-                  <td className="px-2" style={{ border: BORDER }}>Designation</td>
-                  <td className="px-2" style={{ border: BORDER }}>
-                    {e.designation || "—"}
-                    {e.signed_on ? ` · Date Signed: ${fmtDate(e.signed_on)}` : ""}
-                  </td>
-                </tr>,
-              ])}
-              {data.endorsers.length === 0 && (
-                <tr>
-                  <td colSpan={2} className="px-2 py-1" style={{ border: BORDER, color: "#94a3b8" }}>No endorsers entered.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          {data.college && <p className="text-xs mt-1">College Unit: {data.college}</p>}
-        </div>
       </div>
-    </ProtoModal>
   );
 }
