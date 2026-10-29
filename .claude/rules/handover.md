@@ -85,7 +85,7 @@ automatically — most pages needed zero code changes for this pass.
   says how to restore them from `1379772`. This conflicts with the CLAUDE.md "no endpoint → mock" rule, which hasn't been
   changed yet (see open questions).
 - Module 1 (Auth/RBAC pages): done, stable.
-- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code (typed uppercase) — see "Last thing done"; the notes below are history.** UI
+- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code (typed uppercase); later that day Priority Area and Proposal Content (except Objectives) left Step 1, Step 2 got a compact leader row, Step 3 a Work Plan template — see "Last thing done"; the notes below are history.** UI
   reworked 2026-09-22 per client request: ProjectsPage's two inline "Register
   a Program"/"Register a Project" forms (the project one had 20+ fields) were
   pulled out into dedicated pages (RegisterProgramPage at /programs/new,
@@ -680,15 +680,15 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-29, on `main`. Memory note: `tasks-3-4-2026-10-29`.
-- **NTP uppercase** (`2abd745`, NOT pushed, paired with rmis-backend `6512364`): the Register Approved Project NTP input uppercases as it is typed; placeholder is the client's example `e.g. LSPU-RD-GRANT-SIN-2024-001`. The backend uppercases too (API, Excel). `npx tsc -b`, eslint on the file, vitest 99/99. Not browser-tested. Known quirk: typing lowercase in the middle of a filled NTP moves the cursor to the end.
-- **Tasks 3 and 4** (`6bfef48`, `936f330`, `7bdcdd1`, `0f28a53`, PUSHED by Carl 2026-10-29):
-  - Dashboard: Scope bar and Generate Report removed for every role; DrillPanel has "← Back".
-  - Register Approved Project is 6 steps (Project Details all required, Team, Work Plan, LIB, Supporting Documents with NOA/NTP/MOA required, Validate). NTP replaces Project Code (read-only in Edit except for the System Admin). One all-or-nothing `POST projects/`. `DRAFT_VERSION` 2.
-  - Labels: "Project Code" shows as "NTP" / "NTP (Project Code)".
+2026-10-29, on `main`, NOT pushed, paired with rmis-backend `620fb0a`/`43c4cd2`/`5627659`. Memory note: `tasks-5-11-2026-10-29`. vitest 103/103, `npx tsc -b` and eslint clean on changed files; backend full suite 505/505; not browser-tested.
+- **Step 1** (`3155877`): Research Priority Area, II/IV/VI/VIII/IX, Executive Summary, Outcomes and Impacts removed from the form and the required checklist; III. Objectives stays. Their values stay in the wizard state on purpose, so Edit and an Excel review send back what they loaded (removing them from the payload would drop an older Excel's values). Project page shows Priority Area only when set. SF-018 preview unchanged.
+- **Analytics** (`b1d2be3`): Portfolio "Projects by Research Priority Area" card and the Projects-tab column (headed "Program" but showing the priority area) removed; SDG card spans the row. API and types unchanged.
+- **Step 2** (`0cf7c0a`): leader row Gender, Contact, Campus (dropdown, locked to the leader's campus) and College Unit (prefilled from the leader's `college_unit`, editable). Team rows: role + account left; the account's Gender, College Unit, Campus read-only right; Gender dropdown only for typed names or a profile without one; no member contact. Payload unchanged. No client screenshot was used.
+- **Step 3** (`5533a00`): "Download Work Plan template" beside "Import from Excel"; an import row repeating a table row (same name and dates, `src/lib/workPlanRows.ts`, same rule as the backend `_norm`) is an error and nothing is added. Still append-only, saved on Register.
+- Tasks 7/9: verified only (already done by Task 4): 6 steps, moved fields once in Step 1, Step 3 Work Plan only.
 
 ## Next thing to do in this repo
-1. Carl: push frontend `2abd745` with backend `6512364`, then browser-check: lowercase NTP shows uppercase; a case-only duplicate NTP gives the "already used" toast; the leader still can't change the NTP in Edit. No migration.
-2. Open client questions: Q-B (TOE date/document, required? which step) and Q-E ("Upload approved proposal"). Don't build either until answered.
-3. Known gaps, not approved: NTP cursor jump (above); Topbar chip hidden below `md` (no Profile link on phones); 3 old eslint errors in `AuthContext.tsx`; `researchApi.createProjectLib` is no longer used by the wizard (endpoint kept).
-4. Every task goes through `dss/CLAUDE.md` (plan, then GO TASK N, then report, then STOP).
+1. Carl: push frontend `3155877`, `b1d2be3`, `0cf7c0a`, `5533a00` with the backend, then browser-check, Step 2 layout first (no automated check). Test Guide sections 3, 8, 10, 11. No migration.
+2. Open: client Step 2 screenshot; Q-B (TOE) and Q-E (approved proposal).
+3. Known gaps, not approved: repeated-activity error has no row number; NTP cursor jumps to the end when typing lowercase mid-field; Topbar chip hidden below `md`; 3 old eslint errors in `AuthContext.tsx`.
+4. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
