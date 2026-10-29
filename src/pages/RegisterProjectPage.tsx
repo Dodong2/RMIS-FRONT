@@ -18,6 +18,7 @@ import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
 import { needsTeamConfirm, takenUserIds, teamMissing, type TeamRow } from "../lib/teamRows";
 import { duplicateWorkPlanRows } from "../lib/workPlanRows";
+import { libRowsFromImport, libTableHasEntries } from "../lib/libImport";
 import { ProtoModal } from "../components/common/proto";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
@@ -697,6 +698,10 @@ function RegisterProjectContent({
   const [endorsers, setEndorsers] = useState<EndorserRow[]>(init.endorsers);
   const [libRows, setLibRows] = useState<LibRow[]>(init.libRows);
   const [libYear, setLibYear] = useState(init.libYear);
+  // Task 12: the picked LIB workbook stays here while its failure or replace modal is open; nothing reaches the table until it passes
+  const [libImport, setLibImport] = useState<{ file: File; errors?: ProjectImportError[]; rows?: LibRow[] } | null>(null);
+  const [libFileKey, setLibFileKey] = useState(0);
+  const [libBusy, setLibBusy] = useState(false);
   const [mode, setMode] = useState<"manual" | "excel">("manual");
   const [step, setStep] = useState(init.step);
   const [teamConfirmed, setTeamConfirmed] = useState(false);
@@ -817,6 +822,38 @@ function RegisterProjectContent({
   const libMatchesBudget = isEdit || approvedBudget === 0 || libDifference === 0;
   // Client 2026-10-14/10-17: each item is split per quarter of each project year (yearly.png), adding up to its total
   const libPeriods = allocationPeriods(form.start_date, form.target_end_date);
+  const closeLibImport = () => {
+    setLibImport(null);
+    setLibFileKey((k) => k + 1);
+  };
+  const applyLibImport = (rows: LibRow[]) => {
+    setLibRows(rows);
+    closeLibImport();
+    notify.success(`${rows.length} LIB item${rows.length !== 1 ? "s" : ""} imported from Excel. Check them, then go on.`);
+  };
+  const importLib = async (file: File) => {
+    setLibBusy(true);
+    try {
+      const rows = libRowsFromImport(await researchApi.parseLib(file, form.start_date, form.target_end_date)) as LibRow[];
+      if (libTableHasEntries(libRows)) setLibImport({ file, rows });
+      else applyLibImport(rows);
+    } catch (err) {
+      const errors = (err as { response?: { data?: { errors?: ProjectImportError[] } } })?.response?.data?.errors;
+      setLibImport({ file, errors: errors?.length ? errors : [{ sheet: null, row: null, field: "file", message: errorMessage(err, "Could not read the workbook.") }] });
+    } finally {
+      setLibBusy(false);
+    }
+  };
+  const downloadLibTemplate = async () => {
+    setLibBusy(true);
+    try {
+      await researchApi.downloadLibTemplate(form.start_date, form.target_end_date);
+    } catch {
+      notify.error("Could not download the LIB template. Check the Start and Target End Date in Step 1.");
+    } finally {
+      setLibBusy(false);
+    }
+  };
   const libSplitsMatch = isEdit || !libPeriods || filledLib.every((r) => allocatedTotal(r.allocations, libPeriods) === libRowTotal(r));
   const outputsComplete = outputRows.length > 0 && outputRows.every((o) => o.category && o.description.trim());
   const beneficiariesComplete = beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim());
@@ -1189,6 +1226,49 @@ function RegisterProjectContent({
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {libImport?.errors && (
+        <ProtoModal
+          title="LIB Import Failed"
+          subtitle={libImport.file.name}
+          onClose={closeLibImport}
+          width="max-w-3xl"
+          footer={
+            <div className="flex justify-end w-full">
+              <button onClick={closeLibImport} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: "#0d2a5e" }}>
+                OK
+              </button>
+            </div>
+          }
+        >
+          <p className="text-sm" style={{ color: "#334155" }}>
+            The uploaded LIB does not match the project's Start Date and End Date, or required budget information is missing. Please review the listed errors,
+            correct your Excel LIB file, and import it again.
+          </p>
+          <ImportErrorTable errors={libImport.errors} outcome="nothing was imported; the LIB table is unchanged" />
+        </ProtoModal>
+      )}
+      {libImport?.rows && (
+        <ProtoModal
+          title="Replace the LIB items?"
+          subtitle={libImport.file.name}
+          onClose={closeLibImport}
+          footer={
+            <div className="flex justify-end gap-2 w-full">
+              <button onClick={closeLibImport} className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: "#f1f5f9", color: "#475569" }}>
+                Cancel
+              </button>
+              <button onClick={() => applyLibImport(libImport.rows!)} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: "#b91c1c" }}>
+                Replace
+              </button>
+            </div>
+          }
+        >
+          <p className="text-sm" style={{ color: "#334155" }}>
+            The LIB table already has {libRows.length} item{libRows.length !== 1 ? "s" : ""}. Importing will replace all of them with the{" "}
+            {libImport.rows.length} item{libImport.rows.length !== 1 ? "s" : ""} from the Excel file. Cancel keeps the table as it is.
+          </p>
+        </ProtoModal>
+      )}
       {confirmTeamTo !== null && (
         <ProtoModal
           title="Confirm the Project Team"
@@ -1728,6 +1808,37 @@ function RegisterProjectContent({
                     Section X, Budget Requirements: the approved Line-Item Budget (Total = Qty × Unit Cost). It is saved as the project's draft LIB (version 1) for the
                     CRC Chair to endorse and then the Budget Officer to certify under Budget Management. Its Grand Total must equal the Total Project/Study Cost from Project Details before you can go on.
                   </StepNote>
+                  {!isEdit && (
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={downloadLibTemplate}
+                        disabled={!libPeriods || libBusy}
+                        className="text-xs font-semibold flex items-center gap-1"
+                        style={{ color: "#0891b2", opacity: !libPeriods || libBusy ? 0.5 : 1 }}
+                      >
+                        ⬇ Download LIB Template
+                      </button>
+                      <label
+                        className={`text-xs font-semibold flex items-center gap-1 ${libPeriods && !libBusy ? "cursor-pointer" : "cursor-not-allowed"}`}
+                        style={{ color: "#0891b2", opacity: !libPeriods || libBusy ? 0.5 : 1 }}
+                      >
+                        📊 {libBusy ? "Working…" : "Import from Excel"}
+                        <input
+                          key={libFileKey}
+                          type="file"
+                          className="hidden"
+                          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                          disabled={!libPeriods || libBusy}
+                          onChange={(e) => {
+                            const picked = e.target.files?.[0];
+                            if (picked) importLib(picked);
+                          }}
+                        />
+                      </label>
+                      {!libPeriods && <span className="text-xs" style={{ color: "#92400e" }}>Set the Start and Target End Date in Step 1 first; the template follows them.</span>}
+                    </div>
+                  )}
                   {libPeriods ? (
                     <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e3a8a" }}>
                       {libPeriods[0] === "Q1"

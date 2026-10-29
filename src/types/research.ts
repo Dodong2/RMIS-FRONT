@@ -184,6 +184,18 @@ export interface WorkPlanImportRow {
   target_date: string;
 }
 
+/** One LIB row of Step 4's LIB workbook (POST projects/parse-lib/, Task 12); amounts are strings, split over every period. */
+export interface LibImportRow {
+  category: "ps" | "mooe" | "co";
+  description: string;
+  specification: string;
+  unit: string;
+  quantity: string;
+  unit_cost: string;
+  amount: string;
+  allocations: { period: string; amount: string }[];
+}
+
 export interface ProjectStatusHistory {
   id: number;
   project: number;

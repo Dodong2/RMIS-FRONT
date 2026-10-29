@@ -2,7 +2,7 @@ import type { ProposalData } from "../components/registration/ProposalPreview";
 import type { RegistrationPayload } from "./registrationDraft";
 import { apiClient, idempotent } from "./apiClient";
 import { downloadReport } from "./reportsApi";
-import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary, WorkPlanImportRow } from "../types/research";
+import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary, LibImportRow, WorkPlanImportRow } from "../types/research";
 import type { AdminUser } from "../types/auth";
 import type { LibAllocation, LineItemBudget } from "../types/budget";
 
@@ -139,6 +139,16 @@ export const researchApi = {
     form.append("file", file);
     const { data } = await apiClient.post("/api/projects/import/", form, { params: { dry_run: 1 } });
     return data;
+  },
+  downloadLibTemplate: (startDate: string, targetEndDate: string) =>
+    downloadReport("/api/projects/lib-template/", { start_date: startDate, target_end_date: targetEndDate }, "rmis_lib_template.xlsx"),
+  parseLib: async (file: File, startDate: string, targetEndDate: string): Promise<LibImportRow[]> => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("start_date", startDate);
+    form.append("target_end_date", targetEndDate);
+    const { data } = await apiClient.post("/api/projects/parse-lib/", form);
+    return data.rows;
   },
   parseWorkPlan: async (file: File): Promise<WorkPlanImportRow[]> => {
     const form = new FormData();
