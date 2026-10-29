@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AppShell } from "../components/layout/AppShell";
@@ -9,9 +8,7 @@ import { StaffDashboard } from "../components/dashboard/StaffDashboard";
 import { useAuth } from "../context/AuthContext";
 import { authApi } from "../lib/authApi";
 import { dashboardApi } from "../lib/dashboardApi";
-import { exportPdf, exportXlsx, type ExportSection } from "../lib/exportFiles";
 import { monitoringApi } from "../lib/monitoringApi";
-import { notify } from "../lib/notify";
 import { useProjects } from "../lib/queries";
 import { personnelApi } from "../lib/personnelApi";
 import { riskApi } from "../lib/riskApi";
@@ -716,54 +713,6 @@ function PersonnelPanel({ data, canSeeWorkload, ids }: { data: DashData; canSeeW
   );
 }
 
-function ScopeBar({
-  scope,
-  projects,
-  rootLabel,
-  onChange,
-}: {
-  scope: Scope;
-  projects: Project[];
-  rootLabel: string;
-  onChange: (s: Scope) => void;
-}) {
-  const crumbs: { label: string; target: Scope }[] = [
-    { label: rootLabel, target: { level: "institution", campus: null, projectId: null } },
-  ];
-  if (scope.campus !== null)
-    crumbs.push({ label: scope.campus || "Unspecified", target: { level: "campus", campus: scope.campus, projectId: null } });
-  if (scope.projectId !== null)
-    crumbs.push({
-      label: projects.find((p) => p.id === scope.projectId)?.project_code ?? `#${scope.projectId}`,
-      target: scope,
-    });
-
-  return (
-    <div className="flex items-center gap-1 flex-wrap">
-      <span className="text-xs font-black uppercase tracking-widest mr-1" style={{ color: "#94a3b8" }}>Scope:</span>
-      {crumbs.map((c, i) => (
-        <div key={c.target.level} className="flex items-center gap-1">
-          {i > 0 && (
-            <svg width="10" height="10" fill="none" stroke="#cbd5e1" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          )}
-          <button
-            onClick={() => onChange(c.target)}
-            className="text-xs font-bold px-2 py-1 rounded-lg transition-all"
-            style={{
-              background: scope.level === c.target.level ? "#0d2a5e" : "#f1f5f9",
-              color: scope.level === c.target.level ? "white" : "#64748b",
-            }}
-          >
-            {c.label}
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function DrillPanel({
   scope,
   data,
@@ -817,9 +766,17 @@ function DrillPanel({
     );
   }
 
+  // Client 2026-10-29 (concern.png): the Scope bar is gone, so each drill level has its own way back up.
+  const back = (target: Scope, label: string) => (
+    <button onClick={() => onChange(target)} className="text-xs font-bold mb-2" style={{ color: "#0891b2" }}>
+      ← {label}
+    </button>
+  );
+
   if (scope.level === "campus") {
     return (
       <div className="space-y-2">
+        {back({ level: "institution", campus: null, projectId: null }, rootLabel)}
         <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Campus → Projects</p>
         {scoped.map((proj) => (
           <button
@@ -842,10 +799,18 @@ function DrillPanel({
     );
   }
 
+  const toCampus = back({ level: "campus", campus: scope.campus, projectId: null }, scope.campus || "Unspecified campus");
   const proj = scoped[0];
-  if (!proj) return <NoActualData />;
+  if (!proj)
+    return (
+      <div>
+        {toCampus}
+        <NoActualData />
+      </div>
+    );
   return (
     <div className="space-y-3">
+      {toCampus}
       <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Project</p>
       <div className="rounded-2xl p-4" style={{ background: "#0d2a5e" }}>
         <p className="text-xs font-mono" style={{ color: "rgba(168,196,232,0.5)" }}>{proj.project_code}</p>
@@ -871,183 +836,6 @@ function DrillPanel({
         Open project →
       </Link>
     </div>
-  );
-}
-
-const REPORT_TYPES = [
-  { value: "consolidated", label: "Consolidated Institutional Report", icon: "📊" },
-  { value: "project_status", label: "Project Status Report", icon: "📋" },
-  { value: "budget_utilization", label: "Budget (LIB) Report", icon: "💰" },
-  { value: "risk_register", label: "Risk Indicator Report", icon: "⚠️" },
-] as const;
-
-type ReportType = (typeof REPORT_TYPES)[number]["value"];
-
-function buildSections(type: ReportType, data: DashData, scoped: Project[], ids: Set<number> | null, fundingLabel: (code: string) => string): ExportSection[] {
-  const inScope = (id: number) => !ids || ids.has(id);
-  const code = (id: number) => data.projects?.find((p) => p.id === id)?.project_code ?? `#${id}`;
-  const projectRows: ExportSection = {
-    heading: "Project Portfolio",
-    head: ["Code", "Title", "Status", "Funding", "Total Cost", "Campus", "Start", "End", "Project Leader"],
-    body: scoped.map((p) => [
-      p.project_code,
-      p.title,
-      PROJECT_STATUS_LABELS[p.status],
-      fundingLabel(p.funding_type),
-      p.total_cost ? peso(Number(p.total_cost)) : "—",
-      p.campus || "—",
-      p.start_date ?? "—",
-      p.target_end_date ?? "—",
-      personName(p.lead_detail),
-    ]),
-  };
-  const budgetRows: ExportSection = {
-    heading: "Line-Item Budgets (current version)",
-    head: ["Project", "Version", "Status", "Total LIB", "Over Dry Cap"],
-    body: (data.budgets ?? [])
-      .filter((b) => b.is_current && inScope(b.project))
-      .map((b) => [code(b.project), `v${b.version_number}`, humanize(b.status), peso(Number(b.total_amount)), b.exceeds_dry_cap ? "Yes" : "No"]),
-  };
-  const riskRows: ExportSection = {
-    heading: "Flagged Projects (Risk Indicators)",
-    head: ["Project", "Level", "Score", "Flags", "Recommended Action"],
-    body: (data.riskDash?.flagged_projects ?? [])
-      .filter((p) => inScope(p.project))
-      .map((p) => [
-        p.project_code,
-        RISK_SEV_META[p.risk_level].label,
-        p.risk_score,
-        Object.entries(p.flags)
-          .filter(([, f]) => f.flagged)
-          .map(([k]) => humanize(k))
-          .join(", "),
-        p.recommended_action,
-      ]),
-  };
-  const b = data.budgetDash;
-  const summary: ExportSection = {
-    heading: "Summary",
-    head: ["Projects", "Total Approved", "Actual", "Balance", "Utilization"],
-    body: [
-      [
-        scoped.length,
-        b ? peso(b.total_approved) : "—",
-        b ? peso(b.total_actual) : "—",
-        b ? peso(b.total_approved - b.total_actual) : "—",
-        b?.utilization_pct != null ? `${Math.round(b.utilization_pct)}%` : "—",
-      ],
-    ],
-  };
-  if (type === "project_status") return [projectRows];
-  if (type === "budget_utilization") return [summary, budgetRows];
-  if (type === "risk_register") return [riskRows];
-  return [summary, projectRows, budgetRows, riskRows];
-}
-
-function GenerateReportModal({
-  label,
-  data,
-  scoped,
-  ids,
-  onClose,
-}: {
-  label: string;
-  data: DashData;
-  scoped: Project[];
-  ids: Set<number> | null;
-  onClose: () => void;
-}) {
-  const fundingTypes = useFundingTypes();
-  const [type, setType] = useState<ReportType>("consolidated");
-  const [format, setFormat] = useState<"PDF" | "Excel (XLSX)">("PDF");
-
-  const generate = () => {
-    const doc = { title: REPORT_TYPES.find((t) => t.value === type)!.label, scope: label, sections: buildSections(type, data, scoped, ids, fundingTypes.label) };
-    try {
-      if (format === "PDF") exportPdf(doc);
-      else exportXlsx(doc);
-      notify.success(`${doc.title} downloaded.`);
-      onClose();
-    } catch {
-      notify.error("The report could not be generated. Try again.");
-    }
-  };
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 px-4 pb-4" style={{ background: "rgba(8,26,61,0.6)", backdropFilter: "blur(4px)" }}>
-      <div className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[95vh]" style={{ background: "white" }}>
-        <div className="px-6 py-4 flex items-center justify-between shrink-0" style={{ background: "#0d2a5e" }}>
-          <div>
-            <p className="text-white font-bold">Generate Report</p>
-            <p className="text-xs mt-0.5" style={{ color: "rgba(168,196,232,0.5)" }}>Scope: {label}</p>
-          </div>
-          <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close">
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="p-6 space-y-4 overflow-y-auto flex-1">
-          <div>
-            <label className="label-field">Report Type</label>
-            <div className="space-y-2 mt-1">
-              {REPORT_TYPES.map((rt) => (
-                <button
-                  key={rt.value}
-                  onClick={() => setType(rt.value)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
-                  style={{
-                    background: type === rt.value ? "#e0eaf7" : "#f8fafc",
-                    border: `1.5px solid ${type === rt.value ? "#0d2a5e40" : "#e2e8f0"}`,
-                  }}
-                >
-                  <span className="text-base">{rt.icon}</span>
-                  <p className="flex-1 text-xs font-bold" style={{ color: "#0d2a5e" }}>{rt.label}</p>
-                  {type === rt.value && (
-                    <svg width="12" height="12" fill="none" stroke="#0d2a5e" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <path d="M5 13l4 4L19 7" strokeLinecap="round" />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="label-field">Output Format</label>
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value as "PDF" | "Excel (XLSX)")}
-              className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
-              style={{ borderColor: "#e2e8f0", background: "#f8fafc", color: "#334155" }}
-            >
-              <option>PDF</option>
-              <option>Excel (XLSX)</option>
-            </select>
-          </div>
-          <div className="rounded-xl p-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-            <p className="text-xs font-bold mb-2" style={{ color: "#0d2a5e" }}>Scope</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>{label}</span>
-              <span className="text-xs" style={{ color: "#94a3b8" }}>
-                {scoped.length} project{scoped.length !== 1 ? "s" : ""} in scope
-              </span>
-            </div>
-          </div>
-          <p className="text-xs" style={{ color: "#94a3b8" }}>
-            Quick export of what this dashboard shows. Official Appendix E/F/G files are under Reports &amp; Data Export.
-          </p>
-        </div>
-        <div className="px-6 pb-6 flex gap-3 shrink-0">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
-            Cancel
-          </button>
-          <button onClick={generate} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: "#0d2a5e" }}>
-            Generate &amp; Download
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
   );
 }
 
@@ -1117,7 +905,6 @@ function DashboardContent() {
   };
   const [domainTab, setDomainTab] = useState<DomainTab>("projects");
   const [scope, setScope] = useState<Scope>({ level: "institution", campus: null, projectId: null });
-  const [showReport, setShowReport] = useState(false);
   const campus = scope.campus;
 
   useEffect(() => {
@@ -1173,14 +960,6 @@ function DashboardContent() {
     [data.projects, scope],
   );
   const ids = useMemo(() => (scope.level === "institution" ? null : new Set(scoped.map((p) => p.id))), [scope.level, scoped]);
-  const scopeLabel =
-    scope.level === "project"
-      ? scoped[0]?.project_code ?? "Project"
-      : scope.level === "campus"
-        ? scope.campus || "Unspecified campus"
-        : isWide
-          ? "LSPU (Institutional)"
-          : rootLabel;
 
   if (!hasRole) {
     return (
@@ -1254,19 +1033,6 @@ function DashboardContent() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 flex-wrap py-3 px-5 rounded-2xl" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-        <ScopeBar scope={scope} projects={data.projects ?? []} rootLabel={rootLabel} onChange={changeScope} />
-        <button
-          onClick={() => setShowReport(true)}
-          disabled={data.projects === undefined}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shrink-0 disabled:opacity-50"
-          style={{ background: "#0d2a5e" }}
-        >
-          {svgPath("M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", 12)}
-          Generate Report
-        </button>
-      </div>
-
       <DomainSummary data={data} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -1308,10 +1074,6 @@ function DashboardContent() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <AccountsCard />
         </div>
-      )}
-
-      {showReport && (
-        <GenerateReportModal label={scopeLabel} data={data} scoped={scoped} ids={ids} onClose={() => setShowReport(false)} />
       )}
     </div>
   );
