@@ -112,7 +112,7 @@ automatically — most pages needed zero code changes for this pass.
   `beneficiaries` is the fallback for old projects. Programs and the leader picker are fetched separately. If
   `users/by-role` 403s, a project_leader gets themself preselected and other roles get a "use Upload via Excel" hint.
 - Module 3 (Personnel/Roles/Task Coordination pages): done, stable.
-- Module 4 (Budget pages): BudgetPage built against budget_lib — project selector,
+- Module 4 (Budget pages): **2026-10-29 (Task 12): registration Step 4 has a Specification column and a LIB-only Excel template/import — see "Last thing done".** BudgetPage built against budget_lib — project selector,
   line items, add-item form, certify, plus a Budget Summary section (Approved/
   Adjusted/Actual/Available) that lights up once a budget is certified.
   2026-09-24: removed the "capped at ₱100,000" note for institutional dry
@@ -680,15 +680,13 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-29, on `main`, NOT pushed, paired with rmis-backend `620fb0a`/`43c4cd2`/`5627659`. Memory note: `tasks-5-11-2026-10-29`. vitest 103/103, `npx tsc -b` and eslint clean on changed files; backend full suite 505/505; not browser-tested.
-- **Step 1** (`3155877`): Research Priority Area, II/IV/VI/VIII/IX, Executive Summary, Outcomes and Impacts removed from the form and the required checklist; III. Objectives stays. Their values stay in the wizard state on purpose, so Edit and an Excel review send back what they loaded (removing them from the payload would drop an older Excel's values). Project page shows Priority Area only when set. SF-018 preview unchanged.
-- **Analytics** (`b1d2be3`): Portfolio "Projects by Research Priority Area" card and the Projects-tab column (headed "Program" but showing the priority area) removed; SDG card spans the row. API and types unchanged.
-- **Step 2** (`0cf7c0a`): leader row Gender, Contact, Campus (dropdown, locked to the leader's campus) and College Unit (prefilled from the leader's `college_unit`, editable). Team rows: role + account left; the account's Gender, College Unit, Campus read-only right; Gender dropdown only for typed names or a profile without one; no member contact. Payload unchanged. No client screenshot was used.
-- **Step 3** (`5533a00`): "Download Work Plan template" beside "Import from Excel"; an import row repeating a table row (same name and dates, `src/lib/workPlanRows.ts`, same rule as the backend `_norm`) is an error and nothing is added. Still append-only, saved on Register.
-- Tasks 7/9: verified only (already done by Task 4): 6 steps, moved fields once in Step 1, Step 3 Work Plan only.
+2026-10-29, on `main`, NOT pushed, paired with rmis-backend `7627c59`/`d68a021`. Memory note: `task-12-lib-excel-2026-10-29`. vitest 106/106, `npx tsc -b` and eslint clean on changed files; backend full suite 520/520; not browser-tested.
+- **Task 12, Register Approved Project Step 4 Budget (LIB)** (client says "Step 6"; it is wizard Step 4). Separate from Upload via Excel and the Step 3 Work Plan import.
+  - **Specification column** (`5b7246f`): after Item in `LibAllocationGrid` (`ItemCells` is 5 now, Subtotal colSpan 5) and in the no-dates layout; optional, max 300. `LibRow.specification` is optional (older browser drafts lack it); sent as `line_items[].specification`; `registrationDraft` loads it (`""` when missing); `LineItem` type has it. Not shown in ProposalPreview or BudgetPage (not in scope).
+  - **Download LIB Template / Import from Excel** (`c5b11a3`): `researchApi.downloadLibTemplate(start, end)`, `parseLib(file, start, end)`; disabled until Step 1 has valid dates, hidden in Edit (LIB locked). A failed import opens the "LIB Import Failed" `ProtoModal` (`ImportErrorTable`); OK drops the picked file and remounts the input (`libFileKey`). An import into a table with entries (`libTableHasEntries`) asks "Replace the LIB items?" first; Cancel keeps the table. Mapping in `src/lib/libImport.ts`. The server keeps no file, so OK is a frontend reset only.
 
 ## Next thing to do in this repo
-1. Carl: push frontend `3155877`, `b1d2be3`, `0cf7c0a`, `5533a00` with the backend, then browser-check, Step 2 layout first (no automated check). Test Guide sections 3, 8, 10, 11. No migration.
-2. Open: client Step 2 screenshot; Q-B (TOE) and Q-E (approved proposal).
-3. Known gaps, not approved: repeated-activity error has no row number; NTP cursor jumps to the end when typing lowercase mid-field; Topbar chip hidden below `md`; 3 old eslint errors in `AuthContext.tsx`.
+1. Carl: backend `migrate` (budget_lib 0012) first, then push frontend `5b7246f`, `c5b11a3` (+ this handover) with the backend. Browser-check Test Guide section 12 (cases 1–36) — grid width with the new column, both modals, OK reset — then sections 3, 8, 10, 11.
+2. Not approved, possible follow-ups: Specification on BudgetPage / SF-018 preview; Specification in the full Upload via Excel template.
+3. Still open: client Step 2 screenshot; Q-B (TOE), Q-E (approved proposal); repeated-activity error has no row number; NTP cursor jumps to the end when typing lowercase mid-field; Topbar chip hidden below `md`; 3 old eslint errors in `AuthContext.tsx`.
 4. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
