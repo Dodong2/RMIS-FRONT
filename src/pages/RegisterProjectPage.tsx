@@ -65,17 +65,17 @@ const TEAM_ROLE_CODES: Record<string, string[]> = {
 };
 
 // Picking an account fills its saved profile in (client 2026-10-28); the fields stay editable for this project.
-const leadDefaults = (account?: AdminUser) => ({ lead_gender: account?.gender ?? "", contact_number: account?.mobile_number ?? "" });
+const leadDefaults = (account?: AdminUser) => ({
+  lead_gender: account?.gender ?? "",
+  contact_number: account?.mobile_number ?? "",
+  implementing_unit: account?.college_unit ?? "",
+});
 
 function ProfileNote({ account, withMobile = false }: { account?: AdminUser; withMobile?: boolean }) {
   if (!account) return null;
   const missing = [!account.gender && "gender", withMobile && !account.mobile_number && "mobile number"].filter(Boolean).join(" and ");
-  return (
-    <p className="mt-1 text-xs" style={{ color: "#64748b" }}>
-      Campus: {account.campus || "not set on the profile"}
-      {missing && ` · No ${missing} on this account's profile; fill it in here.`}
-    </p>
-  );
+  if (!missing) return null;
+  return <p className="mt-1 text-xs" style={{ color: "#64748b" }}>No {missing} on this account's profile; fill it in here.</p>;
 }
 
 const MODES = [
@@ -1533,17 +1533,43 @@ function RegisterProjectContent({
                       </select>
                       <ProfileNote account={leadAccount} withMobile={!isEdit} />
                     </Field>
-                    <Field label="Project Leader Gender">
-                      <select className={inputCls} style={inputSt} value={form.lead_gender} onChange={set("lead_gender")}>
-                        <option value="">Select...</option>
-                        {GENDERS.map((g) => (
-                          <option key={g.value} value={g.value}>{g.label}</option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Contact No./s.">
-                      <input className={inputCls} style={inputSt} value={form.contact_number} onChange={set("contact_number")} placeholder="e.g. 0998 164 9081" />
-                    </Field>
+                  </div>
+                  {/* Client 2026-10-29 (Task 5): the leader's Gender, Contact, Campus and College Unit in one compact row */}
+                  <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)] gap-3">
+                      <Field label="Gender">
+                        <select className={inputCls} style={inputSt} value={form.lead_gender} onChange={set("lead_gender")}>
+                          <option value="">Select...</option>
+                          {GENDERS.map((g) => (
+                            <option key={g.value} value={g.value}>{g.label}</option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Contact No./s.">
+                        <input className={inputCls} style={inputSt} value={form.contact_number} onChange={set("contact_number")} placeholder="e.g. 0998 164 9081" />
+                      </Field>
+                      <Field label="Campus" required invalid={showErrors && !projectCampus}>
+                        <select
+                          className={inputCls + " disabled:opacity-70"}
+                          style={inputSt}
+                          value={projectCampus}
+                          onChange={set("campus")}
+                          disabled={!!leadCampus}
+                          title={leadCampus ? "Campus follows the Project Leader's campus" : undefined}
+                        >
+                          <option value="">Select campus...</option>
+                          {CAMPUSES.map((c) => (
+                            <option key={c.name} value={c.name}>{c.name}</option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="College Unit - Implementing Unit">
+                        <ChoiceSelect choices={choices["college-units"]} value={form.implementing_unit} onChange={set("implementing_unit")} placeholder="Select a unit" />
+                      </Field>
+                    </div>
+                    {leadCampus && (
+                      <p className="mt-1 text-xs" style={{ color: "#64748b" }}>Campus follows the Project Leader's campus ({leadCampus}).</p>
+                    )}
                   </div>
 
                   <div>
@@ -1558,13 +1584,14 @@ function RegisterProjectContent({
                         {team.map((t, i) => {
                           const update = (patch: Partial<TeamRow>) => setTeam(team.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
                           const taken = takenUserIds(team, i);
+                          const member = t.user ? accounts.find((a) => a.id === t.user) : undefined;
                           return (
-                            <div key={i} className="flex gap-2 items-start">
-                              <select className={inputCls + " max-w-44"} style={inputSt} value={t.member_role} onChange={(e) => update({ member_role: e.target.value })}>
+                            <div key={i} className="flex flex-wrap md:flex-nowrap gap-2 items-start">
+                              <select className={inputCls + " w-full md:w-40 shrink-0"} style={inputSt} value={t.member_role} onChange={(e) => update({ member_role: e.target.value })}>
                                 <option value="co_leader">Co-Project Leader</option>
                                 <option value="member">Team Member</option>
                               </select>
-                              <div className="flex-1 min-w-0">
+                              <div className="flex-1 min-w-48">
                                 <UserPicker
                                   users={accounts.filter((a) => String(a.id) !== form.lead && !taken.has(a.id) && (TEAM_ROLE_CODES[t.member_role] ?? []).includes(a.role?.code ?? ""))}
                                   value={{ user: t.user, name: t.name }}
@@ -1574,14 +1601,20 @@ function RegisterProjectContent({
                                   invalid={showErrors && !t.name.trim()}
                                   placeholder="Search an account, or type a name/group (e.g. EIU Coordinators)"
                                 />
-                                <ProfileNote account={t.user ? accounts.find((a) => a.id === t.user) : undefined} />
+                                <ProfileNote account={member} />
                               </div>
-                              <select className={inputCls + " max-w-32"} style={inputSt} value={t.gender} onChange={(e) => update({ gender: e.target.value })}>
-                                <option value="">Gender</option>
-                                {GENDERS.map((g) => (
-                                  <option key={g.value} value={g.value}>{g.label}</option>
-                                ))}
-                              </select>
+                              {member?.gender ? (
+                                <input readOnly tabIndex={-1} className={inputCls + " md:w-28 opacity-70"} style={inputSt} value={GENDERS.find((g) => g.value === t.gender)?.label ?? ""} aria-label="Gender" title="Gender from the account's profile" />
+                              ) : (
+                                <select className={inputCls + " md:w-28"} style={inputSt} value={t.gender} onChange={(e) => update({ gender: e.target.value })} aria-label="Gender">
+                                  <option value="">Gender</option>
+                                  {GENDERS.map((g) => (
+                                    <option key={g.value} value={g.value}>{g.label}</option>
+                                  ))}
+                                </select>
+                              )}
+                              <input readOnly tabIndex={-1} className={inputCls + " md:w-44 opacity-70"} style={inputSt} value={member?.college_unit ?? ""} placeholder="College Unit" aria-label="College Unit" title="College Unit from the account's profile" />
+                              <input readOnly tabIndex={-1} className={inputCls + " md:w-32 opacity-70"} style={inputSt} value={member?.campus ?? ""} placeholder="Campus" aria-label="Campus" title="Campus from the account's profile" />
                               <RemoveButton onClick={() => setTeam(team.filter((_, idx) => idx !== i))} label="Remove member" />
                             </div>
                           );
@@ -1590,38 +1623,7 @@ function RegisterProjectContent({
                     )}
                   </div>
 
-                  <div>
-                    <label className="label-field">
-                      Campus<span style={{ color: "#dc2626" }}> *</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 mt-1">
-                      {CAMPUSES.map((c) => (
-                        <button
-                          key={c.name}
-                          type="button"
-                          onClick={() => setForm((p) => ({ ...p, campus: c.name }))}
-                          disabled={!!leadCampus}
-                          className="p-3 rounded-xl border-2 text-left transition-all disabled:cursor-not-allowed"
-                          style={{
-                            borderColor: projectCampus === c.name ? c.color : "#e2e8f0",
-                            background: projectCampus === c.name ? c.bg : "white",
-                            opacity: leadCampus && projectCampus !== c.name ? 0.45 : 1,
-                          }}
-                        >
-                          <p className="text-sm font-black" style={{ color: c.color }}>{c.name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>{c.name} Campus</p>
-                        </button>
-                      ))}
-                    </div>
-                    {leadCampus && (
-                      <p className="mt-1 text-xs" style={{ color: "#64748b" }}>Campus follows the Project Leader's campus ({leadCampus}).</p>
-                    )}
-                    {showErrors && !projectCampus && <p className="mt-1 text-xs font-semibold" style={{ color: "#dc2626" }}>Required</p>}
-                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="College Unit - Implementing Unit" span>
-                      <ChoiceSelect choices={choices["college-units"]} value={form.implementing_unit} onChange={set("implementing_unit")} placeholder="Select a unit" />
-                    </Field>
                     <Field label="Cooperating Agency/ies" span>
                       <MultiSelect
                         options={choices["cooperating-agencies"].map((a) => ({ value: a.name, label: a.name }))}
