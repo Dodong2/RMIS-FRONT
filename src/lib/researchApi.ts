@@ -125,6 +125,7 @@ export const researchApi = {
   },
   downloadImportTemplate: () =>
     downloadReport("/api/projects/import-template/", {}, "rmis_project_registration_template.xlsx"),
+  downloadWorkPlanTemplate: () => downloadReport("/api/projects/work-plan-template/", {}, "rmis_work_plan_template.xlsx"),
   importProject: async (file: File): Promise<Project> => {
     const form = new FormData();
     form.append("file", file);

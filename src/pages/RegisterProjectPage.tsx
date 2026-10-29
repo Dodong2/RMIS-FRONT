@@ -17,6 +17,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { MultiSelect } from "../components/common/MultiSelect";
 import { UserPicker } from "../components/common/UserPicker";
 import { needsTeamConfirm, takenUserIds, teamMissing, type TeamRow } from "../lib/teamRows";
+import { duplicateWorkPlanRows } from "../lib/workPlanRows";
 import { ProtoModal } from "../components/common/proto";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { AdminUser } from "../types/auth";
@@ -350,6 +351,26 @@ function WorkPlanExcelButton({ onRows, onErrors }: { onRows: (rows: WorkPlanImpo
         }}
       />
     </label>
+  );
+}
+
+// Client 2026-10-29 (Task 10): a template with only the Work Plan sheet, for the import button beside it
+function WorkPlanTemplateButton() {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const download = async () => {
+    setIsDownloading(true);
+    try {
+      await researchApi.downloadWorkPlanTemplate();
+    } catch {
+      notify.error("Could not download the Work Plan template.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+  return (
+    <button type="button" onClick={download} disabled={isDownloading} className="text-xs font-semibold flex items-center gap-1" style={{ color: "#0891b2", opacity: isDownloading ? 0.6 : 1 }}>
+      ⬇ {isDownloading ? "Downloading…" : "Download Work Plan template"}
+    </button>
   );
 }
 
@@ -1642,9 +1663,20 @@ function RegisterProjectContent({
                   <div className="flex items-center justify-between pt-2">
                     <label className="label-field mb-0">XI. Work Plan (activities / milestones)</label>
                     <div className="flex items-center gap-4">
+                      <WorkPlanTemplateButton />
                       <WorkPlanExcelButton
                         onErrors={setWorkPlanErrors}
                         onRows={(rows) => {
+                          // Append only: rows already in the table (with their tasks) stay; a repeated activity adds nothing
+                          const repeated = duplicateWorkPlanRows(workPlanRows, rows);
+                          if (repeated.length) {
+                            setWorkPlanErrors(repeated.map((r) => ({
+                              sheet: "Work Plan", row: null, field: "Activity",
+                              message: `"${r.title}" (${r.start_date || "no start date"} to ${r.target_date}) is already in the work plan.`,
+                            })));
+                            notify.error("No activities were added. Remove the repeated rows from the file and import again.");
+                            return;
+                          }
                           setWorkPlanRows([...workPlanRows.filter((w) => w.id || w.title.trim() || w.start_date || w.target_date), ...rows]);
                           if (rows.length) notify.success(`${rows.length} activit${rows.length === 1 ? "y" : "ies"} added from Excel. Check them before you continue.`);
                           else notify.error("The Work Plan sheet has no activities.");
