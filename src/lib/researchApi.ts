@@ -269,6 +269,10 @@ export const researchApi = {
   deleteMilestone: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/milestones/${id}/`);
   },
+  /** Task 15/16: only a Draft, by its Project Leader or the System Admin (DELETE projects/<id>/). */
+  deleteProject: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/projects/${id}/`);
+  },
   updateProject: async (id: number, payload: Partial<Project> & { status_remarks?: string }): Promise<Project> => {
     const { data } = await apiClient.patch(`/api/projects/${id}/`, payload);
     return data;

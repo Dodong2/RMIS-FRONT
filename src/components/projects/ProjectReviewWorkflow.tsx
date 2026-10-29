@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { errorMessage } from "../../lib/errorMessage";
 import { libActions, type LibAction } from "../../lib/libWorkflow";
 import { notify } from "../../lib/notify";
-import { REVIEW_STATUS_LABELS, REVIEW_STATUS_STYLE, assignedReviewer, currentLib, leaderSubmitLabel, reviewHistory, reviewQueues } from "../../lib/projectReview";
-import { documentsQuery } from "../../lib/queries";
+import { REVIEW_STATUS_LABELS, REVIEW_STATUS_STYLE, assignedReviewer, currentLib, leaderSubmitLabel, reviewHistory, reviewQueues, rowActions } from "../../lib/projectReview";
+import { documentsQuery, queryKeys } from "../../lib/queries";
+import { researchApi } from "../../lib/researchApi";
+import { SubmitConfirmDialog } from "./SubmitConfirmDialog";
 import { useReviewStep } from "../../lib/useReviewStep";
 import type { LineItemBudget } from "../../types/budget";
 import type { DocumentType } from "../../types/document";
@@ -38,6 +44,19 @@ export function ReviewStatusBadge({ status }: { status: ReviewStatus }) {
 export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: { projects: Project[]; budgets: LineItemBudget[]; userId?: number; roleCode: string }) {
   const [filter, setFilter] = useState<ReviewStatus | "all">("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<Project | null>(null);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const remove = useMutation({
+    mutationFn: (id: number) => researchApi.deleteProject(id),
+    onSuccess: () => {
+      notify.success("Draft proposal deleted.");
+      setDeleting(null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+    },
+    onError: (err) => notify.error(errorMessage(err, "The draft could not be deleted.")),
+  });
   const queues = reviewQueues(projects);
   const rows = projects.filter((p) => filter === "all" || p.review_status === filter);
   const selected = projects.find((p) => p.id === selectedId);
@@ -99,6 +118,7 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
                   const reviews = lib?.reviews ?? [];
                   const reviewer = assignedReviewer(project.review_status, project, reviews);
                   const last = reviews.at(-1)?.acted_at ?? lib?.created_at ?? project.created_at;
+                  const can = rowActions(project.review_status, { isOwnLeader: userId !== undefined && project.lead === userId, isAdmin: roleCode === "system_admin" });
                   return (
                     <tr key={project.id} className="hover:bg-slate-50">
                       <td className="max-w-xs px-4 py-3">
@@ -122,14 +142,38 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
                         <p className="mt-1 text-[10px] text-slate-400">{reviewer.role}</p>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500">{when(last)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setSelectedId(project.id)}
-                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold hover:border-[#0891b2] hover:text-[#0891b2]"
-                          style={{ color: "#0d2a5e" }}
-                        >
-                          Open review
-                        </button>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          {can.edit && (
+                            <button
+                              onClick={() => navigate(`/projects/${project.id}/edit`)}
+                              title="Edit Project"
+                              aria-label={`Edit Project ${project.project_code}`}
+                              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0891b2]"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {can.remove && (
+                            <button
+                              onClick={() => setDeleting(project)}
+                              title="Delete Project"
+                              aria-label={`Delete Project ${project.project_code}`}
+                              className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {can.openReview && (
+                            <button
+                              onClick={() => setSelectedId(project.id)}
+                              className="ml-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold hover:border-[#0891b2] hover:text-[#0891b2]"
+                              style={{ color: "#0d2a5e" }}
+                            >
+                              Open review
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -149,6 +193,25 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
           onClose={() => setSelectedId(null)}
         />
       )}
+      <Dialog open={deleting !== null} onOpenChange={(o) => !o && !remove.isPending && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle style={{ color: "#0d2a5e" }}>Delete this Draft proposal?</DialogTitle>
+            <DialogDescription className="font-semibold" style={{ color: "#b91c1c" }}>
+              {deleting?.project_code} · {deleting?.title}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm" style={{ color: "#475569" }}>This removes the proposal with its LIB, work plan, team and attached files. It can't be undone.</p>
+          <DialogFooter>
+            <button onClick={() => setDeleting(null)} disabled={remove.isPending} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
+              Cancel
+            </button>
+            <button onClick={() => deleting && remove.mutate(deleting.id)} disabled={remove.isPending} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60" style={{ background: "#dc2626" }}>
+              {remove.isPending ? "Deleting…" : "Delete"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -156,6 +219,7 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
 function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project: Project; budgets: LineItemBudget[]; userId?: number; roleCode: string; onClose: () => void }) {
   const [returning, setReturning] = useState(false);
   const [justification, setJustification] = useState("");
+  const [confirming, setConfirming] = useState<LibAction | null>(null);
   const step = useReviewStep();
   const documents = useQuery(documentsQuery({ project: project.id })).data ?? [];
   const lib = currentLib(budgets, project.id);
@@ -167,11 +231,18 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
   const actions = lib ? libActions(lib.status, viewer) : [];
   const hold = actions.find((a) => a.step === "hold");
   const leaderLabel = leaderSubmitLabel(project.review_status);
+  const isSubmit = (a: LibAction) => a.step === "submit" || a.step === "resubmit";
+  // Task 16: a submit or resubmit closes its confirmation and this review once the backend accepts it; the project
+  // list refetches (useReviewStep), so the row shows the new status and no stale modal stays open
   const take = (a: LibAction, remarks = "") =>
-    step.mutate({ budget: lib!.id, step: a.step, remarks, done: a.step === "submit" ? "Project proposal submitted to the CRC Chair." : a.done }, {
+    step.mutate({ budget: lib!.id, step: a.step, remarks, done: a.step === "submit" ? "Project proposal submitted to the CRC/CRD." : a.done }, {
       onSuccess: () => {
         setReturning(false);
         setJustification("");
+        if (isSubmit(a)) {
+          setConfirming(null);
+          onClose();
+        }
       },
     });
   const close = () => {
@@ -320,12 +391,9 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
                   <button
                     key={a.step}
                     disabled={step.isPending}
-                    onClick={async () => {
-                      if (a.step === "submit" && !(await notify.confirm("Submit this project to the CRC Chair? You can't edit it until it is returned for revision.", "Submit"))) return;
-                      take(a);
-                    }}
-                    className={`rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-50 ${a.step === "submit" || a.step === "resubmit" ? "hover:bg-[#1a3f7a]" : "hover:bg-emerald-700"}`}
-                    style={{ background: a.step === "submit" || a.step === "resubmit" ? "#0d2a5e" : "#059669" }}
+                    onClick={() => (isSubmit(a) ? setConfirming(a) : take(a))}
+                    className={`rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-50 ${isSubmit(a) ? "hover:bg-[#1a3f7a]" : "hover:bg-emerald-700"}`}
+                    style={{ background: isSubmit(a) ? "#0d2a5e" : "#059669" }}
                   >
                     {label}
                   </button>
@@ -341,6 +409,14 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
             )}
           </div>
         )}
+        {/* Inside the panel that stops clicks, so a click in the (portalled) dialog doesn't reach the backdrop's close */}
+        <SubmitConfirmDialog
+          open={confirming !== null}
+          action={leaderLabel ?? "Submit Project Proposal"}
+          pending={step.isPending}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => confirming && take(confirming)}
+        />
       </div>
     </div>,
     document.body,

@@ -87,6 +87,18 @@ export function leaderSubmitLabel(status: ReviewStatus) {
  * (backend EDITABLE_REVIEW_STATUSES, ensure_registration_open). */
 export const registrationOpen = (status: ReviewStatus) => status === "draft" || status === "returned_research" || status === "returned_budget";
 
+/** Task 16 (2026-10-30): what a Project Management row offers. The project's own Project Leader (and the System Admin)
+ * edits a Draft or a returned proposal and deletes only a Draft (the backend refuses the rest too). The leader opens
+ * the review on a Draft, a returned proposal or an Active one, not while it is with a reviewer; other roles always can. */
+export function rowActions(status: ReviewStatus, viewer: { isOwnLeader: boolean; isAdmin: boolean }) {
+  const owner = viewer.isOwnLeader || viewer.isAdmin;
+  return {
+    edit: owner && registrationOpen(status),
+    remove: owner && status === "draft",
+    openReview: viewer.isAdmin || !viewer.isOwnLeader || registrationOpen(status) || status === "reviews_completed",
+  };
+}
+
 /** Work on the project (tasks etc.) starts once its reviews are completed (backend ensure_work_allowed, decision D5). */
 export const workAllowed = (status: ReviewStatus) => status === "reviews_completed";
 

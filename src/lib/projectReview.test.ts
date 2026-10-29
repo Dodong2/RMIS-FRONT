@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage } from "./projectReview";
+import { assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions } from "./projectReview";
 import type { BudgetReview } from "../types/budget";
 
 const review = (id: number, action: BudgetReview["action"], by = "Ana Cruz", remarks = ""): BudgetReview => ({
@@ -64,5 +64,36 @@ describe("registrationOpen / workAllowed", () => {
     expect(workLockedMessage("Draft")).toBe(
       "This project is Draft. Work on it starts once its reviews are completed (the Budget Officer certifies its LIB).",
     );
+  });
+});
+
+describe("rowActions (Task 16, 2026-10-30)", () => {
+  const leader = { isOwnLeader: true, isAdmin: false };
+  const reviewer = { isOwnLeader: false, isAdmin: false };
+  const admin = { isOwnLeader: false, isAdmin: true };
+
+  it("lets the leader edit and delete a Draft and open its review", () => {
+    expect(rowActions("draft", leader)).toEqual({ edit: true, remove: true, openReview: true });
+  });
+
+  it("hides edit, delete and Open Review from the leader while a reviewer has the proposal", () => {
+    for (const status of ["submitted", "pending_research_review", "pending_budget_review"] as const) {
+      expect(rowActions(status, leader)).toEqual({ edit: false, remove: false, openReview: false });
+    }
+  });
+
+  it("reopens editing and the review, not deleting, when it is returned", () => {
+    for (const status of ["returned_research", "returned_budget"] as const) {
+      expect(rowActions(status, leader)).toEqual({ edit: true, remove: false, openReview: true });
+    }
+  });
+
+  it("shows an Active proposal's review read-only to the leader", () => {
+    expect(rowActions("reviews_completed", leader)).toEqual({ edit: false, remove: false, openReview: true });
+  });
+
+  it("keeps Open Review for the reviewers and gives them no edit or delete", () => {
+    expect(rowActions("submitted", reviewer)).toEqual({ edit: false, remove: false, openReview: true });
+    expect(rowActions("draft", admin)).toEqual({ edit: true, remove: true, openReview: true });
   });
 });

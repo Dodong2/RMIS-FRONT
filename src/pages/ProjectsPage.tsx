@@ -5,6 +5,7 @@ import { assignmentsQuery, milestonesQuery, monitoringStatusQuery, useBudgets, u
 import { currentLib, leaderSubmitLabel } from "../lib/projectReview";
 import { useReviewStep } from "../lib/useReviewStep";
 import { ProjectReviewWorkflow, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
+import { SubmitConfirmDialog } from "../components/projects/SubmitConfirmDialog";
 import { RESEARCH_TYPE_LABELS, SDG_COLORS, SDG_LABELS } from "../lib/projectOptions";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
 import type { FundingType, Project, RecordStatus } from "../types/research";
@@ -60,12 +61,20 @@ function ProjectsContent() {
   // Client 2026-10-24: each project's review (Draft -> CRC Chair -> Budget Officer) runs on its LIB
   const budgets = useBudgets().data ?? [];
   const reviewStep = useReviewStep();
-  const submitFromCard = async (projectId: number, status: Project["review_status"]) => {
-    const lib = currentLib(budgets, projectId);
-    if (!lib) return notify.error("Prepare the LIB under Budget Management first, then submit the project.");
-    const resubmit = status !== "draft";
-    if (!(await notify.confirm(`${leaderSubmitLabel(status)}? You can't edit the project until it is returned for revision.`, "Submit"))) return;
-    reviewStep.mutate({ budget: lib.id, step: resubmit ? "resubmit" : "submit", done: resubmit ? "Revisions resubmitted to the CRC Chair." : "Project proposal submitted to the CRC Chair." });
+  // Task 16 (2026-10-30): the card's Submit Project Proposal asks in a modal (SubmitConfirmDialog), not a toast
+  const [submitting, setSubmitting] = useState<{ id: number; status: Project["review_status"] } | null>(null);
+  const submitFromCard = (projectId: number, status: Project["review_status"]) => {
+    if (!currentLib(budgets, projectId)) return notify.error("Prepare the LIB under Budget Management first, then submit the project.");
+    setSubmitting({ id: projectId, status });
+  };
+  const confirmSubmit = () => {
+    const lib = submitting && currentLib(budgets, submitting.id);
+    if (!submitting || !lib) return;
+    const resubmit = submitting.status !== "draft";
+    reviewStep.mutate(
+      { budget: lib.id, step: resubmit ? "resubmit" : "submit", done: resubmit ? "Revisions resubmitted to the CRC/CRD." : "Project proposal submitted to the CRC/CRD." },
+      { onSuccess: () => setSubmitting(null) },
+    );
   };
   const assignments = useQuery(assignmentsQuery({ active: true })).data ?? [];
   const statusResults = useQueries({ queries: projects.map((p) => monitoringStatusQuery(p.id)) });
@@ -125,6 +134,13 @@ function ProjectsContent() {
       </div>
 
       {projects.length > 0 && <ProjectReviewWorkflow projects={projects} budgets={budgets} userId={user?.pk} roleCode={user?.role?.code ?? ""} />}
+      <SubmitConfirmDialog
+        open={submitting !== null}
+        action={(submitting && leaderSubmitLabel(submitting.status)) ?? "Submit Project Proposal"}
+        pending={reviewStep.isPending}
+        onCancel={() => setSubmitting(null)}
+        onConfirm={confirmSubmit}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {(["all", "active", "completed", "archived"] as const).map((s) => {
