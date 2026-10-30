@@ -1,4 +1,4 @@
-import type { BudgetReview, FinanceEditRow, LineItem, LineItemBudget } from "../types/budget";
+import type { BudgetReview, FinanceEditRow, LibAllocation, LineItem, LineItemBudget, LineItemEdit } from "../types/budget";
 import type { Lead, ReviewStatus } from "../types/research";
 import { nameOf } from "./workplan";
 
@@ -161,3 +161,25 @@ export function financeEditRow(item: LineItem, draft: UpdateDraft, periods: stri
   return Object.keys(row).length > 2 ? row : null;
 }
 
+
+const EDIT_FIELD_LABELS: Record<string, string> = {
+  description: "Item", specification: "Specification", unit: "Unit", quantity: "Qty", unit_cost: "Unit Cost", amount: "Total", allocations: "Budget periods",
+};
+const editPeso = (v: string | number) => `₱${Number(v).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function editValue(field: string, value: string | LibAllocation[]) {
+  if (Array.isArray(value)) return value.filter((a) => Number(a.amount)).map((a) => `${a.period} ${editPeso(a.amount)}`).join(", ") || "—";
+  if (value === "" || value == null) return "—";
+  if (field === "unit_cost" || field === "amount") return editPeso(value);
+  if (field === "quantity") return String(Number(value));
+  return value;
+}
+
+/** Task 20: one Update This LIB record as "field: old → new" lines for the Project Leader's Attention history. */
+export function editChangeLines(edit: LineItemEdit) {
+  return Object.entries(edit.changes).map(([field, [before, after]]) => ({
+    field: EDIT_FIELD_LABELS[field] ?? field,
+    before: editValue(field, before),
+    after: editValue(field, after),
+  }));
+}

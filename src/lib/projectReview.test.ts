@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions, newestFirst, matchesProjectSearch, REVIEW_PAGE_SIZE, financeEditRow } from "./projectReview";
-import type { BudgetReview, LineItem } from "../types/budget";
+import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions, newestFirst, matchesProjectSearch, REVIEW_PAGE_SIZE, financeEditRow, editChangeLines } from "./projectReview";
+import type { BudgetReview, LineItem, LineItemEdit } from "../types/budget";
 import { pageOf } from "./paging";
 
 const review = (id: number, action: BudgetReview["action"], by = "Ana Cruz", remarks = ""): BudgetReview => ({
@@ -168,5 +168,23 @@ describe("financeEditRow (Task 20, 2026-10-30)", () => {
       id: 5, reason: "COA ceiling", unit_cost: "450.50", allocations: [{ period: "Y1Q1", amount: "3010" }, { period: "Y1Q4", amount: "6000" }],
     });
     expect(financeEditRow(item, { ...draft, specification: "Venue", reason: "x" }, periods)).toEqual({ id: 5, reason: "x", specification: "Venue" });
+  });
+});
+
+describe("editChangeLines (Task 20, 2026-10-30)", () => {
+  it("shows each changed field as old and new, pesos and periods formatted", () => {
+    const edit = {
+      id: 1, reason: "COA ceiling", edited_by: 3, edited_by_name: "Fe Cruz", edited_at: "2026-10-30T10:00:00+08:00",
+      changes: {
+        unit_cost: ["500.50", "450.50"], quantity: ["20.00", "18.00"], specification: ["", "Venue"],
+        allocations: [[{ period: "Y1Q1", amount: "4010.00" }, { period: "Y1Q2", amount: "0.00" }], [{ period: "Y1Q1", amount: "3010.00" }]],
+      },
+    } as LineItemEdit;
+    expect(editChangeLines(edit)).toEqual([
+      { field: "Unit Cost", before: "₱500.50", after: "₱450.50" },
+      { field: "Qty", before: "20", after: "18" },
+      { field: "Specification", before: "—", after: "Venue" },
+      { field: "Budget periods", before: "Y1Q1 ₱4,010.00", after: "Y1Q1 ₱3,010.00" },
+    ]);
   });
 });

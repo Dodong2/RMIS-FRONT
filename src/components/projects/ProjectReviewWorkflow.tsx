@@ -19,6 +19,7 @@ import { budgetApi } from "../../lib/budgetApi";
 import { reportErrorMessage } from "../../lib/reportsApi";
 import { LIB_UNITS } from "../../lib/libUnits";
 import { SubmitConfirmDialog } from "./SubmitConfirmDialog";
+import { LibEditAttention } from "./LibEditHistory";
 import { useReviewStep } from "../../lib/useReviewStep";
 import type { LineItem, LineItemBudget } from "../../types/budget";
 import type { DocumentType } from "../../types/document";
@@ -419,6 +420,31 @@ export function ReviewModal({ project, budgets, userId, roleCode, onClose }: { p
               </div>
             )}
           </div>
+
+          {viewer.isOwnLeader && lib && lib.line_items.length > 0 && (
+            <div className="rounded-xl border border-slate-200 p-4">
+              <p className="font-bold" style={{ color: "#0d2a5e" }}>Line-Item Budget</p>
+              {lib.line_items.some((i) => i.edits?.length) && (
+                <p className="mt-1 text-xs text-amber-700">Finance/Accounting/Budget changed the highlighted items. Click the yellow icon to see what changed and why.</p>
+              )}
+              <ul className="mt-3 space-y-1">
+                {lib.line_items.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5 text-xs"
+                    style={item.edits?.length ? { background: "#fffbeb", border: "1px solid #fcd34d" } : { background: "#f8fafc" }}
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5 text-slate-700">
+                      <span className="truncate"><b>{item.category.toUpperCase()}</b> · {item.description}{item.specification ? ` (${item.specification})` : ""}</span>
+                      <LibEditAttention item={item} />
+                    </span>
+                    <span className="shrink-0 font-mono text-slate-800">{peso(item.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-right text-xs font-bold text-slate-700">Grand Total {peso(lib.total_amount)}</p>
+            </div>
+          )}
 
           {financeView && (
             <div className="rounded-xl border border-slate-200 p-4">

@@ -25,6 +25,7 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { LibItemSelect } from "../components/common/LibItemSelect";
 import { ReviewModal as ProposalReviewModal, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
+import { LibEditAttention } from "../components/projects/LibEditHistory";
 
 // Client 2026-10-11: finance_budget and system_admin only certify/approve; they don't prepare LIBs or edit line items.
 // Client 2026-10-21 (Q9): the Procurement Officer and Program Leaders don't encode LIBs either.
@@ -889,6 +890,8 @@ function LIBDetail({
 }) {
   const queryClient = useQueryClient();
   const budgetsQ = useBudgets(project.id);
+  // Task 20: only the project's own leader sees which items Finance/Accounting/Budget changed (Attention icons)
+  const ownLeader = userId !== undefined && project.lead === userId;
   const versions = useMemo(() => budgetsQ.data ?? [], [budgetsQ.data]);
   const current = versions.find((b) => b.is_current) ?? null;
   const budget: LineItemBudget | null | undefined = budgetsQ.isError ? null : budgetsQ.data ? current : undefined;
@@ -1202,10 +1205,11 @@ function LIBDetail({
                           </thead>
                           <tbody>
                             {items.map((li: LineItem, idx) => (
-                              <tr key={li.id} className="border-t" style={{ borderColor: "#f1f5f9" }}>
+                              <tr key={li.id} className="border-t" style={{ borderColor: "#f1f5f9", ...(ownLeader && li.edits?.length ? { background: "#fffbeb" } : {}) }}>
                                 <td className="px-3 py-2.5 text-xs font-mono" style={{ color: "#94a3b8" }}>{cm.label}-{String(idx + 1).padStart(2, "0")}</td>
                                 <td className="px-3 py-2.5 text-xs font-semibold max-w-xs" style={{ color: "#0d2a5e" }}>
                                   {li.description}
+                                  {ownLeader && <> <LibEditAttention item={li} /></>}
                                   <div className="flex gap-1 mt-0.5 flex-wrap">
                                     {li.is_app_flagged && (
                                       <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: "#fee2e2", color: "#991b1b" }}>APP · above ₱50,000</span>
