@@ -265,7 +265,7 @@ export function ProjectReviewWorkflow({ projects, budgets, userId, roleCode }: {
   );
 }
 
-function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project: Project; budgets: LineItemBudget[]; userId?: number; roleCode: string; onClose: () => void }) {
+export function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project: Project; budgets: LineItemBudget[]; userId?: number; roleCode: string; onClose: () => void }) {
   const [returning, setReturning] = useState(false);
   const [justification, setJustification] = useState("");
   const [confirming, setConfirming] = useState<LibAction | null>(null);

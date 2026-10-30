@@ -24,6 +24,7 @@ import { pageOf } from "../lib/paging";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { LibItemSelect } from "../components/common/LibItemSelect";
+import { ReviewModal as ProposalReviewModal, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
 
 // Client 2026-10-11: finance_budget and system_admin only certify/approve; they don't prepare LIBs or edit line items.
 // Client 2026-10-21 (Q9): the Procurement Officer and Program Leaders don't encode LIBs either.
@@ -1492,6 +1493,9 @@ function BudgetContent() {
   const [statusFilter, setStatusFilter] = useState<"all" | LineItemBudget["status"]>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  // Task 20 (2026-10-30): Finance/Accounting/Budget get review cards with the CRC/CRD's Open Review pattern
+  const financeCards = code === "finance_budget";
+  const [reviewingId, setReviewingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (failed) notify.error("Could not load budgets. Check your connection and refresh.");
@@ -1624,6 +1628,48 @@ function BudgetContent() {
           ) : (
             paged.rows.map((project) => {
               const b = current.find((x) => x.project === project.id)!;
+              if (financeCards) {
+                return (
+                  <div key={b.id} className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded" style={{ background: "#e0f2fe", color: "#0369a1" }}>{project.project_code}</span>
+                          <ReviewStatusBadge status={project.review_status} />
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#f0f4f8", color: "#64748b" }}>v{b.version_number}</span>
+                        </div>
+                        <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>{project.title}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>
+                          By: {b.endorsed_by_name ?? "CRC/CRD"} · Project Leader: {personName(project.lead_detail)}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Grand Total</p>
+                        <p className="text-xl font-black font-mono" style={{ color: "#0d2a5e" }}>{peso(b.total_amount)}</p>
+                      </div>
+                    </div>
+                    <ul className="mt-3 space-y-1">
+                      {b.line_items.slice(0, 3).map((item) => (
+                        <li key={item.id} className="flex justify-between gap-3 rounded-lg px-3 py-1.5 text-xs" style={{ background: "#f8fafc" }}>
+                          <span className="truncate" style={{ color: "#334155" }}>
+                            <b>{CATEGORY_META[item.category].label}</b> · {item.description}{item.specification ? ` (${item.specification})` : ""}
+                          </span>
+                          <span className="font-mono shrink-0" style={{ color: "#0d2a5e" }}>{peso(item.amount)}</span>
+                        </li>
+                      ))}
+                      {b.line_items.length > 3 && <li className="px-3 text-xs" style={{ color: "#94a3b8" }}>+{b.line_items.length - 3} more line item{b.line_items.length - 3 === 1 ? "" : "s"}</li>}
+                    </ul>
+                    <div className="mt-3 flex flex-wrap justify-end gap-2">
+                      <button onClick={() => setParams({ project: String(project.id) })} className="px-3 py-2 rounded-xl text-xs font-bold" style={{ background: "white", color: "#475569", border: "1px solid #e2e8f0" }}>
+                        Open LIB
+                      </button>
+                      <button onClick={() => setReviewingId(project.id)} className="px-4 py-2 rounded-xl text-xs font-bold text-white hover:bg-[#1a3f7a]" style={{ background: "#0d2a5e" }}>
+                        Open Review
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <div
                   key={b.id}
@@ -1683,6 +1729,12 @@ function BudgetContent() {
 
         <Pager page={paged.page} pageCount={paged.pageCount} total={filtered.length} size={PAGE_SIZE} onPage={setPage} />
       </div>
+      {(() => {
+        const reviewing = projects?.find((p) => p.id === reviewingId);
+        return reviewing && (
+          <ProposalReviewModal project={reviewing} budgets={budgets.filter((b) => b.project === reviewing.id)} userId={user?.pk} roleCode={code} onClose={() => setReviewingId(null)} />
+        );
+      })()}
     </div>
   );
 }
