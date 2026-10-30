@@ -112,14 +112,14 @@ automatically — most pages needed zero code changes for this pass.
   `beneficiaries` is the fallback for old projects. Programs and the leader picker are fetched separately. If
   `users/by-role` 403s, a project_leader gets themself preselected and other roles get a "use Upload via Excel" hint.
 - Module 3 (Personnel/Roles/Task Coordination pages): done, stable.
-- Module 4 (Budget pages): **2026-10-30 (Task 20): Finance review cards on Budget Management, Attention icons on the leader's Line Items tab — see "Last thing done".** **2026-10-29 (Task 12): registration Step 4 has a Specification column and a LIB-only Excel template/import — see "Last thing done".** BudgetPage built against budget_lib — project selector,
+- Module 4 (Budget pages): **2026-10-30 (Task 23): Procurement Payments banner + view for Finance — see "Last thing done".** **2026-10-30 (Task 20): Finance review cards on Budget Management, Attention icons on the leader's Line Items tab — see "Last thing done".** **2026-10-29 (Task 12): registration Step 4 has a Specification column and a LIB-only Excel template/import — see "Last thing done".** BudgetPage built against budget_lib — project selector,
   line items, add-item form, certify, plus a Budget Summary section (Approved/
   Adjusted/Actual/Available) that lights up once a budget is certified.
   2026-09-24: removed the "capped at ₱100,000" note for institutional dry
   research, matching rmis-backend `ba9c9e4` which dropped the cap check
   (real LIB data like sheet P77, ₱120k, was getting 400'd). Deliberate
   deviation from the Manual — re-add both sides if the client/panel asks.
-- Module 5 (Disbursements/Realignments): DisbursementsPage built against
+- Module 5 (Disbursements/Realignments): **2026-10-30 (Tasks 22–23): Procurement New Request per project year, insufficient-budget modal, Manage status filter — see "Last thing done".** DisbursementsPage built against
   financial_monitoring — record disbursements against a certified budget's line
   items, request fund realignments (existing item or new BOR-tier item), and
   review pending ones inline (no BOR resolution no. since client 2026-10-10). Every
@@ -680,15 +680,16 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-30, on `main`, PUSHED by Carl, paired with rmis-backend `5069526` `35b43f8` `40ccdf7` `7bb4a1b` `c30cf7e` `e48818f` (budget_lib 0013/0014 migrated). Memory note: `tasks-18-21-2026-10-30`. vitest **131/131**, `npx tsc -b` and eslint clean; not browser-tested. (Tasks 12–17 before this are pushed.)
-- **T19-A/C** (`8aadf04`, `eb19141`): `libActions` gives the CRC/CRD one forward step, "Mark for checking" (`for-checking` on submitted/crc_processing/for_checking); `BudgetStep` lost `start-review`/`ready`. Open Review (`ProjectReviewWorkflow.tsx` `ReviewModal`, now exported): "By: <leader>", View per document (`openDocument`/`documentUrl` moved to `documentApi.ts`, a missing file is a toast), "Submitted Approved Proposal Information" (total_cost, start date, NTP = project_code) + View Other Information (`researchApi.proposalPdfUrl`, blob in a new tab), Mark for checking through `SubmitConfirmDialog` (now `warning`/`note`/`confirmLabel` props, "Confirm Submission"); Open Review stays open read-only after. Step 5 Approve Proposal/NTP/MOA: `PDF_ACCEPT`, a name check, `document_type` sent with `stageDocument`.
-- **T20-D1/D2/E** (`e5b455f`, `3d67aa0`, `a1fc330`): types `LineItem.edits`, `LineItemEdit`, `FinanceEditRow`, step `comment`; `ACTION_META`/`REVIEW_META` know `commented`. Finance view in ReviewModal (canCertify + endorsed/certifying/certified): By = `lib.endorsed_by_name`, Download LIB (`budgetApi.downloadLib` via `reportsApi.downloadReport`), comment box, Update This LIB (shadcn confirm Continue/Exit → `LibUpdateDialog`: existing items only, reason per changed item, live totals; `financeEditRow` in `projectReview.ts` sends only changed fields). Budget Management: `finance_budget` sees review cards (Open Review + Open LIB). Leader only: `LibEditAttention` (`components/projects/LibEditHistory.tsx`, yellow lucide AlertTriangle → history old → new, editor, reason, date) in their Open Review list and the Line Items tab.
-- **T21-B** (`eafc8b6`): `STATUS_SYNC` (`refetchOnWindowFocus`, 60 s `refetchInterval`) on `projectsQuery` and `budgetsQuery` only, the fallback when the socket is down; real-time refetch was already global (`RealtimeRefetch`).
-- **T18** (`d67ef03` `040de49` `8b2fe52` `76b78fb`): every app icon is a lucide-react component (NavIcon map; per-file `ICON` class = 1em inline; meta icon types `ReactNode`; `outputsMeta`/`riskMeta`/`reportCatalog` are `.tsx` now); `<option>`s are text only. Left on purpose: Google logo, ProtoCharts, the RichTextEditor toolbar (❝, ✕ Table), unused `WIZARD_STEPS.icon`.
+2026-10-30, Tasks 22–25, on `main`, NOT pushed, paired with rmis-backend `cb37caa` `dd93aad` `ce74fa3` `60cbac2` `a70e1a0` `0ca2283` (financial_monitoring 0010 + accounts 0029 NOT migrated; backend full suite 610/610). Memory note: `tasks-22-25-2026-10-30`. vitest **131/131**, `npx tsc -b` and eslint clean; not browser-tested. (Tasks 12–21 before this are pushed.)
+- **T22-B** (`9c56468`): ProcurementPage New Request = Project → Expense Category → Link to LIB Item → Year (required) / Total / Quarter (optional) from `financialApi.getProcurementBalance` (`useProcurementBalance`, `YearBudgetFields`): Approved (year), Committed, Paid, Available to request; quarter allocation/remaining for reference. `InsufficientBudgetModal` on the backend's 400 `budget.code === "insufficient_budget"` (and a pre-check against the backend figure). Revise & Resubmit shows the remarks plus Year/Quarter, its own reservation added back. List column "Year / Q". Types: `project_year`, nullable `quarter`/`fiscal_year`, `ProcurementBalance`, `InsufficientBudget`. No figure is computed on the frontend except the add-back.
+- **T23-B** (`878e768`): Manage Pending Procurement Requests (`/procurement?view=pending`) has a status dropdown (active statuses with counts), client-side over the backend's scoped `active=true` list (Carl's option 1).
+- **T23-D** (`e47a8d7`): `src/components/budget/ProcurementPayments.tsx`: `PaymentsBanner` on Budget Management for `PAYMENT_ROLE_CODES` (system_admin, finance_budget) → `/budget?view=payments`, Awaiting Payment / Already Paid (from `payment_status`, query `[financial, procurement, completed]`, `useRealtime(PROCUREMENT_EVENTS)`), Mark as Paid → Confirm Payment (full amount read-only, date ≤ today, OR/voucher reference) → `financialApi.payProcurementRequest`.
+- Backend-only in this batch (nothing to consume): procurement e-mails, payment/task reminders, task e-mails with Google Calendar link + `.ics`.
 
 ## Next thing to do in this repo
-1. Pushed and migrated 2026-10-30. Carl: browser-test `dss/RMIS_Test_Guide_2026-10-28.docx` section 15 ("Bago mag-test": accounts, order, two browsers for real-time).
-2. Ask Carl/client: lucide for the RichTextEditor toolbar; an item-name (catalog) picker in Update This LIB.
-3. Not approved, possible follow-ups: SF-018 PDF to match the Preview; ProjectDetailPage hides removed fields; server-side paging if lists grow large.
-4. Still open: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
-5. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
+1. Carl: migrate the backend (financial_monitoring 0010 + accounts 0029), then push both repos together (the New Request form needs the new backend and vice versa).
+2. Carl: browser-test `dss/RMIS_Test_Guide_2026-10-28.docx` section 16 (New Request modal at phone width, insufficient modal, Manage filter, Payments) and the still-open section 15.
+3. Not done, possible follow-ups: show payment status to the Project Leader on the Procurement page; procurement events in the global `REALTIME_REFETCH` map.
+4. Ask Carl/client (from before): lucide for the RichTextEditor toolbar; an item-name (catalog) picker in Update This LIB.
+5. Still open: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
+6. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
