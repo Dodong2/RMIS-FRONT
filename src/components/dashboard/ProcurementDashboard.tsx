@@ -1,3 +1,4 @@
+import { Bell } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -516,9 +517,7 @@ export function ProcurementDashboard() {
           )}
           <div className="relative">
             <button onClick={() => setBellOpen((o) => !o)} className="relative rounded-xl border p-2.5 text-white" style={{ borderColor: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.1)" }} aria-label="Open action center">
-              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round">
-                <path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 01-6 0" />
-              </svg>
+              <Bell size={18} aria-hidden="true" />
               {pending + returned > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black" style={{ background: "#0891b2" }}>{pending + returned}</span>
               )}

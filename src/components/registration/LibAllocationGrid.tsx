@@ -1,3 +1,4 @@
+import { Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { MoneyInput } from "../common/MoneyInput";
 import { allocatedTotal, periodQuarter, periodYear } from "../../lib/libUnits";
@@ -84,9 +85,7 @@ export function LibAllocationGrid({
                   <div className="flex items-center gap-4 sticky left-3 w-fit">
                     <span className="font-bold uppercase tracking-wide" style={{ color: "#0d2a5e" }}>{g.label}</span>
                     <button type="button" onClick={() => onAdd(g.key)} className="text-xs font-semibold flex items-center gap-1" style={{ color: "#0891b2" }}>
-                      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
+                      <Plus size={13} strokeWidth={2.5} aria-hidden="true" />
                       Add Item
                     </button>
                   </div>
@@ -135,9 +134,7 @@ export function LibAllocationGrid({
                         </td>
                         <td className="px-1 text-center" style={cell}>
                           <button type="button" onClick={() => onRemove(r.index)} className="p-1 rounded" style={{ color: "#94a3b8" }} aria-label={`Remove ${label}`} title="Remove item">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <path d="M18 6L6 18M6 6l12 12" />
-                            </svg>
+                            <X size={14} aria-hidden="true" />
                           </button>
                         </td>
                       </tr>

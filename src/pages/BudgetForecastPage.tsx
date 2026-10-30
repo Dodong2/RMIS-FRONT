@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { Brain, Check, Flame, Target, TrendingUp, TriangleAlert } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import { forecastingApi } from "../lib/forecastingApi";
 import { researchApi } from "../lib/researchApi";
@@ -17,6 +18,8 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 const FORECAST_ROLE_CODES = ["system_admin", "vprei", "finance_budget"];
 const FORECASTABLE_FUNDING_TYPES = ["institutional", "externally_funded"];
 
@@ -24,12 +27,12 @@ type Method = "arima" | "burn_rate" | "linear_trend" | "moving_average" | "perce
 type Scenario = "optimistic" | "base" | "conservative";
 type Tab = "results" | "comparison" | "saved";
 
-const METHOD_META: Record<Method, { label: string; icon: string; desc: string }> = {
-  arima: { label: "ARIMA (server model)", icon: "🧠", desc: "Statistical model fitted on 6+ months of history, with confidence band, backtest, and overrun flag. Saved as a run." },
-  burn_rate: { label: "Average Burn Rate", icon: "🔥", desc: "Average monthly disbursement so far, carried forward." },
-  linear_trend: { label: "Linear Trend", icon: "📈", desc: "Least-squares trend over the anchor period, extended forward." },
+const METHOD_META: Record<Method, { label: string; icon: ReactNode; desc: string }> = {
+  arima: { label: "ARIMA (server model)", icon: <Brain className={ICON} aria-hidden="true" />, desc: "Statistical model fitted on 6+ months of history, with confidence band, backtest, and overrun flag. Saved as a run." },
+  burn_rate: { label: "Average Burn Rate", icon: <Flame className={ICON} aria-hidden="true" />, desc: "Average monthly disbursement so far, carried forward." },
+  linear_trend: { label: "Linear Trend", icon: <TrendingUp className={ICON} aria-hidden="true" />, desc: "Least-squares trend over the anchor period, extended forward." },
   moving_average: { label: "Moving Average", icon: "〰️", desc: "Average of the most recent anchor-period months." },
-  percent_completion: { label: "% Completion", icon: "🎯", desc: "Remaining budget spread evenly over the months left to the target end date." },
+  percent_completion: { label: "% Completion", icon: <Target className={ICON} aria-hidden="true" />, desc: "Remaining budget spread evenly over the months left to the target end date." },
 };
 
 const SCENARIO_META: Record<Scenario, { label: string; color: string; bg: string }> = {
@@ -364,7 +367,7 @@ function ForecastContent() {
                     <div className="flex items-center gap-2">
                       <span>{m.icon}</span>
                       <p className="text-xs font-black" style={{ color: "#0d2a5e" }}>{m.label}</p>
-                      {method === k && <span className="ml-auto text-xs" style={{ color: "#0d2a5e" }}>✓</span>}
+                      {method === k && <span className="ml-auto text-xs" style={{ color: "#0d2a5e" }}><Check className={ICON} aria-hidden="true" /></span>}
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{m.desc}</p>
                   </button>
@@ -445,7 +448,7 @@ function ForecastContent() {
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        {selectedRun.is_overrun_risk && <Pill bg="#fee2e2" color="#991b1b">⚠ Overrun Risk</Pill>}
+                        {selectedRun.is_overrun_risk && <Pill bg="#fee2e2" color="#991b1b"><TriangleAlert className={ICON} aria-hidden="true" /> Overrun Risk</Pill>}
                         <Pill bg={STATUS_META[selectedRun.status].bg} color={STATUS_META[selectedRun.status].color}>{STATUS_META[selectedRun.status].label}</Pill>
                       </div>
                     </div>
@@ -518,7 +521,7 @@ function ForecastContent() {
                           <div className="mt-2 pt-2 border-t" style={{ borderColor: m.color + "20" }}>
                             <p className="text-xs" style={{ color: m.color }}>+ {peso(r.total)} forecast</p>
                             <p className="text-xs font-bold mt-0.5" style={{ color: over ? "#dc2626" : "#059669" }}>
-                              Final: {peso(r.projectedFinal)} {over ? "⚠️" : "✓"}
+                              Final: {peso(r.projectedFinal)} {over ? <><TriangleAlert className={ICON} aria-hidden="true" /></> : <><Check className={ICON} aria-hidden="true" /></>}
                             </p>
                           </div>
                         </div>
@@ -585,7 +588,7 @@ function ForecastContent() {
                         <div key={item.label} className="rounded-xl p-3" style={{ background: item.bg }}>
                           <p className="text-xs font-bold" style={{ color: item.color }}>{item.label}</p>
                           <p className="text-lg font-black mt-0.5" style={{ color: over ? "#dc2626" : item.color }}>{peso(item.val)}</p>
-                          {over && <p className="text-xs font-bold" style={{ color: "#dc2626" }}>⚠️ Exceeds budget</p>}
+                          {over && <p className="text-xs font-bold" style={{ color: "#dc2626" }}><TriangleAlert className={ICON} aria-hidden="true" /> Exceeds budget</p>}
                         </div>
                       );
                     })}
@@ -640,9 +643,9 @@ function ForecastContent() {
                       <div>
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Pill bg="#e0eaf7" color="#0d2a5e">{project?.project_code}</Pill>
-                          <Pill bg="#f1f5f9" color="#64748b">🧠 ARIMA{r.arima_order ? ` ${r.arima_order}` : ""}</Pill>
+                          <Pill bg="#f1f5f9" color="#64748b"><Brain className={ICON} aria-hidden="true" /> ARIMA{r.arima_order ? ` ${r.arima_order}` : ""}</Pill>
                           <Pill bg={STATUS_META[r.status].bg} color={STATUS_META[r.status].color}>{STATUS_META[r.status].label}</Pill>
-                          {r.is_overrun_risk && <Pill bg="#fee2e2" color="#991b1b">⚠ Overrun risk</Pill>}
+                          {r.is_overrun_risk && <Pill bg="#fee2e2" color="#991b1b"><TriangleAlert className={ICON} aria-hidden="true" /> Overrun risk</Pill>}
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>
                           Run {new Date(r.run_at).toLocaleString()} · {r.months_of_history} months of history

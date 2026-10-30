@@ -533,14 +533,14 @@ function DetailModal({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Document Type", val: `${DOC_TYPE_META[doc.document_type].icon} ${DOC_TYPE_META[doc.document_type].label}` },
+              { label: "Document Type", val: `${DOC_TYPE_META[doc.document_type].label}` },
               { label: "Project", val: projectLabel },
               { label: "Uploaded By", val: nameOf(doc.uploaded_by) },
               { label: "Upload Date", val: doc.uploaded_at.slice(0, 10) },
               { label: "Stage", val: doc.stage ? STAGE_LABELS[doc.stage] : "—" },
               { label: "File Size", val: formatSize(doc.file_size) },
               { label: "Current Version", val: `v${doc.version_number}${doc.is_current ? "" : " (superseded)"}` },
-              { label: "Access Level", val: `${am.icon} ${am.label}` },
+              { label: "Access Level", val: am.label },
               { label: "Retention Until", val: doc.retention_until },
               { label: "Status", val: DOC_STATUS_META[status].label },
             ].map((f) => (

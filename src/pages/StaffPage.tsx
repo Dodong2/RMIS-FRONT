@@ -1,3 +1,4 @@
+import { ChevronLeft, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { personnelApi } from "../lib/personnelApi";
@@ -54,9 +55,7 @@ function Modal({ title, onClose, children, footer }: { title: string; onClose: (
         <div className="px-6 py-4 flex items-center justify-between" style={{ background: "#0d2a5e" }}>
           <p className="text-white font-bold">{title}</p>
           <button onClick={onClose} className="text-white/60 hover:text-white" aria-label="Close">
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">{children}</div>
@@ -282,10 +281,7 @@ function StaffContent() {
       {view !== "collaboration" && (
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
+            <Search size={14} color="#94a3b8" className="absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
               type="text"
               placeholder="Search personnel..."
@@ -315,9 +311,7 @@ function StaffContent() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-white"
                 style={{ background: "#0891b2" }}
               >
-                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+                <Plus size={13} strokeWidth={2.5} aria-hidden="true" />
                 Assign to Project
               </button>
             </div>
@@ -332,9 +326,7 @@ function StaffContent() {
           <div className="rounded-xl" style={{ background: "white", border: "1px solid #e2e8f0" }}>
             <div className="px-6 py-4 border-b flex items-center gap-3" style={{ borderColor: "#e2e8f0" }}>
               <button onClick={() => setSelectedId(null)} className="flex items-center gap-1 text-sm font-medium" style={{ color: "#0891b2" }}>
-                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
+                <ChevronLeft size={16} aria-hidden="true" />
                 Back
               </button>
             </div>

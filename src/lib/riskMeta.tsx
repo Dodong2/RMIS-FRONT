@@ -1,13 +1,17 @@
+import type { ReactNode } from "react";
+import { CalendarDays, ClipboardList, Globe, Settings, ShoppingCart, User, Wallet } from "lucide-react";
 import type { ProjectRiskFlags, RiskCategory, RiskLevel, RiskRegisterStatus } from "../types/risk";
 
-export const CAT_META: Record<RiskCategory, { label: string; color: string; bg: string; icon: string }> = {
-  technical: { label: "Technical", color: "#0d2a5e", bg: "#e0eaf7", icon: "⚙️" },
-  financial: { label: "Financial", color: "#0891b2", bg: "#e0f2fe", icon: "💰" },
-  schedule: { label: "Schedule", color: "#7c3aed", bg: "#ede9fe", icon: "📅" },
-  personnel: { label: "Personnel", color: "#059669", bg: "#d1fae5", icon: "👤" },
-  compliance: { label: "Compliance", color: "#f59e0b", bg: "#fef3c7", icon: "📋" },
-  procurement: { label: "Procurement", color: "#ea580c", bg: "#ffedd5", icon: "🛒" },
-  other: { label: "Other", color: "#64748b", bg: "#f1f5f9", icon: "🌐" },
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
+export const CAT_META: Record<RiskCategory, { label: string; color: string; bg: string; icon: ReactNode }> = {
+  technical: { label: "Technical", color: "#0d2a5e", bg: "#e0eaf7", icon: <Settings className={ICON} aria-hidden="true" /> },
+  financial: { label: "Financial", color: "#0891b2", bg: "#e0f2fe", icon: <Wallet className={ICON} aria-hidden="true" /> },
+  schedule: { label: "Schedule", color: "#7c3aed", bg: "#ede9fe", icon: <CalendarDays className={ICON} aria-hidden="true" /> },
+  personnel: { label: "Personnel", color: "#059669", bg: "#d1fae5", icon: <User className={ICON} aria-hidden="true" /> },
+  compliance: { label: "Compliance", color: "#f59e0b", bg: "#fef3c7", icon: <ClipboardList className={ICON} aria-hidden="true" /> },
+  procurement: { label: "Procurement", color: "#ea580c", bg: "#ffedd5", icon: <ShoppingCart className={ICON} aria-hidden="true" /> },
+  other: { label: "Other", color: "#64748b", bg: "#f1f5f9", icon: <Globe className={ICON} aria-hidden="true" /> },
 };
 
 export const LEVEL_META: Record<RiskLevel, { label: string; color: string; bg: string; heat: string; range: string; action: string }> = {

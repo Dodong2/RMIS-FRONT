@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { Calculator, Check, CircleCheck, FileText, Play, Scale, Target, TriangleAlert, Wallet } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { decisionSupportApi } from "../lib/decisionSupportApi";
 import { useProjects, useUsers } from "../lib/queries";
 import { errorMessage } from "../lib/errorMessage";
@@ -24,18 +25,20 @@ import { NoActualData } from "../components/common/NoActualData";
 import { MoneyInput } from "../components/common/MoneyInput";
 import { useFundingTypes } from "../lib/fundingTypes";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 const DSS_ROLE_CODES = ["system_admin", "vprei"];
 const DECISION_ROLE_CODES = ["system_admin", "vprei", "university_admin"];
 
 type IndicatorDomain = "budget" | "performance" | "outputs" | "compliance" | "risk";
 type ScoreGrade = "excellent" | "good" | "average" | "poor" | "critical";
 
-const DOMAIN_META: Record<IndicatorDomain, { label: string; color: string; bg: string; icon: string }> = {
-  budget: { label: "Budget", color: "#0891b2", bg: "#e0f2fe", icon: "💰" },
-  performance: { label: "Performance", color: "#7c3aed", bg: "#ede9fe", icon: "🎯" },
-  outputs: { label: "Outputs", color: "#059669", bg: "#d1fae5", icon: "📄" },
-  compliance: { label: "Compliance", color: "#f59e0b", bg: "#fef3c7", icon: "✅" },
-  risk: { label: "Risk", color: "#dc2626", bg: "#fee2e2", icon: "⚠️" },
+const DOMAIN_META: Record<IndicatorDomain, { label: string; color: string; bg: string; icon: ReactNode }> = {
+  budget: { label: "Budget", color: "#0891b2", bg: "#e0f2fe", icon: <Wallet className={ICON} aria-hidden="true" /> },
+  performance: { label: "Performance", color: "#7c3aed", bg: "#ede9fe", icon: <Target className={ICON} aria-hidden="true" /> },
+  outputs: { label: "Outputs", color: "#059669", bg: "#d1fae5", icon: <FileText className={ICON} aria-hidden="true" /> },
+  compliance: { label: "Compliance", color: "#f59e0b", bg: "#fef3c7", icon: <CircleCheck className={ICON} aria-hidden="true" /> },
+  risk: { label: "Risk", color: "#dc2626", bg: "#fee2e2", icon: <TriangleAlert className={ICON} aria-hidden="true" /> },
 };
 
 const METRIC_META: Record<CriterionMetricKey, { label: string; domain: IndicatorDomain; formula: string }> = {
@@ -161,7 +164,7 @@ function DefineIndicatorModal({ onCreated, onClose }: { onCreated: (c: DecisionC
         <select value={metricKey} onChange={(e) => setMetricKey(e.target.value as CriterionMetricKey)} className={INPUT_CLS} style={invalidStyle(attempted && !metricKey)}>
           <option value="">Select a metric</option>
           {(Object.keys(METRIC_META) as CriterionMetricKey[]).map((k) => (
-            <option key={k} value={k}>{DOMAIN_META[METRIC_META[k].domain].icon} {METRIC_META[k].label}</option>
+            <option key={k} value={k}>{METRIC_META[k].label}</option>
           ))}
         </select>
       </Field>
@@ -767,9 +770,7 @@ function DecisionSupportContent() {
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-xs font-black" style={{ color: "#0d2a5e" }}>{m.label}</p>
                       {on && (
-                        <svg width="12" height="12" fill="none" stroke="#0d2a5e" strokeWidth="2.5" viewBox="0 0 24 24" className="shrink-0">
-                          <path d="M5 13l4 4L19 7" strokeLinecap="round" />
-                        </svg>
+                        <Check size={12} strokeWidth={2.5} color="#0d2a5e" className="shrink-0" aria-hidden="true" />
                       )}
                     </div>
                     <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
@@ -808,16 +809,14 @@ function DecisionSupportContent() {
                       className="w-full py-3 rounded-xl font-black text-white flex items-center justify-center gap-2 disabled:opacity-60"
                       style={{ background: "linear-gradient(135deg, #0d2a5e, #0891b2)" }}
                     >
-                      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path d="M5 3l14 9-14 9V3z" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <Play size={13} strokeWidth={2.5} aria-hidden="true" />
                       {isRunning ? "Scoring…" : "Run DSS — DSS-03"}
                     </button>
                   </>
                 )}
                 {activeModel.status === "draft" && (
                   <button onClick={() => setShowWeights(true)} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "#fef3c7", color: "#b45309" }}>
-                    ⚖️ Set Weights — DSS-02
+                    <Scale className={ICON} aria-hidden="true" /> Set Weights — DSS-02
                   </button>
                 )}
                 {activeModel.status === "finalized" && !activeModel.is_consistent && (
@@ -869,7 +868,7 @@ function DecisionSupportContent() {
                 <div className="space-y-4">
                   {!activeRec ? (
                     <div className="text-center py-12 rounded-2xl" style={{ background: "#f8fafc" }}>
-                      <p className="text-3xl mb-2">🧮</p>
+                      <p className="text-3xl mb-2"><Calculator className={ICON} aria-hidden="true" /></p>
                       <p className="text-sm font-bold" style={{ color: "#64748b" }}>
                         {!activeModel
                           ? "No DSS model yet."
@@ -1056,7 +1055,7 @@ function DecisionSupportContent() {
 
                   {activeModel?.status === "draft" && (
                     <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: "#fef3c7", color: "#b45309" }}>
-                      ⚠️ This model's weights aren't finalized yet — {canManage ? "use “Set Weights” in the model panel." : "DRD, VPREI, or System Admin must finalize them."}
+                      <TriangleAlert className={ICON} aria-hidden="true" /> This model's weights aren't finalized yet — {canManage ? "use “Set Weights” in the model panel." : "DRD, VPREI, or System Admin must finalize them."}
                     </div>
                   )}
 

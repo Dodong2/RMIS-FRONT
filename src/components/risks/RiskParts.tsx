@@ -242,7 +242,7 @@ export function IdentifyRiskModal({
         <Field label="Risk Category" required>
           <select value={category} onChange={(e) => setCategory(e.target.value as RiskCategory)} className={INPUT_CLS} style={INPUT_STYLE}>
             {(Object.keys(CAT_META) as RiskCategory[]).map((k) => (
-              <option key={k} value={k}>{CAT_META[k].icon} {CAT_META[k].label}</option>
+              <option key={k} value={k}>{CAT_META[k].label}</option>
             ))}
           </select>
         </Field>

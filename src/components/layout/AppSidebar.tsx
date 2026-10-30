@@ -1,3 +1,4 @@
+import { LogOut } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -139,9 +140,7 @@ export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebar
           className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:bg-white/[0.06] hover:text-[rgba(168,196,232,0.9)]"
           style={{ color: "rgba(168,196,232,0.55)" }}
         >
-          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round">
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-          </svg>
+          <LogOut size={14} aria-hidden="true" />
           Sign Out
         </button>
       </div>

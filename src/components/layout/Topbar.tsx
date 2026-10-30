@@ -1,3 +1,4 @@
+import { Bell, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -133,9 +134,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
           style={{ color: "#64748b" }}
           aria-label="Open navigation"
         >
-          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <Menu size={20} aria-hidden="true" />
         </button>
         <div className="min-w-0">
           <h1 className="font-black text-base lg:text-lg truncate" style={{ color: "#0d2a5e" }}>{title}</h1>
@@ -155,9 +154,7 @@ export function Topbar({ user, isLoading, title, onOpenSidebar }: TopbarProps) {
             style={{ color: "#64748b" }}
             aria-label="Notifications"
           >
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" />
-            </svg>
+            <Bell size={20} aria-hidden="true" />
             {total > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: "#ef4444" }} />}
           </button>
           {notifOpen && (

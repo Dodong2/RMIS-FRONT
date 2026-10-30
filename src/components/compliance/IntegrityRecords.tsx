@@ -201,7 +201,7 @@ function AddRecordModal({
 
   return (
     <ProtoModal
-      title={`${meta.icon} New ${meta.label.replace(/s$/, "")}`}
+      title={`New ${meta.label.replace(/s$/, "")}`}
       subtitle="Logged against the selected project"
       onClose={onClose}
       footer={

@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -90,9 +91,7 @@ export function ProtoModal({
             {subtitle && <div className="text-white/50 text-xs mt-0.5">{subtitle}</div>}
           </div>
           <button onClick={onClose} className="text-white/50 hover:text-white shrink-0" aria-label="Close">
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
         <div className="p-6 space-y-4 overflow-y-auto flex-1">{children}</div>

@@ -1,12 +1,17 @@
+import { ClipboardList, FileText, Medal, Mic, Settings, Sprout, Trophy } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { OutputDashboard, PerformanceDashboard, PerformanceScore } from "../../types/dashboard";
 import { SkeletonRows } from "../common/proto";
 import { monthLabel, peso } from "./format";
 import { ChartCard, DonutChart, EmptyChart, HBar, KpiBox, MiniBar, TrendBar } from "./ProtoCharts";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 const PROGRESS_PER_PAGE = 4;
 const RANK_LIMIT = 6;
-const medal = (i: number) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`);
+// Task 18: gold, silver and bronze medals for the top three, a rank number after
+const MEDAL_COLORS = ["#d97706", "#94a3b8", "#b45309"];
+const medal = (i: number) => (i < 3 ? <Medal className="inline-block h-[1em] w-[1em]" color={MEDAL_COLORS[i]} aria-label={`Rank ${i + 1}`} /> : `#${i + 1}`);
 const barColor = (i: number) => (i === 0 ? "#059669" : i === 1 ? "#0891b2" : i === 2 ? "#7c3aed" : "#94a3b8");
 const rankBox = (top: boolean) => ({ background: top ? "#f0fdf4" : "#f8fafc", border: `1px solid ${top ? "#bbf7d0" : "#e2e8f0"}` });
 
@@ -159,12 +164,12 @@ export function OverviewTab({
         <ChartCard title="Research Output Summary" className="order-1">
           <div className="grid grid-cols-2 gap-3">
             {[
-              { icon: "📄", label: "Research Outputs", val: rows.reduce((a, r) => a + r.outputs, 0), sub: "Recorded project outputs", color: "#0d2a5e" },
-              { icon: "🎤", label: "Completed Projects", val: rows.filter((r) => r.status === "completed").length, sub: "Completed projects", color: "#0891b2" },
-              { icon: "🌱", label: "Tech Transfers", val: outputDash?.ip_records_by_status.adopted ?? 0, sub: "IP adopted by community", color: "#059669" },
-              { icon: "🏆", label: "Active Projects", val: rows.filter((r) => r.status === "active").length, sub: "Currently ongoing", color: "#f59e0b" },
-              { icon: "📋", label: "Milestones Done", val: rows.reduce((a, r) => a + r.milestones_done, 0), sub: "Completed milestones", color: "#64748b" },
-              { icon: "⚙️", label: "Team Members", val: rows.reduce((a, r) => a + r.team_members, 0), sub: "Project team assignments", color: "#d97706" },
+              { icon: <FileText className={ICON} aria-hidden="true" />, label: "Research Outputs", val: rows.reduce((a, r) => a + r.outputs, 0), sub: "Recorded project outputs", color: "#0d2a5e" },
+              { icon: <Mic className={ICON} aria-hidden="true" />, label: "Completed Projects", val: rows.filter((r) => r.status === "completed").length, sub: "Completed projects", color: "#0891b2" },
+              { icon: <Sprout className={ICON} aria-hidden="true" />, label: "Tech Transfers", val: outputDash?.ip_records_by_status.adopted ?? 0, sub: "IP adopted by community", color: "#059669" },
+              { icon: <Trophy className={ICON} aria-hidden="true" />, label: "Active Projects", val: rows.filter((r) => r.status === "active").length, sub: "Currently ongoing", color: "#f59e0b" },
+              { icon: <ClipboardList className={ICON} aria-hidden="true" />, label: "Milestones Done", val: rows.reduce((a, r) => a + r.milestones_done, 0), sub: "Completed milestones", color: "#64748b" },
+              { icon: <Settings className={ICON} aria-hidden="true" />, label: "Team Members", val: rows.reduce((a, r) => a + r.team_members, 0), sub: "Project team assignments", color: "#d97706" },
             ].map((item) => (
               <div key={item.label} className="p-3 rounded-xl text-center" style={{ background: "#f8fafc" }}>
                 <div className="text-2xl mb-1">{item.icon}</div>

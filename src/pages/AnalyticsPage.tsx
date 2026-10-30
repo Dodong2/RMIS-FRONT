@@ -1,3 +1,4 @@
+import { Bot, Files, Scale, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { dashboardApi } from "../lib/dashboardApi";
 import { researchApi } from "../lib/researchApi";
@@ -34,6 +35,8 @@ import { OverviewTab } from "../components/analytics/OverviewTab";
 import { ProjectsTab } from "../components/analytics/ProjectsTab";
 import { PortfolioTab } from "../components/analytics/PortfolioTab";
 import { ChartCard, CountBars, EmptyChart, HBar, KpiBox } from "../components/analytics/ProtoCharts";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 const MANAGE_TARGET_ROLE_CODES = ["system_admin", "riuh", "vprei"];
 
@@ -289,10 +292,10 @@ function AnalyticsContent() {
   const complianceSnapshot = complianceDash && (
     <div className="grid grid-cols-2 gap-3">
       {[
-        { icon: "🔍", label: "Similarity checks", val: sim?.total ?? 0, sub: `${sim?.within_threshold ?? 0} within · ${sim?.over_threshold ?? 0} over threshold`, color: "#0891b2" },
-        { icon: "🤖", label: "AI declarations", val: complianceDash.ai_use_declarations, sub: "Self-declared AI use", color: "#7c3aed" },
-        { icon: "📑", label: "Review references", val: count(complianceDash.ethics_reviews_by_status), sub: "TRC / integrity / external", color: "#0d2a5e" },
-        { icon: "⚖️", label: "COI / Misconduct", val: count(complianceDash.coi_disclosures_by_status) + count(complianceDash.misconduct_cases_by_status), sub: `${count(complianceDash.coi_disclosures_by_status)} COI · ${count(complianceDash.misconduct_cases_by_status)} cases`, color: "#dc2626" },
+        { icon: <Search className={ICON} aria-hidden="true" />, label: "Similarity checks", val: sim?.total ?? 0, sub: `${sim?.within_threshold ?? 0} within · ${sim?.over_threshold ?? 0} over threshold`, color: "#0891b2" },
+        { icon: <Bot className={ICON} aria-hidden="true" />, label: "AI declarations", val: complianceDash.ai_use_declarations, sub: "Self-declared AI use", color: "#7c3aed" },
+        { icon: <Files className={ICON} aria-hidden="true" />, label: "Review references", val: count(complianceDash.ethics_reviews_by_status), sub: "TRC / integrity / external", color: "#0d2a5e" },
+        { icon: <Scale className={ICON} aria-hidden="true" />, label: "COI / Misconduct", val: count(complianceDash.coi_disclosures_by_status) + count(complianceDash.misconduct_cases_by_status), sub: `${count(complianceDash.coi_disclosures_by_status)} COI · ${count(complianceDash.misconduct_cases_by_status)} cases`, color: "#dc2626" },
       ].map((s) => (
         <div key={s.label} className="p-3 rounded-xl" style={{ background: "#f8fafc" }}>
           <p className="text-lg">{s.icon}</p>

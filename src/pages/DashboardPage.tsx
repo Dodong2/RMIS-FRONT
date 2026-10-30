@@ -1,3 +1,4 @@
+import { BookOpen, CircleDollarSign, Clipboard, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ProtectedRoute } from "../components/ProtectedRoute";
@@ -72,11 +73,6 @@ const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a +
 
 const humanize = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-const svgPath = (d: string, size = 18) => (
-  <svg width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round">
-    <path d={d} />
-  </svg>
-);
 
 interface DashData {
   projectDash?: ProjectDashboard | null;
@@ -964,7 +960,7 @@ function DashboardContent() {
   if (!hasRole) {
     return (
       <div className="rounded-2xl p-5 flex items-start gap-3 animate-fade-in" style={{ background: "#fffbeb", border: "1px solid #fcd34d" }}>
-        <span style={{ color: "#b45309" }}>{svgPath("M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z", 20)}</span>
+        <span style={{ color: "#b45309" }}><TriangleAlert size={20} aria-hidden="true" /></span>
         <div className="text-sm leading-relaxed">
           <p className="font-black" style={{ color: "#92400e" }}>Waiting for role assignment</p>
           <p className="mt-1" style={{ color: "#b45309" }}>
@@ -1002,7 +998,7 @@ function DashboardContent() {
             sub={projectDash?.total_projects ? `${projectDash.by_status.active ?? 0} ongoing` : "No actual data"}
             color="#0d2a5e"
             bg="#e0eaf7"
-            icon={svgPath("M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2", 16)}
+            icon={<Clipboard size={16} aria-hidden="true" />}
           />
           <KpiTile
             label="Research Budget"
@@ -1012,7 +1008,7 @@ function DashboardContent() {
             }
             color="#0891b2"
             bg="#e0f2fe"
-            icon={svgPath("M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2", 16)}
+            icon={<CircleDollarSign size={16} aria-hidden="true" />}
           />
           <KpiTile
             label="Research Outputs"
@@ -1020,7 +1016,7 @@ function DashboardContent() {
             sub={outputsTotal > 0 ? `${outputDash!.ip_incentive_eligible_count} IP incentive-eligible` : "No actual data"}
             color="#7c3aed"
             bg="#f5f3ff"
-            icon={svgPath("M12 6.253v13M3 6.253l9-3.253 9 3.253", 16)}
+            icon={<BookOpen size={16} aria-hidden="true" />}
           />
           <KpiTile
             label="Open High Risks"
@@ -1028,7 +1024,7 @@ function DashboardContent() {
             sub={riskDash?.total_projects ? "High + Critical, requiring attention" : "No actual data"}
             color="#dc2626"
             bg="#fee2e2"
-            icon={svgPath("M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94", 16)}
+            icon={<TriangleAlert size={16} aria-hidden="true" />}
           />
         </div>
       )}

@@ -507,7 +507,7 @@ function SixPsTab({ projects, canReport }: { projects: Project[]; canReport: boo
               <Field label="6Ps Category" className="w-52">
                 <select className={INPUT_CLS} style={INPUT_STYLE} value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as SixPCategory }))}>
                   {(Object.entries(SIX_P_META) as [SixPCategory, (typeof SIX_P_META)[SixPCategory]][]).map(([k, m]) => (
-                    <option key={k} value={k}>{m.icon} {m.label}</option>
+                    <option key={k} value={k}>{m.label}</option>
                   ))}
                 </select>
               </Field>
@@ -983,7 +983,7 @@ function OutputsContent() {
               <select value={familyFilter} onChange={(e) => setFamilyFilter(e.target.value as OutputFamily | "all")} className={filterCls} style={filterSt}>
                 <option value="all">All Families</option>
                 {(Object.entries(FAMILY_META) as [OutputFamily, (typeof FAMILY_META)[OutputFamily]][]).map(([k, m]) => (
-                  <option key={k} value={k}>{m.icon} {m.label}</option>
+                  <option key={k} value={k}>{m.label}</option>
                 ))}
               </select>
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusKey | "all")} className={filterCls} style={filterSt}>

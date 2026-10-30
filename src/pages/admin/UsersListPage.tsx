@@ -1,3 +1,4 @@
+import { Building2, CalendarDays, Check, Mail, MapPin, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -115,9 +116,9 @@ function PermissionModal({ role, matrix, onClose }: { role: Role; matrix: Permis
                     <div key={p.code} className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg" style={{ background: has ? "#f0fdf4" : "#f8fafc" }}>
                       <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: has ? "#059669" : "#e2e8f0" }}>
                         {has ? (
-                          <svg width="9" height="9" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" /></svg>
+                          <Check size={9} strokeWidth={2.5} aria-hidden="true" />
                         ) : (
-                          <svg width="9" height="9" fill="none" stroke="#94a3b8" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18" strokeLinecap="round" /></svg>
+                          <X size={9} strokeWidth={2.5} color="#94a3b8" aria-hidden="true" />
                         )}
                       </div>
                       <span className="text-xs flex-1" style={{ color: has ? "#166534" : "#94a3b8" }}>{p.name}</span>
@@ -726,7 +727,7 @@ function UsersListContent() {
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div className="flex flex-wrap gap-2">
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="13" height="13" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+              <Search size={13} color="#94a3b8" className="absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
               <input type="text" placeholder="Search email, office, position…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 pr-4 py-2 rounded-xl text-xs border outline-none" style={{ background: "white", borderColor: "#e2e8f0", color: "#334155", width: "220px" }} />
             </div>
             <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className={selCls} style={selSt}>
@@ -750,7 +751,7 @@ function UsersListContent() {
             </select>
           </div>
           <Link to="/admin/pending-users" className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            <Plus size={13} strokeWidth={2.5} aria-hidden="true" />
             Pending Registrations{pendingCount ? ` (${pendingCount})` : ""} — UAM-01
           </Link>
         </div>
@@ -847,13 +848,13 @@ function UsersListContent() {
                   </div>
                   <div className="space-y-1.5 text-xs">
                     {[
-                      { icon: "M3 8l9-5 9 5v10a1 1 0 01-1 1H4a1 1 0 01-1-1V8z", val: u.email },
-                      { icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", val: u.office || "No office on file" },
-                      { icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z", val: [u.scope?.college, u.campus].filter(Boolean).join(" · ") || "University-wide" },
-                      { icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", val: `Joined: ${fmtDate(u.date_joined)}` },
+                      { icon: Mail, val: u.email },
+                      { icon: Building2, val: u.office || "No office on file" },
+                      { icon: MapPin, val: [u.scope?.college, u.campus].filter(Boolean).join(" · ") || "University-wide" },
+                      { icon: CalendarDays, val: `Joined: ${fmtDate(u.date_joined)}` },
                     ].map((item, i) => (
                       <div key={i} className="flex items-center gap-2" style={{ color: "#64748b" }}>
-                        <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="shrink-0"><path d={item.icon} strokeLinecap="round" /></svg>
+                        <item.icon size={12} className="shrink-0" aria-hidden="true" />
                         <span className="truncate">{item.val}</span>
                       </div>
                     ))}
@@ -1025,7 +1026,7 @@ function FragmentRows({ mod, matrix }: { mod: string; matrix: PermissionMatrix }
               <td key={code} className="px-1 py-1.5 text-center">
                 {has ? (
                   <span className="inline-flex w-4 h-4 rounded-full items-center justify-center" style={{ background: "#059669" }} aria-label="granted">
-                    <svg width="9" height="9" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" /></svg>
+                    <Check size={9} strokeWidth={2.5} aria-hidden="true" />
                   </span>
                 ) : (
                   <span style={{ color: "#e2e8f0" }} aria-label="not granted">·</span>

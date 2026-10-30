@@ -1,3 +1,4 @@
+import { Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AuthShell } from "../components/auth/AuthShell";
 
@@ -6,9 +7,7 @@ export default function RegistrationPendingPage() {
     <AuthShell title="Request Received" subtitle="Two steps before your account opens">
       <div className="space-y-5">
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl" style={{ background: "#d1fae5", border: "1px solid #6ee7b7" }}>
-          <svg width="20" height="20" fill="none" stroke="#059669" strokeWidth="2" viewBox="0 0 24 24" className="shrink-0 mt-0.5">
-            <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <Mail size={20} color="#059669" className="shrink-0 mt-0.5" aria-hidden="true" />
           <div className="text-sm leading-relaxed">
             <p className="font-black" style={{ color: "#065f46" }}>What happens next</p>
             <p className="mt-1" style={{ color: "#047857" }}>

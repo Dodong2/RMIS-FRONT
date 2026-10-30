@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { authApi } from "../../lib/authApi";
 import { exportXlsx } from "../../lib/exportFiles";
@@ -183,7 +184,7 @@ function AuditLogsContent() {
             {isLoading ? "Loading…" : "Refresh"}
           </button>
           <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold" style={{ background: "white", border: "1px solid #e2e8f0", color: "#475569" }}>
-            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+            <Download size={13} aria-hidden="true" />
             Export Logs
           </button>
         </div>

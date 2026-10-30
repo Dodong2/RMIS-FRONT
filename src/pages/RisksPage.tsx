@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
@@ -15,6 +16,8 @@ import { SkeletonRows } from "../components/common/proto";
 import { EarlyWarningPanel } from "../components/risks/EarlyWarning";
 import { CatChip, IdentifyRiskModal, LevelBadge, RiskCard, RiskDetailModal, RiskHeatMap, StatusBadge, UpdateRiskModal } from "../components/risks/RiskParts";
 import { useAuth } from "../context/AuthContext";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 const MANAGE_ROLE_CODES = ["system_admin", "vprei", "crc_chair", "riuh", "project_leader"];
 
@@ -221,7 +224,7 @@ function RisksContent() {
                 <select value={filterCat} onChange={(e) => setFilterCat(e.target.value as RiskCategory | "all")} className={selCls} style={selSt}>
                   <option value="all">All Categories</option>
                   {(Object.keys(CAT_META) as RiskCategory[]).map((k) => (
-                    <option key={k} value={k}>{CAT_META[k].icon} {CAT_META[k].label}</option>
+                    <option key={k} value={k}>{CAT_META[k].label}</option>
                   ))}
                 </select>
                 <p className="text-xs self-center" style={{ color: "#94a3b8" }}>{visible.length} risk{visible.length !== 1 ? "s" : ""}</p>
@@ -243,7 +246,7 @@ function RisksContent() {
                         <div className="flex items-center gap-3 mb-3">
                           <p className="text-xs font-black uppercase tracking-wide" style={{ color: "#0d2a5e" }}>{projectLabel(pid)}</p>
                           <p className="text-xs truncate" style={{ color: "#94a3b8" }}>{projectOf(pid)?.title}</p>
-                          {hasCritical && <span className="text-xs px-2 py-0.5 rounded-full font-bold shrink-0" style={{ background: "#fee2e2", color: "#dc2626" }}>⚠️ Critical risks</span>}
+                          {hasCritical && <span className="text-xs px-2 py-0.5 rounded-full font-bold shrink-0" style={{ background: "#fee2e2", color: "#dc2626" }}><TriangleAlert className={ICON} aria-hidden="true" /> Critical risks</span>}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                           {projRisks.map((r) => (
