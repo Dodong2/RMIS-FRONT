@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
 import { outputsApi } from "../lib/outputsApi";
 import type { SixPCategory } from "../types/outputs";
-import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
+import { DOCUMENT_ACCEPT, PDF_ACCEPT, documentApi, openDocument } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
 import { LIB_UNITS, allocationPeriods, groupLibRows, libLineTotal, libUnitLabel, periodYear, allocatedTotal } from "../lib/libUnits";
 import { notify } from "../lib/notify";
@@ -185,23 +185,6 @@ const APPROVAL_DOCS: { type: ApprovalDocType; label: string; required: boolean }
   { type: "moa", label: "MOA", required: false },
 ];
 
-// Task 13: View opens the uploaded file through a short-lived signed URL. The tab is opened before the request so the
-// browser doesn't block it as a pop-up; a PDF shows in it, Word and Excel files download.
-async function openDocument(getUrl: () => Promise<string>) {
-  const tab = window.open("", "_blank");
-  try {
-    const url = await getUrl();
-    if (tab) {
-      tab.opener = null;
-      tab.location.href = url;
-    } else {
-      window.open(url, "_blank", "noopener");
-    }
-  } catch (err) {
-    tab?.close();
-    notify.error(errorMessage(err, "Could not open the file."));
-  }
-}
 
 // Client 2026-10-24 (register_error.png): name each registration part that failed and why, e.g. "LIB (reason)",
 // "2× Work plan activity (reason)". A request that never got an answer shows the browser's error (e.g. Network Error).
@@ -215,12 +198,12 @@ function failedParts(labels: string[], results: PromiseSettledResult<unknown>[])
   return [...counts].map(([key, n]) => (n > 1 ? `${n}× ${key}` : key));
 }
 
-function FilePick({ label, files, multiple, onChange }: { label: string; files: StagedFile[]; multiple?: boolean; onChange: Dispatch<SetStateAction<StagedFile[]>> }) {
+function FilePick({ label, files, multiple, documentType, onChange }: { label: string; files: StagedFile[]; multiple?: boolean; documentType?: ApprovalDocType; onChange: Dispatch<SetStateAction<StagedFile[]>> }) {
   const patch = (key: string, p: Partial<StagedFile>) => onChange((list) => list.map((f) => (f.key === key ? { ...f, ...p } : f)));
   const upload = (entry: StagedFile) => {
     patch(entry.key, { status: "uploading", progress: 0, error: undefined });
     documentApi
-      .stageDocument(entry.file, (progress) => patch(entry.key, { progress }))
+      .stageDocument(entry.file, (progress) => patch(entry.key, { progress }), documentType)
       .then((r) => patch(entry.key, { status: "done", progress: 100, token: r.staged_token }))
       .catch((err) => patch(entry.key, { status: "error", error: errorMessage(err, "Upload failed.") }));
   };
@@ -233,10 +216,10 @@ function FilePick({ label, files, multiple, onChange }: { label: string; files: 
       >
         <span className="text-2xl">📄</span>
         <p className="text-sm font-semibold text-center" style={{ color: "#475569" }}>{label}</p>
-        <p className="text-xs" style={{ color: "#94a3b8" }}>PDF, Word, or Excel up to 25MB each</p>
+        <p className="text-xs" style={{ color: "#94a3b8" }}>{documentType ? "PDF only, up to 25MB" : "PDF, Word, or Excel up to 25MB each"}</p>
         <input
           type="file"
-          accept={DOCUMENT_ACCEPT}
+          accept={documentType ? PDF_ACCEPT : DOCUMENT_ACCEPT}
           multiple={multiple}
           className="hidden"
           onChange={(e) => {
@@ -245,6 +228,11 @@ function FilePick({ label, files, multiple, onChange }: { label: string; files: 
             const tooBig = picked.find((f) => f.size > MAX_UPLOAD_BYTES);
             if (tooBig) {
               notify.error(`${tooBig.name} is over 25MB.`);
+              return;
+            }
+            const notPdf = documentType && picked.find((f) => !f.name.toLowerCase().endsWith(".pdf"));
+            if (notPdf) {
+              notify.error(`${notPdf.name} is not a PDF. Supporting Documents must be PDF files.`);
               return;
             }
             const entries = picked.map((file): StagedFile => ({ key: `${file.name}-${Date.now()}-${Math.random()}`, file, progress: 0, status: "uploading" }));
@@ -2009,7 +1997,7 @@ function RegisterProjectContent({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {APPROVAL_DOCS.map((d) => (
                       <Field key={d.type} label={d.required ? d.label : `${d.label} (optional)`} required={d.required} invalid={d.required && showErrors && !approvalAttached(d.type)}>
-                        <FilePick label={`Click to upload the ${d.label}`} files={approvalDocs[d.type]} onChange={setApprovalDoc(d.type)} />
+                        <FilePick label={`Click to upload the ${d.label}`} files={approvalDocs[d.type]} documentType={d.type} onChange={setApprovalDoc(d.type)} />
                         {edit?.savedDocs[d.type] && approvalDocs[d.type].length === 0 && (
                           <p className="mt-1 text-xs flex items-center gap-2" style={{ color: "#166534" }}>
                             <span className="truncate">✓ Saved: {edit.savedDocs[d.type]!.file_name} · upload to replace it with a new version</span>

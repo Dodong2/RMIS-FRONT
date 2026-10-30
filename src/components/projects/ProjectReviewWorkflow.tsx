@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2 } from "lucide-react";
+import { Eye, FileText, Pencil, Trash2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { errorMessage } from "../../lib/errorMessage";
 import { libActions, type LibAction } from "../../lib/libWorkflow";
@@ -12,6 +12,8 @@ import { pageOf } from "../../lib/paging";
 import { Pager } from "../common/proto";
 import { documentsQuery, queryKeys } from "../../lib/queries";
 import { researchApi } from "../../lib/researchApi";
+import { documentUrl, openDocument } from "../../lib/documentApi";
+import { nameOf } from "../../lib/workplan";
 import { SubmitConfirmDialog } from "./SubmitConfirmDialog";
 import { useReviewStep } from "../../lib/useReviewStep";
 import type { LineItemBudget } from "../../types/budget";
@@ -27,6 +29,10 @@ const DOC_LABELS: Partial<Record<DocumentType, string>> = {
   proposal_form: "Research Proposal Form (SF-018)",
   other: "Supporting document",
 };
+
+// Task 19 (2026-10-30): the client's wording for the CRC/CRD forwarding a proposal to Finance/Accounting/Budget
+const FORWARD_WARNING =
+  "By continuing, you confirm that you have reviewed this proposal and are forwarding it to Finance/Accounting/Budget for budget review and certification. Once submitted, you can no longer add review comments or modify this proposal. This action cannot be undone.";
 
 const peso = (n: string | number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 const when = (iso: string) =>
@@ -268,6 +274,7 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
   const hold = actions.find((a) => a.step === "hold");
   const leaderLabel = leaderSubmitLabel(project.review_status);
   const isSubmit = (a: LibAction) => a.step === "submit" || a.step === "resubmit";
+  const isForward = (a: LibAction) => a.step === "for-checking";
   // Task 16: a submit or resubmit closes its confirmation and this review once the backend accepts it; the project
   // list refetches (useReviewStep), so the row shows the new status and no stale modal stays open
   const take = (a: LibAction, remarks = "") =>
@@ -279,6 +286,8 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
           setConfirming(null);
           onClose();
         }
+        // Task 19: Open Review stays open, read-only, once the CRC/CRD has forwarded it
+        if (isForward(a)) setConfirming(null);
       },
     });
   const close = () => {
@@ -297,11 +306,10 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
               <ReviewStatusBadge status={project.review_status} />
             </div>
             <p className="mt-2 text-lg font-black" style={{ color: "#0d2a5e" }}>{project.title}</p>
+            <p className="mt-0.5 text-xs text-slate-500">By: {nameOf(project.lead_detail)}</p>
           </div>
-          <button onClick={close} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Close workflow detail">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" />
-            </svg>
+          <button onClick={close} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Close workflow detail" title="Close">
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -336,28 +344,42 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
                       <strong>{DOC_LABELS[d.document_type] ?? d.document_type} · Version {d.version_number}</strong>
                       <span className="shrink-0 text-slate-400">{when(d.uploaded_at)}</span>
                     </div>
-                    <p className="mt-1 truncate text-[10px] text-slate-500">{d.file_name}</p>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <p className="truncate text-[10px] text-slate-500">{d.file_name}</p>
+                      <button
+                        onClick={() => openDocument(() => documentUrl(d.id))}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold hover:bg-cyan-50"
+                        style={{ color: "#0891b2" }}
+                        aria-label={`View ${DOC_LABELS[d.document_type] ?? d.document_type} version ${d.version_number}`}
+                      >
+                        <Eye className="h-3.5 w-3.5" aria-hidden="true" /> View
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 p-4">
-              <p className="font-bold" style={{ color: "#0d2a5e" }}>LIB version history</p>
-              <div className="mt-3 space-y-2">
-                {budgets.length === 0 && <p className="text-xs text-slate-400">No Line-Item Budget yet. Prepare it under Budget Management.</p>}
-                {[...budgets].sort((a, b) => b.version_number - a.version_number).map((b) => (
-                  <div key={b.id} className="rounded-lg bg-slate-50 p-3">
-                    <div className="flex justify-between gap-2 text-xs">
-                      <strong>Version {b.version_number}</strong>
-                      <span className="shrink-0 text-slate-400">{when(b.created_at)}</span>
-                    </div>
-                    <p className="mt-1 text-[10px] text-slate-500">
-                      Proposed Line-Item Budget · {peso(b.total_amount)}
-                      {b.reviews.some((r) => r.action === "resubmitted") ? ` · resubmitted ${b.reviews.filter((r) => r.action === "resubmitted").length}×` : ""}
-                    </p>
+              <p className="font-bold" style={{ color: "#0d2a5e" }}>Submitted Approved Proposal Information</p>
+              <dl className="mt-3 space-y-1.5 text-xs">
+                {[
+                  ["Total project budget", project.total_cost ? peso(project.total_cost) : "—"],
+                  ["Project start date", project.start_date ? new Date(`${project.start_date}T00:00:00`).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—"],
+                  ["NTP number", project.project_code],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                    <dt className="text-slate-500">{label}</dt>
+                    <dd className="font-semibold text-slate-700">{value}</dd>
                   </div>
                 ))}
-              </div>
+              </dl>
+              <button
+                onClick={() => openDocument(() => researchApi.proposalPdfUrl(project.id), "Could not open the proposal information.")}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white hover:bg-[#1a3f7a]"
+                style={{ background: "#0d2a5e" }}
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" /> View Other Information
+              </button>
             </div>
           </div>
 
@@ -427,7 +449,7 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
                   <button
                     key={a.step}
                     disabled={step.isPending}
-                    onClick={() => (isSubmit(a) ? setConfirming(a) : take(a))}
+                    onClick={() => (isSubmit(a) || isForward(a) ? setConfirming(a) : take(a))}
                     className={`rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-50 ${isSubmit(a) ? "hover:bg-[#1a3f7a]" : "hover:bg-emerald-700"}`}
                     style={{ background: isSubmit(a) ? "#0d2a5e" : "#059669" }}
                   >
@@ -446,13 +468,26 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
           </div>
         )}
         {/* Inside the panel that stops clicks, so a click in the (portalled) dialog doesn't reach the backdrop's close */}
-        <SubmitConfirmDialog
-          open={confirming !== null}
-          action={leaderLabel ?? "Submit Project Proposal"}
-          pending={step.isPending}
-          onCancel={() => setConfirming(null)}
-          onConfirm={() => confirming && take(confirming)}
-        />
+        {confirming && isForward(confirming) ? (
+          <SubmitConfirmDialog
+            open
+            action="Mark for checking"
+            warning={FORWARD_WARNING}
+            note=""
+            confirmLabel="Confirm Submission"
+            pending={step.isPending}
+            onCancel={() => setConfirming(null)}
+            onConfirm={() => take(confirming)}
+          />
+        ) : (
+          <SubmitConfirmDialog
+            open={confirming !== null}
+            action={leaderLabel ?? "Submit Project Proposal"}
+            pending={step.isPending}
+            onCancel={() => setConfirming(null)}
+            onConfirm={() => confirming && take(confirming)}
+          />
+        )}
       </div>
     </div>,
     document.body,

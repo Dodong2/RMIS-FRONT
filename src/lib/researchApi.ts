@@ -273,6 +273,13 @@ export const researchApi = {
   deleteProject: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/projects/${id}/`);
   },
+  /** Task 19: View Other Information, the saved proposal as a PDF (GET projects/<id>/proposal-pdf/) in a blob URL. */
+  proposalPdfUrl: async (id: number): Promise<string> => {
+    const { data } = await apiClient.get(`/api/projects/${id}/proposal-pdf/`, { responseType: "blob" });
+    const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return url;
+  },
   updateProject: async (id: number, payload: Partial<Project> & { status_remarks?: string }): Promise<Project> => {
     const { data } = await apiClient.patch(`/api/projects/${id}/`, payload);
     return data;
