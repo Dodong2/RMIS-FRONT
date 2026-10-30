@@ -248,7 +248,7 @@ automatically — most pages needed zero code changes for this pass.
   shapes matched the new TS types exactly, one throwaway planning target
   deleted after (no DELETE endpoint exists, so it was removed via Django
   shell). Not yet browser-tested — dev servers left running for the client.
-- Module 11 (Budget Forecasting): BudgetForecastPage built against the
+- Module 11 (Budget Forecasting): **2026-10-30 (Task 27): open to `project_leader` with Run, Unpaid Commitments tile — see "Last thing done".** BudgetForecastPage built against the
   forecasting app — project selector limited to institutional/externally-
   funded projects (Core-Funded is out of this module's scope), role-gated
   "Run New Forecast" button (system_admin/drd/vprei/finance_budget), a
@@ -680,16 +680,15 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-30, Tasks 22–25, on `main`, NOT pushed, paired with rmis-backend `cb37caa` `dd93aad` `ce74fa3` `60cbac2` `a70e1a0` `0ca2283` (financial_monitoring 0010 + accounts 0029 NOT migrated; backend full suite 610/610). Memory note: `tasks-22-25-2026-10-30`. vitest **131/131**, `npx tsc -b` and eslint clean; not browser-tested. (Tasks 12–21 before this are pushed.)
-- **T22-B** (`9c56468`): ProcurementPage New Request = Project → Expense Category → Link to LIB Item → Year (required) / Total / Quarter (optional) from `financialApi.getProcurementBalance` (`useProcurementBalance`, `YearBudgetFields`): Approved (year), Committed, Paid, Available to request; quarter allocation/remaining for reference. `InsufficientBudgetModal` on the backend's 400 `budget.code === "insufficient_budget"` (and a pre-check against the backend figure). Revise & Resubmit shows the remarks plus Year/Quarter, its own reservation added back. List column "Year / Q". Types: `project_year`, nullable `quarter`/`fiscal_year`, `ProcurementBalance`, `InsufficientBudget`. No figure is computed on the frontend except the add-back.
-- **T23-B** (`878e768`): Manage Pending Procurement Requests (`/procurement?view=pending`) has a status dropdown (active statuses with counts), client-side over the backend's scoped `active=true` list (Carl's option 1).
-- **T23-D** (`e47a8d7`): `src/components/budget/ProcurementPayments.tsx`: `PaymentsBanner` on Budget Management for `PAYMENT_ROLE_CODES` (system_admin, finance_budget) → `/budget?view=payments`, Awaiting Payment / Already Paid (from `payment_status`, query `[financial, procurement, completed]`, `useRealtime(PROCUREMENT_EVENTS)`), Mark as Paid → Confirm Payment (full amount read-only, date ≤ today, OR/voucher reference) → `financialApi.payProcurementRequest`.
-- Backend-only in this batch (nothing to consume): procurement e-mails, payment/task reminders, task e-mails with Google Calendar link + `.ics`.
+2026-10-30, Task 27 (T26 is backend only, T28 dropped), on `main`, NOT pushed, paired with rmis-backend `ed2c289` `26bd9ab` (accounts 0030 NOT migrated; backend full suite 632/632). Memory note: `tasks-26-28-2026-10-30`. vitest **133/133**, `npx tsc -b` clean, eslint clean on the changed files; not browser-tested. Tasks 22-25 are pushed.
+- **T27-B** (`6a5881e`): `project_leader` gets `/budget/forecast` (`App.tsx` RoleGate), Budget Forecasting in the sidebar (`nav.ts`, tier `project_management`) and the Run button (`FORECAST_ROLE_CODES`, own projects, enforced by the backend). A saved ARIMA run shows the tile "Unpaid Commitments (today)" (`ForecastRun.unpaid_commitments`, a live figure from the backend). Other roles, the Analytics Budget Forecast tab and the client-side quick methods are unchanged.
+- **T28 DROPPED** (Carl 2026-10-30): no Baseline badge or Set Up Baseline Data button.
 
 ## Next thing to do in this repo
-1. Carl: migrate the backend (financial_monitoring 0010 + accounts 0029), then push both repos together (the New Request form needs the new backend and vice versa).
-2. Carl: browser-test `dss/RMIS_Test_Guide_2026-10-28.docx` section 16 (New Request modal at phone width, insufficient modal, Manage filter, Payments) and the still-open section 15.
-3. Not done, possible follow-ups: show payment status to the Project Leader on the Procurement page; procurement events in the global `REALTIME_REFETCH` map.
-4. Ask Carl/client (from before): lucide for the RichTextEditor toolbar; an item-name (catalog) picker in Update This LIB.
-5. Still open: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
-6. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
+1. Carl: migrate the backend (accounts 0030), then push both repos together and deploy (against the old backend the new tile would show NaN).
+2. Carl: browser-test `dss/RMIS_Test_Guide_2026-10-28.docx` sections 16A, 16, 15 with one record entered by hand. The forecast chart needs 6+ months of disbursements; below that the insufficient-data warning is expected.
+3. Later, ONLY when Carl says: the official 10 projects through Upload via Excel, from the `real_10_data` folder (see the backend handover).
+4. Not done, possible follow-ups: show payment status to the Project Leader on the Procurement page; procurement events in the global `REALTIME_REFETCH` map.
+5. Ask Carl/client (from before): lucide for the RichTextEditor toolbar; an item-name (catalog) picker in Update This LIB.
+6. Still open: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
+7. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
