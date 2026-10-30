@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import type { LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
-import type { ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
+import type { InsufficientBudget, ProcurementBalance, ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
 import type { Project } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
@@ -120,8 +120,149 @@ function Modal({ title, subtitle, onClose, children, footer }: { title: string; 
   );
 }
 
+function useProcurementBalance(lineItem: number | null) {
+  const [loaded, setLoaded] = useState<{ key: number; data: ProcurementBalance } | null>(null);
+  useEffect(() => {
+    if (!lineItem) return;
+    let live = true;
+    financialApi
+      .getProcurementBalance(lineItem)
+      .then((data) => live && setLoaded({ key: lineItem, data }))
+      .catch(() => live && setLoaded({ key: lineItem, data: { line_item: lineItem, years: [] } }));
+    return () => {
+      live = false;
+    };
+  }, [lineItem]);
+  return lineItem && loaded?.key === lineItem ? loaded.data : null;
+}
+
+function insufficientBudget(err: unknown): InsufficientBudget | null {
+  const budget = (err as { response?: { data?: { budget?: InsufficientBudget } } })?.response?.data?.budget;
+  return budget?.code === "insufficient_budget" ? budget : null;
+}
+
+const INSUFFICIENT_MESSAGE =
+  "Insufficient available budget. Some of the approved allocation is already committed to procurement requests that have not yet been paid. Please review the remaining available amount before submitting another request.";
+
+function YearBudgetFields({
+  balance,
+  lineItem,
+  year,
+  quarter,
+  onYear,
+  onQuarter,
+  invalid,
+  own,
+}: {
+  balance: ProcurementBalance | null;
+  lineItem: string;
+  year: string;
+  quarter: string;
+  onYear: (year: string) => void;
+  onQuarter: (quarter: string) => void;
+  invalid: boolean;
+  own?: { year: number | null; quarter: number | null; amount: number };
+}) {
+  const sel = balance?.years.find((y) => String(y.year) === year);
+  const ownBack = sel && own && own.year === sel.year ? own.amount : 0;
+  const q = sel?.quarters.find((x) => String(x.quarter) === quarter);
+  const quarterBack = q && ownBack && own?.quarter === q.quarter ? own.amount : 0;
+  const readOnly = { ...INPUT_STYLE, background: "#f8fafc", color: "#0f172a" };
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Year" required>
+          <select className={INPUT_CLS} style={invalidStyle(invalid && !year)} value={year} disabled={!balance} onChange={(e) => onYear(e.target.value)}>
+            <option value="">{!lineItem ? "Select item" : !balance ? "Loading…" : balance.years.length ? "Select" : "No budget"}</option>
+            {balance?.years.map((y) => (
+              <option key={y.year} value={y.year}>Year {y.year}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Total">
+          <div className={INPUT_CLS + " font-semibold truncate"} style={readOnly} title="Approved budget of this LIB item for the selected year">
+            {sel ? peso(sel.approved) : "—"}
+          </div>
+        </Field>
+        <Field label="Quarter">
+          <select className={INPUT_CLS} style={INPUT_STYLE} value={quarter} disabled={!sel} onChange={(e) => onQuarter(e.target.value)}>
+            <option value="">Optional</option>
+            {sel?.quarters.map((x) => (
+              <option key={x.quarter} value={x.quarter}>Q{x.quarter}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      {sel && (
+        <div className="rounded-xl px-4 py-3 text-xs space-y-2" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              [`Approved (Year ${sel.year})`, sel.approved, "#0d2a5e"],
+              ["Committed", Number(sel.committed) - ownBack, "#b45309"],
+              ["Paid", sel.paid, "#059669"],
+              ["Available to request", Number(sel.available) + ownBack, "#0891b2"],
+            ].map(([label, value, color]) => (
+              <div key={label as string}>
+                <p style={{ color: "#64748b" }}>{label}</p>
+                <p className="font-bold" style={{ color: color as string }}>{peso(value as number | string)}</p>
+              </div>
+            ))}
+          </div>
+          <p style={{ color: "#64748b" }}>
+            Available = Approved − Committed. Committed counts every filed request for this year, paid or not; {peso(Number(sel.unpaid) - ownBack)} of it is
+            still unpaid, so it already reduces what you can request.
+          </p>
+          {q && (
+            <p style={{ color: "#64748b" }}>
+              Q{q.quarter} allocation {peso(q.allocation)} · {peso(Number(q.remaining) + quarterBack)} left for this quarter. For reference only: the
+              year&apos;s available amount is the limit.
+            </p>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+function InsufficientBudgetModal({ budget, onClose }: { budget: InsufficientBudget; onClose: () => void }) {
+  const rows: [string, number | string][] = [
+    ["Requested amount", budget.requested],
+    [`Approved budget (Year ${budget.year})`, budget.approved],
+    ["Committed (filed requests)", budget.committed],
+    ["Of which not yet paid", budget.unpaid],
+    ["Paid", budget.paid],
+    ["Available to request", budget.available],
+  ];
+  return (
+    <Modal
+      title="Insufficient Available Budget"
+      subtitle="The request was not filed"
+      onClose={onClose}
+      footer={
+        <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: "#0d2a5e" }}>
+          Review Amount
+        </button>
+      }
+    >
+      <div className="rounded-xl px-4 py-3 text-xs flex gap-2" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
+        <TriangleAlert size={16} className="shrink-0" aria-hidden="true" />
+        <p>{budget.detail || INSUFFICIENT_MESSAGE}</p>
+      </div>
+      <table className="w-full text-sm">
+        <tbody>
+          {rows.map(([label, value]) => (
+            <tr key={label} className="border-b" style={{ borderColor: "#f1f5f9" }}>
+              <td className="py-2" style={{ color: "#64748b" }}>{label}</td>
+              <td className="py-2 text-right font-semibold" style={{ color: label === "Available to request" ? "#0891b2" : "#0f172a" }}>{peso(value)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Modal>
+  );
+}
+
 function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Project[]; budgets: LineItemBudget[]; onClose: () => void; onSaved: () => void }) {
-  const thisYear = new Date().getFullYear();
   const certified = budgets.filter((b) => b.is_current && b.status === "certified");
   const eligible = projects.filter((p) => certified.some((b) => b.project === p.id));
   const [form, setForm] = useState({
@@ -129,11 +270,12 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
     line_item: "",
     description: "",
     amount: "",
-    fiscal_year: String(thisYear),
-    quarter: String(Math.floor(new Date().getMonth() / 3) + 1),
+    project_year: "",
+    quarter: "",
     remarks: "",
   });
   const [attempted, setAttempted] = useState(false);
+  const [shortfall, setShortfall] = useState<InsufficientBudget | null>(null);
   const [saving, setSaving] = useState(false);
   const [requestKey] = useState(() => crypto.randomUUID());
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -142,11 +284,17 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
   const [cat, setCat] = useState<LineItemCategory>(() => firstCategory(lib));
   const catItems = (lib?.line_items ?? []).filter((li) => li.category === cat);
   const amount = parseFloat(form.amount) || 0;
+  const balance = useProcurementBalance(form.line_item ? Number(form.line_item) : null);
+  const yearBalance = balance?.years.find((y) => String(y.year) === form.project_year);
 
   const save = async () => {
     setAttempted(true);
-    if (!form.line_item || !form.description.trim() || amount <= 0 || !form.fiscal_year) {
-      notify.error("Line item, description, amount, and fiscal year are required.");
+    if (!form.line_item || !form.project_year || !form.description.trim() || amount <= 0) {
+      notify.error("LIB item, year, description, and amount are required.");
+      return;
+    }
+    if (yearBalance && amount > Number(yearBalance.available)) {
+      setShortfall({ code: "insufficient_budget", detail: INSUFFICIENT_MESSAGE, requested: amount, ...yearBalance });
       return;
     }
     setSaving(true);
@@ -155,14 +303,16 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
         line_item: Number(form.line_item),
         description: form.description.trim(),
         amount: amount.toFixed(2),
-        fiscal_year: Number(form.fiscal_year),
-        quarter: Number(form.quarter),
+        project_year: Number(form.project_year),
+        quarter: form.quarter ? Number(form.quarter) : null,
         remarks: form.remarks.trim() || undefined,
       }, requestKey);
       notify.success("Procurement request filed.");
       onSaved();
     } catch (err) {
-      notify.error(errorMessage(err, "Could not file the procurement request."));
+      const budget = insufficientBudget(err);
+      if (budget) setShortfall(budget);
+      else notify.error(errorMessage(err, "Could not file the procurement request."));
     } finally {
       setSaving(false);
     }
@@ -171,7 +321,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
   return (
     <Modal
       title="New Procurement Request"
-      subtitle="Quarterly request against a certified LIB item · routed by amount"
+      subtitle="Charged to a year of a certified LIB item · routed by amount"
       onClose={onClose}
       footer={
         <>
@@ -193,7 +343,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
               value={form.project}
               onChange={(e) => {
                 const project = e.target.value;
-                setForm((f) => ({ ...f, project, line_item: "" }));
+                setForm((f) => ({ ...f, project, line_item: "", project_year: "", quarter: "" }));
                 setCat(firstCategory(certified.find((b) => String(b.project) === project)));
               }}
             >
@@ -209,7 +359,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
               value={cat}
               onChange={(e) => {
                 setCat(e.target.value as LineItemCategory);
-                setForm((f) => ({ ...f, line_item: "" }));
+                setForm((f) => ({ ...f, line_item: "", project_year: "", quarter: "" }));
               }}
             >
               {CATEGORIES.map((c) => (
@@ -218,31 +368,33 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
             </select>
           </Field>
           <Field label="Link to LIB Item" required>
-            <select className={INPUT_CLS} style={invalidStyle(attempted && !form.line_item)} value={form.line_item} onChange={set("line_item")}>
+            <select
+              className={INPUT_CLS}
+              style={invalidStyle(attempted && !form.line_item)}
+              value={form.line_item}
+              onChange={(e) => setForm((f) => ({ ...f, line_item: e.target.value, project_year: "", quarter: "" }))}
+            >
               <option value="">{catItems.length ? "— Select LIB line item —" : `No ${CATEGORY_META[cat].label} items in this LIB`}</option>
               {catItems.map((li) => (
                 <option key={li.id} value={li.id}>{li.description} · {peso(li.amount)}</option>
               ))}
             </select>
           </Field>
+          <YearBudgetFields
+            balance={balance}
+            lineItem={form.line_item}
+            year={form.project_year}
+            quarter={form.quarter}
+            onYear={(project_year) => setForm((f) => ({ ...f, project_year, quarter: "" }))}
+            onQuarter={(quarter) => setForm((f) => ({ ...f, quarter }))}
+            invalid={attempted}
+          />
           <Field label="Description" required>
             <input className={INPUT_CLS} style={invalidStyle(attempted && !form.description.trim())} value={form.description} onChange={set("description")} placeholder="Goods/services to procure" />
           </Field>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Amount (₱)" required>
-              <MoneyInput className={INPUT_CLS} style={invalidStyle(attempted && amount <= 0)} value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
-            </Field>
-            <Field label="Fiscal Year" required>
-              <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={form.fiscal_year} onChange={set("fiscal_year")} />
-            </Field>
-            <Field label="Quarter" required>
-              <select className={INPUT_CLS} style={INPUT_STYLE} value={form.quarter} onChange={set("quarter")}>
-                {[1, 2, 3, 4].map((q) => (
-                  <option key={q} value={q}>Q{q}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
+          <Field label="Amount (₱)" required>
+            <MoneyInput className={INPUT_CLS} style={invalidStyle(attempted && amount <= 0)} value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
+          </Field>
           {amount > 0 && (
             <div className="rounded-xl px-4 py-2.5 text-xs font-bold" style={amount > 25000 ? { background: "#faf5ff", color: "#6b21a8" } : { background: "#e0f2fe", color: "#0369a1" }}>
               Routed to: {amount > 25000 ? ROUTING_LABELS.university_president : ROUTING_LABELS.campus_director}
@@ -253,18 +405,28 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
           </Field>
         </>
       )}
+      {shortfall && <InsufficientBudgetModal budget={shortfall} onClose={() => setShortfall(null)} />}
     </Modal>
   );
 }
 
 function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequest; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ description: request.description, amount: request.amount, remarks: "" });
+  const [form, setForm] = useState({
+    description: request.description,
+    amount: request.amount,
+    project_year: request.project_year ? String(request.project_year) : "",
+    quarter: request.quarter ? String(request.quarter) : "",
+    remarks: "",
+  });
   const [saving, setSaving] = useState(false);
+  const [shortfall, setShortfall] = useState<InsufficientBudget | null>(null);
   const amount = parseFloat(form.amount) || 0;
+  const balance = useProcurementBalance(request.line_item);
+  const own = { year: request.project_year, quarter: request.quarter, amount: Number(request.amount) };
 
   const save = async () => {
-    if (!form.description.trim() || amount <= 0) {
-      notify.error("Description and amount are required.");
+    if (!form.description.trim() || amount <= 0 || !form.project_year) {
+      notify.error("Description, year, and amount are required.");
       return;
     }
     setSaving(true);
@@ -272,12 +434,16 @@ function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequ
       await financialApi.resubmitProcurementRequest(request.id, {
         description: form.description.trim(),
         amount: amount.toFixed(2),
+        project_year: Number(form.project_year),
+        quarter: form.quarter ? Number(form.quarter) : null,
         remarks: form.remarks.trim() || undefined,
       });
       notify.success("Procurement request resubmitted.");
       onSaved();
     } catch (err) {
-      notify.error(errorMessage(err, "Could not resubmit the request."));
+      const budget = insufficientBudget(err);
+      if (budget) setShortfall(budget);
+      else notify.error(errorMessage(err, "Could not resubmit the request."));
     } finally {
       setSaving(false);
     }
@@ -304,12 +470,23 @@ function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequ
       <Field label="Description" required>
         <input className={INPUT_CLS} style={INPUT_STYLE} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
       </Field>
+      <YearBudgetFields
+        balance={balance}
+        lineItem={String(request.line_item)}
+        year={form.project_year}
+        quarter={form.quarter}
+        onYear={(project_year) => setForm((f) => ({ ...f, project_year, quarter: "" }))}
+        onQuarter={(quarter) => setForm((f) => ({ ...f, quarter }))}
+        invalid={!form.project_year}
+        own={own}
+      />
       <Field label="Amount (₱)" required>
         <MoneyInput className={INPUT_CLS} style={INPUT_STYLE} value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
       </Field>
       <Field label="Remarks">
         <textarea rows={2} className={INPUT_CLS + " resize-none"} style={INPUT_STYLE} value={form.remarks} onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} placeholder="What you changed" />
       </Field>
+      {shortfall && <InsufficientBudgetModal budget={shortfall} onClose={() => setShortfall(null)} />}
     </Modal>
   );
 }
@@ -722,7 +899,7 @@ function ProcurementContent() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: "#f0f4f8" }}>
-                      {["Ref", "Project / Item", "Description", "Amount", "FY/Q", "Routing", "Status", "Action"].map((h) => (
+                      {["Ref", "Project / Item", "Description", "Amount", "Year / Q", "Routing", "Status", "Action"].map((h) => (
                         <th key={h} className="px-3 py-2.5 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{h}</th>
                       ))}
                     </tr>
@@ -751,7 +928,7 @@ function ProcurementContent() {
                             {r.remarks && <p className="mt-0.5" style={{ color: "#94a3b8" }}>{r.remarks}</p>}
                           </td>
                           <td className="px-3 py-2.5 text-xs font-mono font-black whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(r.amount)}</td>
-                          <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{r.fiscal_year} Q{r.quarter}</td>
+                          <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{r.project_year ? `Year ${r.project_year}` : r.fiscal_year ?? "—"}{r.quarter ? ` · Q${r.quarter}` : ""}</td>
                           <td className="px-3 py-2.5 text-xs" style={{ color: r.routed_to === "university_president" ? "#6b21a8" : "#0369a1" }}>{ROUTING_LABELS[r.routed_to] ?? r.routed_to}</td>
                           <td className="px-3 py-2.5">
                             <div className="space-y-1">

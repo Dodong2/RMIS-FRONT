@@ -1,5 +1,5 @@
 import { apiClient, idempotent } from "./apiClient";
-import type { BudgetRealignment, BudgetSummary, Disbursement, ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
+import type { BudgetRealignment, BudgetSummary, Disbursement, ProcurementBalance, ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
 
 export const financialApi = {
   getDisbursements: async (
@@ -51,7 +51,7 @@ export const financialApi = {
   },
 
   getProcurementRequests: async (
-    params: { project?: number; status?: ProcurementStatus; fiscal_year?: number; quarter?: number; overdue?: boolean; active?: boolean } = {},
+    params: { project?: number; status?: ProcurementStatus; project_year?: number; fiscal_year?: number; quarter?: number; overdue?: boolean; active?: boolean } = {},
   ): Promise<ProcurementRequest[]> => {
     const { overdue, active, ...rest } = params;
     const { data } = await apiClient.get("/api/financial/procurement-requests/", {
@@ -63,8 +63,8 @@ export const financialApi = {
     line_item: number;
     description: string;
     amount: string;
-    fiscal_year: number;
-    quarter: number;
+    project_year: number;
+    quarter: number | null;
     remarks?: string;
   }, idempotencyKey?: string): Promise<ProcurementRequest> => {
     const { data } = await apiClient.post("/api/financial/procurement-requests/", payload, idempotent(idempotencyKey));
@@ -78,7 +78,14 @@ export const financialApi = {
     const { data } = await apiClient.post(`/api/financial/procurement-requests/${id}/status/`, { status, remarks });
     return data;
   },
-  resubmitProcurementRequest: async (id: number, payload: { description: string; amount: string; remarks?: string }): Promise<ProcurementRequest> => {
+  getProcurementBalance: async (lineItem: number): Promise<ProcurementBalance> => {
+    const { data } = await apiClient.get("/api/financial/procurement-balance/", { params: { line_item: lineItem } });
+    return data;
+  },
+  resubmitProcurementRequest: async (
+    id: number,
+    payload: { description: string; amount: string; project_year: number; quarter: number | null; remarks?: string },
+  ): Promise<ProcurementRequest> => {
     const { data } = await apiClient.post(`/api/financial/procurement-requests/${id}/resubmit/`, payload);
     return data;
   },

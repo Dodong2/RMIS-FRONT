@@ -84,14 +84,49 @@ export type ProcurementStatus =
 
 export type ProcurementUpdateStatus = Exclude<ProcurementStatus, "requested" | "under_review" | "cancelled">;
 
+export interface ProcurementQuarterBalance {
+  quarter: number;
+  allocation: number | string;
+  committed: number | string;
+  remaining: number | string;
+}
+
+export interface ProcurementYearBalance {
+  year: number;
+  approved: number | string;
+  committed: number | string;
+  paid: number | string;
+  unpaid: number | string;
+  available: number | string;
+  quarters: ProcurementQuarterBalance[];
+}
+
+export interface ProcurementBalance {
+  line_item: number;
+  years: ProcurementYearBalance[];
+}
+
+export interface InsufficientBudget {
+  code: "insufficient_budget";
+  detail: string;
+  requested: number | string;
+  year: number | string;
+  approved: number | string;
+  committed: number | string;
+  paid: number | string;
+  unpaid: number | string;
+  available: number | string;
+}
+
 export interface ProcurementRequest {
   id: number;
   project: number;
   line_item: number;
   description: string;
   amount: string;
-  fiscal_year: number;
-  quarter: 1 | 2 | 3 | 4;
+  project_year: number | null;
+  fiscal_year: number | null;
+  quarter: 1 | 2 | 3 | 4 | null;
   routed_to: string;
   status: ProcurementStatus;
   remarks: string;
