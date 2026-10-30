@@ -1,4 +1,4 @@
-import type { BudgetReview, LineItemBudget } from "../types/budget";
+import type { BudgetReview, FinanceEditRow, LineItem, LineItemBudget } from "../types/budget";
 import type { Lead, ReviewStatus } from "../types/research";
 import { nameOf } from "./workplan";
 
@@ -65,7 +65,7 @@ export function assignedReviewer(status: ReviewStatus, project: { lead_detail: L
   return { name: nameOf(project.lead_detail), role: LEADER };
 }
 
-const ACTION_META: Record<BudgetReview["action"], { action: string; role: string; to: ReviewStatus }> = {
+const ACTION_META: Record<BudgetReview["action"], { action: string; role: string; to: ReviewStatus | null }> = {
   submitted: { action: "Project proposal submitted", role: LEADER, to: "submitted" },
   resubmitted: { action: "Revisions resubmitted", role: LEADER, to: "submitted" },
   review_started: { action: "Research review started", role: CRC, to: "pending_research_review" },
@@ -77,6 +77,7 @@ const ACTION_META: Record<BudgetReview["action"], { action: string; role: string
   held_crc: { action: "Returned for revision", role: CRC, to: "returned_research" },
   held_budget: { action: "Returned for revision", role: BUDGET, to: "returned_budget" },
   returned: { action: "Returned for revision", role: CRC, to: "returned_research" },
+  commented: { action: "Budget review comment", role: BUDGET, to: null },
 };
 
 /** The LIB's review steps as the prototype's Transaction history, newest first. */
@@ -87,7 +88,7 @@ export function reviewHistory(reviews: BudgetReview[]) {
     actor: r.acted_by_name,
     actorRole: ACTION_META[r.action].role,
     at: r.acted_at,
-    toStatus: REVIEW_STATUS_LABELS[ACTION_META[r.action].to],
+    toStatus: ACTION_META[r.action].to ? REVIEW_STATUS_LABELS[ACTION_META[r.action].to!] : "Status unchanged",
     comments: r.remarks,
   }));
 }
@@ -142,3 +143,21 @@ export const workLockedMessage = (label: string) =>
 /** The project's current LIB (the one its review status is read from). */
 export const currentLib = (budgets: LineItemBudget[], project: number) =>
   budgets.filter((b) => b.project === project && b.is_current).sort((a, b) => b.version_number - a.version_number)[0];
+
+/** Task 20: one item's Update This LIB form (strings as typed). */
+export type UpdateDraft = { specification: string; unit: string; quantity: string; unit_cost: string; split: Record<string, string>; reason: string };
+
+/** The changed fields of one item as POST finance-edit/ wants them, or null when nothing changed (Task 20). */
+export function financeEditRow(item: LineItem, draft: UpdateDraft, periods: string[]): FinanceEditRow | null {
+  const row: FinanceEditRow = { id: item.id, reason: draft.reason.trim() };
+  if (draft.specification.trim() !== item.specification) row.specification = draft.specification.trim();
+  if (draft.unit !== item.unit) row.unit = draft.unit;
+  if (Number(draft.quantity) !== Number(item.quantity)) row.quantity = draft.quantity;
+  if (Number(draft.unit_cost) !== Number(item.unit_cost)) row.unit_cost = draft.unit_cost;
+  const old = Object.fromEntries(item.allocations.map((a) => [a.period, Number(a.amount)]));
+  if (row.quantity !== undefined || row.unit_cost !== undefined || periods.some((p) => Number(draft.split[p] || 0) !== (old[p] ?? 0))) {
+    row.allocations = periods.map((p) => ({ period: p, amount: String(Number(draft.split[p] || 0)) }));
+  }
+  return Object.keys(row).length > 2 ? row : null;
+}
+

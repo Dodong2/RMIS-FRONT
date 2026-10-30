@@ -39,6 +39,29 @@ export interface LineItem {
   allocations: LibAllocation[];
   is_app_flagged: boolean;
   created_at: string;
+  /** Task 20: Finance/Accounting/Budget changes to this item, oldest first */
+  edits: LineItemEdit[];
+}
+
+/** Task 20 (2026-10-30): one Update This LIB change. changes = {field: [old, new]}; allocations as period lists. */
+export interface LineItemEdit {
+  id: number;
+  changes: Record<string, [string | LibAllocation[], string | LibAllocation[]]>;
+  reason: string;
+  edited_by: number;
+  edited_by_name: string;
+  edited_at: string;
+}
+
+/** POST budgets/<id>/finance-edit/: only the changed fields of an existing item, with the reason. */
+export interface FinanceEditRow {
+  id: number;
+  reason: string;
+  specification?: string;
+  unit?: string;
+  quantity?: string;
+  unit_cost?: string;
+  allocations?: LibAllocation[];
 }
 
 export interface LineItemBudget {
@@ -62,7 +85,7 @@ export interface LineItemBudget {
   reviews: BudgetReview[];
 }
 
-export type BudgetStep = "submit" | "for-checking" | "start-certification" | "certify" | "hold" | "resubmit";
+export type BudgetStep = "submit" | "for-checking" | "start-certification" | "certify" | "hold" | "resubmit" | "comment";
 
 export type BudgetReviewAction =
   | "submitted"
@@ -75,7 +98,8 @@ export type BudgetReviewAction =
   | "resubmitted"
   | "certified"
   | "endorsed"
-  | "returned";
+  | "returned"
+  | "commented";
 
 export interface BudgetReview {
   id: number;

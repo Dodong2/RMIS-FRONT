@@ -2,11 +2,12 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, FileText, Pencil, Trash2, X } from "lucide-react";
+import { Download, Eye, FileText, MessageSquare, Pencil, SquarePen, Trash2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { errorMessage } from "../../lib/errorMessage";
 import { libActions, type LibAction } from "../../lib/libWorkflow";
 import { notify } from "../../lib/notify";
+import { financeEditRow, type UpdateDraft } from "../../lib/projectReview";
 import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, currentLib, leaderSubmitLabel, reviewHistory, reviewQueues, rowActions, REVIEW_PAGE_SIZE, matchesProjectSearch, newestFirst } from "../../lib/projectReview";
 import { pageOf } from "../../lib/paging";
 import { Pager } from "../common/proto";
@@ -14,9 +15,12 @@ import { documentsQuery, queryKeys } from "../../lib/queries";
 import { researchApi } from "../../lib/researchApi";
 import { documentUrl, openDocument } from "../../lib/documentApi";
 import { nameOf } from "../../lib/workplan";
+import { budgetApi } from "../../lib/budgetApi";
+import { reportErrorMessage } from "../../lib/reportsApi";
+import { LIB_UNITS } from "../../lib/libUnits";
 import { SubmitConfirmDialog } from "./SubmitConfirmDialog";
 import { useReviewStep } from "../../lib/useReviewStep";
-import type { LineItemBudget } from "../../types/budget";
+import type { LineItem, LineItemBudget } from "../../types/budget";
 import type { DocumentType } from "../../types/document";
 import type { Project, ReviewStatus } from "../../types/research";
 
@@ -33,6 +37,9 @@ const DOC_LABELS: Partial<Record<DocumentType, string>> = {
 // Task 19 (2026-10-30): the client's wording for the CRC/CRD forwarding a proposal to Finance/Accounting/Budget
 const FORWARD_WARNING =
   "By continuing, you confirm that you have reviewed this proposal and are forwarding it to Finance/Accounting/Budget for budget review and certification. Once submitted, you can no longer add review comments or modify this proposal. This action cannot be undone.";
+
+// Task 20 (2026-10-30): Finance/Accounting/Budget may update a LIB and comment on it only before certification
+const BUDGET_REVIEW_STATUSES = ["endorsed", "certifying"];
 
 const peso = (n: string | number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 const when = (iso: string) =>
@@ -262,6 +269,8 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
   const [returning, setReturning] = useState(false);
   const [justification, setJustification] = useState("");
   const [confirming, setConfirming] = useState<LibAction | null>(null);
+  const [comment, setComment] = useState("");
+  const [updating, setUpdating] = useState<"confirm" | "edit" | null>(null);
   const step = useReviewStep();
   const documents = useQuery(documentsQuery({ project: project.id })).data ?? [];
   const lib = currentLib(budgets, project.id);
@@ -271,6 +280,10 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
   const lastComment = [...reviews].reverse().find((r) => r.remarks)?.remarks;
   const viewer = { isOwnLeader: userId !== undefined && project.lead === userId, canEndorse: ENDORSE_ROLE_CODES.includes(roleCode), canCertify: CERTIFY_ROLE_CODES.includes(roleCode) };
   const actions = lib ? libActions(lib.status, viewer) : [];
+  // Task 20: the Budget Officer's view of a LIB forwarded to them; "By:" is then the CRC/CRD who forwarded it
+  const financeView = viewer.canCertify && !!lib && [...BUDGET_REVIEW_STATUSES, "certified"].includes(lib.status);
+  const financeCanChange = financeView && BUDGET_REVIEW_STATUSES.includes(lib!.status);
+  const leaderName = nameOf(project.lead_detail);
   const hold = actions.find((a) => a.step === "hold");
   const leaderLabel = leaderSubmitLabel(project.review_status);
   const isSubmit = (a: LibAction) => a.step === "submit" || a.step === "resubmit";
@@ -306,7 +319,7 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
               <ReviewStatusBadge status={project.review_status} />
             </div>
             <p className="mt-2 text-lg font-black" style={{ color: "#0d2a5e" }}>{project.title}</p>
-            <p className="mt-0.5 text-xs text-slate-500">By: {nameOf(project.lead_detail)}</p>
+            <p className="mt-0.5 text-xs text-slate-500">By: {financeView ? lib?.endorsed_by_name ?? "CRC/CRD" : leaderName}</p>
           </div>
           <button onClick={close} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100" aria-label="Close workflow detail" title="Close">
             <X className="h-5 w-5" aria-hidden="true" />
@@ -407,6 +420,53 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
             )}
           </div>
 
+          {financeView && (
+            <div className="rounded-xl border border-slate-200 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-bold" style={{ color: "#0d2a5e" }}>Line-Item Budget</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => budgetApi.downloadLib(lib!.id).catch(async (err) => notify.error(await reportErrorMessage(err, "The LIB could not be downloaded.")))}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden="true" /> Download LIB
+                  </button>
+                  {financeCanChange && (
+                    <button onClick={() => setUpdating("confirm")} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-white hover:bg-[#1a3f7a]" style={{ background: "#0d2a5e" }}>
+                      <SquarePen className="h-3.5 w-3.5" aria-hidden="true" /> Update This LIB
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                {lib!.line_items.length} line item{lib!.line_items.length === 1 ? "" : "s"} · Grand Total {peso(lib!.total_amount)}
+                {lib!.status === "certified" ? " · Certified, read-only" : ""}
+              </p>
+              {financeCanChange && (
+                <div className="mt-3">
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400" htmlFor="budget-comment">Review comment</label>
+                  <div className="mt-1 flex gap-2">
+                    <textarea
+                      id="budget-comment"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      rows={2}
+                      placeholder="Add a comment for the review history..."
+                      className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#0891b2]"
+                    />
+                    <button
+                      disabled={!comment.trim() || step.isPending}
+                      onClick={() => step.mutate({ budget: lib!.id, step: "comment", remarks: comment.trim(), done: "Comment added." }, { onSuccess: () => setComment("") })}
+                      className="inline-flex items-center gap-1.5 self-end rounded-lg bg-[#0891b2] px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" /> Add comment
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {returning && hold && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
               <label className="text-xs font-bold text-amber-900" htmlFor="return-justification">
@@ -468,6 +528,25 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
           </div>
         )}
         {/* Inside the panel that stops clicks, so a click in the (portalled) dialog doesn't reach the backdrop's close */}
+        <Dialog open={updating === "confirm"} onOpenChange={(o) => !o && setUpdating(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle style={{ color: "#0d2a5e" }}>Update This LIB?</DialogTitle>
+              <DialogDescription style={{ color: "#475569" }}>
+                Updating this LIB will notify {leaderName} that changes have been made to the project's budget. Do you want to continue?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <button onClick={() => setUpdating(null)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
+                Exit
+              </button>
+              <button onClick={() => setUpdating("edit")} className="px-5 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: "#0d2a5e" }}>
+                Continue
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {updating === "edit" && lib && <LibUpdateDialog lib={lib} totalCost={project.total_cost} onClose={() => setUpdating(null)} />}
         {confirming && isForward(confirming) ? (
           <SubmitConfirmDialog
             open
@@ -491,5 +570,123 @@ function ReviewModal({ project, budgets, userId, roleCode, onClose }: { project:
       </div>
     </div>,
     document.body,
+  );
+}
+
+const centavos = (n: number) => Math.round(n * 100) / 100;
+
+function periodsOf(items: LineItem[]) {
+  const periods: string[] = [];
+  items.forEach((i) => i.allocations.forEach((a) => !periods.includes(a.period) && periods.push(a.period)));
+  return periods;
+}
+
+function draftOf(item: LineItem): UpdateDraft {
+  return {
+    specification: item.specification,
+    unit: item.unit,
+    quantity: item.quantity ?? "",
+    unit_cost: item.unit_cost ?? "",
+    split: Object.fromEntries(item.allocations.map((a) => [a.period, a.amount])),
+    reason: "",
+  };
+}
+
+/** Update This LIB (Task 20, 2026-10-30): the existing items only (no add, remove or class change), a reason for each
+ * changed item; the backend checks the split and the Grand Total again and saves all or nothing. */
+function LibUpdateDialog({ lib, totalCost, onClose }: { lib: LineItemBudget; totalCost: string | null; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const periods = periodsOf(lib.line_items);
+  const [drafts, setDrafts] = useState<Record<number, UpdateDraft>>(() => Object.fromEntries(lib.line_items.map((i) => [i.id, draftOf(i)])));
+  const patch = (id: number, p: Partial<UpdateDraft>) => setDrafts((d) => ({ ...d, [id]: { ...d[id], ...p } }));
+  const rowTotal = (d: UpdateDraft) => centavos(Number(d.quantity || 0) * Number(d.unit_cost || 0));
+  const splitTotal = (d: UpdateDraft) => centavos(periods.reduce((sum, p) => sum + Number(d.split[p] || 0), 0));
+  const rows = lib.line_items.map((item) => ({ item, draft: drafts[item.id], change: financeEditRow(item, drafts[item.id], periods) }));
+  const changed = rows.filter((r) => r.change);
+  const grand = centavos(rows.reduce((sum, r) => sum + rowTotal(r.draft), 0));
+  const problems = [
+    ...changed.filter((r) => !r.draft.reason.trim()).map((r) => `${r.item.description}: give the reason for the change.`),
+    ...rows.filter((r) => periods.length && splitTotal(r.draft) !== rowTotal(r.draft)).map((r) => `${r.item.description}: the periods must add up to ${peso(rowTotal(r.draft))}.`),
+    ...(totalCost && grand !== Number(totalCost) ? [`The Grand Total (${peso(grand)}) must equal the Total Project/Study Cost (${peso(totalCost)}).`] : []),
+  ];
+  const save = useMutation({
+    mutationFn: () => budgetApi.financeEdit(lib.id, changed.map((r) => r.change!)),
+    onSuccess: () => {
+      notify.success("LIB updated. The Project Leader and the CRC/CRD were notified.");
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
+      onClose();
+    },
+    onError: (err) => notify.error(errorMessage(err, "The LIB could not be updated.")),
+  });
+  const input = "w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs outline-none focus:border-[#0891b2]";
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && !save.isPending && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle style={{ color: "#0d2a5e" }}>Update This LIB</DialogTitle>
+          <DialogDescription>Change the existing line items only. Every changed item needs a reason; items can't be added or removed.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {rows.map(({ item, draft, change }) => (
+            <div key={item.id} className="rounded-xl border p-3" style={{ borderColor: change ? "#f59e0b" : "#e2e8f0", background: change ? "#fffbeb" : "white" }}>
+              <p className="text-xs font-bold text-slate-700">
+                {item.category.toUpperCase()} · {item.description}
+                <span className="ml-2 font-normal text-slate-400">was {peso(item.amount)}</span>
+              </p>
+              <div className="mt-2 grid gap-2 md:grid-cols-5">
+                <label className="text-[10px] text-slate-500 md:col-span-2">Specification
+                  <input className={input} value={draft.specification} onChange={(e) => patch(item.id, { specification: e.target.value })} />
+                </label>
+                <label className="text-[10px] text-slate-500">Unit
+                  <select className={input} value={draft.unit} onChange={(e) => patch(item.id, { unit: e.target.value })}>
+                    {LIB_UNITS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+                  </select>
+                </label>
+                <label className="text-[10px] text-slate-500">Qty
+                  <input className={input} inputMode="decimal" value={draft.quantity} onChange={(e) => patch(item.id, { quantity: e.target.value })} />
+                </label>
+                <label className="text-[10px] text-slate-500">Unit Cost (₱)
+                  <input className={input} inputMode="decimal" value={draft.unit_cost} onChange={(e) => patch(item.id, { unit_cost: e.target.value })} />
+                </label>
+              </div>
+              {periods.length > 0 && (
+                <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(periods.length, 8)}, minmax(0, 1fr))` }}>
+                  {periods.map((p) => (
+                    <label key={p} className="text-[10px] text-slate-500">{p}
+                      <input className={input} inputMode="decimal" value={draft.split[p] ?? ""} onChange={(e) => patch(item.id, { split: { ...draft.split, [p]: e.target.value } })} />
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="mt-2 text-[10px] text-slate-500">Total {peso(rowTotal(draft))}{periods.length ? ` · periods ${peso(splitTotal(draft))}` : ""}</p>
+              {change && (
+                <label className="mt-2 block text-[10px] font-bold text-amber-800">Reason for the change (required)
+                  <textarea className={input} rows={2} value={draft.reason} onChange={(e) => patch(item.id, { reason: e.target.value })} />
+                </label>
+              )}
+            </div>
+          ))}
+        </div>
+        <p className="text-xs font-semibold text-slate-700">Grand Total {peso(grand)}{totalCost ? ` · Total Project/Study Cost ${peso(totalCost)}` : ""}</p>
+        {changed.length > 0 && problems.length > 0 && (
+          <ul className="list-disc pl-5 text-xs text-red-700">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
+        )}
+        <DialogFooter>
+          <button onClick={onClose} disabled={save.isPending} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
+            Exit
+          </button>
+          <button
+            onClick={() => save.mutate()}
+            disabled={save.isPending || changed.length === 0 || problems.length > 0}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: "#0d2a5e" }}
+          >
+            {save.isPending ? "Saving…" : "Save changes"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

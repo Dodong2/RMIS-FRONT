@@ -218,6 +218,7 @@ const REVIEW_META: Record<BudgetReviewAction, { icon: string; label: string; col
   certified: { icon: "✅", label: "Certified", color: "#166534" },
   endorsed: { icon: "🖊️", label: "Endorsed", color: "#0369a1" },
   returned: { icon: "⏸️", label: "Put on Hold", color: "#b91c1c" },
+  commented: { icon: "💬", label: "Review Comment", color: "#0369a1" },
 };
 
 const HOLD_ACTIONS: BudgetReviewAction[] = ["held_crc", "held_budget", "returned"];

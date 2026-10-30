@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions, newestFirst, matchesProjectSearch, REVIEW_PAGE_SIZE } from "./projectReview";
-import type { BudgetReview } from "../types/budget";
+import { REVIEW_STATUS_LABELS, REVIEW_STATUS_MEANINGS, REVIEW_STATUS_STYLE, assignedReviewer, leaderSubmitLabel, registrationOpen, reviewHistory, reviewQueues, workAllowed, workLockedMessage, rowActions, newestFirst, matchesProjectSearch, REVIEW_PAGE_SIZE, financeEditRow } from "./projectReview";
+import type { BudgetReview, LineItem } from "../types/budget";
 import { pageOf } from "./paging";
 
 const review = (id: number, action: BudgetReview["action"], by = "Ana Cruz", remarks = ""): BudgetReview => ({
@@ -40,6 +40,10 @@ describe("reviewHistory", () => {
       ["Returned for revision", "CRC", "CRC/CRD", "Returned for Revision - CRC/CRD", "Clarify the methodology"],
       ["Project proposal submitted", "PL", "Project Leader", "Submitted", ""],
     ]);
+  });
+  it("shows a Finance review comment without a status change (Task 20)", () => {
+    const [event] = reviewHistory([review(1, "commented", "Fe Cruz", "Check the unit cost")]);
+    expect([event.action, event.actorRole, event.toStatus, event.comments]).toEqual(["Budget review comment", "Budget Officer", "Status unchanged", "Check the unit cost"]);
   });
 });
 
@@ -144,5 +148,25 @@ describe("Project Management list (Task 16, 2026-10-30)", () => {
     expect(pages[0].rows[0].id).toBe(12);
     expect(new Set(pages.flatMap((p) => p.rows.map((r) => r.id))).size).toBe(12);
     expect(pageOf(rows, 9, REVIEW_PAGE_SIZE).page).toBe(3);
+  });
+});
+
+describe("financeEditRow (Task 20, 2026-10-30)", () => {
+  const item = {
+    id: 5, specification: "", unit: "pax", quantity: "20.00", unit_cost: "500.50", amount: "10010.00",
+    allocations: [{ period: "Y1Q1", amount: "4010.00" }, { period: "Y1Q4", amount: "6000.00" }],
+  } as LineItem;
+  const periods = ["Y1Q1", "Y1Q4"];
+  const draft = { specification: "", unit: "pax", quantity: "20", unit_cost: "500.5", split: { Y1Q1: "4010", Y1Q4: "6000" }, reason: "" };
+
+  it("is null when nothing really changed (20 = 20.00)", () => {
+    expect(financeEditRow(item, draft, periods)).toBeNull();
+  });
+
+  it("sends only the changed fields, with the split whenever the cost changes", () => {
+    expect(financeEditRow(item, { ...draft, unit_cost: "450.50", split: { Y1Q1: "3010", Y1Q4: "6000" }, reason: " COA ceiling " }, periods)).toEqual({
+      id: 5, reason: "COA ceiling", unit_cost: "450.50", allocations: [{ period: "Y1Q1", amount: "3010" }, { period: "Y1Q4", amount: "6000" }],
+    });
+    expect(financeEditRow(item, { ...draft, specification: "Venue", reason: "x" }, periods)).toEqual({ id: 5, reason: "x", specification: "Venue" });
   });
 });

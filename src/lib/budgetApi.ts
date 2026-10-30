@@ -1,5 +1,6 @@
 import { apiClient } from "./apiClient";
-import type { BudgetStep, LibAllocation, LibItem, LibItemInput, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
+import { downloadReport } from "./reportsApi";
+import type { BudgetStep, FinanceEditRow, LibAllocation, LibItem, LibItemInput, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 
 export const budgetApi = {
   getBudgets: async (project?: number): Promise<LineItemBudget[]> => {
@@ -19,6 +20,14 @@ export const budgetApi = {
   /** One step of the LIB review workflow (client 2026-10-21); "hold" needs remarks. */
   reviewBudget: async (id: number, step: BudgetStep, remarks = ""): Promise<LineItemBudget> => {
     const { data } = await apiClient.post(`/api/budget/budgets/${id}/${step}/`, { remarks });
+    return data;
+  },
+
+  /** Task 20: the LIB as saved, in the Download LIB Template layout (GET budgets/<id>/export/). */
+  downloadLib: (id: number) => downloadReport(`/api/budget/budgets/${id}/export/`, {}, "LIB.xlsx"),
+  /** Task 20: Update This LIB, existing items only, a reason per changed item. */
+  financeEdit: async (id: number, items: FinanceEditRow[]): Promise<LineItemBudget> => {
+    const { data } = await apiClient.post(`/api/budget/budgets/${id}/finance-edit/`, { items });
     return data;
   },
 
