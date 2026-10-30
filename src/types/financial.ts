@@ -139,4 +139,8 @@ export interface ProcurementRequest {
   received_at: string | null;
   completed_at: string | null;
   updated_by: number | null;
+  payment_status: "not_payable" | "awaiting_payment" | "paid";
+  paid_on: string | null;
+  paid_by_name: string | null;
+  payment_reference: string | null;
 }

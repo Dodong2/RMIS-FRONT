@@ -27,6 +27,7 @@ import { AppShell } from "../components/layout/AppShell";
 import { LibItemSelect } from "../components/common/LibItemSelect";
 import { ReviewModal as ProposalReviewModal, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
 import { LibEditAttention } from "../components/projects/LibEditHistory";
+import { PaymentsBanner, ProcurementPayments } from "../components/budget/ProcurementPayments";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
@@ -38,6 +39,7 @@ const ENDORSE_ROLE_CODES = ["system_admin", "crc_chair"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["project_leader"];
 const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
+const PAYMENT_ROLE_CODES = ["system_admin", "finance_budget"];
 const CATEGORIES: LineItemCategory[] = ["ps", "mooe", "co"];
 
 const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: ReactNode }> = {
@@ -1499,7 +1501,11 @@ function BudgetContent() {
   }, [failed]);
 
   const canReviewRealignments = REALIGNMENT_MAJOR_REVIEW_ROLE_CODES.includes(code);
+  const canPay = PAYMENT_ROLE_CODES.includes(code);
   const current = budgets.filter((b) => b.is_current);
+  if (canPay && params.get("view") === "payments") {
+    return projects === null ? <SkeletonRows rows={3} /> : <ProcurementPayments projects={projects} budgets={budgets} onBack={() => setParams({})} />;
+  }
   if (canReviewRealignments && params.get("view") === "realignments") {
     return projects === null ? <SkeletonRows rows={3} /> : <GlobalRealignments projects={projects} budgets={budgets} roleCode={code} onBack={() => setParams({})} />;
   }
@@ -1550,6 +1556,7 @@ function BudgetContent() {
       </div>
 
       {canReviewRealignments && <RealignmentBanner onOpen={() => setParams({ view: "realignments" })} />}
+      {canPay && <PaymentsBanner onOpen={() => setParams({ view: "payments" })} />}
 
       <div>
         <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">

@@ -78,6 +78,10 @@ export const financialApi = {
     const { data } = await apiClient.post(`/api/financial/procurement-requests/${id}/status/`, { status, remarks });
     return data;
   },
+  payProcurementRequest: async (id: number, payload: { paid_on: string; reference_number: string }): Promise<ProcurementRequest> => {
+    const { data } = await apiClient.post(`/api/financial/procurement-requests/${id}/pay/`, payload);
+    return data;
+  },
   getProcurementBalance: async (lineItem: number): Promise<ProcurementBalance> => {
     const { data } = await apiClient.get("/api/financial/procurement-balance/", { params: { line_item: lineItem } });
     return data;
