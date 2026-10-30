@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { ArrowLeftRight, Building2, ChartColumn, Check, ChevronLeft, CircleCheck, ClipboardList, FilePlus, Hourglass, MessageSquare, Pause, PenLine, Plus, Receipt, Search, Send, ShieldCheck, Trash2, TriangleAlert, Users, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { personName } from "../lib/roles";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
@@ -27,6 +28,8 @@ import { LibItemSelect } from "../components/common/LibItemSelect";
 import { ReviewModal as ProposalReviewModal, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
 import { LibEditAttention } from "../components/projects/LibEditHistory";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 // Client 2026-10-11: finance_budget and system_admin only certify/approve; they don't prepare LIBs or edit line items.
 // Client 2026-10-21 (Q9): the Procurement Officer and Program Leaders don't encode LIBs either.
 const MANAGE_ROLE_CODES = ["project_leader"];
@@ -37,10 +40,10 @@ const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 const CATEGORIES: LineItemCategory[] = ["ps", "mooe", "co"];
 
-const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: string }> = {
-  ps: { label: "PS", full: "Personal Services", color: "#0d2a5e", bg: "#e0eaf7", icon: "👥" },
-  mooe: { label: "MOOE", full: "Maintenance & Other Operating Expenses", color: "#0891b2", bg: "#e0f2fe", icon: "🧾" },
-  co: { label: "CO", full: "Capital Outlay", color: "#059669", bg: "#d1fae5", icon: "🏗️" },
+const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: ReactNode }> = {
+  ps: { label: "PS", full: "Personal Services", color: "#0d2a5e", bg: "#e0eaf7", icon: <Users className={ICON} aria-hidden="true" /> },
+  mooe: { label: "MOOE", full: "Maintenance & Other Operating Expenses", color: "#0891b2", bg: "#e0f2fe", icon: <Receipt className={ICON} aria-hidden="true" /> },
+  co: { label: "CO", full: "Capital Outlay", color: "#059669", bg: "#d1fae5", icon: <Building2 className={ICON} aria-hidden="true" /> },
 };
 
 const STATUS_META = LIB_STATUS_META;
@@ -106,7 +109,7 @@ function CatBar({ budget }: { budget: LineItemBudget }) {
 function DryCapWarning() {
   return (
     <div className="rounded-xl px-4 py-3 flex items-start gap-3" style={{ background: "#fef3c7", border: "1px solid #fcd34d" }}>
-      <span>⚠️</span>
+      <TriangleAlert size={16} color="#92400e" className="mt-0.5 shrink-0" aria-hidden="true" />
       <div>
         <p className="text-xs font-black" style={{ color: "#92400e" }}>Over the ₱100,000/year institutional dry-research cap</p>
         <p className="text-xs" style={{ color: "#b45309" }}>Warning only (Manual, Article III). The LIB can still be encoded and certified.</p>
@@ -119,7 +122,7 @@ function UtilizationTab({ budget, summary }: { budget: LineItemBudget; summary: 
   if (budget.status !== "certified") {
     return (
       <div className="rounded-2xl p-10 text-center" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-        <p className="text-2xl mb-2">📊</p>
+        <ChartColumn className="mx-auto mb-2 h-7 w-7 text-slate-400" aria-hidden="true" />
         <p className="text-sm font-semibold" style={{ color: "#64748b" }}>Utilization tracking starts once the Budget Officer certifies this LIB.</p>
         <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>The certified LIB becomes the approved baseline for disbursements.</p>
       </div>
@@ -208,19 +211,19 @@ function UtilizationTab({ budget, summary }: { budget: LineItemBudget; summary: 
   );
 }
 
-const REVIEW_META: Record<BudgetReviewAction, { icon: string; label: string; color: string }> = {
-  submitted: { icon: "📤", label: "Submitted", color: "#7c3aed" },
-  review_started: { icon: "🔎", label: "Review Started", color: "#0369a1" },
-  for_checking: { icon: "📋", label: "For Checking", color: "#5b21b6" },
-  ready: { icon: "🖊️", label: "Ready for Certification", color: "#0369a1" },
-  certification_started: { icon: "⏳", label: "Certification Started", color: "#1e40af" },
-  held_crc: { icon: "⏸️", label: "Put on Hold (CRC Chair)", color: "#b91c1c" },
-  held_budget: { icon: "⏸️", label: "Put on Hold (Budget Officer)", color: "#b91c1c" },
-  resubmitted: { icon: "📤", label: "Resubmitted", color: "#7c3aed" },
-  certified: { icon: "✅", label: "Certified", color: "#166534" },
-  endorsed: { icon: "🖊️", label: "Endorsed", color: "#0369a1" },
-  returned: { icon: "⏸️", label: "Put on Hold", color: "#b91c1c" },
-  commented: { icon: "💬", label: "Review Comment", color: "#0369a1" },
+const REVIEW_META: Record<BudgetReviewAction, { icon: ReactNode; label: string; color: string }> = {
+  submitted: { icon: <Send className={ICON} aria-hidden="true" />, label: "Submitted", color: "#7c3aed" },
+  review_started: { icon: <Search className={ICON} aria-hidden="true" />, label: "Review Started", color: "#0369a1" },
+  for_checking: { icon: <ClipboardList className={ICON} aria-hidden="true" />, label: "For Checking", color: "#5b21b6" },
+  ready: { icon: <PenLine className={ICON} aria-hidden="true" />, label: "Ready for Certification", color: "#0369a1" },
+  certification_started: { icon: <Hourglass className={ICON} aria-hidden="true" />, label: "Certification Started", color: "#1e40af" },
+  held_crc: { icon: <Pause className={ICON} aria-hidden="true" />, label: "Put on Hold (CRC Chair)", color: "#b91c1c" },
+  held_budget: { icon: <Pause className={ICON} aria-hidden="true" />, label: "Put on Hold (Budget Officer)", color: "#b91c1c" },
+  resubmitted: { icon: <Send className={ICON} aria-hidden="true" />, label: "Resubmitted", color: "#7c3aed" },
+  certified: { icon: <CircleCheck className={ICON} aria-hidden="true" />, label: "Certified", color: "#166534" },
+  endorsed: { icon: <PenLine className={ICON} aria-hidden="true" />, label: "Endorsed", color: "#0369a1" },
+  returned: { icon: <Pause className={ICON} aria-hidden="true" />, label: "Put on Hold", color: "#b91c1c" },
+  commented: { icon: <MessageSquare className={ICON} aria-hidden="true" />, label: "Review Comment", color: "#0369a1" },
 };
 
 const HOLD_ACTIONS: BudgetReviewAction[] = ["held_crc", "held_budget", "returned"];
@@ -300,8 +303,8 @@ function HistoryTab({ versions }: { versions: LineItemBudget[] }) {
         date: r.acted_at,
         text: `LIB v${v.version_number} ${REVIEW_META[r.action].label.toLowerCase()} by ${r.acted_by_name}${r.action === "certified" ? ` — ${peso(v.total_amount)} baseline` : snapshotNote(r)}${r.remarks ? `: “${r.remarks}”` : ""}`,
       })),
-      ...(v.certified_at && !v.reviews.some((r) => r.action === "certified") ? [{ key: `c${v.id}`, icon: "✅", label: "Certified", color: "#166534", date: v.certified_at, text: `LIB v${v.version_number} certified — ${peso(v.total_amount)} baseline` }] : []),
-      { key: `d${v.id}`, icon: "📝", label: "Prepared", color: "#0369a1", date: v.created_at, text: `LIB v${v.version_number} draft created` },
+      ...(v.certified_at && !v.reviews.some((r) => r.action === "certified") ? [{ key: `c${v.id}`, icon: <CircleCheck className={ICON} aria-hidden="true" />, label: "Certified", color: "#166534", date: v.certified_at, text: `LIB v${v.version_number} certified — ${peso(v.total_amount)} baseline` }] : []),
+      { key: `d${v.id}`, icon: <FilePlus className={ICON} aria-hidden="true" />, label: "Prepared", color: "#0369a1", date: v.created_at, text: `LIB v${v.version_number} draft created` },
     ])
     .sort((a, b) => b.date.localeCompare(a.date));
   return (
@@ -311,7 +314,7 @@ function HistoryTab({ versions }: { versions: LineItemBudget[] }) {
         {events.map((e, idx) => (
           <div key={e.key} className="flex gap-3">
             <div className="flex flex-col items-center">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-base shrink-0" style={{ background: "#f0f4f8" }}>{e.icon}</div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-base shrink-0" style={{ background: "#f0f4f8", color: e.color }}>{e.icon}</div>
               {idx < events.length - 1 && <div className="w-px flex-1 mt-1" style={{ background: "#e2e8f0" }} />}
             </div>
             <div className="flex-1 pb-4">
@@ -535,9 +538,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
           <div className="flex items-center justify-between mb-3">
             <p className="text-white font-bold">Prepare Line-Item Budget (LIB)</p>
             <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close">
-              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
           <p className="text-xs font-mono mb-3 truncate" style={{ color: "rgba(168,196,232,0.6)" }}>
@@ -554,7 +555,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                       color: i < step ? "white" : i === step ? "#0d2a5e" : "rgba(255,255,255,0.5)",
                     }}
                   >
-                    {i < step ? "✓" : i + 1}
+                    {i < step ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : i + 1}
                   </div>
                   <p className="text-center leading-tight mt-0.5 truncate w-full" style={{ fontSize: "8px", color: i === step ? "white" : "rgba(168,196,232,0.5)" }}>{s}</p>
                 </div>
@@ -670,7 +671,7 @@ function LIBWizard({ project, existing, onClose, onDone }: { project: Project; e
                   {checks.map((c) => (
                     <div key={c.label} className="flex items-center gap-2.5 px-3 py-2 rounded-xl" style={{ background: c.ok ? "#f0fdf4" : "#fff7ed" }}>
                       <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: c.ok ? "#059669" : "#f59e0b" }}>
-                        <span className="text-white font-black" style={{ fontSize: "9px" }}>{c.ok ? "✓" : "!"}</span>
+                        <span className="text-white font-black" style={{ fontSize: "9px" }}>{c.ok ? <Check size={10} strokeWidth={3} aria-label="Done" /> : <X size={10} strokeWidth={3} aria-label="Missing" />}</span>
                       </div>
                       <p className="text-xs font-semibold" style={{ color: c.ok ? "#166534" : "#92400e" }}>{c.label}</p>
                     </div>
@@ -964,9 +965,7 @@ function LIBDetail({
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "#0891b2" }}>
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+          <ChevronLeft size={16} strokeWidth={2.5} aria-hidden="true" />
           Budget Management
         </button>
         <span style={{ color: "#cbd5e1" }}>/</span>
@@ -980,7 +979,7 @@ function LIBDetail({
         <SkeletonRows rows={4} />
       ) : budget === null ? (
         <div className="rounded-2xl p-8 text-center" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-          <p className="text-2xl mb-2">📋</p>
+          <ClipboardList className="mx-auto mb-2 h-7 w-7 text-slate-400" aria-hidden="true" />
           <p className="text-sm font-semibold" style={{ color: "#64748b" }}>This project has no Line-Item Budget yet.</p>
           {canManage && (
             <button
@@ -1138,9 +1137,7 @@ function LIBDetail({
                 )}
                 {budget.status === "certified" && summary && (
                   <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: "#d1fae5", border: "1px solid #86efac" }}>
-                    <svg width="18" height="18" fill="none" stroke="#059669" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeLinecap="round" />
-                    </svg>
+                    <ShieldCheck size={18} color="#059669" aria-hidden="true" />
                     <div className="flex-1">
                       <p className="text-xs font-black" style={{ color: "#166534" }}>Approved Budget Baseline (certified)</p>
                       <p className="text-sm font-mono font-black" style={{ color: "#166534" }}>{peso(summary.totals.approved)}</p>
@@ -1240,9 +1237,7 @@ function LIBDetail({
                                         className="shrink-0 disabled:opacity-50"
                                         style={{ color: "#dc2626" }}
                                       >
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
-                                        </svg>
+                                        <Trash2 size={14} aria-hidden="true" />
                                       </button>
                                     )}
                                   </div>
@@ -1367,9 +1362,7 @@ function RealignmentBanner({ onOpen }: { onOpen: () => void }) {
       style={{ background: "#ecfeff", border: "1px solid #a5f3fc" }}
     >
       <span className="w-11 h-11 rounded-full flex items-center justify-center shrink-0" style={{ background: "#cffafe", color: "#0891b2" }}>
-        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M7 7h13l-4-4M17 17H4l4 4" />
-        </svg>
+        <ArrowLeftRight size={18} aria-hidden="true" />
       </span>
       <div className="flex-1 min-w-0">
         <p className="font-bold" style={{ color: "#0d2a5e" }}>Manage Realignment Requests</p>
@@ -1568,9 +1561,7 @@ function BudgetContent() {
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
                 style={{ background: "#0d2a5e" }}
               >
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+                <Plus size={12} strokeWidth={2.5} aria-hidden="true" />
                 Prepare New LIB
               </button>
               {pickerOpen && (
@@ -1691,7 +1682,7 @@ function BudgetContent() {
                         <StatusBadge s={b.status} />
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#f0f4f8", color: "#64748b" }}>v{b.version_number}</span>
                         {b.exceeds_dry_cap && (
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}>⚠ Over dry cap</span>
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}><TriangleAlert className={ICON} aria-hidden="true" /> Over dry cap</span>
                         )}
                       </div>
                       <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>{project.title}</p>
@@ -1701,7 +1692,7 @@ function BudgetContent() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xl font-black font-mono" style={{ color: "#0d2a5e" }}>{peso(b.total_amount)}</p>
-                      {b.status === "certified" && <p className="text-xs font-mono mt-0.5" style={{ color: "#059669" }}>✓ Baseline established</p>}
+                      {b.status === "certified" && <p className="text-xs font-mono mt-0.5" style={{ color: "#059669" }}><Check className={ICON} aria-hidden="true" /> Baseline established</p>}
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-3">
@@ -1719,7 +1710,7 @@ function BudgetContent() {
                     const todo = libToDo(b, { isOwnLeader: project.lead === user?.pk, canEndorse, canCertify });
                     return todo && (
                       <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: b.status === "returned" ? "#fee2e2" : "#fef3c7" }}>
-                        <span className="text-xs">{b.status === "returned" ? "⏸️" : "⏳"}</span>
+                        <span className="text-xs">{b.status === "returned" ? <Pause className={ICON} aria-hidden="true" /> : <Hourglass className={ICON} aria-hidden="true" />}</span>
                         <p className="text-xs font-bold" style={{ color: b.status === "returned" ? "#b91c1c" : "#92400e" }}>{todo}</p>
                         <span className="ml-auto text-xs font-bold" style={{ color: "#0891b2" }}>Open →</span>
                       </div>

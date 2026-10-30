@@ -1,3 +1,4 @@
+import { Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
@@ -130,9 +131,7 @@ function ProjectsContent() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white"
               style={{ background: "linear-gradient(135deg, #0d2a5e, #1a3f7a)" }}
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
+              <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
               Register Approved Project
             </button>
           </div>
@@ -175,10 +174,7 @@ function ProjectsContent() {
 
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
-          </svg>
+          <Search size={14} color="#94a3b8" className="absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
           <input
             type="text"
             placeholder="Search projects, codes, units, agencies..."
@@ -219,7 +215,7 @@ function ProjectsContent() {
           <NoActualData hint={canRegister ? 'Click "Register Approved Project" once a project has its Notice to Proceed.' : undefined} />
         ) : visible.length === 0 ? (
           <div className="text-center py-16 rounded-2xl" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-            <p className="text-2xl mb-2">🔍</p>
+            <SearchX className="mx-auto mb-2 h-7 w-7 text-slate-400" aria-hidden="true" />
             <p className="text-sm font-semibold" style={{ color: "#64748b" }}>No projects match your filters.</p>
           </div>
         ) : (

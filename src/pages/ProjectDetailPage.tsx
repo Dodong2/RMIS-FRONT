@@ -1,3 +1,4 @@
+import { ArrowRight, CalendarDays, Check, ChevronLeft, ClipboardList, FileText, History, Lock, Plus, Sprout, Users } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
@@ -45,6 +46,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFundingTypes } from "../lib/fundingTypes";
 import { RichTextView } from "../components/common/RichTextEditor";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 type DetailTab = "overview" | "registration" | "team" | "workplan" | "impact" | "history" | "closure";
 
@@ -141,9 +144,7 @@ function LifecyclePipeline({ project, terminal }: { project: Project; terminal: 
                 }}
               >
                 {done ? (
-                  <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
+                  <Check size={10} strokeWidth={2.5} aria-hidden="true" />
                 ) : (
                   idx + 1
                 )}
@@ -338,23 +339,21 @@ function ProjectDetailContent() {
   const recordedOutcomes = outcomes.filter((o) => o.kind === "outcome").map((o) => o.description);
   const recordedImpacts = outcomes.filter((o) => o.kind === "impact").map((o) => o.description);
 
-  const tabs: { key: DetailTab; label: string; icon: string }[] = [
-    { key: "overview", label: "Overview", icon: "📋" },
-    { key: "registration", label: "Registration Info", icon: "📝" },
-    { key: "team", label: "Team", icon: "👥" },
-    { key: "workplan", label: "Work Plan", icon: "📅" },
-    { key: "impact", label: "Impact", icon: "🌱" },
-    { key: "history", label: "History", icon: "🕑" },
-    { key: "closure", label: "Closure", icon: "🔒" },
+  const tabs: { key: DetailTab; label: string; icon: ReactNode }[] = [
+    { key: "overview", label: "Overview", icon: <ClipboardList className={ICON} aria-hidden="true" /> },
+    { key: "registration", label: "Registration Info", icon: <FileText className={ICON} aria-hidden="true" /> },
+    { key: "team", label: "Team", icon: <Users className={ICON} aria-hidden="true" /> },
+    { key: "workplan", label: "Work Plan", icon: <CalendarDays className={ICON} aria-hidden="true" /> },
+    { key: "impact", label: "Impact", icon: <Sprout className={ICON} aria-hidden="true" /> },
+    { key: "history", label: "History", icon: <History className={ICON} aria-hidden="true" /> },
+    { key: "closure", label: "Closure", icon: <Lock className={ICON} aria-hidden="true" /> },
   ];
 
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3 flex-wrap">
         <button onClick={() => navigate("/projects")} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "#0891b2" }}>
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+          <ChevronLeft size={16} strokeWidth={2.5} aria-hidden="true" />
           Project List
         </button>
         <span style={{ color: "#cbd5e1" }}>/</span>
@@ -472,9 +471,7 @@ function ProjectDetailContent() {
                   <SectionHeader>Studies</SectionHeader>
                   {canRegister && (
                     <button onClick={() => setStudyDialogOpen(true)} className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "#0891b2" }}>
-                      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
+                      <Plus size={13} strokeWidth={2.5} aria-hidden="true" />
                       Add Study
                     </button>
                   )}
@@ -663,9 +660,7 @@ function ProjectDetailContent() {
                   <div key={label} className="flex items-center gap-1 shrink-0">
                     <div className="px-3 py-2 rounded-lg text-xs font-bold" style={{ background: "#0d2a5e", color: "white" }}>{label}</div>
                     {i < 3 && (
-                      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-                        <path d="M0 6h12M8 1l7 5-7 5" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <ArrowRight size={16} strokeWidth={1.5} color="#94a3b8" aria-hidden="true" />
                     )}
                   </div>
                 ))}
@@ -787,9 +782,7 @@ function ProjectDetailContent() {
               {project.status === "archived" && (
                 <div className="rounded-xl p-4" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
                   <div className="flex items-center gap-2 mb-1">
-                    <svg width="18" height="18" fill="none" stroke="#16a34a" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
+                    <Check size={18} strokeWidth={2.5} color="#16a34a" aria-hidden="true" />
                     <p className="font-bold text-sm" style={{ color: "#166534" }}>Project Officially Closed</p>
                   </div>
                   <p className="text-xs" style={{ color: "#166534" }}>

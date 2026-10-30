@@ -1,3 +1,4 @@
+import { Check, ChevronLeft, Download, Eye, FileSpreadsheet, FileUp, Lock, PenLine, Plus, TriangleAlert, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction, type TextareaHTMLAttributes } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
@@ -38,6 +39,8 @@ import {
   TYPOLOGY_OPTIONS,
   dryResearchValue,
 } from "../lib/projectOptions";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 
 const CAMPUSES = [
@@ -82,8 +85,8 @@ function ProfileNote({ account, withMobile = false }: { account?: AdminUser; wit
 }
 
 const MODES = [
-  ["manual", "✍️ Manual Entry"],
-  ["excel", "📊 Upload via Excel"],
+  ["manual", "Manual Entry", PenLine],
+  ["excel", "Upload via Excel", FileSpreadsheet],
 ] as const;
 
 // `id` is set on rows loaded from a registered project (Edit Registered Project)
@@ -214,7 +217,7 @@ function FilePick({ label, files, multiple, documentType, onChange }: { label: s
         className="rounded-xl p-6 border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors hover:border-[#0891b2]"
         style={{ borderColor: "#cbd5e1", background: "white" }}
       >
-        <span className="text-2xl">📄</span>
+        <FileUp className="h-7 w-7 text-slate-400" aria-hidden="true" />
         <p className="text-sm font-semibold text-center" style={{ color: "#475569" }}>{label}</p>
         <p className="text-xs" style={{ color: "#94a3b8" }}>{documentType ? "PDF only, up to 25MB" : "PDF, Word, or Excel up to 25MB each"}</p>
         <input
@@ -248,7 +251,7 @@ function FilePick({ label, files, multiple, documentType, onChange }: { label: s
             <div className="flex items-center gap-2">
               <p className="text-xs font-semibold flex-1 truncate" style={{ color: "#334155" }}>{f.file.name}</p>
               <span className="text-xs font-semibold shrink-0" style={{ color }}>
-                {f.status === "done" ? "✓ Uploaded" : f.status === "error" ? "Failed" : f.progress >= 100 ? "Saving…" : `${f.progress}%`}
+                {f.status === "done" ? <><Check className={ICON} aria-hidden="true" /> Uploaded</> : f.status === "error" ? "Failed" : f.progress >= 100 ? "Saving…" : `${f.progress}%`}
               </span>
               {f.status === "error" && (
                 <button type="button" onClick={() => upload(f)} className="text-xs font-semibold" style={{ color: "#0891b2" }}>
@@ -261,9 +264,7 @@ function FilePick({ label, files, multiple, documentType, onChange }: { label: s
                 </button>
               )}
               <button type="button" onClick={() => onChange((list) => list.filter((x) => x.key !== f.key))} className="text-red-400 hover:text-red-600" aria-label={`Remove ${f.file.name}`}>
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+                <X size={14} aria-hidden="true" />
               </button>
             </div>
             <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
@@ -280,9 +281,7 @@ function FilePick({ label, files, multiple, documentType, onChange }: { label: s
 function RemoveButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button onClick={onClick} className="mt-2 text-red-400 hover:text-red-600 shrink-0" aria-label={label}>
-      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path d="M18 6L6 18M6 6l12 12" />
-      </svg>
+      <X size={16} aria-hidden="true" />
     </button>
   );
 }
@@ -290,9 +289,7 @@ function RemoveButton({ onClick, label }: { onClick: () => void; label: string }
 function AddRowButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
   return (
     <button onClick={onClick} className="text-xs font-semibold flex items-center gap-1" style={{ color: "#0891b2" }}>
-      <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-        <path d="M12 5v14M5 12h14" />
-      </svg>
+      <Plus size={13} strokeWidth={2.5} aria-hidden="true" />
       {children}
     </button>
   );
@@ -353,7 +350,7 @@ function WorkPlanExcelButton({ onRows, onErrors }: { onRows: (rows: WorkPlanImpo
   };
   return (
     <label className="text-xs font-semibold flex items-center gap-1 cursor-pointer" style={{ color: "#0891b2", opacity: isReading ? 0.6 : 1 }}>
-      📊 {isReading ? "Reading…" : "Import from Excel"}
+      <FileSpreadsheet className={ICON} aria-hidden="true" /> {isReading ? "Reading…" : "Import from Excel"}
       <input
         type="file"
         className="hidden"
@@ -384,7 +381,7 @@ function WorkPlanTemplateButton() {
   };
   return (
     <button type="button" onClick={download} disabled={isDownloading} className="text-xs font-semibold flex items-center gap-1" style={{ color: "#0891b2", opacity: isDownloading ? 0.6 : 1 }}>
-      ⬇ {isDownloading ? "Downloading…" : "Download Work Plan template"}
+      <Download className={ICON} aria-hidden="true" /> {isDownloading ? "Downloading…" : "Download Work Plan template"}
     </button>
   );
 }
@@ -486,7 +483,7 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
             className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60"
             style={{ background: "#e0eaf7", color: "#0d2a5e" }}
           >
-            {isDownloading ? "Downloading…" : "⬇ Download Excel Template"}
+            <Download className={ICON} aria-hidden="true" /> {isDownloading ? "Downloading…" : "Download Excel Template"}
           </button>
         </div>
         <div className="rounded-xl p-5 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
@@ -495,7 +492,7 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
             className="rounded-xl p-5 border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors hover:border-[#0891b2]"
             style={{ borderColor: "#cbd5e1", background: "white" }}
           >
-            <span className="text-2xl">📊</span>
+            <FileSpreadsheet className="h-7 w-7 text-slate-400" aria-hidden="true" />
             <p className="text-sm font-semibold text-center" style={{ color: "#475569" }}>{file ? file.name : "Click to choose the .xlsx file"}</p>
             <input
               type="file"
@@ -528,7 +525,7 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
             className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors hover:bg-[#c7d8ef] disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: "#e0eaf7", color: "#0d2a5e" }}
           >
-            {isPreviewing ? "Reading…" : "👁 View as SF-018"}
+            <Eye className={ICON} aria-hidden="true" /> {isPreviewing ? "Reading…" : "View as SF-018"}
           </button>
           <button
             onClick={handleReview}
@@ -1347,9 +1344,7 @@ function RegisterProjectContent({
       )}
       <div className="flex items-center gap-3 flex-wrap">
         <button onClick={() => navigate("/projects")} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "#0891b2" }}>
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+          <ChevronLeft size={16} strokeWidth={2.5} aria-hidden="true" />
           Project List
         </button>
         <span style={{ color: "#cbd5e1" }}>/</span>
@@ -1368,14 +1363,14 @@ function RegisterProjectContent({
         </div>
 
         <div className="px-5 pt-4 flex flex-wrap gap-2" hidden={isEdit}>
-          {MODES.map(([m, label]) => (
+          {MODES.map(([m, label, Icon]) => (
             <button
               key={m}
               onClick={() => setMode(m)}
               className="px-4 py-2 rounded-xl text-sm font-bold transition-all"
               style={mode === m ? { background: "#0d2a5e", color: "white" } : { background: "#f1f5f9", color: "#64748b" }}
             >
-              {label}
+              <Icon className={ICON} aria-hidden="true" /> {label}
             </button>
           ))}
         </div>
@@ -1418,7 +1413,7 @@ function RegisterProjectContent({
                         className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
                         style={{ background: i < step ? "#059669" : i === step ? "#0d2a5e" : "#e2e8f0", color: i <= step ? "white" : "#94a3b8" }}
                       >
-                        {i < step ? "✓" : i + 1}
+                        {i < step ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : i + 1}
                       </div>
                       <span className="text-xs font-semibold whitespace-nowrap" style={{ color: i <= step ? "#0d2a5e" : "#94a3b8", fontSize: "9px" }}>
                         {s.label}
@@ -1835,7 +1830,7 @@ function RegisterProjectContent({
                 <fieldset disabled={isEdit} className="space-y-4 min-w-0">
                   {edit && (
                     <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
-                      🔒 The LIB of a registered project is locked. Changes go through a Realignment under Budget Management.
+                      <Lock className={ICON} aria-hidden="true" /> The LIB of a registered project is locked. Changes go through a Realignment under Budget Management.
                     </div>
                   )}
                   <StepNote>
@@ -1851,13 +1846,13 @@ function RegisterProjectContent({
                         className="text-xs font-semibold flex items-center gap-1"
                         style={{ color: "#0891b2", opacity: !libPeriods || libBusy ? 0.5 : 1 }}
                       >
-                        ⬇ Download LIB Template
+                        <Download className={ICON} aria-hidden="true" /> Download LIB Template
                       </button>
                       <label
                         className={`text-xs font-semibold flex items-center gap-1 ${libPeriods && !libBusy ? "cursor-pointer" : "cursor-not-allowed"}`}
                         style={{ color: "#0891b2", opacity: !libPeriods || libBusy ? 0.5 : 1 }}
                       >
-                        📊 {libBusy ? "Working…" : "Import from Excel"}
+                        <FileSpreadsheet className={ICON} aria-hidden="true" /> {libBusy ? "Working…" : "Import from Excel"}
                         <input
                           key={libFileKey}
                           type="file"
@@ -2000,7 +1995,7 @@ function RegisterProjectContent({
                         <FilePick label={`Click to upload the ${d.label}`} files={approvalDocs[d.type]} documentType={d.type} onChange={setApprovalDoc(d.type)} />
                         {edit?.savedDocs[d.type] && approvalDocs[d.type].length === 0 && (
                           <p className="mt-1 text-xs flex items-center gap-2" style={{ color: "#166534" }}>
-                            <span className="truncate">✓ Saved: {edit.savedDocs[d.type]!.file_name} · upload to replace it with a new version</span>
+                            <span className="truncate"><Check className={ICON} aria-hidden="true" /> Saved: {edit.savedDocs[d.type]!.file_name} · upload to replace it with a new version</span>
                             <button
                               type="button"
                               onClick={() => openDocument(() => documentApi.getDocument(edit.savedDocs[d.type]!.id).then((doc) => doc.download_url ?? Promise.reject(new Error("The file link is not available right now."))))}
@@ -2044,7 +2039,7 @@ function RegisterProjectContent({
                           className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left"
                           style={{ background: c.done ? "#f0fdf4" : "#fff7f0" }}
                         >
-                          <span className="text-xs font-black w-4" style={{ color: c.done ? "#16a34a" : "#f59e0b" }}>{c.done ? "✓" : "•"}</span>
+                          <span className="text-xs font-black w-4" style={{ color: c.done ? "#16a34a" : "#f59e0b" }}>{c.done ? <Check size={12} strokeWidth={3} aria-label="Done" /> : "•"}</span>
                           <span className="text-xs flex-1" style={{ color: c.done ? "#166534" : "#92400e" }}>{c.label}</span>
                           <span className="text-xs font-mono shrink-0" style={{ color: c.required ? "#dc2626" : "#94a3b8" }}>{c.required ? "required" : "recommended"}</span>
                         </button>
@@ -2074,7 +2069,7 @@ function RegisterProjectContent({
                     className="w-full py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors hover:bg-[#c7d8ef]"
                     style={{ background: "#e0eaf7", color: "#0d2a5e" }}
                   >
-                    👁 View as Research Proposal Form (SF-018)
+                    <Eye className={ICON} aria-hidden="true" /> View as Research Proposal Form (SF-018)
                   </button>
 
                   <div className="rounded-xl p-4 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
@@ -2091,7 +2086,7 @@ function RegisterProjectContent({
                   {missingRequired.length > 0 && (
                     <div className="rounded-xl p-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
                       <p className="text-xs font-bold" style={{ color: "#c2410c" }}>
-                        ⚠ {missingRequired.length} required item{missingRequired.length !== 1 ? "s" : ""} still missing. Click an item above to jump to its step.
+                        <TriangleAlert className={ICON} aria-hidden="true" /> {missingRequired.length} required item{missingRequired.length !== 1 ? "s" : ""} still missing. Click an item above to jump to its step.
                       </p>
                     </div>
                   )}
