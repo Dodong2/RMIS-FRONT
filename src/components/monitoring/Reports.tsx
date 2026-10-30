@@ -1,3 +1,4 @@
+import { Check, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { documentApi } from "../../lib/documentApi";
 import { monitoringApi } from "../../lib/monitoringApi";
@@ -9,6 +10,8 @@ import type { ExtensionRequest, ExtensionRequestStatus, MidtermReport, MonthlyPr
 import type { Project } from "../../types/research";
 import { NoActualData } from "../common/NoActualData";
 import { Field, Pill, ProtoModal, SkeletonRows, TableHead } from "../common/proto";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 type ReportKind = "monthly" | "midterm" | "terminal";
 const QUARTERS = ["q1", "q2", "q3", "q4"] as const;
@@ -31,7 +34,7 @@ const td = "px-4 py-3 text-xs";
 function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-      <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+      <Plus size={10} strokeWidth={2.5} aria-hidden="true" />
       {label}
     </button>
   );
@@ -225,7 +228,7 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
                       <td className={td} style={{ color: "#64748b" }}>{r.submitted_at.slice(0, 10)} · {nameOf(r.submitted_by)}</td>
                       <td className={td}>
                         {r.is_certified ? (
-                          <Pill bg="#d1fae5" color="#166534">✓ Certified {r.certified_at?.slice(0, 10)}</Pill>
+                          <Pill bg="#d1fae5" color="#166534"><Check className={ICON} aria-hidden="true" /> Certified {r.certified_at?.slice(0, 10)}</Pill>
                         ) : canCertify ? (
                           <button disabled={busy} onClick={() => certify(r.id)} className="px-2.5 py-1 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#e0f2fe", color: "#0369a1" }}>Certify</button>
                         ) : (
@@ -292,7 +295,7 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
                       className="mt-2 text-sm cursor-pointer hover:opacity-70"
                       style={{ color: "#b91c1c" }}
                     >
-                      ✕
+                      <X className={ICON} aria-hidden="true" />
                     </button>
                   </div>
                 ))}

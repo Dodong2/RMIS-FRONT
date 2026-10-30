@@ -1,3 +1,4 @@
+import { Building2, Check, ChevronLeft, Receipt, ShoppingCart, TriangleAlert, User, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
@@ -20,14 +21,16 @@ import { AppShell } from "../components/layout/AppShell";
 import { PROCUREMENT_EVENTS, useRealtime } from "../hooks/useRealtime";
 import { STATUS_META } from "../lib/procurementStatus";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 const REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
 const UPDATE_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
 const DELAY_DAYS = 30;
 
-const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: string }> = {
-  ps: { label: "PS", full: "Personal Services", color: "#0d2a5e", bg: "#e0eaf7", icon: "👤" },
-  mooe: { label: "MOOE", full: "Maintenance & Other Operating Expenses", color: "#0891b2", bg: "#e0f2fe", icon: "🧾" },
-  co: { label: "CO", full: "Capital Outlay", color: "#059669", bg: "#d1fae5", icon: "🏗️" },
+const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: ReactNode }> = {
+  ps: { label: "PS", full: "Personal Services", color: "#0d2a5e", bg: "#e0eaf7", icon: <User className={ICON} aria-hidden="true" /> },
+  mooe: { label: "MOOE", full: "Maintenance & Other Operating Expenses", color: "#0891b2", bg: "#e0f2fe", icon: <Receipt className={ICON} aria-hidden="true" /> },
+  co: { label: "CO", full: "Capital Outlay", color: "#059669", bg: "#d1fae5", icon: <Building2 className={ICON} aria-hidden="true" /> },
 };
 const CATEGORIES = Object.keys(CATEGORY_META) as LineItemCategory[];
 
@@ -106,9 +109,7 @@ function Modal({ title, subtitle, onClose, children, footer }: { title: string; 
             {subtitle && <p className="text-white/50 text-xs mt-0.5">{subtitle}</p>}
           </div>
           <button onClick={onClose} className="text-white/50 hover:text-white shrink-0" aria-label="Close">
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
         <div className="p-6 space-y-4 overflow-y-auto flex-1">{children}</div>
@@ -212,7 +213,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
               }}
             >
               {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{CATEGORY_META[c].icon} {CATEGORY_META[c].label} — {CATEGORY_META[c].full}</option>
+                <option key={c} value={c}>{CATEGORY_META[c].label} — {CATEGORY_META[c].full}</option>
               ))}
             </select>
           </Field>
@@ -398,7 +399,7 @@ function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChan
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-cyan-600 hover:text-cyan-700">
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
+          <ChevronLeft size={16} strokeWidth={2.5} aria-hidden="true" />
           Procurement
         </button>
         <span className="text-slate-300">/</span>
@@ -449,7 +450,7 @@ function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChan
                     <td className="px-5 py-4">
                       {r.status === "requested" ? (
                         <button disabled={busy === r.id} onClick={() => receive(r)} className="w-40 px-2 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
-                          {busy === r.id ? "Saving…" : "✓ Received"}
+                          {busy === r.id ? "Saving…" : <><Check className={ICON} aria-hidden="true" /> Received</>}
                         </button>
                       ) : r.status === "returned_for_revision" ? (
                         <span className="text-xs text-slate-400">Awaiting leader's revision</span>
@@ -628,9 +629,7 @@ function ProcurementContent() {
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ShoppingCart size={24} aria-hidden="true" />
             </div>
             <div>
               <p className="font-bold text-lg text-blue-900">Manage Pending Procurement Requests</p>
@@ -707,7 +706,7 @@ function ProcurementContent() {
                   className="px-3 py-1.5 rounded-xl text-xs font-bold"
                   style={overdueOnly ? { background: "#fee2e2", color: "#dc2626" } : { background: "#f1f5f9", color: "#64748b" }}
                 >
-                  {overdueOnly ? "⚠ Delayed only" : "Show delayed only"}
+                  {overdueOnly ? <><TriangleAlert className={ICON} aria-hidden="true" /> Delayed only</> : "Show delayed only"}
                 </button>
               </>
             )}
@@ -758,7 +757,7 @@ function ProcurementContent() {
                             <div className="space-y-1">
                               <StatusBadge s={r.status} />
                               <Pipeline status={r.status} />
-                              {delayed && <p className="text-xs font-bold" style={{ color: "#dc2626" }}>⚠ Delayed</p>}
+                              {delayed && <p className="text-xs font-bold" style={{ color: "#dc2626" }}><TriangleAlert className={ICON} aria-hidden="true" /> Delayed</p>}
                             </div>
                           </td>
                           <td className="px-3 py-2.5 text-xs" style={{ color: "#94a3b8" }}>

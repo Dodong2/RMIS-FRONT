@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Ban, CircleCheck, ClipboardList, Plus, TriangleAlert } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { monitoringApi } from "../../lib/monitoringApi";
 import { errorMessage } from "../../lib/errorMessage";
 import { notify } from "../../lib/notify";
@@ -7,11 +8,13 @@ import type { EvaluationCriterion, EvaluationOutcome, EvaluationScore, ProjectEv
 import { NoActualData } from "../common/NoActualData";
 import { Field, ProtoModal, SkeletonRows, TableHead } from "../common/proto";
 
-const OUTCOME_META: Record<EvaluationOutcome, { label: string; bg: string; text: string; icon: string }> = {
-  pending: { label: "Scheduled", bg: "#e0f2fe", text: "#0369a1", icon: "📋" },
-  passed: { label: "Passed", bg: "#d1fae5", text: "#166534", icon: "✅" },
-  conditional: { label: "Conditional", bg: "#fef3c7", text: "#92400e", icon: "⚠️" },
-  failed: { label: "Failed", bg: "#fee2e2", text: "#991b1b", icon: "⛔" },
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
+const OUTCOME_META: Record<EvaluationOutcome, { label: string; bg: string; text: string; icon: ReactNode }> = {
+  pending: { label: "Scheduled", bg: "#e0f2fe", text: "#0369a1", icon: <ClipboardList className={ICON} aria-hidden="true" /> },
+  passed: { label: "Passed", bg: "#d1fae5", text: "#166534", icon: <CircleCheck className={ICON} aria-hidden="true" /> },
+  conditional: { label: "Conditional", bg: "#fef3c7", text: "#92400e", icon: <TriangleAlert className={ICON} aria-hidden="true" /> },
+  failed: { label: "Failed", bg: "#fee2e2", text: "#991b1b", icon: <Ban className={ICON} aria-hidden="true" /> },
 };
 
 const scoreColor = (s: number) => (s >= 80 ? "#059669" : s >= 60 ? "#f59e0b" : "#ef4444");
@@ -106,7 +109,7 @@ function EvalDetailModal({
       title={
         <>
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: "#e0f2fe", color: "#0891b2" }}>📋 Year {ev.project_year} Evaluation</span>
+            <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: "#e0f2fe", color: "#0891b2" }}><ClipboardList className={ICON} aria-hidden="true" /> Year {ev.project_year} Evaluation</span>
             <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: om.bg, color: om.text }}>{om.label}</span>
           </div>
           <p className="text-white font-black text-lg">Annual Project Evaluation</p>
@@ -301,7 +304,7 @@ export function EvaluationsPanel({ project, canEvaluate, reloadKey, onChanged }:
       {canEvaluate && (
         <div className="flex justify-end">
           <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-            <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            <Plus size={10} strokeWidth={2.5} aria-hidden="true" />
             Schedule Evaluation
           </button>
         </div>

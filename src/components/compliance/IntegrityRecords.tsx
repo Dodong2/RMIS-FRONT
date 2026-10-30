@@ -1,3 +1,4 @@
+import { Bot, Check, Files, Flag, Lock, Plus, Scale, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { complianceApi } from "../../lib/complianceApi";
 import { researchApi } from "../../lib/researchApi";
@@ -21,6 +22,8 @@ import type {
 import type { Project, Study } from "../../types/research";
 import { NoActualData } from "../common/NoActualData";
 import { Field, Pill, ProtoModal, SkeletonRows, TableHead } from "../common/proto";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 const REVIEW_BODY_LABELS: Record<EthicsReviewBody, string> = {
   trc: "Technical Review Committee",
@@ -63,11 +66,11 @@ const MISCONDUCT_STATUS_META: Record<MisconductCaseStatus, { label: string; bg: 
 };
 
 const SECTIONS = [
-  { key: "reviews", label: "Review References", icon: "🔍" },
-  { key: "similarity", label: "Similarity Checks", icon: "📑" },
-  { key: "ai", label: "AI Use Declarations", icon: "🤖" },
-  { key: "coi", label: "COI Disclosures", icon: "⚖️" },
-  { key: "misconduct", label: "Misconduct Cases", icon: "🚩" },
+  { key: "reviews", label: "Review References", icon: <Search className={ICON} aria-hidden="true" /> },
+  { key: "similarity", label: "Similarity Checks", icon: <Files className={ICON} aria-hidden="true" /> },
+  { key: "ai", label: "AI Use Declarations", icon: <Bot className={ICON} aria-hidden="true" /> },
+  { key: "coi", label: "COI Disclosures", icon: <Scale className={ICON} aria-hidden="true" /> },
+  { key: "misconduct", label: "Misconduct Cases", icon: <Flag className={ICON} aria-hidden="true" /> },
 ] as const;
 
 type SectionKey = (typeof SECTIONS)[number]["key"];
@@ -78,7 +81,7 @@ const today = () => new Date().toLocaleDateString("en-CA");
 const INLINE_SELECT = "px-2 py-1 rounded-lg border text-xs font-semibold outline-none";
 
 function Verified({ at, canVerify, busy, onVerify }: { at: string | null; canVerify: boolean; busy: boolean; onVerify: () => void }) {
-  if (at) return <Pill bg="#d1fae5" color="#166534">✓ Verified {at.slice(0, 10)}</Pill>;
+  if (at) return <Pill bg="#d1fae5" color="#166534"><Check className={ICON} aria-hidden="true" /> Verified {at.slice(0, 10)}</Pill>;
   if (canVerify)
     return (
       <button className="px-2.5 py-1 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#e0f2fe", color: "#0369a1" }} disabled={busy} onClick={onVerify}>
@@ -426,7 +429,7 @@ export function IntegrityRecords({ projects, canEncode, canManage, userPk }: { p
         </div>
         {project && canAdd && (
           <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            <Plus size={12} strokeWidth={2.5} aria-hidden="true" />
             New {SECTIONS.find((s) => s.key === section)!.label.replace(/s$/, "")}
           </button>
         )}
@@ -434,7 +437,7 @@ export function IntegrityRecords({ projects, canEncode, canManage, userPk }: { p
 
       {selected && !workOpen && (
         <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
-          🔒 {workLockedMessage(selected.review_status_label)}
+          <Lock className={ICON} aria-hidden="true" /> {workLockedMessage(selected.review_status_label)}
         </div>
       )}
 

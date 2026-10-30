@@ -1,3 +1,4 @@
+import { Download, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { monitoringApi } from "../../lib/monitoringApi";
 import { riskApi } from "../../lib/riskApi";
@@ -125,11 +126,11 @@ export function GenerateReportModal({ def, initial, projects, onGenerated, onClo
           <button onClick={generate} disabled={generating} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 flex items-center justify-center gap-2" style={{ background: "linear-gradient(135deg, #0d2a5e, #0891b2)" }}>
             {generating ? (
               <>
-                <svg className="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="4" /><path d="M4 12a8 8 0 018-8" stroke="white" strokeWidth="4" strokeLinecap="round" /></svg> Generating…
+                <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> Generating…
               </>
             ) : (
               <>
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                <Download size={14} aria-hidden="true" />
                 Generate &amp; Download {FORMAT_META[format].label}
               </>
             )}

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Archive, CalendarDays, ChartColumn, CircleCheck, ClipboardList, Database, Download, FileText, Flag, GraduationCap, Handshake, KeyRound, Library, Link, Lock, Newspaper, Paperclip, PenTool, Plus, Search, Signpost, TrendingUp, Undo2, Upload, Users, Wallet } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { complianceApi } from "../lib/complianceApi";
 import { DOCUMENT_ACCEPT, documentApi } from "../lib/documentApi";
 import { monitoringApi } from "../lib/monitoringApi";
@@ -20,28 +21,30 @@ import { Field, ProtoModal, SkeletonRows } from "../components/common/proto";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 const MANAGE_ROLE_CODES = ["system_admin", "riuh"];
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 type DocStatus = "active" | "superseded" | "archived";
 type ViewMode = "all" | "by_project" | "by_type";
 
-const DOC_TYPE_META: Record<DocumentType, { label: string; icon: string; color: string; bg: string }> = {
-  toe: { label: "Terms of Engagement", icon: "🤝", color: "#92400e", bg: "#fef3c7" },
-  lib: { label: "Line-Item Budget", icon: "📋", color: "#0d2a5e", bg: "#e0eaf7" },
-  work_plan: { label: "Work Plan", icon: "📅", color: "#0891b2", bg: "#e0f2fe" },
-  midterm_report: { label: "Midterm Report", icon: "📊", color: "#0d2a5e", bg: "#e0eaf7" },
-  terminal_report: { label: "Terminal Report", icon: "🏁", color: "#166534", bg: "#d1fae5" },
-  accomplishment_report: { label: "Accomplishment Report", icon: "📈", color: "#0369a1", bg: "#e0f2fe" },
-  proposal_form: { label: "Research Proposal Form", icon: "📝", color: "#92400e", bg: "#fef3c7" },
-  notice_of_approval: { label: "Approve Proposal", icon: "✅", color: "#166534", bg: "#d1fae5" },
-  ntp: { label: "Notice to Proceed (NTP)", icon: "🚦", color: "#0d2a5e", bg: "#e0eaf7" },
-  moa: { label: "Memorandum of Agreement (MOA)", icon: "🖋", color: "#7c3aed", bg: "#fdf4ff" },
-  thesis: { label: "Thesis", icon: "🎓", color: "#7c3aed", bg: "#fdf4ff" },
-  dissertation: { label: "Dissertation", icon: "📚", color: "#7c3aed", bg: "#fdf4ff" },
-  dataset: { label: "Research Dataset", icon: "🗃", color: "#c2410c", bg: "#fff7ed" },
-  manuscript: { label: "Manuscript", icon: "📰", color: "#059669", bg: "#d1fae5" },
-  other: { label: "Other Document", icon: "📎", color: "#475569", bg: "#f1f5f9" },
+const DOC_TYPE_META: Record<DocumentType, { label: string; icon: ReactNode; color: string; bg: string }> = {
+  toe: { label: "Terms of Engagement", icon: <Handshake className={ICON} aria-hidden="true" />, color: "#92400e", bg: "#fef3c7" },
+  lib: { label: "Line-Item Budget", icon: <ClipboardList className={ICON} aria-hidden="true" />, color: "#0d2a5e", bg: "#e0eaf7" },
+  work_plan: { label: "Work Plan", icon: <CalendarDays className={ICON} aria-hidden="true" />, color: "#0891b2", bg: "#e0f2fe" },
+  midterm_report: { label: "Midterm Report", icon: <ChartColumn className={ICON} aria-hidden="true" />, color: "#0d2a5e", bg: "#e0eaf7" },
+  terminal_report: { label: "Terminal Report", icon: <Flag className={ICON} aria-hidden="true" />, color: "#166534", bg: "#d1fae5" },
+  accomplishment_report: { label: "Accomplishment Report", icon: <TrendingUp className={ICON} aria-hidden="true" />, color: "#0369a1", bg: "#e0f2fe" },
+  proposal_form: { label: "Research Proposal Form", icon: <FileText className={ICON} aria-hidden="true" />, color: "#92400e", bg: "#fef3c7" },
+  notice_of_approval: { label: "Approve Proposal", icon: <CircleCheck className={ICON} aria-hidden="true" />, color: "#166534", bg: "#d1fae5" },
+  ntp: { label: "Notice to Proceed (NTP)", icon: <Signpost className={ICON} aria-hidden="true" />, color: "#0d2a5e", bg: "#e0eaf7" },
+  moa: { label: "Memorandum of Agreement (MOA)", icon: <PenTool className={ICON} aria-hidden="true" />, color: "#7c3aed", bg: "#fdf4ff" },
+  thesis: { label: "Thesis", icon: <GraduationCap className={ICON} aria-hidden="true" />, color: "#7c3aed", bg: "#fdf4ff" },
+  dissertation: { label: "Dissertation", icon: <Library className={ICON} aria-hidden="true" />, color: "#7c3aed", bg: "#fdf4ff" },
+  dataset: { label: "Research Dataset", icon: <Database className={ICON} aria-hidden="true" />, color: "#c2410c", bg: "#fff7ed" },
+  manuscript: { label: "Manuscript", icon: <Newspaper className={ICON} aria-hidden="true" />, color: "#059669", bg: "#d1fae5" },
+  other: { label: "Other Document", icon: <Paperclip className={ICON} aria-hidden="true" />, color: "#475569", bg: "#f1f5f9" },
 };
 
 const DOC_STATUS_META: Record<DocStatus, { label: string; bg: string; text: string }> = {
@@ -56,10 +59,10 @@ const REVIEW_META: Record<DocumentReviewStatus, { label: string; bg: string; tex
   returned: { label: "Returned", bg: "#fff7ed", text: "#c2410c" },
 };
 
-const ACCESS_META: Record<DocumentSensitivity, { label: string; icon: string; color: string; hint: string }> = {
-  project_team: { label: "Project team", icon: "👥", color: "#0369a1", hint: "Project team, RIUH, CRC Chair, university-wide offices" },
-  financial: { label: "Financial", icon: "💰", color: "#166534", hint: "Finance/Budget, Procurement, the project/program leader, university-wide offices" },
-  restricted: { label: "Restricted", icon: "🔒", color: "#991b1b", hint: "RIUH and university-wide offices only" },
+const ACCESS_META: Record<DocumentSensitivity, { label: string; icon: ReactNode; color: string; hint: string }> = {
+  project_team: { label: "Project team", icon: <Users className={ICON} aria-hidden="true" />, color: "#0369a1", hint: "Project team, RIUH, CRC Chair, university-wide offices" },
+  financial: { label: "Financial", icon: <Wallet className={ICON} aria-hidden="true" />, color: "#166534", hint: "Finance/Budget, Procurement, the project/program leader, university-wide offices" },
+  restricted: { label: "Restricted", icon: <Lock className={ICON} aria-hidden="true" />, color: "#991b1b", hint: "RIUH and university-wide offices only" },
 };
 
 const STAGE_LABELS: Record<Exclude<DocumentStage, "">, string> = {
@@ -199,7 +202,7 @@ function UploadModal({ projects, preset, onClose, onSaved }: { projects: Project
             className="rounded-2xl p-8 flex flex-col items-center gap-3 cursor-pointer"
             style={{ background: "#f8fafc", border: `2px dashed ${(attempted && !file) || tooBig ? "#dc2626" : "#e2e8f0"}` }}
           >
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style={{ background: "#e0eaf7" }}>📄</div>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style={{ background: "#e0eaf7" }}><FileText className={ICON} aria-hidden="true" /></div>
             <div className="text-center">
               {file ? (
                 <>
@@ -223,7 +226,7 @@ function UploadModal({ projects, preset, onClose, onSaved }: { projects: Project
               }}>
                 <option value="">Select type</option>
                 {(Object.entries(DOC_TYPE_META) as [DocumentType, (typeof DOC_TYPE_META)[DocumentType]][]).map(([k, m]) => (
-                  <option key={k} value={k}>{m.icon} {m.label}</option>
+                  <option key={k} value={k}>{m.label}</option>
                 ))}
               </select>
             </Field>
@@ -383,7 +386,7 @@ function SharingTab({ doc }: { doc: ProjectDocument }) {
         </div>
         <div className="flex justify-end">
           <button onClick={grant} disabled={busy} className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
-            🔑 Share Document
+            <KeyRound className={ICON} aria-hidden="true" /> Share Document
           </button>
         </div>
       </div>
@@ -394,7 +397,7 @@ function SharingTab({ doc }: { doc: ProjectDocument }) {
         <div className="space-y-3">
           {shares.map((sh) => (
             <div key={sh.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", opacity: sh.is_active ? 1 : 0.6 }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: "#faf5ff" }}>🔑</div>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: "#faf5ff" }}><KeyRound className={ICON} aria-hidden="true" /></div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold break-all" style={{ color: "#0d2a5e" }}>{sh.user_name}</p>
                 <p className="text-xs" style={{ color: "#94a3b8" }}>
@@ -560,7 +563,7 @@ function DetailModal({
                 <textarea rows={2} className={INPUT_CLS + " resize-none"} style={INPUT_STYLE} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Review remarks (required when returning)…" />
                 <div className="flex gap-2">
                   <button disabled={busy} onClick={() => act(() => documentApi.reviewDocument(doc.id, "approved", remarks.trim()), "Document approved.")} className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#d1fae5", color: "#166534" }}>
-                    ✅ Approve
+                    <CircleCheck className={ICON} aria-hidden="true" /> Approve
                   </button>
                   <button
                     disabled={busy || !remarks.trim()}
@@ -568,7 +571,7 @@ function DetailModal({
                     className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-60"
                     style={{ background: "#fff7ed", color: "#c2410c" }}
                   >
-                    ↩️ Return for Revision
+                    <Undo2 className={ICON} aria-hidden="true" /> Return for Revision
                   </button>
                 </div>
               </>
@@ -585,25 +588,25 @@ function DetailModal({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60"
                   style={{ background: "#0d2a5e" }}
                 >
-                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  <Download size={12} strokeWidth={2.5} aria-hidden="true" />
                   {{ pdf: "PDF", docx: "Word", xlsx: "Excel" }[fmt]}
                 </button>
               ))
             ) : (
               <button onClick={() => openDownload(doc.id)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                <Download size={12} strokeWidth={2.5} aria-hidden="true" />
                 Download
               </button>
             )}
             {!doc.is_archived && (
               <button onClick={onNewVersion} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold" style={{ background: "#e0f2fe", color: "#0369a1" }}>
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                <Upload size={12} strokeWidth={2.5} aria-hidden="true" />
                 Upload New Version
               </button>
             )}
             {canManage && !doc.is_archived && (
               <button disabled={busy} onClick={() => act(() => documentApi.archiveDocument(doc.id), "Document archived.")} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-60" style={{ background: "#f1f5f9", color: "#64748b" }}>
-                🗄 Archive
+                <Archive className={ICON} aria-hidden="true" /> Archive
               </button>
             )}
           </div>
@@ -653,7 +656,7 @@ function DetailModal({
           <div className="space-y-3">
             {links.map((l, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: "#e0f2fe" }}>🔗</div>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: "#e0f2fe" }}><Link className={ICON} aria-hidden="true" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold" style={{ color: "#0d2a5e" }}>{l.description}</p>
                   <p className="text-xs" style={{ color: "#94a3b8" }}>{l.module}</p>
@@ -800,13 +803,13 @@ function DocumentsContent() {
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="12" height="12" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+            <Search size={12} color="#94a3b8" className="absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search documents…" className="pl-7 pr-3 py-1.5 rounded-xl text-xs border outline-none" style={{ ...filterSt, width: "180px" }} />
           </div>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as DocumentType | "all")} className={filterCls} style={filterSt}>
             <option value="all">All Types</option>
             {(Object.entries(DOC_TYPE_META) as [DocumentType, (typeof DOC_TYPE_META)[DocumentType]][]).map(([k, m]) => (
-              <option key={k} value={k}>{m.icon} {m.label}</option>
+              <option key={k} value={k}>{m.label}</option>
             ))}
           </select>
           <select value={reviewFilter} onChange={(e) => setReviewFilter(e.target.value as DocumentReviewStatus | "all")} className={filterCls} style={filterSt}>
@@ -838,7 +841,7 @@ function DocumentsContent() {
           </label>
         </div>
         <button onClick={() => setUpload({ project: "", document_type: "", study: "" })} disabled={projects.length === 0} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
-          <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+          <Plus size={12} strokeWidth={2.5} aria-hidden="true" />
           Upload Document
         </button>
       </div>

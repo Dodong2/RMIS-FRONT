@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { Ban, CircleCheck, ClipboardList, FileText, Paperclip, Plus, Search, Shield, Siren, Undo2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { complianceApi } from "../lib/complianceApi";
 import { documentApi } from "../lib/documentApi";
 import { personnelApi } from "../lib/personnelApi";
@@ -17,6 +18,8 @@ import { Field, ProtoModal, SkeletonRows } from "../components/common/proto";
 import { IntegrityRecords } from "../components/compliance/IntegrityRecords";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 const ENCODE_ROLE_CODES = ["system_admin", "riuh", "project_leader"];
 const MANAGE_ROLE_CODES = ["system_admin", "riuh"];
@@ -37,10 +40,10 @@ const STATUS_META: Record<CompStatus, { label: string; bg: string; text: string;
   non_compliant: { label: "Non-Compliant", bg: "#f5f3ff", text: "#6b21a8", dot: "#a855f7" },
 };
 
-const DECISION_META: Record<Decision, { label: string; color: string; bg: string; icon: string }> = {
-  compliant: { label: "Mark Compliant", color: "#059669", bg: "#d1fae5", icon: "✅" },
-  returned: { label: "Return for Revision", color: "#dc2626", bg: "#fee2e2", icon: "↩️" },
-  non_compliant: { label: "Mark Non-Compliant", color: "#7c3aed", bg: "#faf5ff", icon: "⛔" },
+const DECISION_META: Record<Decision, { label: string; color: string; bg: string; icon: ReactNode }> = {
+  compliant: { label: "Mark Compliant", color: "#059669", bg: "#d1fae5", icon: <CircleCheck className={ICON} aria-hidden="true" /> },
+  returned: { label: "Return for Revision", color: "#dc2626", bg: "#fee2e2", icon: <Undo2 className={ICON} aria-hidden="true" /> },
+  non_compliant: { label: "Mark Non-Compliant", color: "#7c3aed", bg: "#faf5ff", icon: <Ban className={ICON} aria-hidden="true" /> },
 };
 
 const daysUntil = (date: string, now: number) => Math.round((new Date(date + "T00:00:00").getTime() - now) / DAY);
@@ -342,12 +345,12 @@ function DetailModal({
   }, [tab, req.document]);
 
   const history = [
-    { icon: "📋", label: "Requirement defined", color: "#0369a1", by: nameOf(req.created_by), at: req.created_at, note: `Assigned to ${nameOf(req.responsible)} · due ${req.deadline}` },
-    ...(req.submitted_at ? [{ icon: "📎", label: "Evidence submitted", color: "#6b21a8", by: nameOf(req.responsible), at: req.submitted_at, note: req.document ? "Supporting document attached." : "Submitted without a document." }] : []),
+    { icon: <ClipboardList className={ICON} aria-hidden="true" />, label: "Requirement defined", color: "#0369a1", by: nameOf(req.created_by), at: req.created_at, note: `Assigned to ${nameOf(req.responsible)} · due ${req.deadline}` },
+    ...(req.submitted_at ? [{ icon: <Paperclip className={ICON} aria-hidden="true" />, label: "Evidence submitted", color: "#6b21a8", by: nameOf(req.responsible), at: req.submitted_at, note: req.document ? "Supporting document attached." : "Submitted without a document." }] : []),
     ...(req.reviewed_at
       ? [
           {
-            icon: req.status === "compliant" ? "✅" : req.status === "returned" ? "↩️" : req.status === "non_compliant" ? "⛔" : "🔍",
+            icon: req.status === "compliant" ? <><CircleCheck className={ICON} aria-hidden="true" /></> : req.status === "returned" ? <><Undo2 className={ICON} aria-hidden="true" /></> : req.status === "non_compliant" ? <><Ban className={ICON} aria-hidden="true" /></> : <><Search className={ICON} aria-hidden="true" /></>,
             label: req.status === "compliant" ? "Marked compliant" : req.status === "non_compliant" ? "Marked non-compliant" : "Returned for revision",
             color: req.status === "compliant" ? "#166534" : req.status === "non_compliant" ? "#7c3aed" : "#c2410c",
             by: nameOf(req.reviewed_by),
@@ -377,12 +380,12 @@ function DetailModal({
             <div className="flex gap-2 mt-3">
               {canSubmit && (
                 <button onClick={onSubmit} className={headerBtn} style={{ background: "rgba(255,255,255,0.15)", color: "white" }}>
-                  📎 {req.status === "returned" ? "Resubmit Evidence" : "Submit Evidence"}
+                  <Paperclip className={ICON} aria-hidden="true" /> {req.status === "returned" ? "Resubmit Evidence" : "Submit Evidence"}
                 </button>
               )}
               {canReview && (
                 <button onClick={onReview} className={headerBtn} style={{ background: "rgba(255,255,255,0.15)", color: "white" }}>
-                  🔍 Review
+                  <Search className={ICON} aria-hidden="true" /> Review
                 </button>
               )}
             </div>
@@ -437,7 +440,7 @@ function DetailModal({
       {tab === "evidence" &&
         (!req.document ? (
           <div className="text-center py-12 rounded-2xl" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-            <p className="text-2xl mb-2">📎</p>
+            <p className="text-2xl mb-2"><Paperclip className={ICON} aria-hidden="true" /></p>
             <p className="text-sm font-semibold" style={{ color: "#64748b" }}>No evidence submitted yet.</p>
             {canSubmit && (
               <button onClick={onSubmit} className="mt-3 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#6b21a8" }}>
@@ -451,7 +454,7 @@ function DetailModal({
           <SkeletonRows rows={1} />
         ) : (
           <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: "#faf5ff" }}>📄</div>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: "#faf5ff" }}><FileText className={ICON} aria-hidden="true" /></div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold break-words" style={{ color: "#0d2a5e" }}>{doc.file_name}</p>
               <p className="text-xs" style={{ color: "#94a3b8" }}>
@@ -583,12 +586,12 @@ function ComplianceContent() {
       <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: "#e2e8f0" }}>
         {(
           [
-            ["tracker", "📋 Requirements Tracker"],
-            ["records", "🛡️ Integrity Records"],
-          ] as [PageTab, string][]
-        ).map(([k, l]) => (
+            ["tracker", "Requirements Tracker", <ClipboardList className={ICON} aria-hidden="true" />],
+            ["records", "Integrity Records", <Shield className={ICON} aria-hidden="true" />],
+          ] as [PageTab, string, ReactNode][]
+        ).map(([k, l, icon]) => (
           <button key={k} onClick={() => setPageTab(k)} className="px-4 py-2 rounded-lg text-xs font-bold transition-all" style={pageTab === k ? { background: "white", color: "#0d2a5e", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "#64748b" }}>
-            {l}
+            {icon} {l}
           </button>
         ))}
       </div>
@@ -629,7 +632,7 @@ function ComplianceContent() {
           {attention.length > 0 && (
             <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #fca5a5" }}>
               <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: "#fee2e2" }}>
-                <span>🚨</span>
+                <span><Siren className={ICON} aria-hidden="true" /></span>
                 <p className="text-xs font-black" style={{ color: "#991b1b" }}>
                   Attention Required ({kpis.overdue} overdue, {kpis.dueSoon} due soon)
                 </p>
@@ -653,7 +656,7 @@ function ComplianceContent() {
             <div className="flex flex-wrap items-center gap-2 mb-4 justify-between">
               <div className="flex flex-wrap gap-2">
                 <div className="relative">
-                  <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="12" height="12" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                  <Search size={12} color="#94a3b8" className="absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
                   <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search requirements…" className="pl-7 pr-3 py-1.5 rounded-xl text-xs border outline-none" style={{ ...filterSt, width: "180px" }} />
                 </div>
                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as CompStatus | "All")} className={filterCls} style={filterSt}>
@@ -671,7 +674,7 @@ function ComplianceContent() {
               </div>
               {canEncode && (
                 <button onClick={() => setModal("define")} disabled={projects.length === 0} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
-                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                  <Plus size={12} strokeWidth={2.5} aria-hidden="true" />
                   Define Requirement
                 </button>
               )}
@@ -711,7 +714,7 @@ function ComplianceContent() {
                         <td className="px-3 py-3"><StatusBadge s={s} /></td>
                         <td className="px-3 py-3">
                           {r.document ? (
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#faf5ff", color: "#6b21a8" }}>📎 1</span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#faf5ff", color: "#6b21a8" }}><Paperclip className={ICON} aria-hidden="true" /> 1</span>
                           ) : (
                             <span className="text-xs" style={{ color: "#cbd5e1" }}>—</span>
                           )}

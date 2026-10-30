@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { researchApi } from "../lib/researchApi";
@@ -18,6 +19,8 @@ import { STATUS_META, activityTaskCompletion, daysLate, nameOf } from "../lib/wo
 import { plannedHoursLabel, workingDays } from "../lib/taskHours";
 import { personName } from "../lib/roles";
 import { registrationOpen, workAllowed } from "../lib/projectReview";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 type WPTab = "milestones" | "activities" | "deliverables";
 
@@ -320,9 +323,7 @@ function WorkPlanDetail({
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "#0891b2" }}>
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+          <ChevronLeft size={16} strokeWidth={2.5} aria-hidden="true" />
           Work Plans
         </button>
         <span style={{ color: "#cbd5e1" }}>/</span>
@@ -700,9 +701,7 @@ function ActivityRow({
         <td className="px-3 py-2.5 text-xs font-mono font-bold" style={{ color: "#94a3b8" }}>A-{String(seq).padStart(2, "0")}</td>
         <td className="px-3 py-2.5">
           <div className="flex items-center gap-1.5">
-            <svg className="shrink-0 transition-transform" style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }} width="10" height="10" fill="none" stroke="#94a3b8" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path d="M9 18l6-6-6-6" strokeLinecap="round" />
-            </svg>
+            <ChevronRight size={10} strokeWidth={2.5} color="#94a3b8" className="shrink-0 transition-transform" aria-hidden="true" />
             <p className="text-xs font-semibold" style={{ color: "#0d2a5e" }}>{m.title}</p>
           </div>
           {m.tasks_total > 0 && (
@@ -838,7 +837,7 @@ function WorkPlanContent() {
                           {s.total} activit{s.total === 1 ? "y" : "ies"}
                         </span>
                       ) : (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}>⚠ No Work Plan yet</span>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}><TriangleAlert className={ICON} aria-hidden="true" /> No Work Plan yet</span>
                       )}
                       {s.late > 0 && (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>{s.late} delayed</span>

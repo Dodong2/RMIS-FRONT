@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { ChartColumn, Lock, Scale, Send, Settings } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { monitoringApi } from "../lib/monitoringApi";
 import { outputsApi } from "../lib/outputsApi";
 import { personnelApi } from "../lib/personnelApi";
@@ -18,6 +19,8 @@ import { QuarterlyReports } from "../components/monitoring/QuarterlyReports";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { RECONNECTED, useRealtime } from "../hooks/useRealtime";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 const REPORT_ROLE_CODES = ["system_admin", "riuh", "project_leader", "project_staff"];
 const CERTIFY_ROLE_CODES = ["system_admin", "riuh"];
@@ -42,17 +45,17 @@ type Indicator = {
   note: string;
 };
 
-const IND_TYPE_META: Record<IndicatorType, { label: string; color: string; bg: string; icon: string }> = {
-  output: { label: "Output", color: "#0891b2", bg: "#e0f2fe", icon: "📤" },
-  outcome: { label: "Outcome", color: "#0d2a5e", bg: "#e0eaf7", icon: "📊" },
-  process: { label: "Process", color: "#92400e", bg: "#fef3c7", icon: "⚙️" },
+const IND_TYPE_META: Record<IndicatorType, { label: string; color: string; bg: string; icon: ReactNode }> = {
+  output: { label: "Output", color: "#0891b2", bg: "#e0f2fe", icon: <Send className={ICON} aria-hidden="true" /> },
+  outcome: { label: "Outcome", color: "#0d2a5e", bg: "#e0eaf7", icon: <ChartColumn className={ICON} aria-hidden="true" /> },
+  process: { label: "Process", color: "#92400e", bg: "#fef3c7", icon: <Settings className={ICON} aria-hidden="true" /> },
 };
 
 const IND_STATUS_META: Record<IndicatorStatus, { label: string; bg: string; text: string; dot: string }> = {
   on_track: { label: "On Track", bg: "#d1fae5", text: "#166534", dot: "#059669" },
   at_risk: { label: "At Risk", bg: "#fef3c7", text: "#92400e", dot: "#f59e0b" },
   off_track: { label: "Off Track", bg: "#fee2e2", text: "#991b1b", dot: "#ef4444" },
-  achieved: { label: "Achieved ✓", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
+  achieved: { label: "Achieved", bg: "#d1fae5", text: "#166534", dot: "#22c55e" },
   not_started: { label: "Not Started", bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" },
 };
 
@@ -338,12 +341,12 @@ function MonitoringContent() {
         <div className="flex gap-1 p-1 rounded-xl" style={{ background: "#e2e8f0" }}>
           {(
             [
-              ["board", "📊 Project M&E"],
-              ["rubric", "⚖️ Evaluation Rubric"],
+              ["board", "Project M&E", <ChartColumn className={ICON} aria-hidden="true" />],
+              ["rubric", "Evaluation Rubric", <Scale className={ICON} aria-hidden="true" />],
             ] as const
-          ).map(([k, l]) => (
+          ).map(([k, l, icon]) => (
             <button key={k} onClick={() => setView(k)} className="px-4 py-2 rounded-lg text-xs font-bold transition-all" style={view === k ? { background: "white", color: "#0d2a5e", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "#64748b" }}>
-              {l}
+              {icon} {l}
             </button>
           ))}
         </div>
@@ -422,7 +425,7 @@ function MonitoringContent() {
                   <div className="flex gap-2 flex-wrap mb-3">
                     {(["all", "output", "outcome", "process"] as (IndicatorType | "all")[]).map((t) => (
                       <button key={t} onClick={() => setTypeFilter(t)} className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all" style={{ background: typeFilter === t ? "#0d2a5e" : "#f1f5f9", color: typeFilter === t ? "white" : "#64748b" }}>
-                        {t === "all" ? "All Types" : IND_TYPE_META[t].icon + " " + IND_TYPE_META[t].label}
+                        {t === "all" ? "All Types" : <>{IND_TYPE_META[t].icon} {IND_TYPE_META[t].label}</>}
                       </button>
                     ))}
                   </div>
@@ -517,7 +520,7 @@ function MonitoringContent() {
 
               {!workOpen && (tab === "reports" || tab === "extensions" || tab === "renewal") && (
                 <div className="mb-4 rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
-                  🔒 {workLockedMessage(project.review_status_label)}
+                  <Lock className={ICON} aria-hidden="true" /> {workLockedMessage(project.review_status_label)}
                 </div>
               )}
               {tab === "evaluations" && <EvaluationsPanel project={project.id} canEvaluate={can(EVALUATE_ROLE_CODES)} reloadKey={reloadKey} onChanged={changed} />}

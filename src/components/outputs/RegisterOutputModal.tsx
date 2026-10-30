@@ -329,8 +329,8 @@ export function RegisterOutputModal({
         <>
           <Field label="Kind" required>
             <select className={INPUT_CLS} style={invalidStyle(bad("kind"))} value={v("kind")} onChange={set("kind")}>
-              <option value="outcome">📈 Project Outcome</option>
-              <option value="impact">🌱 Societal Impact</option>
+              <option value="outcome">Project Outcome</option>
+              <option value="impact">Societal Impact</option>
             </select>
           </Field>
           <Field label="Description" required>

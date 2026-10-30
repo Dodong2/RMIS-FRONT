@@ -1,3 +1,4 @@
+import { Building2, ChartColumn, Check, ChevronLeft, Circle, Receipt, TriangleAlert, User, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
@@ -20,16 +21,18 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { LibItemSelect } from "../components/common/LibItemSelect";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 const DISBURSEMENT_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_REQUEST_ROLE_CODES = ["project_leader"];
 const REALIGNMENT_MAJOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 const REALIGNMENT_BOR_REVIEW_ROLE_CODES = ["system_admin", "finance_budget"];
 
 const CATEGORIES: LineItemCategory[] = ["ps", "mooe", "co"];
-const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: string }> = {
-  ps: { label: "PS", full: "Personal Services", color: "#0d2a5e", bg: "#e0eaf7", icon: "👤" },
-  mooe: { label: "MOOE", full: "Maintenance & Other Operating Expenses", color: "#0891b2", bg: "#e0f2fe", icon: "🧾" },
-  co: { label: "CO", full: "Capital Outlay", color: "#059669", bg: "#d1fae5", icon: "🏗️" },
+const CATEGORY_META: Record<LineItemCategory, { label: string; full: string; color: string; bg: string; icon: ReactNode }> = {
+  ps: { label: "PS", full: "Personal Services", color: "#0d2a5e", bg: "#e0eaf7", icon: <User className={ICON} aria-hidden="true" /> },
+  mooe: { label: "MOOE", full: "Maintenance & Other Operating Expenses", color: "#0891b2", bg: "#e0f2fe", icon: <Receipt className={ICON} aria-hidden="true" /> },
+  co: { label: "CO", full: "Capital Outlay", color: "#059669", bg: "#d1fae5", icon: <Building2 className={ICON} aria-hidden="true" /> },
 };
 
 const TIER_META: Record<RealignmentTier, { label: string; bg: string; color: string }> = {
@@ -39,11 +42,11 @@ const TIER_META: Record<RealignmentTier, { label: string; bg: string; color: str
 };
 
 type FlagType = "over_utilization" | "near_limit" | "under_utilization" | "significant_variance";
-const FLAG_META: Record<FlagType, { label: string; icon: string; bg: string; color: string }> = {
-  over_utilization: { label: "Over-utilized", icon: "🔴", bg: "#fee2e2", color: "#991b1b" },
-  near_limit: { label: "Near limit (>85%)", icon: "🟠", bg: "#fff7ed", color: "#c2410c" },
-  under_utilization: { label: "Under-utilized", icon: "🟡", bg: "#fef3c7", color: "#92400e" },
-  significant_variance: { label: "Realigned >15%", icon: "🟣", bg: "#faf5ff", color: "#6b21a8" },
+const FLAG_META: Record<FlagType, { label: string; icon: ReactNode; bg: string; color: string }> = {
+  over_utilization: { label: "Over-utilized", icon: <Circle className={ICON} color="#dc2626" fill="#dc2626" aria-hidden="true" />, bg: "#fee2e2", color: "#991b1b" },
+  near_limit: { label: "Near limit (>85%)", icon: <Circle className={ICON} color="#ea580c" fill="#ea580c" aria-hidden="true" />, bg: "#fff7ed", color: "#c2410c" },
+  under_utilization: { label: "Under-utilized", icon: <Circle className={ICON} color="#ca8a04" fill="#ca8a04" aria-hidden="true" />, bg: "#fef3c7", color: "#92400e" },
+  significant_variance: { label: "Realigned >15%", icon: <Circle className={ICON} color="#9333ea" fill="#9333ea" aria-hidden="true" />, bg: "#faf5ff", color: "#6b21a8" },
 };
 
 type BoardTab = "ledger" | "utilization" | "variance" | "adjustments" | "report";
@@ -97,9 +100,7 @@ function Modal({ title, subtitle, onClose, children, footer, width = "max-w-xl" 
             {subtitle && <p className="text-white/50 text-xs mt-0.5 truncate">{subtitle}</p>}
           </div>
           <button onClick={onClose} className="text-white/50 hover:text-white shrink-0" aria-label="Close">
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
         <div className="p-6 space-y-4 overflow-y-auto flex-1">{children}</div>
@@ -192,7 +193,7 @@ function RecordModal({
             }}
           >
             {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{CATEGORY_META[c].icon} {CATEGORY_META[c].label} — {CATEGORY_META[c].full}</option>
+              <option key={c} value={c}>{CATEGORY_META[c].label} — {CATEGORY_META[c].full}</option>
             ))}
           </select>
         </Field>
@@ -214,7 +215,7 @@ function RecordModal({
       </Field>
       {wouldOver && row && (
         <div className="rounded-xl px-4 py-3" style={{ background: "#fee2e2", border: "1px solid #fca5a5" }}>
-          <p className="text-xs font-black" style={{ color: "#991b1b" }}>🔴 Over the available balance</p>
+          <p className="text-xs font-black" style={{ color: "#991b1b" }}><Circle className={ICON} color="#dc2626" fill="#dc2626" aria-hidden="true" /> Over the available balance</p>
           <p className="text-xs mt-0.5" style={{ color: "#7f1d1d" }}>
             {peso(amount)} exceeds the {peso(row.available)} still available on "{row.description}". Request a realignment first.
           </p>
@@ -247,7 +248,7 @@ function RecordModal({
         {checks.map((c) => (
           <div key={c.label} className="flex items-center gap-2">
             <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0" style={{ background: c.ok ? "#059669" : "#e2e8f0" }}>
-              {c.ok && <span className="text-white" style={{ fontSize: "8px" }}>✓</span>}
+              {c.ok && <span className="text-white" style={{ fontSize: "8px" }}><Check className={ICON} aria-hidden="true" /></span>}
             </div>
             <p className="text-xs" style={{ color: c.ok ? "#166534" : "#94a3b8" }}>{c.label}</p>
           </div>
@@ -523,7 +524,7 @@ function ProjectBoard({
 
   const needsCertified = (
     <div className="rounded-2xl p-10 text-center" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-      <p className="text-2xl mb-2">📊</p>
+      <p className="text-2xl mb-2"><ChartColumn className={ICON} aria-hidden="true" /></p>
       <p className="text-sm font-semibold" style={{ color: "#64748b" }}>This needs a certified LIB as the approved baseline.</p>
     </div>
   );
@@ -532,9 +533,7 @@ function ProjectBoard({
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "#0891b2" }}>
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+          <ChevronLeft size={16} strokeWidth={2.5} aria-hidden="true" />
           Financial Monitoring
         </button>
         <span style={{ color: "#cbd5e1" }}>/</span>
@@ -553,7 +552,7 @@ function ProjectBoard({
                 </span>
                 <p className="text-white font-black text-lg leading-snug max-w-2xl">{project.title}</p>
                 <p className="text-sm mt-1" style={{ color: "rgba(168,196,232,0.6)" }}>
-                  {!budget ? "⚠ No LIB yet" : certified ? "Certified LIB · financial monitoring active" : "⚠ LIB not yet certified — disbursements open after certification"}
+                  {!budget ? <><TriangleAlert className={ICON} aria-hidden="true" /> No LIB yet</> : certified ? "Certified LIB · financial monitoring active" : <><TriangleAlert className={ICON} aria-hidden="true" /> LIB not yet certified — disbursements open after certification</>}
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -622,7 +621,7 @@ function ProjectBoard({
                     >
                       <option value="all">All Categories</option>
                       {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>{CATEGORY_META[c].icon} {CATEGORY_META[c].label}</option>
+                        <option key={c} value={c}>{CATEGORY_META[c].label}</option>
                       ))}
                     </select>
                     <span className="text-xs self-center" style={{ color: "#94a3b8" }}>{filtered.length} transactions</span>
@@ -775,7 +774,7 @@ function ProjectBoard({
                               <td className="px-3 py-2.5">
                                 <div className="flex gap-1 flex-wrap">
                                   {fl.length === 0 ? (
-                                    <span className="text-xs" style={{ color: "#059669" }}>✓</span>
+                                    <span className="text-xs" style={{ color: "#059669" }}><Check className={ICON} aria-hidden="true" /></span>
                                   ) : (
                                     fl.map((f) => <Chip key={f} bg={FLAG_META[f].bg} color={FLAG_META[f].color}>{FLAG_META[f].icon} {FLAG_META[f].label}</Chip>)
                                   )}
@@ -1065,11 +1064,11 @@ function DisbursementsContent() {
                         <span className="text-xs font-mono font-bold px-2 py-0.5 rounded" style={{ background: "#e0f2fe", color: "#0369a1" }}>{proj.project_code}</span>
                         {proj.campus && <Chip bg="#e0f2fe" color="#0891b2">{proj.campus}</Chip>}
                         {lib?.status === "certified" ? (
-                          <Chip bg="#d1fae5" color="#166534">✓ Certified LIB</Chip>
+                          <Chip bg="#d1fae5" color="#166534"><Check className={ICON} aria-hidden="true" /> Certified LIB</Chip>
                         ) : lib ? (
-                          <Chip bg="#fef3c7" color="#92400e">⚠ LIB not certified</Chip>
+                          <Chip bg="#fef3c7" color="#92400e"><TriangleAlert className={ICON} aria-hidden="true" /> LIB not certified</Chip>
                         ) : (
-                          <Chip bg="#fef3c7" color="#92400e">⚠ No LIB</Chip>
+                          <Chip bg="#fef3c7" color="#92400e"><TriangleAlert className={ICON} aria-hidden="true" /> No LIB</Chip>
                         )}
                         {pending > 0 && <Chip bg="#faf5ff" color="#6b21a8">{pending} pending realignment{pending !== 1 ? "s" : ""}</Chip>}
                       </div>

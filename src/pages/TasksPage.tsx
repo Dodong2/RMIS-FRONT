@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { CalendarDays, Check, ChevronLeft, Circle, Download, Lock, Search, TriangleAlert, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { personnelApi } from "../lib/personnelApi";
@@ -25,6 +26,8 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { plannedHoursLabel } from "../lib/taskHours";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 const TASK_ASSIGNER_CODES = ["system_admin", "crc_chair", "riuh", "project_leader"];
 
 const STATUS_META: Record<TaskStatus, { label: string; bg: string; text: string; dot: string; col: string }> = {
@@ -35,11 +38,11 @@ const STATUS_META: Record<TaskStatus, { label: string; bg: string; text: string;
   blocked: { label: "Blocked", bg: "#fee2e2", text: "#991b1b", dot: "#ef4444", col: "#fecaca" },
 };
 
-const PRIORITY_META: Record<TaskPriority, { label: string; bg: string; text: string; icon: string }> = {
-  critical: { label: "Critical", bg: "#fee2e2", text: "#991b1b", icon: "🔴" },
-  high: { label: "High", bg: "#fff7ed", text: "#c2410c", icon: "🟠" },
-  medium: { label: "Medium", bg: "#fef3c7", text: "#92400e", icon: "🟡" },
-  low: { label: "Low", bg: "#f0fdf4", text: "#166534", icon: "🟢" },
+const PRIORITY_META: Record<TaskPriority, { label: string; bg: string; text: string; icon: ReactNode }> = {
+  critical: { label: "Critical", bg: "#fee2e2", text: "#991b1b", icon: <Circle className={ICON} color="#dc2626" fill="#dc2626" aria-hidden="true" /> },
+  high: { label: "High", bg: "#fff7ed", text: "#c2410c", icon: <Circle className={ICON} color="#ea580c" fill="#ea580c" aria-hidden="true" /> },
+  medium: { label: "Medium", bg: "#fef3c7", text: "#92400e", icon: <Circle className={ICON} color="#ca8a04" fill="#ca8a04" aria-hidden="true" /> },
+  low: { label: "Low", bg: "#f0fdf4", text: "#166534", icon: <Circle className={ICON} color="#16a34a" fill="#16a34a" aria-hidden="true" /> },
 };
 
 const KIND_META: Record<TaskUpdateKind, { label: string; bg: string; text: string }> = {
@@ -107,7 +110,7 @@ function ProgressBar({ pct }: { pct: number }) {
 function WorkLockedBanner({ label }: { label: string }) {
   return (
     <div className="rounded-xl px-4 py-3 text-xs font-semibold" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
-      🔒 {workLockedMessage(label)}
+      <Lock className={ICON} aria-hidden="true" /> {workLockedMessage(label)}
     </div>
   );
 }
@@ -134,9 +137,7 @@ function Overlay({ children, onClose, width = "max-w-2xl" }: { children: React.R
 function CloseX({ onClick }: { onClick: () => void }) {
   return (
     <button onClick={onClick} className="text-white/50 hover:text-white shrink-0 mt-0.5" aria-label="Close">
-      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path d="M18 6L6 18M6 6l12 12" />
-      </svg>
+      <X size={20} aria-hidden="true" />
     </button>
   );
 }
@@ -288,7 +289,7 @@ function TaskDetailModal({
                     <label className="label-field">Priority</label>
                     <select className={inputCls} style={inputSt} value={edit.priority} onChange={(e) => setEdit({ ...edit, priority: e.target.value as TaskPriority })}>
                       {Object.entries(PRIORITY_META).map(([k, m]) => (
-                        <option key={k} value={k}>{m.icon} {m.label}</option>
+                        <option key={k} value={k}>{m.label}</option>
                       ))}
                     </select>
                   </div>
@@ -350,15 +351,13 @@ function TaskDetailModal({
                       aria-label={d.done ? "Mark not done" : "Mark done"}
                     >
                       {d.done && (
-                        <svg width="8" height="8" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24">
-                          <path d="M5 13l4 4L19 7" strokeLinecap="round" />
-                        </svg>
+                        <Check size={8} strokeWidth={2.5} aria-hidden="true" />
                       )}
                     </button>
                     <p className="text-xs flex-1" style={{ color: d.done ? "#166534" : "#334155", textDecoration: d.done ? "line-through" : "none" }}>{d.text}</p>
                     {canAssign && (
                       <button onClick={async () => (await notify.confirm(`Delete the deliverable "${d.text}"?`)) && run(() => personnelApi.deleteTaskDeliverable(d.id))} className="text-xs opacity-0 group-hover:opacity-100" style={{ color: "#dc2626" }}>
-                        ✕
+                        <X className={ICON} aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -433,7 +432,7 @@ function TaskDetailModal({
 
               {!workOpen && (canAssign || isAssignee) && (
                 <p className="mt-3 text-xs font-semibold" style={{ color: "#92400e" }}>
-                  🔒 Work Logs, comments and task changes open once the project's reviews are completed (the Budget Officer certifies its LIB).
+                  <Lock className={ICON} aria-hidden="true" /> Work Logs, comments and task changes open once the project's reviews are completed (the Budget Officer certifies its LIB).
                 </p>
               )}
               {canUpdate && (
@@ -581,7 +580,7 @@ function TaskDetailModal({
                       >
                         <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: m.dot }} />
                         {m.label}
-                        {task.status === key && <span className="ml-auto text-xs">✓</span>}
+                        {task.status === key && <span className="ml-auto text-xs"><Check className={ICON} aria-hidden="true" /></span>}
                       </button>
                     );
                   })}
@@ -630,7 +629,7 @@ function KanbanCard({ task, now, onClick }: { task: Task; now: number; onClick: 
           {initials(personName(task.assignee_detail))}
         </div>
         <span className="text-xs truncate" style={{ color: "#64748b" }}>{personName(task.assignee_detail)}</span>
-        {overdue && <span className="text-xs font-bold ml-auto" style={{ color: "#dc2626" }}>⚠ Overdue</span>}
+        {overdue && <span className="text-xs font-bold ml-auto" style={{ color: "#dc2626" }}><TriangleAlert className={ICON} aria-hidden="true" /> Overdue</span>}
       </div>
       {task.deliverables.length > 0 && (
         <div className="mb-2">
@@ -730,9 +729,7 @@ function ProjectTaskBoard({
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold" style={{ color: "#0891b2" }}>
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+          <ChevronLeft size={16} strokeWidth={2.5} aria-hidden="true" />
           Projects
         </button>
         <span style={{ color: "#cbd5e1" }}>/</span>
@@ -794,10 +791,7 @@ function ProjectTaskBoard({
           {(view === "kanban" || view === "list") && (
             <div className="flex flex-wrap gap-2 mb-5">
               <div className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="12" height="12" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="M21 21l-4.35-4.35" />
-                </svg>
+                <Search size={12} color="#94a3b8" className="absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
                 <input
                   type="text"
                   value={search}
@@ -815,7 +809,7 @@ function ProjectTaskBoard({
               >
                 <option value="all">All Priorities</option>
                 {Object.entries(PRIORITY_META).map(([k, m]) => (
-                  <option key={k} value={k}>{m.icon} {m.label}</option>
+                  <option key={k} value={k}>{m.label}</option>
                 ))}
               </select>
               {canAssign && (
@@ -836,7 +830,7 @@ function ProjectTaskBoard({
                 className="px-3 py-1.5 rounded-xl text-xs font-bold"
                 style={overdueOnly ? { background: "#fff7ed", color: "#c2410c" } : { background: "#f1f5f9", color: "#64748b" }}
               >
-                {overdueOnly ? "⚠ Overdue only" : "Show overdue only"}
+                {overdueOnly ? <><TriangleAlert className={ICON} aria-hidden="true" /> Overdue only</> : "Show overdue only"}
               </button>
             </div>
           )}
@@ -908,7 +902,7 @@ function ProjectTaskBoard({
                                 </td>
                                 <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: overdue ? "#dc2626" : "#64748b", fontWeight: overdue ? "bold" : "normal" }}>
                                   {task.due_date ?? "—"}
-                                  {overdue && " ⚠"}
+                                  {overdue && <> <TriangleAlert className={ICON} aria-hidden="true" /></>}
                                 </td>
                                 <td className="px-3 py-2.5"><StatusBadge s={task.status} /></td>
                                 <td className="px-3 py-2.5" style={{ minWidth: "110px" }}>
@@ -1055,15 +1049,13 @@ function TaskCalendar({
   return (
     <div className="space-y-4 animate-fade-in">
       <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold cursor-pointer" style={{ color: "#0891b2" }}>
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-          <path d="M15 18l-6-6 6-6" />
-        </svg>
+        <ChevronLeft size={16} strokeWidth={2.5} aria-hidden="true" />
         Projects
       </button>
       <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
         <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 border-b" style={{ borderColor: "#e2e8f0" }}>
           <p className="font-black text-lg" style={{ color: "#0d2a5e" }}>
-            📅 {month.toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
+            <CalendarDays className={ICON} aria-hidden="true" /> {month.toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
           </p>
           <div className="flex gap-2">
             {[
@@ -1176,7 +1168,7 @@ function AccomplishmentDownload({ people }: { people?: Lead[] }) {
         className="px-2.5 py-1 rounded-lg text-xs font-bold text-white cursor-pointer disabled:opacity-60 transition-opacity hover:opacity-90"
         style={{ background: "#0d2a5e" }}
       >
-        {busy ? "…" : "⬇"}
+        {busy ? "…" : <><Download className={ICON} aria-hidden="true" /></>}
       </button>
     </div>
   );
@@ -1263,7 +1255,7 @@ function TasksContent() {
               className="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors hover:bg-[#c7d8ef]"
               style={{ background: "#e0eaf7", color: "#0d2a5e" }}
             >
-              📅 Calendar
+              <CalendarDays className={ICON} aria-hidden="true" /> Calendar
             </button>
             <p className="text-xs" style={{ color: "#94a3b8" }}>
               {eligible.length} project{eligible.length !== 1 ? "s" : ""}
@@ -1297,10 +1289,10 @@ function TasksContent() {
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#e0f2fe", color: "#0891b2" }}>{proj.campus}</span>
                         )}
                         {critical > 0 && (
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>🔴 {critical} critical</span>
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}><Circle className={ICON} color="#dc2626" fill="#dc2626" aria-hidden="true" /> {critical} critical</span>
                         )}
                         {overdue > 0 && (
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fff7ed", color: "#c2410c" }}>⚠ {overdue} overdue</span>
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fff7ed", color: "#c2410c" }}><TriangleAlert className={ICON} aria-hidden="true" /> {overdue} overdue</span>
                         )}
                       </div>
                       <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>{proj.title}</p>

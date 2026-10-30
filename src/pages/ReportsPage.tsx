@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { BookOpen, CalendarDays, ClipboardList, Download, Plus } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { authApi } from "../lib/authApi";
 import { documentApi } from "../lib/documentApi";
@@ -20,6 +21,8 @@ import { GenerateReportModal } from "../components/reports/GenerateReportModal";
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
 
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
+
 const REPORT_LOG_VIEW_ROLE_CODES = ["system_admin", "riuh", "vprei"];
 
 type Tab = "catalog" | "history" | "submitted";
@@ -37,10 +40,10 @@ type Submitted = {
   certified: boolean | null;
 };
 
-const KIND_META: Record<SubmittedKind, { label: string; icon: string; color: string; bg: string }> = {
-  monthly: { label: "Monthly Progress Report", icon: "🗓️", color: "#0891b2", bg: "#e0f2fe" },
-  midterm: { label: "Midterm Report (Appendix E)", icon: "📋", color: "#7c3aed", bg: "#ede9fe" },
-  terminal: { label: "Terminal Report (Appendix F)", icon: "📘", color: "#0d2a5e", bg: "#e0eaf7" },
+const KIND_META: Record<SubmittedKind, { label: string; icon: ReactNode; color: string; bg: string }> = {
+  monthly: { label: "Monthly Progress Report", icon: <CalendarDays className={ICON} aria-hidden="true" />, color: "#0891b2", bg: "#e0f2fe" },
+  midterm: { label: "Midterm Report (Appendix E)", icon: <ClipboardList className={ICON} aria-hidden="true" />, color: "#7c3aed", bg: "#ede9fe" },
+  terminal: { label: "Terminal Report (Appendix F)", icon: <BookOpen className={ICON} aria-hidden="true" />, color: "#0d2a5e", bg: "#e0eaf7" },
 };
 
 const selCls = "px-3 py-2 rounded-xl border text-xs outline-none";
@@ -243,7 +246,7 @@ function ReportsContent() {
                           ))}
                         </div>
                         <button onClick={() => setGen({ def })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-                          <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                          <Plus size={11} strokeWidth={2.5} aria-hidden="true" />
                           Generate
                         </button>
                       </div>
@@ -299,7 +302,7 @@ function ReportsContent() {
                               </div>
                             </div>
                             <button onClick={() => regenerate(log)} disabled={regenerating !== null} className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all hover:opacity-80 disabled:opacity-50" style={{ background: fm.bg, color: fm.color, border: `1px solid ${fm.color}30` }}>
-                              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                              <Download size={12} aria-hidden="true" />
                               {regenerating === log.id ? "Generating…" : `Regenerate ${fm.label}`}
                             </button>
                           </div>
@@ -392,7 +395,7 @@ function ReportsContent() {
                                   className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1"
                                   style={{ background: "#fee2e2", color: "#dc2626" }}
                                 >
-                                  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                                  <Download size={12} aria-hidden="true" />
                                   Export {s.kind === "midterm" ? "Appendix E" : "Appendix F"}
                                 </button>
                               )}

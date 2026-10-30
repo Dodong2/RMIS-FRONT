@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { Check, Microscope, Palette, Plus, Search, Sprout, Tag, Target, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { outputsApi } from "../lib/outputsApi";
 import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
@@ -26,6 +27,8 @@ import { Field, ProtoModal, SkeletonRows, TableHead } from "../components/common
 import { RegisterOutputModal } from "../components/outputs/RegisterOutputModal";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
+
+const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 const MANAGE_ROLE_CODES = ["system_admin", "riuh"];
 const REPORT_ROLE_CODES = ["system_admin", "riuh", "project_leader"];
@@ -202,7 +205,7 @@ function OutputDetailModal({
                 ]
                   .filter(([on]) => on)
                   .map(([, l]) => (
-                    <span key={l as string} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f0f4f8", color: "#64748b" }}>✓ {l as string}</span>
+                    <span key={l as string} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f0f4f8", color: "#64748b" }}><Check className={ICON} aria-hidden="true" /> {l as string}</span>
                   ))}
               </div>
               <div className="rounded-xl px-4 py-3" style={{ background: "#d1fae5" }}>
@@ -222,8 +225,8 @@ function OutputDetailModal({
                 {ip.adoption_moa_reference && <Info label="Adoption MOA Reference" mono>{ip.adoption_moa_reference}</Info>}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {ip.is_commercialization_intended && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f0f4f8", color: "#64748b" }}>✓ Commercialization intended</span>}
-                {ip.is_adopted_by_community && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f0f4f8", color: "#64748b" }}>✓ Adopted by a recipient community</span>}
+                {ip.is_commercialization_intended && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f0f4f8", color: "#64748b" }}><Check className={ICON} aria-hidden="true" /> Commercialization intended</span>}
+                {ip.is_adopted_by_community && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f0f4f8", color: "#64748b" }}><Check className={ICON} aria-hidden="true" /> Adopted by a recipient community</span>}
               </div>
               {canReport && (
                 <Field label="IP Status">
@@ -292,7 +295,7 @@ function OutputDetailModal({
                 <p className="text-sm leading-relaxed" style={{ color: "#334155" }}>{outcome.description}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Info label="Kind">{outcome.kind === "impact" ? "🌱 Societal Impact" : "📈 Project Outcome"}</Info>
+                <Info label="Kind">{outcome.kind === "impact" ? <><Sprout className={ICON} aria-hidden="true" /> Societal Impact</> : <><TrendingUp className={ICON} aria-hidden="true" /> Project Outcome</>}</Info>
                 <Info label="Observed On" mono>{outcome.observed_on ?? "—"}</Info>
               </div>
               {outcome.evidence && (
@@ -458,7 +461,7 @@ function SixPsTab({ projects, canReport }: { projects: Project[]; canReport: boo
                   <div className="h-1.5 rounded-full overflow-hidden mt-2" style={{ background: "#f1f5f9" }}>
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
                   </div>
-                  <p className="text-xs font-bold mt-1.5" style={{ color }}>{c.target === 0 ? "No target set" : c.met ? "✓ Target met" : `${pct}% of target`}</p>
+                  <p className="text-xs font-bold mt-1.5" style={{ color }}>{c.target === 0 ? "No target set" : c.met ? <><Check className={ICON} aria-hidden="true" /> Target met</> : `${pct}% of target`}</p>
                 </div>
               );
             })}
@@ -593,7 +596,7 @@ function CreativeWorksTab({ projects, canCreate, userPk, projectLabel, nameOf }:
       {canCreate && (
         <div className="flex justify-end">
           <button onClick={() => setShow(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white" style={{ background: "#0d2a5e" }}>
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            <Plus size={12} strokeWidth={2.5} aria-hidden="true" />
             Log Creative Work
           </button>
         </div>
@@ -843,7 +846,7 @@ function OutputsContent() {
         family: "outcome_impact" as const,
         project: o.project,
         title: o.description,
-        subtype: o.kind === "impact" ? "🌱 Societal Impact" : "📈 Project Outcome",
+        subtype: o.kind === "impact" ? "Societal Impact" : "Project Outcome",
         status: o.kind as StatusKey,
         date: o.observed_on ?? o.created_at.slice(0, 10),
         people: [o.recorded_by],
@@ -923,14 +926,14 @@ function OutputsContent() {
       <div className="flex gap-1 p-1 rounded-xl w-fit flex-wrap" style={{ background: "#e2e8f0" }}>
         {(
           [
-            ["outputs", "🔬 Research Outputs"],
-            ["sixps", "🎯 6Ps Expected vs Actual"],
-            ["creative", "🎨 Creative Works"],
-            ["sense", "🏷 SENSE Publishers"],
-          ] as [PageTab, string][]
-        ).map(([k, l]) => (
+            ["outputs", "Research Outputs", <Microscope className={ICON} aria-hidden="true" />],
+            ["sixps", "6Ps Expected vs Actual", <Target className={ICON} aria-hidden="true" />],
+            ["creative", "Creative Works", <Palette className={ICON} aria-hidden="true" />],
+            ["sense", "SENSE Publishers", <Tag className={ICON} aria-hidden="true" />],
+          ] as [PageTab, string, ReactNode][]
+        ).map(([k, l, icon]) => (
           <button key={k} onClick={() => setTab(k)} className="px-4 py-2 rounded-lg text-xs font-bold transition-all" style={tab === k ? { background: "white", color: "#0d2a5e", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { color: "#64748b" }}>
-            {l}
+            {icon} {l}
           </button>
         ))}
       </div>
@@ -974,7 +977,7 @@ function OutputsContent() {
           <div className="flex flex-wrap items-center gap-2 justify-between">
             <div className="flex flex-wrap gap-2">
               <div className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="12" height="12" fill="none" stroke="#94a3b8" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                <Search size={12} color="#94a3b8" className="absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
                 <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search outputs…" className="pl-7 pr-3 py-1.5 rounded-xl text-xs border outline-none" style={{ ...filterSt, width: "180px" }} />
               </div>
               <select value={familyFilter} onChange={(e) => setFamilyFilter(e.target.value as OutputFamily | "all")} className={filterCls} style={filterSt}>
@@ -999,7 +1002,7 @@ function OutputsContent() {
             </div>
             {canReport && (
               <button onClick={() => setShowRegister(true)} disabled={projects.length === 0} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60" style={{ background: "#0d2a5e" }}>
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                <Plus size={12} strokeWidth={2.5} aria-hidden="true" />
                 Register Output
               </button>
             )}
