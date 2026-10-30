@@ -62,7 +62,7 @@ export interface LineItemBudget {
   reviews: BudgetReview[];
 }
 
-export type BudgetStep = "submit" | "start-review" | "for-checking" | "ready" | "start-certification" | "certify" | "hold" | "resubmit";
+export type BudgetStep = "submit" | "for-checking" | "start-certification" | "certify" | "hold" | "resubmit";
 
 export type BudgetReviewAction =
   | "submitted"

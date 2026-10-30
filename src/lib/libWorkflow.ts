@@ -39,9 +39,7 @@ export function libActions(status: BudgetStatus, v: LibViewer): LibAction[] {
   const actions: LibAction[] = [];
   if (v.isOwnLeader && status === "draft") actions.push({ step: "submit", label: "Submit to CRC Chair", done: "LIB submitted to the CRC Chair." });
   if (v.isOwnLeader && status === "returned") actions.push({ step: "resubmit", label: "Resubmit to CRC Chair", remarks: "optional", done: "LIB resubmitted to the CRC Chair." });
-  if (v.canEndorse && status === "submitted") actions.push({ step: "start-review", label: "Start Review", done: "Review started." });
-  if (v.canEndorse && status === "crc_processing") actions.push({ step: "for-checking", label: "Mark For Checking", done: "LIB marked For Checking." });
-  if (v.canEndorse && status === "for_checking") actions.push({ step: "ready", label: "Ready for Certification", done: "LIB sent to the Budget Officer for certification." });
+  if (v.canEndorse && CRC_STATUSES.includes(status)) actions.push({ step: "for-checking", label: "Mark for checking", done: "Proposal forwarded to Finance/Accounting/Budget for budget review." });
   if (v.canCertify && status === "endorsed") actions.push({ step: "start-certification", label: "Start Certification", done: "Certification started." });
   if (v.canCertify && status === "certifying") actions.push({ step: "certify", label: "Certify LIB", done: "LIB certified." });
   if ((v.canEndorse && CRC_STATUSES.includes(status)) || (v.canCertify && BUDGET_STATUSES.includes(status))) actions.push(HOLD);
@@ -51,9 +49,7 @@ export function libActions(status: BudgetStatus, v: LibViewer): LibAction[] {
 /** What this viewer has to do on this LIB, for the project list and the bell; null when nothing. */
 export function libToDo(b: Pick<LineItemBudget, "status" | "hold_level">, v: LibViewer): string | null {
   if (v.canEndorse) {
-    if (b.status === "submitted") return "Awaiting your review";
-    if (b.status === "crc_processing") return "In your review";
-    if (b.status === "for_checking") return "For Checking · mark it Ready for Certification";
+    if (CRC_STATUSES.includes(b.status)) return "Awaiting your review · mark it for checking";
   }
   if (v.canCertify) {
     if (b.status === "endorsed") return "Ready for certification";

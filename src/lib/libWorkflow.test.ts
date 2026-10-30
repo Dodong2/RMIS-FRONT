@@ -9,9 +9,9 @@ const steps = (...args: Parameters<typeof libActions>) => libActions(...args).ma
 describe("libActions", () => {
   it("gives each role only its own step, in order", () => {
     expect(steps("draft", leader)).toEqual(["submit"]);
-    expect(steps("submitted", crc)).toEqual(["start-review", "hold"]);
+    expect(steps("submitted", crc)).toEqual(["for-checking", "hold"]);
     expect(steps("crc_processing", crc)).toEqual(["for-checking", "hold"]);
-    expect(steps("for_checking", crc)).toEqual(["ready", "hold"]);
+    expect(steps("for_checking", crc)).toEqual(["for-checking", "hold"]);
     expect(steps("endorsed", officer)).toEqual(["start-certification", "hold"]);
     expect(steps("certifying", officer)).toEqual(["certify", "hold"]);
     expect(steps("returned", leader)).toEqual(["resubmit"]);
