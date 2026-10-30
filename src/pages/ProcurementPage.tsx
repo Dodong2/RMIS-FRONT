@@ -544,6 +544,8 @@ function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChan
 }) {
   const [busy, setBusy] = useState<number | null>(null);
   const [noting, setNoting] = useState<{ request: ProcurementRequest; status: ProcurementUpdateStatus } | null>(null);
+  const [statusFilter, setStatusFilter] = useState<ProcurementStatus | "">("");
+  const shown = requests?.filter((r) => !statusFilter || r.status === statusFilter) ?? null;
 
   const receive = async (r: ProcurementRequest) => {
     setBusy(r.id);
@@ -584,9 +586,27 @@ function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChan
       </div>
 
       <div className="rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm">
-        <div className="px-6 py-5" style={{ background: "linear-gradient(135deg, #0d2a5e 0%, #1a3f7a 100%)" }}>
-          <p className="text-white font-black text-lg">Active Procurement Tracking</p>
-          <p className="text-sm text-blue-200 mt-1">Review, approve, and update the status of active procurement requests.</p>
+        <div className="px-6 py-5 flex flex-wrap items-end justify-between gap-3" style={{ background: "linear-gradient(135deg, #0d2a5e 0%, #1a3f7a 100%)" }}>
+          <div>
+            <p className="text-white font-black text-lg">Active Procurement Tracking</p>
+            <p className="text-sm text-blue-200 mt-1">Review, approve, and update the status of active procurement requests.</p>
+          </div>
+          <select
+            aria-label="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as ProcurementStatus | "")}
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold border outline-none"
+            style={{ borderColor: "#e2e8f0", background: "white", color: "#334155" }}
+          >
+            <option value="">All statuses</option>
+            {(Object.keys(STATUS_META) as ProcurementStatus[])
+              .filter((st) => !CLOSED.includes(st))
+              .map((st) => (
+                <option key={st} value={st}>
+                  {STATUS_META[st].label} ({requests?.filter((r) => r.status === st).length ?? 0})
+                </option>
+              ))}
+          </select>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -601,12 +621,16 @@ function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChan
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {requests === null ? (
+              {shown === null ? (
                 <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">Loading…</td></tr>
-              ) : requests.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">No active procurement requests found.</td></tr>
+              ) : shown.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-400">
+                    {statusFilter ? `No active requests with status ${STATUS_META[statusFilter].label}.` : "No active procurement requests found."}
+                  </td>
+                </tr>
               ) : (
-                requests.map((r) => (
+                shown.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-4 text-xs font-mono font-bold text-blue-700 whitespace-nowrap">{prNo(r)}</td>
                     <td className="px-5 py-4">
