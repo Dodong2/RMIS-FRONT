@@ -41,7 +41,12 @@ type AssignmentParams = Parameters<typeof personnelApi.getAssignments>[0];
 type DocumentParams = Parameters<typeof documentApi.getDocuments>[0];
 type TaskParams = Parameters<typeof personnelApi.getTasks>[0];
 
-export const projectsQuery = queryOptions({ queryKey: queryKeys.projects, queryFn: researchApi.getProjects });
+// Task 21 (2026-10-30): the review status lives on projects and budgets. Real-time signals refetch them at once; this
+// is the fallback when the socket is down (sleep, network change): on returning to the tab and every minute while the
+// tab is visible (TanStack skips intervals in background tabs).
+export const STATUS_SYNC = { refetchOnWindowFocus: true, refetchInterval: 60_000 } as const;
+
+export const projectsQuery = queryOptions({ queryKey: queryKeys.projects, queryFn: researchApi.getProjects, ...STATUS_SYNC });
 
 /** Every realignment in the user's scope (Budget page global view + notification bell). */
 export const realignmentsQuery = () =>
@@ -52,7 +57,7 @@ export const procurementRequestsQuery = () =>
   queryOptions({ queryKey: [...queryKeys.financialAll, "procurement"], queryFn: () => financialApi.getProcurementRequests() });
 
 export const budgetsQuery = (project?: number) =>
-  queryOptions({ queryKey: queryKeys.budgets(project), queryFn: () => budgetApi.getBudgets(project) });
+  queryOptions({ queryKey: queryKeys.budgets(project), queryFn: () => budgetApi.getBudgets(project), ...STATUS_SYNC });
 
 export const libItemsQuery = queryOptions({ queryKey: queryKeys.libItems, queryFn: budgetApi.getLibItems, staleTime: 5 * 60_000 });
 
