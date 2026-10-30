@@ -20,7 +20,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
-const FORECAST_ROLE_CODES = ["system_admin", "vprei", "finance_budget"];
+const FORECAST_ROLE_CODES = ["system_admin", "vprei", "finance_budget", "project_leader"];
 const FORECASTABLE_FUNDING_TYPES = ["institutional", "externally_funded"];
 
 type Method = "arima" | "burn_rate" | "linear_trend" | "moving_average" | "percent_completion";
@@ -467,6 +467,7 @@ function ForecastContent() {
                             ["Approved Budget", selectedRun.approved_budget_total ? peso(selectedRun.approved_budget_total) : "—", "#0d2a5e", "#e0eaf7"],
                             ["Actual to Date", selectedRun.actual_to_date ? peso(selectedRun.actual_to_date) : "—", "#0891b2", "#e0f2fe"],
                             ["Projected at Horizon", selectedRun.projected_total_at_horizon ? peso(selectedRun.projected_total_at_horizon) : "—", selectedRun.is_overrun_risk ? "#dc2626" : "#059669", selectedRun.is_overrun_risk ? "#fee2e2" : "#d1fae5"],
+                            ["Unpaid Commitments (today)", peso(selectedRun.unpaid_commitments), "#b45309", "#fef3c7"],
                             ["MAE", selectedRun.mae ? peso(selectedRun.mae) : "Not backtested", "#475569", "#f1f5f9"],
                             ["RMSE", selectedRun.rmse ? peso(selectedRun.rmse) : "Not backtested", "#475569", "#f1f5f9"],
                             ["MAPE", selectedRun.mape ? `${selectedRun.mape}%` : "Not backtested", "#475569", "#f1f5f9"],

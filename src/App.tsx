@@ -138,7 +138,7 @@ export default function App() {
         path="/budget/forecast"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "vprei", "university_admin", "finance_budget"]}>
+            <RoleGate allow={["system_admin", "vprei", "university_admin", "finance_budget", "project_leader"]}>
               <BudgetForecastPage />
             </RoleGate>
           </ProtectedRoute>

@@ -24,5 +24,6 @@ export interface ForecastRun {
   actual_to_date: string | null;
   projected_total_at_horizon: string | null;
   is_overrun_risk: boolean;
+  unpaid_commitments: string;
   forecasts: MonthlyForecast[];
 }
