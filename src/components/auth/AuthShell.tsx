@@ -5,11 +5,12 @@ interface AuthShellProps {
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
+  scrollBody?: boolean;
 }
 
 const CAMPUSES = ["SPC", "Siniloan", "Los Baños", "Sta. Cruz"];
 
-export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
+export function AuthShell({ title, subtitle, children, footer, scrollBody = false }: AuthShellProps) {
   return (
     <div className="min-h-screen flex" style={{ background: "linear-gradient(150deg, #05122e 0%, #0d2a5e 55%, #1a3f7a 100%)" }}>
       <div className="hidden lg:flex lg:w-[55%] flex-col justify-between p-12 relative overflow-hidden">
@@ -53,7 +54,10 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
 
       <div className="w-full lg:w-[45%] flex items-center justify-center p-5 lg:p-10">
         <div className="w-full max-w-md">
-          <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: "#f8fafc" }}>
+          <div
+            className={`rounded-2xl shadow-2xl overflow-hidden${scrollBody ? " flex flex-col [@media(min-height:600px)]:max-h-[calc(100dvh-2.5rem)] lg:[@media(min-height:600px)]:max-h-[calc(100dvh-5rem)]" : ""}`}
+            style={{ background: "#f8fafc" }}
+          >
             <div className="px-7 py-6" style={{ background: "linear-gradient(135deg, #0d2a5e 0%, #1a3f7a 100%)" }}>
               <div className="flex items-center gap-3 lg:hidden mb-5">
                 <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0">
@@ -78,7 +82,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
               {subtitle && <p className="text-white/50 text-sm mt-1">{subtitle}</p>}
             </div>
 
-            <div className="p-6">{children}</div>
+            <div className={`p-6${scrollBody ? " flex-1 min-h-0 overflow-y-auto" : ""}`}>{children}</div>
 
             {footer && (
               <div className="px-7 pb-5 text-center text-sm" style={{ color: "#64748b" }}>{footer}</div>

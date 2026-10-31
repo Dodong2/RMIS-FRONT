@@ -77,6 +77,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Request Access"
+      scrollBody
       subtitle="Verify your e-mail, then an administrator confirms your role before your account opens"
       footer={
         <>
