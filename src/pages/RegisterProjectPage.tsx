@@ -974,6 +974,7 @@ function RegisterProjectContent({
     const named = filledTeam.map((t) => ({ name: t.name.trim(), gender: t.gender, role: t.member_role }));
     return {
       ...form,
+      campus: projectCampus,
       cooperating_agencies: agencies.join(", "),
       lead_name: lead?.full_name || lead?.email || "",
       lead_email: lead?.email,
