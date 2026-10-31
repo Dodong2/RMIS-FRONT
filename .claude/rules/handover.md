@@ -84,7 +84,7 @@ automatically — most pages needed zero code changes for this pass.
   Version History tab, the Reports Scheduled Reports tab and the Settings System Information card. `src/mocks/REGISTRY.md`
   says how to restore them from `1379772`. This conflicts with the CLAUDE.md "no endpoint → mock" rule, which hasn't been
   changed yet (see open questions).
-- Module 1 (Auth/RBAC pages): done, stable.
+- Module 1 (Auth/RBAC pages): done, stable. **2026-10-31: Request Access card scrolls inside, see "Last thing done".**
 - Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-10-30 (Tasks 18-21): Open Review for CRC/CRD (By, View, Submitted Approved Proposal Information, Mark for checking confirm), Finance (Download LIB, comment, Update This LIB) and the leader (Attention icons); Step 5 PDF only; status refetch fallback — see "Last thing done".** **2026-10-30 (Tasks 15-17): Save as a Draft / Submit this proposal, row actions + confirm dialogs, new status labels, search + paging on Project Management — see "Last thing done".** **2026-10-29 (Tasks 13/14): Step 5 Supporting Documents (Approve Proposal + NTP required, View, Annex A and dates removed) and a Preview of the current fields only — see "Last thing done".** **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code (typed uppercase); later that day Priority Area and Proposal Content (except Objectives) left Step 1, Step 2 got a compact leader row, Step 3 a Work Plan template — see "Last thing done"; the notes below are history.** UI
   reworked 2026-09-22 per client request: ProjectsPage's two inline "Register
   a Program"/"Register a Project" forms (the project one had 20+ fields) were
@@ -680,15 +680,16 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-30, Task 27 (T26 is backend only, T28 dropped), on `main`, NOT pushed, paired with rmis-backend `ed2c289` `26bd9ab` (accounts 0030 NOT migrated; backend full suite 632/632). Memory note: `tasks-26-28-2026-10-30`. vitest **133/133**, `npx tsc -b` clean, eslint clean on the changed files; not browser-tested. Tasks 22-25 are pushed.
-- **T27-B** (`6a5881e`): `project_leader` gets `/budget/forecast` (`App.tsx` RoleGate), Budget Forecasting in the sidebar (`nav.ts`, tier `project_management`) and the Run button (`FORECAST_ROLE_CODES`, own projects, enforced by the backend). A saved ARIMA run shows the tile "Unpaid Commitments (today)" (`ForecastRun.unpaid_commitments`, a live figure from the backend). Other roles, the Analytics Budget Forecast tab and the client-side quick methods are unchanged.
-- **T28 DROPPED** (Carl 2026-10-30): no Baseline badge or Set Up Baseline Data button.
+2026-10-31, Request Access card scroll (Task 1), on `main`, `af2f3df` NOT pushed, frontend only, no migration. `npx tsc -b`, eslint on the 2 changed files and a production build pass. vitest not run: no test covers this layout. Layout measured in headless Chrome on a replica of the card, not the real page; not browser-tested.
+- **`af2f3df`**: `AuthShell` has an optional `scrollBody` prop (default off), passed only by `RegisterPage`. The form body scrolls inside the card; header, Sign in link and bottom strip stay visible. Viewports under 600px tall keep page scroll so the form isn't squeezed. Login, Verify Email, Registration Pending and Google Choose Role are unchanged.
+- Earlier work (Tasks 26-27) is pushed, with accounts 0030 migrated.
 
 ## Next thing to do in this repo
-1. Carl: migrate the backend (accounts 0030), then push both repos together and deploy (against the old backend the new tile would show NaN).
-2. Carl: browser-test `dss/RMIS_Test_Guide_2026-10-28.docx` sections 16A, 16, 15 with one record entered by hand. The forecast chart needs 6+ months of disbursements; below that the insufficient-data warning is expected.
-3. Later, ONLY when Carl says: the official 10 projects through Upload via Excel, from the `real_10_data` folder (see the backend handover).
-4. Not done, possible follow-ups: show payment status to the Project Leader on the Procurement page; procurement events in the global `REALTIME_REFETCH` map.
-5. Ask Carl/client (from before): lucide for the RichTextEditor toolbar; an item-name (catalog) picker in Update This LIB.
-6. Still open: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
-7. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
+1. Carl: push `af2f3df`, then browser-test `dss/RMIS_Test_Guide_2026-10-28.docx` section 16B (real phone keyboard, Submit, Login unchanged).
+2. Carl: browser-test the same guide's sections 16A, 16, 15 with one record entered by hand. The forecast chart needs 6+ months of disbursements; below that the insufficient-data warning is expected.
+3. Ask the client: may a rejected applicant register again? Today it's a permanent block, with no cooldown: the e-mail can't re-register, the Staff ID stays reserved, and a Google retry gets a misleading "Request received". No task yet (backend `RegisterView`, `GoogleRequestView`; the `RejectModal` warning text here).
+4. Later, ONLY when Carl says: the official 10 projects through Upload via Excel, from the `real_10_data` folder (see the backend handover).
+5. Not done, possible follow-ups: show payment status to the Project Leader on the Procurement page; procurement events in the global `REALTIME_REFETCH` map; `scrollBody` on Google Choose Role.
+6. Ask Carl/client (from before): lucide for the RichTextEditor toolbar; an item-name (catalog) picker in Update This LIB.
+7. Still open: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
+8. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
