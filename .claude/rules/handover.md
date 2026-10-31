@@ -84,7 +84,7 @@ automatically — most pages needed zero code changes for this pass.
   Version History tab, the Reports Scheduled Reports tab and the Settings System Information card. `src/mocks/REGISTRY.md`
   says how to restore them from `1379772`. This conflicts with the CLAUDE.md "no endpoint → mock" rule, which hasn't been
   changed yet (see open questions).
-- Module 1 (Auth/RBAC pages): done, stable. **2026-10-31: Request Access card scrolls inside, see "Last thing done".**
+- Module 1 (Auth/RBAC pages): done, stable. **2026-10-31: Request Access, One More Step and Request Received scroll inside the card, see "Last thing done".**
 - Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-10-31: Step 6 preview shows the Campus, see "Last thing done".** **2026-10-30 (Tasks 18-21): Open Review for CRC/CRD (By, View, Submitted Approved Proposal Information, Mark for checking confirm), Finance (Download LIB, comment, Update This LIB) and the leader (Attention icons); Step 5 PDF only; status refetch fallback — see "Last thing done".** **2026-10-30 (Tasks 15-17): Save as a Draft / Submit this proposal, row actions + confirm dialogs, new status labels, search + paging on Project Management — see "Last thing done".** **2026-10-29 (Tasks 13/14): Step 5 Supporting Documents (Approve Proposal + NTP required, View, Annex A and dates removed) and a Preview of the current fields only — see "Last thing done".** **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code (typed uppercase); later that day Priority Area and Proposal Content (except Objectives) left Step 1, Step 2 got a compact leader row, Step 3 a Work Plan template — see "Last thing done"; the notes below are history.** UI
   reworked 2026-09-22 per client request: ProjectsPage's two inline "Register
   a Program"/"Register a Project" forms (the project one had 20+ fields) were
@@ -680,18 +680,17 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-10-31, Step 6 preview Campus + Update This LIB modal, on `main`, `88ff2cd` and `3ab245a` NOT pushed, frontend only, no migration. `npx tsc -b`, eslint on the 2 changed files, vite build and vitest (ProposalSheet + registration 11/11, projectReview + libWorkflow 27/27) pass; no new test. Modal layout measured in headless Chromium on a replica with the compiled CSS, not the real page (1366×538, 768×757, 500×497; real 360px not measured). Not browser-tested.
-- **`88ff2cd`**: `previewData()` sends `campus: projectCampus`. It used to spread the empty `form.campus`, while Step 2 and the save use the Project Leader's campus.
-- **`3ab245a`**: `LibUpdateDialog` only: up to 1152px wide (`sm:max-w-6xl`; the old `max-w-5xl` lost to the Dialog base `sm:max-w-sm`), `sm:min-h-[70vh]`, `max-h-[90vh]`. Line items scroll inside; title, Grand Total, errors and buttons stay visible. Bigger inputs and spacing, period fields wrap. No logic changed.
-- A staged `AuthShell.tsx` change (`relative` on the scroll body) is not from this batch; it is still staged and uncommitted.
-- Earlier work (`af2f3df` Request Access scroll, Tasks 26-27) is pushed, with accounts 0030 migrated.
+2026-10-31, auth card scroll fix, on `main`, `1cf7111` pushed, frontend only, no migration. `npx tsc -b`, eslint on the 3 changed files and vite build pass; vitest not run (no test covers this layout). Measured on a replica with a hidden select, 800px screen: page 1226px without the fix, 800px with it. Not browser-tested.
+- **`1cf7111`**: `AuthShell`'s scroll body is `relative` again. Don't remove it: without it, the Select hidden inputs stretch the page and a white band shows under the card (this reached the live site with `af2f3df`). `scrollBody` is now also on One More Step (`GoogleChooseRolePage`) and Request Received (`RegistrationPendingPage`).
+- Same day, pushed: `88ff2cd` (`previewData()` sends `campus: projectCampus`, so the Step 6 preview shows the Campus before saving), `3ab245a` (`LibUpdateDialog` up to 1152px wide, line items scroll inside, layout only; the old `max-w-5xl` lost to the Dialog base `sm:max-w-sm`), `af2f3df` (Request Access card scrolls inside).
+- Earlier work (Tasks 26-27) is pushed, with accounts 0030 migrated.
 
 ## Next thing to do in this repo
-1. Carl: push `88ff2cd` and `3ab245a`, decide on the staged `AuthShell.tsx` change, then browser-test `dss/RMIS_Test_Guide_2026-10-28.docx` sections 16C (includes checking the Campus in the Excel preview, not yet checked) and 16B (real phone keyboard, Submit, Login unchanged).
+1. Carl: after the Netlify deploy, hard refresh and browser-test `dss/RMIS_Test_Guide_2026-10-28.docx` sections 16B (white band, One More Step, Request Received, real phone keyboard, Submit, Login unchanged) and 16C (includes checking the Campus in the Excel preview, not yet checked).
 2. Carl: browser-test the same guide's sections 16A, 16, 15 with one record entered by hand. The forecast chart needs 6+ months of disbursements; below that the insufficient-data warning is expected.
 3. Ask the client: may a rejected applicant register again? Today it's a permanent block, with no cooldown: the e-mail can't re-register, the Staff ID stays reserved, and a Google retry gets a misleading "Request received". No task yet (backend `RegisterView`, `GoogleRequestView`; the `RejectModal` warning text here).
 4. Later, ONLY when Carl says: the official 10 projects through Upload via Excel, from the `real_10_data` folder (see the backend handover).
-5. Not done, possible follow-ups: show payment status to the Project Leader on the Procurement page; procurement events in the global `REALTIME_REFETCH` map; `scrollBody` on Google Choose Role.
+5. Not done, possible follow-ups: show payment status to the Project Leader on the Procurement page; procurement events in the global `REALTIME_REFETCH` map.
 6. Ask Carl/client (from before): lucide for the RichTextEditor toolbar; an item-name (catalog) picker in Update This LIB.
 7. Still open: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
 8. Every task goes through `dss/CLAUDE.md` and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
