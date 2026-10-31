@@ -4,7 +4,7 @@ import { AuthShell } from "../components/auth/AuthShell";
 
 export default function RegistrationPendingPage() {
   return (
-    <AuthShell title="Request Received" subtitle="Two steps before your account opens">
+    <AuthShell scrollBody title="Request Received" subtitle="Two steps before your account opens">
       <div className="space-y-5">
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl" style={{ background: "#d1fae5", border: "1px solid #6ee7b7" }}>
           <Mail size={20} color="#059669" className="shrink-0 mt-0.5" aria-hidden="true" />

@@ -59,7 +59,7 @@ export default function GoogleChooseRolePage() {
   };
 
   return (
-    <AuthShell title="One More Step" subtitle="Complete your details so an administrator can review your request">
+    <AuthShell scrollBody title="One More Step" subtitle="Complete your details so an administrator can review your request">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="grid grid-cols-2 gap-3">
           <div>

@@ -82,7 +82,7 @@ export function AuthShell({ title, subtitle, children, footer, scrollBody = fals
               {subtitle && <p className="text-white/50 text-sm mt-1">{subtitle}</p>}
             </div>
 
-            <div className={`p-6${scrollBody ? " flex-1 min-h-0 overflow-y-auto" : ""}`}>{children}</div>
+            <div className={`p-6${scrollBody ? " relative flex-1 min-h-0 overflow-y-auto" : ""}`}>{children}</div>
 
             {footer && (
               <div className="px-7 pb-5 text-center text-sm" style={{ color: "#64748b" }}>{footer}</div>
