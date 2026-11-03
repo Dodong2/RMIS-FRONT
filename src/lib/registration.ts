@@ -13,9 +13,15 @@ export interface RegistrationProfile {
   mobile_number: string;
   staff_id: string;
   requested_role: string;
+  requested_role_code?: string;
 }
 
-export type ProfileField = keyof RegistrationProfile;
+export type ProfileField = Exclude<keyof RegistrationProfile, "requested_role_code">;
+
+export const NO_COLLEGE_UNIT_ROLE_CODES = ["system_admin", "vprei", "university_admin", "crc_chair"];
+
+export const needsCollegeUnit = (profile: RegistrationProfile) =>
+  !NO_COLLEGE_UNIT_ROLE_CODES.includes(profile.requested_role_code ?? "");
 
 export const EMPTY_PROFILE: RegistrationProfile = {
   gender: "", campus: "", college_unit: "", mobile_number: "", staff_id: "", requested_role: "",
@@ -33,6 +39,7 @@ const REQUIRED: Record<ProfileField, string> = {
 export function profileProblems(profile: RegistrationProfile): Partial<Record<ProfileField, string>> {
   const problems: Partial<Record<ProfileField, string>> = {};
   for (const field of Object.keys(REQUIRED) as ProfileField[]) {
+    if (field === "college_unit" && !needsCollegeUnit(profile)) continue;
     if (!profile[field].trim()) problems[field] = REQUIRED[field];
   }
   if (!problems.staff_id && !STAFF_ID_PATTERN.test(profile.staff_id.trim())) problems.staff_id = "Staff ID must be 6 digits.";
@@ -46,7 +53,7 @@ export function profilePayload(profile: RegistrationProfile): RegistrationProfil
   return {
     gender: profile.gender,
     campus: profile.campus,
-    college_unit: profile.college_unit,
+    college_unit: needsCollegeUnit(profile) ? profile.college_unit : "",
     mobile_number: profile.mobile_number.trim(),
     staff_id: profile.staff_id.trim(),
     requested_role: profile.requested_role ? Number(profile.requested_role) : null,

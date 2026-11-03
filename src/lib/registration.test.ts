@@ -71,3 +71,22 @@ describe("orderRequestableRoles", () => {
     expect(api[0].code).toBe("new_role");
   });
 });
+
+describe("College Unit by requested role (Task 39)", () => {
+  const noCollege = { ...complete, college_unit: "" };
+
+  it("is not needed for VP for REI, University Administration and CRC/CRD, and is not sent", () => {
+    for (const code of ["vprei", "university_admin", "crc_chair"]) {
+      const profile = { ...complete, requested_role_code: code };
+      expect(profileProblems({ ...noCollege, requested_role_code: code }).college_unit).toBeUndefined();
+      expect(profilePayload(profile).college_unit).toBe("");
+    }
+  });
+
+  it("is still required for the other roles and for an unknown role", () => {
+    for (const code of ["riuh", "finance_budget", "procurement_officer_lib", "project_leader", "project_staff", undefined]) {
+      expect(profileProblems({ ...noCollege, requested_role_code: code }).college_unit).toBe("Choose your College Unit.");
+      expect(profilePayload({ ...complete, requested_role_code: code }).college_unit).toBe(complete.college_unit);
+    }
+  });
+});

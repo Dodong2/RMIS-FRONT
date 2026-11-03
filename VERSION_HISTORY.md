@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2235**
+**Latest version: 2026.11.03.2240**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2240
+
+- **Date and time:** 2026-11-03 22:40 (Asia/Manila)
+- **Category:** Feature, frontend, backend
+- **Summary:** On Request Access and One More Step (Google sign-up), College Unit is disabled and not required when the requested role is VP for REI, University Administration or CRC/CRD, and no College Unit is saved for them. RIUH, Finance/Accounting/Budget, Procurement Officer - LIB, Project Leader and Project Staff must still choose one.
+- **Affected modules:** User registration
+- **Notes:** Client Task 39, backend rmis-backend 1eb5c8c. Project registration's College Unit/Implementing Unit, profile edits and admin edits are unchanged. No migration.
 
 ### 2026.11.03.2235
 

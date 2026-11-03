@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authApi } from "../../lib/authApi";
 import { notify } from "../../lib/notify";
-import { MOBILE_HINT, STAFF_ID_HINT, orderRequestableRoles, type ProfileField, type RegistrationProfile } from "../../lib/registration";
+import { MOBILE_HINT, STAFF_ID_HINT, needsCollegeUnit, orderRequestableRoles, type ProfileField, type RegistrationProfile } from "../../lib/registration";
 import { AUTH_SELECT_TRIGGER, AuthHint, AuthInput, AuthLabel } from "./AuthFields";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -22,15 +22,24 @@ export function RegistrationProfileFields({
     if (optionsQ.isError) notify.error("The registration lists could not be loaded. Reload the page to try again.");
   }, [optionsQ.isError]);
 
-  const select = (field: ProfileField, label: string, items: { value: string; label: string }[], placeholder: string) => (
+  const roles = orderRequestableRoles(options?.roles ?? []);
+  const collegeNeeded = needsCollegeUnit(value);
+
+  const select = (
+    field: ProfileField,
+    label: string,
+    items: { value: string; label: string }[],
+    placeholder: string,
+    opts: { off?: boolean; onPick?: (v: string) => void } = {},
+  ) => (
     <div>
-      <AuthLabel htmlFor={field} required>{label}</AuthLabel>
+      <AuthLabel htmlFor={field} required={!opts.off}>{label}</AuthLabel>
       {optionsQ.isPending ? (
         <div className="h-12 w-full rounded-xl animate-pulse" style={{ background: "#e2e8f0" }} />
       ) : (
-        <Select value={value[field]} onValueChange={(v) => onChange({ [field]: v })} disabled={items.length === 0}>
+        <Select value={opts.off ? "" : value[field]} onValueChange={(v) => (opts.onPick ? opts.onPick(v) : onChange({ [field]: v }))} disabled={items.length === 0 || opts.off}>
           <SelectTrigger id={field} className={AUTH_SELECT_TRIGGER} aria-invalid={!!errors[field]}>
-            <SelectValue placeholder={items.length === 0 ? "No options available" : placeholder} />
+            <SelectValue placeholder={opts.off ? "Not needed for this role" : items.length === 0 ? "No options available" : placeholder} />
           </SelectTrigger>
           <SelectContent>
             {items.map((item) => (
@@ -68,7 +77,7 @@ export function RegistrationProfileFields({
       </div>
 
       {select("campus", "Campus", names(options?.campuses), "Choose your campus")}
-      {select("college_unit", "College Unit", names(options?.college_units), "Choose your College Unit")}
+      {select("college_unit", "College Unit", names(options?.college_units), "Choose your College Unit", { off: !collegeNeeded })}
 
       <div>
         <AuthLabel htmlFor="mobile_number" required>Mobile Number</AuthLabel>
@@ -88,8 +97,14 @@ export function RegistrationProfileFields({
       {select(
         "requested_role",
         "Role You Are Requesting",
-        orderRequestableRoles(options?.roles ?? []).map((role) => ({ value: String(role.id), label: role.name })),
+        roles.map((role) => ({ value: String(role.id), label: role.name })),
         "Choose a role",
+        {
+          onPick: (id) => {
+            const code = roles.find((role) => String(role.id) === id)?.code ?? "";
+            onChange({ requested_role: id, requested_role_code: code });
+          },
+        },
       )}
       {!errors.requested_role && <AuthHint>An administrator can assign a different role than the one you request.</AuthHint>}
     </>
