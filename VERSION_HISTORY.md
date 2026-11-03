@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2333**
+**Latest version: 2026.11.03.2342**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2342
+
+- **Date and time:** 2026-11-03 23:42 (Asia/Manila)
+- **Category:** UI, frontend
+- **Summary:** Budget Management → open a LIB → Line Items now uses the same table as Register Approved Project → Step 4: Budget (LIB). It groups items under PS, MOOE and CO with Item, Specification, Unit, Qty, Unit Cost and Total, and has the allocation per year and quarter, Allocated / Total, and subtotals. Read-only. Next to each item it shows the period total ≠ Total warning when the saved periods don't add up, the Attention icon for the Project Leader, and the APP, Counterpart and justification notes. A Draft LIB keeps its Remove and Add item actions.
+- **Affected modules:** Budget Management (Line Items tab, all roles that open a LIB)
+- **Notes:** Client Task 33. Values come from the saved LIB. Calculations, the backend and the other tabs are unchanged. Step 4 itself is unchanged.
 
 ### 2026.11.03.2333
 

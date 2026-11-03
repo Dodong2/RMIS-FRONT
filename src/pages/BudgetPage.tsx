@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Building2, ChartColumn, Check, ChevronLeft, CircleCheck, ClipboardList, FilePlus, Hourglass, MessageSquare, Pause, PenLine, Receipt, Search, Send, ShieldCheck, Trash2, TriangleAlert, Users } from "lucide-react";
+import { ArrowLeftRight, Building2, ChartColumn, Check, ChevronLeft, CircleCheck, ClipboardList, FilePlus, Hourglass, MessageSquare, Pause, PenLine, Receipt, Search, Send, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { personName } from "../lib/roles";
 import { useSearchParams } from "react-router-dom";
@@ -26,6 +26,8 @@ import { AppShell } from "../components/layout/AppShell";
 import { LibItemSelect } from "../components/common/LibItemSelect";
 import { ReviewModal as ProposalReviewModal, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
 import { LibEditAttention } from "../components/projects/LibEditHistory";
+import { LibAllocationGrid } from "../components/registration/LibAllocationGrid";
+import { savedGroups, savedPeriods } from "../lib/libGrid";
 import { PaymentsBanner, ProcurementPayments } from "../components/budget/ProcurementPayments";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
@@ -817,10 +819,60 @@ function LIBDetail({
                   </div>
                 )}
 
-                {CATEGORIES.map((cat) => {
-                  const items = budget.line_items.filter((i) => i.category === cat);
+                {budget.line_items.length > 0 && (() => {
+                  const items = budget.line_items;
+                  const periods = savedPeriods(items);
                   const canEdit = canManage && isDraft;
-                  if (items.length === 0 && !canEdit) return null;
+                  const text = (v: ReactNode) => <p className="px-2 py-1.5 text-xs" style={{ color: "#334155" }}>{v}</p>;
+                  return (
+                    <LibAllocationGrid
+                      readOnly
+                      groups={savedGroups(items, CATEGORIES.map((key) => ({ key, label: `${CATEGORY_META[key].full} (${CATEGORY_META[key].label})` })))}
+                      periods={periods.length ? periods : ["Q1", "Q2", "Q3", "Q4"]}
+                      itemCells={(i) => {
+                        const li = items[i];
+                        return [
+                          <p className="px-2 py-1.5 text-xs font-semibold" style={{ color: "#0d2a5e" }}>{li.description}</p>,
+                          text(li.specification || "—"),
+                          text(libUnitLabel(li.unit) || "—"),
+                          <p className="px-2 py-1.5 text-xs font-mono text-right" style={{ color: "#334155" }}>{li.quantity != null ? Number(li.quantity) : "—"}</p>,
+                          <p className="px-2 py-1.5 text-xs font-mono text-right whitespace-nowrap" style={{ color: "#334155" }}>{li.unit_cost != null ? peso(li.unit_cost) : "—"}</p>,
+                        ];
+                      }}
+                      rowNote={(i) => {
+                        const li = items[i];
+                        const split = Math.round(li.allocations.reduce((sum, a) => sum + Number(a.amount), 0) * 100) / 100;
+                        const mismatch = periods.length > 0 && split !== Number(li.amount);
+                        return (
+                          <div className="px-2 pb-1 flex gap-1 flex-wrap items-center">
+                            {ownLeader && <LibEditAttention item={li} />}
+                            {mismatch && (
+                              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fef2f2", color: "#b91c1c" }}>
+                                <TriangleAlert className="inline h-3 w-3 mr-0.5" aria-hidden="true" />
+                                Periods ₱{peso(split)} ≠ Total ₱{peso(li.amount)}
+                              </span>
+                            )}
+                            {li.is_app_flagged && <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fee2e2", color: "#991b1b" }}>APP · above ₱50,000</span>}
+                            {li.is_counterpart && <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#f0fdf4", color: "#166534" }}>Counterpart</span>}
+                            {li.justification && <span className="text-[11px] w-full" style={{ color: "#64748b" }}>{li.justification}</span>}
+                          </div>
+                        );
+                      }}
+                      onRemove={
+                        canEdit
+                          ? async (i) => {
+                              const li = items[i];
+                              if (!busy && (await notify.confirm(`Remove the line item "${li.description}"?`, "Remove"))) run(() => budgetApi.deleteLineItem(li.id), "Line item removed.");
+                            }
+                          : undefined
+                      }
+                    />
+                  );
+                })()}
+
+                {CATEGORIES.map((cat) => {
+                  const canEdit = canManage && isDraft;
+                  if (!canEdit) return null;
                   const cm = CATEGORY_META[cat];
                   const row = rows[cat];
                   const tried = attemptedCat === cat;
@@ -842,49 +894,6 @@ function LIBDetail({
                             </tr>
                           </thead>
                           <tbody>
-                            {items.map((li: LineItem, idx) => (
-                              <tr key={li.id} className="border-t" style={{ borderColor: "#f1f5f9", ...(ownLeader && li.edits?.length ? { background: "#fffbeb" } : {}) }}>
-                                <td className="px-3 py-2.5 text-xs font-mono" style={{ color: "#94a3b8" }}>{cm.label}-{String(idx + 1).padStart(2, "0")}</td>
-                                <td className="px-3 py-2.5 text-xs font-semibold max-w-xs" style={{ color: "#0d2a5e" }}>
-                                  {li.description}
-                                  {ownLeader && <> <LibEditAttention item={li} /></>}
-                                  <div className="flex gap-1 mt-0.5 flex-wrap">
-                                    {li.is_app_flagged && (
-                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: "#fee2e2", color: "#991b1b" }}>APP · above ₱50,000</span>
-                                    )}
-                                    {li.is_counterpart && (
-                                      <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: "#f0fdf4", color: "#166534" }}>Counterpart</span>
-                                    )}
-                                  </div>
-                                  {li.allocations?.length > 0 && (
-                                    <p className="mt-1 text-xs font-normal font-mono" style={{ color: "#64748b" }}>
-                                      {li.allocations.map((a) => `${a.period} ${peso(a.amount)}`).join(" · ")}
-                                    </p>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2.5 text-xs" style={{ color: "#64748b" }}>{libUnitLabel(li.unit) || "—"}</td>
-                                <td className="px-3 py-2.5 text-xs font-mono text-right" style={{ color: "#64748b" }}>{li.quantity != null ? Number(li.quantity) : "—"}</td>
-                                <td className="px-3 py-2.5 text-xs font-mono text-right whitespace-nowrap" style={{ color: "#64748b" }}>{li.unit_cost != null ? peso(li.unit_cost) : "—"}</td>
-                                <td className="px-3 py-2.5 text-xs font-mono font-black text-right whitespace-nowrap" style={{ color: cm.color }}>{peso(li.amount)}</td>
-                                <td className="px-3 py-2.5 text-xs" style={{ color: "#64748b" }}>
-                                  <div className="flex items-start gap-3">
-                                    <span className="flex-1">{li.justification || "—"}</span>
-                                    {canEdit && (
-                                      <button
-                                        onClick={async () => (await notify.confirm(`Remove the line item "${li.description}"?`, "Remove")) && run(() => budgetApi.deleteLineItem(li.id), "Line item removed.")}
-                                        disabled={busy}
-                                        aria-label="Remove line item"
-                                        title="Remove"
-                                        className="shrink-0 disabled:opacity-50"
-                                        style={{ color: "#dc2626" }}
-                                      >
-                                        <Trash2 size={14} aria-hidden="true" />
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
                             {canEdit && (
                               <tr className="border-t" style={{ borderColor: "#f1f5f9", background: "#fafbfc" }}>
                                 <td className="px-3 py-2 text-xs" style={{ color: "#94a3b8" }}>New</td>

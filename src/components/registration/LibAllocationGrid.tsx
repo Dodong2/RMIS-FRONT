@@ -24,17 +24,21 @@ export function LibAllocationGrid({
   itemCells,
   onAdd,
   onRemove,
+  readOnly = false,
+  rowNote,
 }: {
   groups: AllocationGridGroup[];
   periods: string[];
-  onChange: (index: number, period: string, value: string) => void;
+  onChange?: (index: number, period: string, value: string) => void;
   itemCells: (index: number) => ItemCells;
-  onAdd: (category: string) => void;
-  onRemove: (index: number) => void;
+  onAdd?: (category: string) => void;
+  onRemove?: (index: number) => void;
+  readOnly?: boolean;
+  rowNote?: (index: number) => ReactNode;
 }) {
   const multiYear = periods[0][0] === "Y";
   const years = [...new Set(periods.map(periodYear))];
-  const columns = ITEM_HEADERS.length + periods.length + 2;
+  const columns = ITEM_HEADERS.length + periods.length + (onRemove ? 2 : 1);
   // Thick line where a new year starts, plus a light tint on every other year, so the columns are easy to follow.
   const startsYear = (p: string, i: number) => multiYear && (i === 0 || periodYear(periods[i - 1]) !== periodYear(p));
   const yearTint = (p: string) => (multiYear && periodYear(p) % 2 === 0 ? "#f1f5f9" : "white");
@@ -42,7 +46,7 @@ export function LibAllocationGrid({
   return (
     <div className="space-y-1">
       <p className="text-[11px]" style={{ color: "#64748b" }}>
-        Scroll sideways to see {years.length > 1 ? `all ${years.length} years` : "every quarter"}. Total = Qty × Unit Cost; split each total over the quarters.
+        Scroll sideways to see {years.length > 1 ? `all ${years.length} years` : "every quarter"}. Total = Qty × Unit Cost{readOnly ? "." : "; split each total over the quarters."}
       </p>
       <div className="rounded-xl overflow-x-auto" style={{ border: line }}>
         <table className="text-xs w-full" style={{ borderCollapse: "collapse", minWidth: 900 + periods.length * 130 }}>
@@ -68,7 +72,7 @@ export function LibAllocationGrid({
                     <th key={p} className="px-2 py-2 font-bold" style={{ ...head, borderLeft: i === 0 ? yearLine : line }}>{p}</th>
                   ))}
               <th rowSpan={multiYear ? 2 : 1} className="px-3 py-2 text-right font-bold whitespace-nowrap" style={{ ...head, borderLeft: yearLine, minWidth: 180 }}>Allocated / Total</th>
-              <th rowSpan={multiYear ? 2 : 1} style={{ ...head, minWidth: 36 }} aria-label="Remove" />
+              {onRemove && <th rowSpan={multiYear ? 2 : 1} style={{ ...head, minWidth: 36 }} aria-label="Remove" />}
             </tr>
             {multiYear && (
               <tr>
@@ -84,10 +88,12 @@ export function LibAllocationGrid({
                 <td colSpan={columns} className="px-3 py-1.5" style={{ ...cell, background: "#e2e8f0" }}>
                   <div className="flex items-center gap-4 sticky left-3 w-fit">
                     <span className="font-bold uppercase tracking-wide" style={{ color: "#0d2a5e" }}>{g.label}</span>
-                    <button type="button" onClick={() => onAdd(g.key)} className="text-xs font-semibold flex items-center gap-1" style={{ color: "#0891b2" }}>
-                      <Plus size={13} strokeWidth={2.5} aria-hidden="true" />
-                      Add Item
-                    </button>
+                    {onAdd && (
+                      <button type="button" onClick={() => onAdd(g.key)} className="text-xs font-semibold flex items-center gap-1" style={{ color: "#0891b2" }}>
+                        <Plus size={13} strokeWidth={2.5} aria-hidden="true" />
+                        Add Item
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>,
@@ -106,7 +112,10 @@ export function LibAllocationGrid({
                     const label = r.description || "New item";
                     return (
                       <tr key={r.index}>
-                        <td className="p-1 sticky left-0 z-[1] bg-white" style={cell}>{item}</td>
+                        <td className="p-1 sticky left-0 z-[1] bg-white" style={cell}>
+                          {item}
+                          {rowNote?.(r.index)}
+                        </td>
                         <td className="p-1" style={cell}>{specification}</td>
                         <td className="p-1" style={cell}>{unit}</td>
                         <td className="p-1" style={cell}>{qty}</td>
@@ -116,14 +125,20 @@ export function LibAllocationGrid({
                         </td>
                         {periods.map((p, i) => (
                           <td key={p} className="p-1" style={{ ...cell, background: yearTint(p), borderLeft: startsYear(p, i) || (!multiYear && i === 0) ? yearLine : line }}>
-                            <MoneyInput
-                              className="w-full px-2 py-1.5 rounded-md border text-xs text-right outline-none focus:border-[#0891b2]"
-                              style={{ borderColor: "#94a3b8", background: "white", color: "#0f172a", minWidth: 110 }}
-                              value={r.allocations?.[p] ?? ""}
-                              onChange={(v) => onChange(r.index, p, v)}
-                              placeholder="0.00"
-                              aria-label={`${label} ${multiYear ? `Year ${periodYear(p)} ` : ""}${periodQuarter(p)} allocation`}
-                            />
+                            {readOnly || !onChange ? (
+                              <p className="px-2 py-1.5 text-right font-mono whitespace-nowrap" style={{ minWidth: 110, color: r.allocations?.[p] ? "#0f172a" : "#94a3b8" }}>
+                                {r.allocations?.[p] ? peso(Number(r.allocations[p])) : "—"}
+                              </p>
+                            ) : (
+                              <MoneyInput
+                                className="w-full px-2 py-1.5 rounded-md border text-xs text-right outline-none focus:border-[#0891b2]"
+                                style={{ borderColor: "#94a3b8", background: "white", color: "#0f172a", minWidth: 110 }}
+                                value={r.allocations?.[p] ?? ""}
+                                onChange={(v) => onChange(r.index, p, v)}
+                                placeholder="0.00"
+                                aria-label={`${label} ${multiYear ? `Year ${periodYear(p)} ` : ""}${periodQuarter(p)} allocation`}
+                              />
+                            )}
                           </td>
                         ))}
                         <td
@@ -132,11 +147,13 @@ export function LibAllocationGrid({
                         >
                           ₱{peso(allocated)} / ₱{peso(r.total)}
                         </td>
-                        <td className="px-1 text-center" style={cell}>
-                          <button type="button" onClick={() => onRemove(r.index)} className="p-1 rounded" style={{ color: "#94a3b8" }} aria-label={`Remove ${label}`} title="Remove item">
-                            <X size={14} aria-hidden="true" />
-                          </button>
-                        </td>
+                        {onRemove && (
+                          <td className="px-1 text-center" style={cell}>
+                            <button type="button" onClick={() => onRemove(r.index)} className="p-1 rounded" style={{ color: "#94a3b8" }} aria-label={`Remove ${label}`} title="Remove item">
+                              <X size={14} aria-hidden="true" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })),
@@ -145,7 +162,7 @@ export function LibAllocationGrid({
                   <span className="sticky left-3">Subtotal</span>
                 </td>
                 <td className="px-3 py-1.5 text-right font-mono font-bold whitespace-nowrap" style={{ ...cell, color: "#0d2a5e" }}>{peso(g.subtotal)}</td>
-                <td colSpan={periods.length + 2} style={cell} />
+                <td colSpan={periods.length + (onRemove ? 2 : 1)} style={cell} />
               </tr>,
             ])}
           </tbody>
