@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2346**
+**Latest version: 2026.11.03.2354**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2354
+
+- **Date and time:** 2026-11-03 23:54 (Asia/Manila)
+- **Category:** UI, frontend
+- **Summary:** Finance/Accounting/Budget → Open Review → Update This LIB now shows the LIB in the same table as Register Approved Project → Step 4: Budget (LIB), in a modal that fills about 95% of the screen width and 92% of its height. Specification, Unit, Qty, Unit Cost and every year/quarter amount are edited in the table. A changed item turns yellow and asks for its reason under the item name. A period-total warning appears next to an item whose periods don't add up. The title, Grand Total, errors and Exit/Save stay visible while the table scrolls.
+- **Affected modules:** Project Management → Open Review (Finance/Accounting/Budget)
+- **Notes:** Client Task 32. Layout only: the update rules (existing items only, no add or remove, a reason per change, all-or-nothing save, audit history, notifications, Project Leader Attention) and the backend are unchanged. A modal was kept instead of a separate tab.
 
 ### 2026.11.03.2346
 

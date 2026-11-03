@@ -18,6 +18,8 @@ import { nameOf } from "../../lib/workplan";
 import { budgetApi } from "../../lib/budgetApi";
 import { reportErrorMessage } from "../../lib/reportsApi";
 import { LIB_UNITS } from "../../lib/libUnits";
+import { savedPeriods } from "../../lib/libGrid";
+import { LibAllocationGrid } from "../registration/LibAllocationGrid";
 import { SubmitConfirmDialog } from "./SubmitConfirmDialog";
 import { LibEditAttention } from "./LibEditHistory";
 import { useReviewStep } from "../../lib/useReviewStep";
@@ -601,11 +603,11 @@ export function ReviewModal({ project, budgets, userId, roleCode, onClose }: { p
 
 const centavos = (n: number) => Math.round(n * 100) / 100;
 
-function periodsOf(items: LineItem[]) {
-  const periods: string[] = [];
-  items.forEach((i) => i.allocations.forEach((a) => !periods.includes(a.period) && periods.push(a.period)));
-  return periods;
-}
+const LIB_GROUPS = [
+  { key: "ps", label: "Personal Services (PS)" },
+  { key: "mooe", label: "Maintenance and Other Operating Expenses (MOOE)" },
+  { key: "co", label: "Capital Outlay (CO)" },
+] as const;
 
 function draftOf(item: LineItem): UpdateDraft {
   return {
@@ -622,7 +624,7 @@ function draftOf(item: LineItem): UpdateDraft {
  * changed item; the backend checks the split and the Grand Total again and saves all or nothing. */
 function LibUpdateDialog({ lib, totalCost, onClose }: { lib: LineItemBudget; totalCost: string | null; onClose: () => void }) {
   const queryClient = useQueryClient();
-  const periods = periodsOf(lib.line_items);
+  const periods = savedPeriods(lib.line_items);
   const [drafts, setDrafts] = useState<Record<number, UpdateDraft>>(() => Object.fromEntries(lib.line_items.map((i) => [i.id, draftOf(i)])));
   const patch = (id: number, p: Partial<UpdateDraft>) => setDrafts((d) => ({ ...d, [id]: { ...d[id], ...p } }));
   const rowTotal = (d: UpdateDraft) => centavos(Number(d.quantity || 0) * Number(d.unit_cost || 0));
@@ -645,55 +647,68 @@ function LibUpdateDialog({ lib, totalCost, onClose }: { lib: LineItemBudget; tot
     },
     onError: (err) => notify.error(errorMessage(err, "The LIB could not be updated.")),
   });
-  const input = "w-full rounded-lg border border-slate-200 mt-1 px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-[#0891b2]";
+  const input = "w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-800 outline-none focus:border-[#0891b2]";
+  const groups = LIB_GROUPS.map(({ key, label }) => {
+    const groupRows = rows.map((r, index) => ({ ...r, index })).filter((r) => r.item.category === key);
+    return {
+      key,
+      label,
+      subtotal: centavos(groupRows.reduce((sum, r) => sum + rowTotal(r.draft), 0)),
+      rows: groupRows.map((r) => ({ index: r.index, description: r.item.description, total: rowTotal(r.draft), allocations: r.draft.split })),
+    };
+  });
 
   return (
     <Dialog open onOpenChange={(o) => !o && !save.isPending && onClose()}>
-      <DialogContent className="flex max-h-[90vh] flex-col gap-5 p-6 sm:min-h-[70vh] sm:max-w-6xl">
+      <DialogContent className="flex h-[92vh] max-h-[92vh] flex-col gap-4 p-6 sm:max-w-[95vw]">
         <DialogHeader>
           <DialogTitle style={{ color: "#0d2a5e" }}>Update This LIB</DialogTitle>
-          <DialogDescription>Change the existing line items only. Every changed item needs a reason; items can't be added or removed.</DialogDescription>
+          <DialogDescription>
+            Change the existing line items only: Specification, Unit, Qty, Unit Cost and the amount per period. Every changed item (yellow) needs a reason;
+            items can't be added or removed.
+          </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-          {rows.map(({ item, draft, change }) => (
-            <div key={item.id} className="rounded-xl border p-5" style={{ borderColor: change ? "#f59e0b" : "#e2e8f0", background: change ? "#fffbeb" : "white" }}>
-              <p className="text-sm font-bold text-slate-700">
-                {item.category.toUpperCase()} · {item.description}
-                <span className="ml-2 font-normal text-slate-400">was {peso(item.amount)}</span>
-              </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-5">
-                <label className="text-xs font-medium text-slate-500 md:col-span-2">Specification
-                  <input className={input} value={draft.specification} onChange={(e) => patch(item.id, { specification: e.target.value })} />
-                </label>
-                <label className="text-xs font-medium text-slate-500">Unit
-                  <select className={input} value={draft.unit} onChange={(e) => patch(item.id, { unit: e.target.value })}>
-                    {LIB_UNITS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
-                  </select>
-                </label>
-                <label className="text-xs font-medium text-slate-500">Qty
-                  <input className={input} inputMode="decimal" value={draft.quantity} onChange={(e) => patch(item.id, { quantity: e.target.value })} />
-                </label>
-                <label className="text-xs font-medium text-slate-500">Unit Cost (₱)
-                  <input className={input} inputMode="decimal" value={draft.unit_cost} onChange={(e) => patch(item.id, { unit_cost: e.target.value })} />
-                </label>
-              </div>
-              {periods.length > 0 && (
-                <div className="mt-4 grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7.5rem, 1fr))" }}>
-                  {periods.map((p) => (
-                    <label key={p} className="text-xs font-medium text-slate-500">{p}
-                      <input className={input} inputMode="decimal" value={draft.split[p] ?? ""} onChange={(e) => patch(item.id, { split: { ...draft.split, [p]: e.target.value } })} />
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <LibAllocationGrid
+            groups={groups}
+            periods={periods.length ? periods : ["Q1", "Q2", "Q3", "Q4"]}
+            highlight={(i) => !!rows[i].change}
+            onChange={(i, p, v) => patch(rows[i].item.id, { split: { ...rows[i].draft.split, [p]: v } })}
+            itemCells={(i) => {
+              const { item, draft } = rows[i];
+              return [
+                <div className="px-2 py-1.5 text-xs">
+                  <p className="font-semibold" style={{ color: "#0d2a5e" }}>{item.description}</p>
+                  <p className="text-[11px] text-slate-400">was {peso(item.amount)}</p>
+                </div>,
+                <input className={input} aria-label={`${item.description} specification`} value={draft.specification} onChange={(e) => patch(item.id, { specification: e.target.value })} />,
+                <select className={input} aria-label={`${item.description} unit`} value={draft.unit} onChange={(e) => patch(item.id, { unit: e.target.value })}>
+                  {LIB_UNITS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+                </select>,
+                <input className={input + " text-right"} inputMode="decimal" aria-label={`${item.description} quantity`} value={draft.quantity} onChange={(e) => patch(item.id, { quantity: e.target.value })} />,
+                <input className={input + " text-right"} inputMode="decimal" aria-label={`${item.description} unit cost`} value={draft.unit_cost} onChange={(e) => patch(item.id, { unit_cost: e.target.value })} />,
+              ];
+            }}
+            rowNote={(i) => {
+              const { item, draft, change } = rows[i];
+              const mismatch = periods.length > 0 && splitTotal(draft) !== rowTotal(draft);
+              if (!change && !mismatch) return null;
+              return (
+                <div className="px-2 pb-1.5 space-y-1">
+                  {mismatch && (
+                    <p className="text-[11px] font-bold" style={{ color: "#b91c1c" }}>
+                      Periods ₱{peso(splitTotal(draft))} ≠ Total ₱{peso(rowTotal(draft))}
+                    </p>
+                  )}
+                  {change && (
+                    <label className="block text-[11px] font-bold text-amber-800">Reason for the change (required)
+                      <textarea className={input + " mt-0.5"} rows={2} aria-label={`${item.description} reason for the change`} value={draft.reason} onChange={(e) => patch(item.id, { reason: e.target.value })} />
                     </label>
-                  ))}
+                  )}
                 </div>
-              )}
-              <p className="mt-4 text-sm text-slate-500">Total {peso(rowTotal(draft))}{periods.length ? ` · periods ${peso(splitTotal(draft))}` : ""}</p>
-              {change && (
-                <label className="mt-4 block text-xs font-bold text-amber-800">Reason for the change (required)
-                  <textarea className={input} rows={2} value={draft.reason} onChange={(e) => patch(item.id, { reason: e.target.value })} />
-                </label>
-              )}
-            </div>
-          ))}
+              );
+            }}
+          />
         </div>
         <p className="text-sm font-semibold text-slate-700">Grand Total {peso(grand)}{totalCost ? ` · Total Project/Study Cost ${peso(totalCost)}` : ""}</p>
         {changed.length > 0 && problems.length > 0 && (
