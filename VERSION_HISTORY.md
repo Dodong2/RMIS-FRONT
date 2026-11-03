@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2210**
+**Latest version: 2026.11.03.2214**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2214
+
+- **Date and time:** 2026-11-03 22:14 (Asia/Manila)
+- **Category:** UI, frontend, bug fix
+- **Summary:** New Procurement Request: when a LIB item is selected, the item's Specification from the registered LIB is shown under "Link to LIB Item". If the LIB has none, the modal says "No specification in the LIB".
+- **Affected modules:** Procurement (New Procurement Request, Project Leader)
+- **Notes:** Client Task 37. Display only. The specification comes from the saved LIB line item, whether entered by Manual Entry or Upload via Excel. Budget checks and the request payload are unchanged.
 
 ### 2026.11.03.2210
 

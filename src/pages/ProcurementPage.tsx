@@ -284,6 +284,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
   const firstCategory = (b?: LineItemBudget) => CATEGORIES.find((c) => b?.line_items.some((li) => li.category === c)) ?? "mooe";
   const [cat, setCat] = useState<LineItemCategory>(() => firstCategory(lib));
   const catItems = (lib?.line_items ?? []).filter((li) => li.category === cat);
+  const selectedItem = catItems.find((li) => String(li.id) === form.line_item);
   const amount = parseFloat(form.amount) || 0;
   const balance = useProcurementBalance(form.line_item ? Number(form.line_item) : null);
   const yearBalance = balance?.years.find((y) => String(y.year) === form.project_year);
@@ -380,6 +381,11 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
                 <option key={li.id} value={li.id}>{li.description} · {peso(li.amount)}</option>
               ))}
             </select>
+            {selectedItem && (
+              <p className="mt-1.5 text-xs whitespace-pre-line" style={{ color: selectedItem.specification?.trim() ? "#334155" : "#94a3b8" }}>
+                <b>Specification:</b> {selectedItem.specification?.trim() || "No specification in the LIB"}
+              </p>
+            )}
           </Field>
           <YearBudgetFields
             balance={balance}
