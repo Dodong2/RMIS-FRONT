@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2246**
+**Latest version: 2026.11.03.2257**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2257
+
+- **Date and time:** 2026-11-03 22:57 (Asia/Manila)
+- **Category:** Backend
+- **Summary:** The backend can now accept III. Objectives as formatted text (a numbered list) and cleans it like the other formatted proposal sections. Reports and forms that list objectives one by one (SF-017 midterm, Appendix F, Research Proposal Form PDF, Quarterly Reports) read both the new list and the older "1. … 2. …" text. Nothing changes on screen until the frontend editor (Task 29-A2).
+- **Affected modules:** Project Registration (Objectives), Monitoring & Evaluation reports, Reports
+- **Notes:** Client Task 29-A, part 1, backend rmis-backend bb299fa. No migration. Existing objectives are read exactly as before.
 
 ### 2026.11.03.2246
 
