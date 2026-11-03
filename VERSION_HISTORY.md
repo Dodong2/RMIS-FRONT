@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2218**
+**Latest version: 2026.11.03.2222**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2222
+
+- **Date and time:** 2026-11-03 22:22 (Asia/Manila)
+- **Category:** Backend, template format
+- **Summary:** The Work Plan Excel template (Register Approved Project → Step 3 → Download Work Plan Excel Template) now formats Start Date and End Date as YYYY-MM-DD (e.g. 2026-11-02). Its header says so too.
+- **Affected modules:** Project Registration (Step 3 Work Plan template)
+- **Notes:** Client Task 29-C, backend rmis-backend 2907b72. The upload still accepts the same dates as before. The full registration template and the LIB template are unchanged.
 
 ### 2026.11.03.2218
 
