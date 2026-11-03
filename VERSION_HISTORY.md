@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2305**
+**Latest version: 2026.11.03.2333**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2333
+
+- **Date and time:** 2026-11-03 23:33 (Asia/Manila)
+- **Category:** Permissions, frontend, backend
+- **Summary:** CRC/CRD can now only view projects, the Work Plan and Personnel & Tasks, for auditing. They can no longer edit a registered project or change its status, add or edit Work Plan activities, create, edit, assign or review tasks, or change staff profiles, assignments or personnel changes. The buttons are hidden and the server refuses the actions. CRC/CRD still cannot register projects. The Project Leader → CRC/CRD → Finance/Accounting/Budget review of submitted proposals is unchanged.
+- **Affected modules:** Project Management, Work Plan, Personnel & Tasks, Personnel Changes (CRC/CRD role)
+- **Notes:** Client Task 41, backend rmis-backend 5a77e8f. Needs migration accounts 0031 (run by Carl). CRC/CRD now sees task changes after a page refresh instead of live.
 
 ### 2026.11.03.2305
 

@@ -127,6 +127,6 @@ export function initialsFrom(value?: string | null): string {
  * but keeps editing (e.g. the Closure status).
  */
 export const REGISTRATION_ROLE_CODES = ["system_admin", "riuh", "project_leader"];
-export const PROJECT_EDIT_ROLE_CODES = [...REGISTRATION_ROLE_CODES, "crc_chair"];
+export const PROJECT_EDIT_ROLE_CODES = REGISTRATION_ROLE_CODES;
 /** Client 2026-10-20: Project Management is not for Project Staff; they reach their work through Personnel & Tasks. */
 export const PROJECT_PAGE_ROLE_CODES = Object.keys(ROLE_META).filter((code) => code !== "project_staff");

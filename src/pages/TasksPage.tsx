@@ -28,7 +28,7 @@ import { plannedHoursLabel } from "../lib/taskHours";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
-const TASK_ASSIGNER_CODES = ["system_admin", "crc_chair", "riuh", "project_leader"];
+const TASK_ASSIGNER_CODES = ["system_admin", "riuh", "project_leader"];
 
 const STATUS_META: Record<TaskStatus, { label: string; bg: string; text: string; dot: string; col: string }> = {
   pending: { label: "To Do", bg: "#f1f5f9", text: "#475569", dot: "#94a3b8", col: "#e2e8f0" },
