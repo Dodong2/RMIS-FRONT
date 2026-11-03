@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2342**
+**Latest version: 2026.11.03.2346**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2346
+
+- **Date and time:** 2026-11-03 23:46 (Asia/Manila)
+- **Category:** Bug fix, UI, frontend
+- **Summary:** In the new Line Items table, an item that Finance/Accounting/Budget changed is highlighted in yellow again for its Project Leader, as before the table change.
+- **Affected modules:** Budget Management (Line Items tab, Project Leader)
+- **Notes:** Client Task 33 follow-up. Restores the Task 20 highlight. Step 4 is unchanged.
 
 ### 2026.11.03.2342
 

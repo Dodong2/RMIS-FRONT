@@ -827,6 +827,7 @@ function LIBDetail({
                   return (
                     <LibAllocationGrid
                       readOnly
+                      highlight={(i) => ownLeader && !!items[i].edits?.length}
                       groups={savedGroups(items, CATEGORIES.map((key) => ({ key, label: `${CATEGORY_META[key].full} (${CATEGORY_META[key].label})` })))}
                       periods={periods.length ? periods : ["Q1", "Q2", "Q3", "Q4"]}
                       itemCells={(i) => {

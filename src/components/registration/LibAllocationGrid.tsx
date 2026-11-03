@@ -26,6 +26,7 @@ export function LibAllocationGrid({
   onRemove,
   readOnly = false,
   rowNote,
+  highlight,
 }: {
   groups: AllocationGridGroup[];
   periods: string[];
@@ -35,6 +36,7 @@ export function LibAllocationGrid({
   onRemove?: (index: number) => void;
   readOnly?: boolean;
   rowNote?: (index: number) => ReactNode;
+  highlight?: (index: number) => boolean;
 }) {
   const multiYear = periods[0][0] === "Y";
   const years = [...new Set(periods.map(periodYear))];
@@ -110,9 +112,10 @@ export function LibAllocationGrid({
                     const ok = allocated === r.total;
                     const [item, specification, unit, qty, unitCost] = itemCells(r.index);
                     const label = r.description || "New item";
+                    const marked = highlight?.(r.index) ?? false;
                     return (
-                      <tr key={r.index}>
-                        <td className="p-1 sticky left-0 z-[1] bg-white" style={cell}>
+                      <tr key={r.index} style={marked ? { background: "#fffbeb" } : undefined}>
+                        <td className="p-1 sticky left-0 z-[1]" style={{ ...cell, background: marked ? "#fffbeb" : "white" }}>
                           {item}
                           {rowNote?.(r.index)}
                         </td>
@@ -124,7 +127,7 @@ export function LibAllocationGrid({
                           {peso(r.total)}
                         </td>
                         {periods.map((p, i) => (
-                          <td key={p} className="p-1" style={{ ...cell, background: yearTint(p), borderLeft: startsYear(p, i) || (!multiYear && i === 0) ? yearLine : line }}>
+                          <td key={p} className="p-1" style={{ ...cell, background: marked ? "#fffbeb" : yearTint(p), borderLeft: startsYear(p, i) || (!multiYear && i === 0) ? yearLine : line }}>
                             {readOnly || !onChange ? (
                               <p className="px-2 py-1.5 text-right font-mono whitespace-nowrap" style={{ minWidth: 110, color: r.allocations?.[p] ? "#0f172a" : "#94a3b8" }}>
                                 {r.allocations?.[p] ? peso(Number(r.allocations[p])) : "—"}
