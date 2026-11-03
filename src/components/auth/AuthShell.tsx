@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { APP_VERSION } from "../../version";
 
 interface AuthShellProps {
   title: string;
@@ -47,9 +48,12 @@ export function AuthShell({ title, subtitle, children, footer, scrollBody = fals
           </div>
         </div>
 
-        <p className="relative text-white/20 text-xs">
-          LSPU–RMIS&nbsp;&nbsp;· LSPU-ICTS · Campus- &amp; College-Based Research Platform
-        </p>
+        <div className="relative">
+          <p className="text-white/40 text-xs font-mono mb-2">Version {APP_VERSION}</p>
+          <p className="text-white/20 text-xs">
+            LSPU–RMIS&nbsp;&nbsp;· LSPU-ICTS · Campus- &amp; College-Based Research Platform
+          </p>
+        </div>
       </div>
 
       <div className="w-full lg:w-[45%] flex items-center justify-center p-5 lg:p-10">

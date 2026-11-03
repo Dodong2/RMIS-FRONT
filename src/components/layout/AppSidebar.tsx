@@ -6,6 +6,7 @@ import { NavIcon } from "./NavIcon";
 import { visibleSections } from "../../lib/nav";
 import { initialsFrom, personName, resolveTier, roleLabel } from "../../lib/roles";
 import { protoRoleStyle } from "../../lib/protoRole";
+import { APP_VERSION } from "../../version";
 import type { User } from "../../types/auth";
 
 interface AppSidebarProps {
@@ -37,6 +38,7 @@ export function AppSidebar({ user, isLoading, onNavigate, onLogout }: AppSidebar
         <div className="min-w-0">
           <p className="text-white font-black text-sm leading-tight">LSPU–RMIS</p>
           <p className="text-xs" style={{ color: "rgba(168,196,232,0.55)" }}>Research Mgmt. IS</p>
+          <p className="text-[10px] font-mono" style={{ color: "rgba(168,196,232,0.55)" }}>Version {APP_VERSION}</p>
         </div>
       </div>
 
