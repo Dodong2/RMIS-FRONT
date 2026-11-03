@@ -788,6 +788,19 @@ function WorkPlanContent() {
         setProjects([]);
         notify.error("Could not load projects. Check your connection and refresh.");
       });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedId = Number(params.get("project"));
+  const [listReload, setListReload] = useState(0);
+  useRealtime(TASK_EVENTS, () => {
+    if (!selectedId) setListReload((k) => k + 1);
+  });
+  useEffect(() => {
+    if (selectedId) return;
+    let active = true;
     researchApi
       .getMilestones()
       .then((m) => active && setMilestones(m))
@@ -795,9 +808,7 @@ function WorkPlanContent() {
     return () => {
       active = false;
     };
-  }, []);
-
-  const selectedId = Number(params.get("project"));
+  }, [selectedId, listReload]);
   const selected = projects?.find((p) => p.id === selectedId);
   if (selected) {
     return <WorkPlanDetail project={selected} canEdit={canEdit} now={now} onBack={() => setParams({})} />;

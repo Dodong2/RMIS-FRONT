@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2240**
+**Latest version: 2026.11.03.2246**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2246
+
+- **Date and time:** 2026-11-03 22:46 (Asia/Manila)
+- **Category:** Bug fix, frontend
+- **Summary:** The Work Plan project cards now show the current "x/N done" and completion %. The cards used to keep the data loaded when the page first opened, so an activity completed afterwards still showed as 0/15 and 0%. The cards now reload when you return to the project list, and when a task changes while the list is open.
+- **Affected modules:** Work Plan (project cards)
+- **Notes:** Client Task 40. Uses the same calculation as the project's Work Plan view (completed activities / all activities, rounded, e.g. 1/15 = 7%). No backend change.
 
 ### 2026.11.03.2240
 
