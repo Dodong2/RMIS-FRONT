@@ -812,7 +812,7 @@ function RegisterProjectContent({
   const filledStudies = studyTitles.map((t) => t.trim()).filter(Boolean);
   const filledTeam = team.filter((t) => t.name.trim());
   const filledBeneficiaries = beneficiaryRows.filter((b) => b.group.trim());
-  const filledOutputs = outputRows.filter((o) => o.category && o.description.trim());
+  const filledOutputs = outputRows.filter((o) => o.category);
   const filledWorkPlan = workPlanRows.filter((w) => w.title.trim() && w.target_date);
   const filledEndorsers = endorsers.filter((e) => e.name.trim());
   const filledLib = libRows.filter((r) => r.description.trim() && libRowTotal(r) > 0);
@@ -858,8 +858,8 @@ function RegisterProjectContent({
     }
   };
   const libSplitsMatch = isEdit || !libPeriods || filledLib.every((r) => allocatedTotal(r.allocations, libPeriods) === libRowTotal(r));
-  const outputsComplete = outputRows.length > 0 && outputRows.every((o) => o.category && o.description.trim());
-  const beneficiariesComplete = beneficiaryRows.every((b) => b.group.trim() && b.description.trim() && b.total.trim());
+  const outputsComplete = outputRows.length > 0 && outputRows.every((o) => o.category);
+  const beneficiariesComplete = beneficiaryRows.every((b) => b.group.trim() && b.total.trim());
   // Client 2026-10-29 (Task 4): every Project Details field is required, as the backend enforces
   const detailsRequired: [keyof typeof form, string][] = [
     ["title", "Title"],
@@ -1578,7 +1578,7 @@ function RegisterProjectContent({
                     </label>
                     <AddRowButton onClick={() => setOutputRows([...outputRows, { category: "", description: "", target_count: "1" }])}>Add Output</AddRowButton>
                   </div>
-                  {showErrors && !outputsComplete && <p className="text-xs font-semibold" style={{ color: "#dc2626" }}>Add at least one 6P, and fill in the item and particulars of every row</p>}
+                  {showErrors && !outputsComplete && <p className="text-xs font-semibold" style={{ color: "#dc2626" }}>Add at least one 6P, and choose the item of every row</p>}
                   {outputRows.length === 0 ? (
                     <p className="text-xs" style={{ color: "#94a3b8" }}>No 6Ps yet. Add at least one.</p>
                   ) : (
@@ -1593,7 +1593,7 @@ function RegisterProjectContent({
                                 <option key={code} value={code}>{label}</option>
                               ))}
                             </select>
-                            <textarea rows={2} className={inputCls + " flex-1 resize-y"} style={inputSt} value={o.description} onChange={(e) => update({ description: e.target.value })} placeholder="Particulars" />
+                            <textarea rows={2} className={inputCls + " flex-1 resize-y"} style={inputSt} value={o.description} onChange={(e) => update({ description: e.target.value })} placeholder="Particulars (optional)" />
                             <input type="number" min="1" className={inputCls + " max-w-24"} style={inputSt} value={o.target_count} onChange={(e) => update({ target_count: e.target.value })} placeholder="Qty" aria-label="Quantity" />
                             <RemoveButton onClick={() => setOutputRows(outputRows.filter((_, idx) => idx !== i))} label="Remove output" />
                           </div>
@@ -1615,7 +1615,7 @@ function RegisterProjectContent({
                       return (
                         <div key={i} className="flex gap-2 items-start">
                           <input className={inputCls + " max-w-56"} style={rowSt(b.group)} value={b.group} onChange={(e) => update({ group: e.target.value })} placeholder="Group, e.g. Faculty" />
-                          <input className={inputCls + " flex-1"} style={rowSt(b.description)} value={b.description} onChange={(e) => update({ description: e.target.value })} placeholder="Description" />
+                          <input className={inputCls + " flex-1"} style={inputSt} value={b.description} onChange={(e) => update({ description: e.target.value })} placeholder="Description (optional)" />
                           <input type="number" min="0" className={inputCls + " max-w-24"} style={rowSt(b.total)} value={b.total} onChange={(e) => update({ total: e.target.value })} placeholder="Total" />
                           {beneficiaryRows.length > 1 && <RemoveButton onClick={() => setBeneficiaryRows(beneficiaryRows.filter((_, idx) => idx !== i))} label="Remove group" />}
                         </div>

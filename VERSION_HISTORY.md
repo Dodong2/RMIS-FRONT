@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2222**
+**Latest version: 2026.11.03.2235**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2235
+
+- **Date and time:** 2026-11-03 22:35 (Asia/Manila)
+- **Category:** Feature, frontend, backend
+- **Summary:** In Register Approved Project, the 6Ps "Particulars" and the Target Beneficiaries "Description" are now optional. A row can be saved, submitted or kept in a draft without them, through Manual Entry, Edit Registration and Upload via Excel. The 6P Item, Quantity, beneficiary Group and Total are still required. A 6P row without Particulars used to be dropped silently; it is now saved.
+- **Affected modules:** Project Registration (6Ps and Target Beneficiaries)
+- **Notes:** Client Task 29-B, backend rmis-backend e950487. No migration. Existing records are unchanged.
 
 ### 2026.11.03.2222
 
