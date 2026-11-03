@@ -19,11 +19,12 @@ import { Field, SkeletonRows } from "../components/common/proto";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { PROCUREMENT_EVENTS, useRealtime } from "../hooks/useRealtime";
-import { STATUS_META } from "../lib/procurementStatus";
+import { STATUS_META, paymentMeta } from "../lib/procurementStatus";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
 const REQUEST_ROLE_CODES = ["system_admin", "project_leader"];
+const PAYMENT_COLUMN_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
 const UPDATE_ROLE_CODES = ["system_admin", "procurement_officer_lib"];
 const DELAY_DAYS = 30;
 
@@ -696,6 +697,7 @@ function ProcurementContent() {
   const { user } = useAuth();
   const code = user?.role?.code ?? "";
   const canRequest = REQUEST_ROLE_CODES.includes(code);
+  const showPayment = PAYMENT_COLUMN_ROLE_CODES.includes(code);
   const canUpdate = UPDATE_ROLE_CODES.includes(code);
 
   const queryClient = useQueryClient();
@@ -923,7 +925,7 @@ function ProcurementContent() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: "#f0f4f8" }}>
-                      {["Ref", "Project / Item", "Description", "Amount", "Year / Q", "Routing", "Status", "Action"].map((h) => (
+                      {["Ref", "Project / Item", "Description", "Amount", "Year / Q", "Routing", "Status", ...(showPayment ? ["Payment Status"] : []), "Action"].map((h) => (
                         <th key={h} className="px-3 py-2.5 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{h}</th>
                       ))}
                     </tr>
@@ -961,6 +963,13 @@ function ProcurementContent() {
                               {delayed && <p className="text-xs font-bold" style={{ color: "#dc2626" }}><TriangleAlert className={ICON} aria-hidden="true" /> Delayed</p>}
                             </div>
                           </td>
+                          {showPayment && (
+                            <td className="px-3 py-2.5">
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: paymentMeta(r.payment_status).bg, color: paymentMeta(r.payment_status).color }}>
+                                {paymentMeta(r.payment_status).label}
+                              </span>
+                            </td>
+                          )}
                           <td className="px-3 py-2.5 text-xs" style={{ color: "#94a3b8" }}>
                             {r.status === "returned_for_revision" && canRequest ? (
                               <button onClick={() => setResubmitting(r)} className="px-2 py-1 rounded-lg text-xs font-bold text-white whitespace-nowrap" style={{ background: "#d97706" }}>

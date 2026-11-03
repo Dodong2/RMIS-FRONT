@@ -1,4 +1,4 @@
-import type { ProcurementStatus } from "../types/financial";
+import type { ProcurementRequest, ProcurementStatus } from "../types/financial";
 
 // Shared by the Procurement page and the Procurement Officer dashboard.
 export const STATUS_META: Record<ProcurementStatus, { label: string; bg: string; color: string; dot: string }> = {
@@ -14,3 +14,12 @@ export const STATUS_META: Record<ProcurementStatus, { label: string; bg: string;
   completed: { label: "Completed", bg: "#86efac", color: "#065f46", dot: "#059669" },
   cancelled: { label: "Cancelled", bg: "#f1f5f9", color: "#64748b", dot: "#94a3b8" },
 };
+
+export const PAYMENT_META = {
+  paid: { label: "Paid", bg: "#dcfce7", color: "#166534" },
+  awaiting_payment: { label: "Awaiting Payment", bg: "#fef3c7", color: "#92400e" },
+} as const;
+
+export function paymentMeta(status: ProcurementRequest["payment_status"]) {
+  return status === "paid" ? PAYMENT_META.paid : PAYMENT_META.awaiting_payment;
+}
