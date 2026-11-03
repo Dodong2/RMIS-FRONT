@@ -28,6 +28,8 @@ import { LibItemSelect } from "../components/common/LibItemSelect";
 import { RdeAgendaPicker } from "../components/registration/RdeAgendaPicker";
 import { ProposalPreview, type ProposalData } from "../components/registration/ProposalPreview";
 import { LibAllocationGrid } from "../components/registration/LibAllocationGrid";
+import { RichTextEditor } from "../components/common/RichTextEditor";
+import { objectiveItems, objectivesHtml } from "../lib/richText";
 import { registrationDraft, type RegistrationPayload } from "../lib/registrationDraft";
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
@@ -622,7 +624,7 @@ const blankForm = (lead: string) => ({
 type RegisterDraft = {
   form: ReturnType<typeof blankForm>;
   agencies: string[];
-  objectives: string[];
+  objectives: string | string[];
   studyTitles: string[];
   team: TeamRow[];
   beneficiaryRows: BeneficiaryRow[];
@@ -637,7 +639,7 @@ type RegisterDraft = {
 const blankDraft = (lead: string): RegisterDraft => ({
   form: blankForm(lead),
   agencies: [],
-  objectives: [""],
+  objectives: objectivesHtml(""),
   studyTitles: ["", ""],
   team: [],
   beneficiaryRows: [{ group: "", description: "", total: "" }],
@@ -723,7 +725,7 @@ function RegisterProjectContent({
   const [isCreating, setIsCreating] = useState(false);
   const [requestKey] = useState(() => crypto.randomUUID());
   const [certified, setCertified] = useState(false);
-  const [objectives, setObjectives] = useState(init.objectives);
+  const [objectives, setObjectives] = useState(() => objectivesHtml(init.objectives));
   const [studyTitles, setStudyTitles] = useState(init.studyTitles);
   const [team, setTeam] = useState<TeamRow[]>(init.team);
   const [beneficiaryRows, setBeneficiaryRows] = useState<BeneficiaryRow[]>(init.beneficiaryRows);
@@ -807,8 +809,7 @@ function RegisterProjectContent({
     onStartOver();
   };
 
-  // Objectives are stored one per line, so a PDF-wrapped objective is joined back into a single line.
-  const filledObjectives = objectives.map((o) => o.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean);
+  const filledObjectives = objectiveItems(objectives);
   const filledStudies = studyTitles.map((t) => t.trim()).filter(Boolean);
   const filledTeam = team.filter((t) => t.name.trim());
   const filledBeneficiaries = beneficiaryRows.filter((b) => b.group.trim());
@@ -985,6 +986,7 @@ function RegisterProjectContent({
       study_titles: filledStudies,
       sdgs: form.sdgs.map(Number),
       objectives: filledObjectives,
+      objectives_html: filledObjectives.length ? objectives : "",
       outputs: filledOutputs.map((o) => ({ category: o.category, description: o.description.trim(), target_count: o.target_count || 1 })),
       beneficiaries: filledBeneficiaries,
       budget: filledLib.map((r) => ({
@@ -1033,7 +1035,7 @@ function RegisterProjectContent({
         lead_gender: form.lead_gender as Project["lead_gender"],
         contact_number: form.contact_number.trim(),
         background: form.background,
-        objectives: filledObjectives.map((o, i) => `${i + 1}. ${o}`).join("\n"),
+        objectives: filledObjectives.length ? objectives : "",
         methodology: form.methodology,
         socio_economic_significance: form.socio_economic_significance,
         monitoring_evaluation: form.monitoring_evaluation,
@@ -1180,7 +1182,7 @@ function RegisterProjectContent({
         lead_gender: opt(form.lead_gender),
         contact_number: opt(form.contact_number),
         background: opt(form.background),
-        objectives: filledObjectives.length ? filledObjectives.map((o, i) => `${i + 1}. ${o}`).join("\n") : undefined,
+        objectives: filledObjectives.length ? objectives : undefined,
         methodology: opt(form.methodology),
         socio_economic_significance: opt(form.socio_economic_significance),
         monitoring_evaluation: opt(form.monitoring_evaluation),
@@ -1549,28 +1551,14 @@ function RegisterProjectContent({
                       <label className="label-field mb-0">
                         III. Objectives of the Study<span style={{ color: "#dc2626" }}> *</span>
                       </label>
-                      <AddRowButton onClick={() => setObjectives([...objectives, ""])}>Add Objective</AddRowButton>
                     </div>
                     {showErrors && filledObjectives.length === 0 && <p className="mb-2 text-xs font-semibold" style={{ color: "#dc2626" }}>Add at least one objective</p>}
-                    <div className="space-y-2">
-                      {objectives.map((obj, i) => (
-                        <div key={i} className="flex gap-2 items-start">
-                          <span className="mt-2.5 text-sm font-bold shrink-0" style={{ color: "#0891b2", width: "20px" }}>{i + 1}.</span>
-                          <AutoTextarea
-                            value={obj}
-                            onChange={(e) => {
-                              const n = [...objectives];
-                              n[i] = e.target.value;
-                              setObjectives(n);
-                            }}
-                            className={inputCls + " flex-1"}
-                            style={inputSt}
-                            placeholder={`Objective ${i + 1}...`}
-                          />
-                          {objectives.length > 1 && <RemoveButton onClick={() => setObjectives(objectives.filter((_, idx) => idx !== i))} label="Remove objective" />}
-                        </div>
-                      ))}
-                    </div>
+                    <RichTextEditor
+                      value={objectives}
+                      onChange={setObjectives}
+                      ariaLabel="III. Objectives of the Study"
+                      placeholder="One numbered item per objective"
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <label className="label-field mb-0">

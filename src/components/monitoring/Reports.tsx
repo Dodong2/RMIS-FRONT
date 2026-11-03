@@ -10,6 +10,7 @@ import type { ExtensionRequest, ExtensionRequestStatus, MidtermReport, MonthlyPr
 import type { Project } from "../../types/research";
 import { NoActualData } from "../common/NoActualData";
 import { Field, Pill, ProtoModal, SkeletonRows, TableHead } from "../common/proto";
+import { objectiveItems } from "../../lib/richText";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
@@ -17,13 +18,9 @@ type ReportKind = "monthly" | "midterm" | "terminal";
 const QUARTERS = ["q1", "q2", "q3", "q4"] as const;
 type ObjectiveRow = { objective: string } & Record<(typeof QUARTERS)[number], string>;
 
-/** The project's objectives as SF-017 rows; registration saves them as "1. ...\n2. ...". */
+/** The project's objectives as SF-017 rows (rich-text list or older "1. ...\n2. ..." text, client Task 29-A). */
 const objectiveRows = (objectives: string): ObjectiveRow[] => {
-  const rows = objectives
-    .split("\n")
-    .map((line) => line.replace(/^\d+[.)]\s*/, "").trim())
-    .filter(Boolean)
-    .map((objective) => ({ objective, q1: "", q2: "", q3: "", q4: "" }));
+  const rows = objectiveItems(objectives).map((objective) => ({ objective, q1: "", q2: "", q3: "", q4: "" }));
   return rows.length ? rows : [{ objective: "", q1: "", q2: "", q3: "", q4: "" }];
 };
 const badPercent = (v: string) => v.trim() !== "" && !(Number(v) >= 0 && Number(v) <= 100);

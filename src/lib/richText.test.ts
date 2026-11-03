@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editorValue, isRichTextEmpty, looksLikeHtml, toEditorHtml } from "./richText";
+import { editorValue, isRichTextEmpty, looksLikeHtml, objectiveItems, objectivesHtml, toEditorHtml } from "./richText";
 
 describe("rich text proposal sections (client 2026-10-23)", () => {
   it("tells saved editor HTML from older plain text", () => {
@@ -21,5 +21,33 @@ describe("rich text proposal sections (client 2026-10-23)", () => {
     expect(isRichTextEmpty("<p>&nbsp; </p><p><br></p>")).toBe(true);
     expect(isRichTextEmpty("<table><tbody><tr><td><p>x</p></td></tr></tbody></table>")).toBe(false);
     expect([editorValue("<p></p>"), editorValue("<p>Hi</p>")]).toEqual(["", "<p>Hi</p>"]);
+  });
+});
+
+describe("III. Objectives (client Task 29-A)", () => {
+  const rich =
+    "<ol><li><p>Evaluate the <strong>status</strong> of extension&nbsp;projects</p></li>" +
+    "<li><p>Prepare a report</p><ul><li>for the RDO</li></ul></li><li><p></p></li></ol>";
+
+  it("reads one objective per top-level list entry, like the backend", () => {
+    expect(objectiveItems(rich)).toEqual(["Evaluate the status of extension projects", "Prepare a report for the RDO"]);
+  });
+
+  it("reads older plain text one per line without its numbering", () => {
+    expect(objectiveItems("1. Evaluate the status\n\n2) Prepare a report\n")).toEqual(["Evaluate the status", "Prepare a report"]);
+  });
+
+  it("reads paragraphs without a list one each, and nothing from an empty editor", () => {
+    expect(objectiveItems("<p>First &amp; foremost</p><p>Second<br>Third</p>")).toEqual(["First & foremost", "Second", "Third"]);
+    for (const empty of ["", "<p></p>", "<ol><li><p></p></li></ol>", null]) expect(objectiveItems(empty)).toEqual([]);
+  });
+
+  it("opens older objectives as a numbered list and keeps saved HTML", () => {
+    expect(objectivesHtml("1. Train teachers & staff\n2. Map communities")).toBe(
+      "<ol><li><p>Train teachers &amp; staff</p></li><li><p>Map communities</p></li></ol>",
+    );
+    expect(objectivesHtml(["A", " ", "B"])).toBe("<ol><li><p>A</p></li><li><p>B</p></li></ol>");
+    expect(objectivesHtml("")).toBe("<ol><li><p></p></li></ol>");
+    expect(objectivesHtml(rich)).toBe(rich);
   });
 });

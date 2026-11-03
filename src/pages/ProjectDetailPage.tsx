@@ -46,6 +46,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFundingTypes } from "../lib/fundingTypes";
 import { RichTextView } from "../components/common/RichTextEditor";
+import { looksLikeHtml } from "../lib/richText";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
@@ -464,7 +465,11 @@ function ProjectDetailContent() {
               </div>
               <div>
                 <SectionHeader>Specific Objectives</SectionHeader>
-                <NumberedList items={lines(project.objectives)} empty="No objectives defined yet." />
+                {looksLikeHtml(project.objectives) ? (
+                  <RichTextView value={project.objectives} className="text-sm" />
+                ) : (
+                  <NumberedList items={lines(project.objectives)} empty="No objectives defined yet." />
+                )}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-3">

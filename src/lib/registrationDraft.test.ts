@@ -39,7 +39,7 @@ describe("registrationDraft (Edit Registration and Excel review, client 2026-10-
     ]);
     expect("project_code" in d.form).toBe(false);
     expect(d.agencies).toEqual(["DOST", "LGU of Siniloan"]);
-    expect(d.objectives).toEqual(["Train teachers", "Map communities"]);
+    expect(d.objectives).toBe("<ol><li><p>Train teachers</p></li><li><p>Map communities</p></li></ol>");
     expect(d.studyTitles).toEqual(["Study A", "Study B"]);
     expect(d.libRows).toEqual([{ category: "mooe", description: "Training Expenses", specification: "", unit: "lot", quantity: "1.00", unit_cost: "10000.00", allocations: { Y1Q1: "10000.00" } }]);
     expect(d.libYear).toBe("2026");
@@ -77,6 +77,6 @@ describe("registrationDraft (Edit Registration and Excel review, client 2026-10-
 
   it("starts empty lists with one blank row where the wizard expects one", () => {
     const d = registrationDraft({ ...payload, studies: [], beneficiaries: [], project: { ...project, objectives: "" } }, false);
-    expect([d.studyTitles, d.objectives, d.beneficiaryRows]).toEqual([[""], [""], [{ group: "", description: "", total: "" }]]);
+    expect([d.studyTitles, d.objectives, d.beneficiaryRows]).toEqual([[""], "<ol><li><p></p></li></ol>", [{ group: "", description: "", total: "" }]]);
   });
 });

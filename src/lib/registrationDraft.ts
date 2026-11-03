@@ -2,6 +2,7 @@ import type { LineItem } from "../types/budget";
 import type { ExpectedOutput } from "../types/outputs";
 import type { Milestone, Project, ProjectEndorser, ProjectTeamMember, Study, TargetBeneficiary } from "../types/research";
 import { dryResearchChoice } from "./projectOptions";
+import { objectivesHtml } from "./richText";
 
 /** A project and its tables in API shapes: a registered project (Edit Registration) or an Excel dry run's `draft`. */
 export type RegistrationPayload = {
@@ -23,7 +24,6 @@ export function registrationDraft(src: RegistrationPayload, keepIds: boolean) {
   const p = src.project;
   const id = (row: { id: number }) => (keepIds ? { id: row.id } : {});
   const sortedStudies = byId(src.studies);
-  const objectives = p.objectives.split("\n").map((l) => l.replace(/^\d+[.)]\s*/, "").trim()).filter(Boolean);
   return {
     form: {
       title: p.title,
@@ -64,7 +64,7 @@ export function registrationDraft(src: RegistrationPayload, keepIds: boolean) {
       reviewing_body: p.reviewing_body,
     },
     agencies: p.cooperating_agencies ? p.cooperating_agencies.split(", ").filter(Boolean) : [],
-    objectives: objectives.length ? objectives : [""],
+    objectives: objectivesHtml(p.objectives),
     studyTitles: sortedStudies.length ? sortedStudies.map((st) => st.title) : [""],
     team: byId(src.team).map((t) => ({ ...id(t), member_role: t.member_role as string, name: t.name, gender: t.gender as string, user: t.user })),
     beneficiaryRows: src.beneficiaries.length

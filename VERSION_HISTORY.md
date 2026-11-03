@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2257**
+**Latest version: 2026.11.03.2305**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2305
+
+- **Date and time:** 2026-11-03 23:05 (Asia/Manila)
+- **Category:** Feature, UI, frontend
+- **Summary:** Register Approved Project → Step 1 → III. Objectives uses the formatting editor (Tiptap) as a numbered list, one item per objective. It supports bold, italic, underline, sub-bullets, spacing and pasting from Word. The Research Proposal Form preview and the project page show the formatting. The SF-017 midterm rows, Quarterly Reports and the PDF still list one objective per item as plain text. Older objectives, saved drafts and Excel uploads open as a numbered list.
+- **Affected modules:** Project Registration (Step 1 Objectives, Edit Registration, preview), Project page, Monitoring & Evaluation (SF-017 rows)
+- **Notes:** Client Task 29-A, part 2 (backend in 2026.11.03.2257). No migration.
 
 ### 2026.11.03.2257
 

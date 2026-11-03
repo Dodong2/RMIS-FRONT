@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ProtoModal } from "../common/proto";
 import { BORDER, BUDGET_GROUPS, HEAD, SIX_P_LABELS } from "./proposalForm";
 import { RESEARCH_TYPE_LABELS, SDG_LABELS, SECTOR_LABELS, TYPOLOGY_LABELS } from "../../lib/projectOptions";
+import { RichTextView } from "../common/RichTextEditor";
 
 export type ProposalPerson = { name: string; gender?: string };
 
@@ -33,6 +34,7 @@ export type ProposalData = {
   research_typology: string[];
   sdgs: number[];
   objectives: string[];
+  objectives_html?: string;
   outputs: { category: string; description: string; target_count: number | string }[];
   beneficiaries: { group: string; description: string; total: number | string }[];
   budget: {
@@ -266,7 +268,9 @@ export function ProposalSheet({ data }: { data: ProposalData }) {
             {data.sdgs.length ? data.sdgs.map((n) => `SDG ${n} — ${SDG_LABELS[n]}`).join("; ") : <span style={{ color: "#94a3b8" }}>None selected</span>}
           </Section>
           <Section title="III. Objectives of the Study">
-            {data.objectives.length ? (
+            {data.objectives_html ? (
+              <RichTextView value={data.objectives_html} />
+            ) : data.objectives.length ? (
               <ol className="list-decimal pl-6">
                 {data.objectives.map((o, i) => (
                   <li key={i}>{o}</li>
