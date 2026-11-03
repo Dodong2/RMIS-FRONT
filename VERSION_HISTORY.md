@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2214**
+**Latest version: 2026.11.03.2218**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2218
+
+- **Date and time:** 2026-11-03 22:18 (Asia/Manila)
+- **Category:** UI, frontend, feature removal
+- **Summary:** Removed "+ Prepare New LIB" from Budget Management, and the "+ Prepare LIB" button shown on a project with no LIB, which opened the same old LIB wizard. A project without a LIB now says the LIB is prepared in Register Approved Project → Step 4: Budget (LIB).
+- **Affected modules:** Budget Management (Project Leader)
+- **Notes:** Client Task 31. Existing LIBs, Update This LIB, realignment and the other roles are unchanged. The backend create endpoint was not changed.
 
 ### 2026.11.03.2214
 

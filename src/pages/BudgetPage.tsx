@@ -1,7 +1,6 @@
-import { ArrowLeftRight, Building2, ChartColumn, Check, ChevronLeft, CircleCheck, ClipboardList, FilePlus, Hourglass, MessageSquare, Pause, PenLine, Plus, Receipt, Search, Send, ShieldCheck, Trash2, TriangleAlert, Users, X } from "lucide-react";
+import { ArrowLeftRight, Building2, ChartColumn, Check, ChevronLeft, CircleCheck, ClipboardList, FilePlus, Hourglass, MessageSquare, Pause, PenLine, Receipt, Search, Send, ShieldCheck, Trash2, TriangleAlert, Users } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { personName } from "../lib/roles";
-import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
@@ -12,7 +11,7 @@ import { budgetSummaryQuery, financialRecordsQuery, queryKeys, realignmentsQuery
 import { REALIGNMENT_STATUS_META } from "../lib/realignment";
 import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
-import { LIB_UNITS, allocationPeriods, libLineTotal, libUnitLabel, periodLabel, periodQuarter, periodYear } from "../lib/libUnits";
+import { LIB_UNITS, libLineTotal, libUnitLabel, periodLabel, periodQuarter, periodYear } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
 import type { BudgetReview, BudgetReviewAction, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 import { LIB_STATUS_META, LIB_STATUS_ORDER, holdLabel, libActions, libToDo, type LibAction } from "../lib/libWorkflow";
@@ -65,11 +64,6 @@ function UnitSelect({ value, onChange }: { value: string; onChange: (unit: strin
       ))}
     </select>
   );
-}
-
-/** Read-only Total (Qty x Unit Cost), shown like the inputs beside it. */
-function TotalBox({ value }: { value: number }) {
-  return <input readOnly tabIndex={-1} className={INPUT_CLS + " font-mono font-bold text-right"} style={{ ...INPUT_STYLE, background: "#f1f5f9", color: "#0d2a5e" }} value={peso(value)} aria-label="Total" />;
 }
 
 const catTotal = (b: LineItemBudget, cat: LineItemCategory) =>
@@ -359,352 +353,6 @@ function HistoryTab({ versions }: { versions: LineItemBudget[] }) {
   );
 }
 
-interface WizardItem {
-  description: string;
-  unit: string;
-  qty: string;
-  unitCost: string;
-  fiscalYear: string;
-  counterpart: boolean;
-  allocations: Record<string, string>;
-}
-
-const blankItem = (unit: string, fy: string): WizardItem => ({
-  description: "",
-  unit,
-  qty: "1",
-  unitCost: "",
-  fiscalYear: fy,
-  counterpart: false,
-  allocations: {},
-});
-
-
-function LIBWizard({ project, existing, onClose, onDone }: { project: Project; existing: LineItemBudget | null; onClose: () => void; onDone: () => void }) {
-  const thisYear = new Date().getFullYear();
-  const [step, setStep] = useState(0);
-  const [defaults, setDefaults] = useState({ fiscalYear: String(thisYear) });
-  const [items, setItems] = useState<Record<LineItemCategory, WizardItem[]>>({ ps: [], mooe: [], co: [] });
-  const [saving, setSaving] = useState(false);
-
-  const STEPS = ["Budget Info", "PS Items", "MOOE Items", "CO Items", "Validate & Save"];
-  const lineTotal = (i: WizardItem) => libLineTotal(i.qty, i.unitCost);
-  const catSum = (cat: LineItemCategory) => items[cat].reduce((s, i) => s + lineTotal(i), 0);
-  const filled = (cat: LineItemCategory) => items[cat].filter((i) => i.description.trim() && lineTotal(i) > 0);
-  const grand = CATEGORIES.reduce((s, c) => s + filled(c).reduce((a, i) => a + lineTotal(i), 0), 0);
-  const count = CATEGORIES.reduce((s, c) => s + filled(c).length, 0);
-  const existingTotal = Number(existing?.total_amount ?? 0);
-  // Client 2026-10-14/10-17: optional split per quarter of each project year (Y1Q1..YnQ4, or Q1..Q4) from the project's dates
-  const periods = allocationPeriods(project.start_date ?? "", project.target_end_date ?? "");
-  const startYear = project.start_date ? Number(project.start_date.slice(0, 4)) : null;
-  const isSplit = (i: WizardItem) => !!periods && periods.some((p) => i.allocations[p]?.trim());
-  const allocated = (i: WizardItem) => Math.round((periods ?? []).reduce((s, p) => s + (Number(i.allocations[p]) || 0), 0) * 100) / 100;
-  const periodSum = (cat: LineItemCategory, p: string) => filled(cat).reduce((s, i) => s + (isSplit(i) ? Number(i.allocations[p]) || 0 : 0), 0);
-  const unsplitSum = (cat: LineItemCategory) => filled(cat).reduce((s, i) => s + (isSplit(i) ? 0 : lineTotal(i)), 0);
-
-  const checks = [
-    { label: "At least one line item with an amount", ok: count > 0 },
-    { label: "Every item is picked from LIB Items", ok: CATEGORIES.every((c) => items[c].every((i) => lineTotal(i) === 0 || i.description.trim())) },
-    periods
-      ? { label: "Every split adds up to its item's total (or is left blank)", ok: CATEGORIES.every((c) => filled(c).every((i) => !isSplit(i) || allocated(i) === lineTotal(i))) }
-      : { label: "Every item has a fiscal year", ok: CATEGORIES.every((c) => filled(c).every((i) => i.fiscalYear)) },
-  ];
-  const allValid = checks.every((c) => c.ok);
-  const dryWarning = project.is_dry_research && project.funding_type === "institutional" && existingTotal + grand > 100000;
-
-  const update = (cat: LineItemCategory, idx: number, patch: Partial<WizardItem>) =>
-    setItems((prev) => ({ ...prev, [cat]: prev[cat].map((it, i) => (i === idx ? { ...it, ...patch } : it)) }));
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      const budget = existing ?? (await budgetApi.createBudget(project.id));
-      for (const cat of CATEGORIES) {
-        for (const it of filled(cat)) {
-          await budgetApi.createLineItem({
-            budget: budget.id,
-            category: cat,
-            description: it.description.trim(),
-            unit: it.unit,
-            quantity: it.qty,
-            unit_cost: it.unitCost,
-            amount: lineTotal(it).toFixed(2),
-            fiscal_year: periods ? startYear : it.fiscalYear ? Number(it.fiscalYear) : null,
-            is_counterpart: it.counterpart,
-            ...(isSplit(it) && periods ? { allocations: periods.map((period) => ({ period, amount: it.allocations[period] || "0" })) } : {}),
-          });
-        }
-      }
-      notify.success(`${count} line item${count !== 1 ? "s" : ""} saved to LIB v${budget.version_number}. Submit it to the CRC Chair when it's complete.`);
-      onDone();
-    } catch (err) {
-      notify.error(errorMessage(err, "The LIB could not be saved. Items saved before the error are kept."));
-      onDone();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const editor = (cat: LineItemCategory) => {
-    const cm = CATEGORY_META[cat];
-    const unit = cat === "ps" ? "month" : cat === "mooe" ? "lot" : "unit";
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-base">{cm.icon}</span>
-            <span className="font-black text-sm" style={{ color: cm.color }}>{cm.full} — {cm.label}</span>
-          </div>
-          <button
-            onClick={() => setItems((p) => ({ ...p, [cat]: [...p[cat], blankItem(unit, defaults.fiscalYear)] }))}
-            className="text-xs font-bold px-2.5 py-1.5 rounded-xl"
-            style={{ background: cm.bg, color: cm.color }}
-          >
-            + Add Line Item
-          </button>
-        </div>
-        {items[cat].length === 0 && <p className="text-xs text-center py-6" style={{ color: "#94a3b8" }}>No {cm.label} items. Skip this step if the project has none.</p>}
-        {items[cat].map((it, idx) => (
-          <div key={idx} className="rounded-2xl p-4 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold font-mono" style={{ color: "#94a3b8" }}>{cm.label}-{String(idx + 1).padStart(2, "0")}</span>
-              <button onClick={() => setItems((p) => ({ ...p, [cat]: p[cat].filter((_, i) => i !== idx) }))} className="text-xs px-2 py-0.5 rounded-lg" style={{ background: "#fee2e2", color: "#dc2626" }}>
-                Remove
-              </button>
-            </div>
-            <Field label="Item">
-              <LibItemSelect ariaLabel="Item" category={cat} className={INPUT_CLS} style={INPUT_STYLE} value={it.description} onChange={(description) => update(cat, idx, { description })} />
-            </Field>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <Field label="Unit">
-                <UnitSelect value={it.unit} onChange={(unit) => update(cat, idx, { unit })} />
-              </Field>
-              <Field label="Qty">
-                <input type="number" min="0" step="any" className={INPUT_CLS} style={INPUT_STYLE} value={it.qty} onChange={(e) => update(cat, idx, { qty: e.target.value })} />
-              </Field>
-              <Field label="Unit Cost (₱)">
-                <MoneyInput className={INPUT_CLS} style={INPUT_STYLE} value={it.unitCost} onChange={(unitCost) => update(cat, idx, { unitCost })} />
-              </Field>
-              <Field label="Total (₱)">
-                <TotalBox value={lineTotal(it)} />
-              </Field>
-            </div>
-            {periods ? (
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: "#64748b" }}>Quarterly Allocation (optional)</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {periods.map((p) => (
-                    <Field key={p} label={periodLabel(p)}>
-                      <MoneyInput
-                        className={INPUT_CLS}
-                        style={INPUT_STYLE}
-                        value={it.allocations[p] ?? ""}
-                        onChange={(v) => update(cat, idx, { allocations: { ...it.allocations, [p]: v } })}
-                        placeholder="0.00"
-                      />
-                    </Field>
-                  ))}
-                </div>
-                {isSplit(it) && (
-                  <p className="text-xs font-semibold mt-1" style={{ color: allocated(it) === lineTotal(it) ? "#15803d" : "#b91c1c" }}>
-                    Allocated {peso(allocated(it))} of {peso(lineTotal(it))}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <Field label="Fiscal Year">
-                <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={it.fiscalYear} onChange={(e) => update(cat, idx, { fiscalYear: e.target.value })} />
-              </Field>
-            )}
-            <div className="flex items-center justify-between px-2 py-1.5 rounded-xl" style={{ background: cm.bg }}>
-              <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: cm.color }}>
-                <input type="checkbox" checked={it.counterpart} onChange={(e) => update(cat, idx, { counterpart: e.target.checked })} />
-                Counterpart
-              </label>
-              <span className="font-black font-mono text-sm" style={{ color: cm.color }}>{peso(lineTotal(it))}</span>
-            </div>
-          </div>
-        ))}
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: cm.bg }}>
-          <span className="text-sm font-black" style={{ color: cm.color }}>{cm.label} Subtotal</span>
-          <span className="font-black font-mono text-lg" style={{ color: cm.color }}>{peso(catSum(cat))}</span>
-        </div>
-      </div>
-    );
-  };
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 px-4 pb-4" style={{ background: "rgba(8,26,61,0.6)", backdropFilter: "blur(4px)" }}>
-      <div className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[95vh]" style={{ background: "white" }}>
-        <div className="px-6 py-4 shrink-0" style={{ background: "#0d2a5e" }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-white font-bold">Prepare Line-Item Budget (LIB)</p>
-            <button onClick={onClose} className="text-white/50 hover:text-white" aria-label="Close">
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
-          <p className="text-xs font-mono mb-3 truncate" style={{ color: "rgba(168,196,232,0.6)" }}>
-            {project.project_code} · {project.title}
-          </p>
-          <div className="flex items-center gap-0.5">
-            {STEPS.map((s, i) => (
-              <div key={s} className="flex items-center gap-0.5 flex-1 min-w-0">
-                <div className="flex flex-col items-center min-w-0 flex-1">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0"
-                    style={{
-                      background: i < step ? "#22c55e" : i === step ? "white" : "rgba(255,255,255,0.2)",
-                      color: i < step ? "white" : i === step ? "#0d2a5e" : "rgba(255,255,255,0.5)",
-                    }}
-                  >
-                    {i < step ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : i + 1}
-                  </div>
-                  <p className="text-center leading-tight mt-0.5 truncate w-full" style={{ fontSize: "8px", color: i === step ? "white" : "rgba(168,196,232,0.5)" }}>{s}</p>
-                </div>
-                {i < STEPS.length - 1 && <div className="h-px flex-1 mx-0.5 mb-3" style={{ background: i < step ? "#22c55e" : "rgba(255,255,255,0.2)" }} />}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {step === 0 && (
-            <div className="space-y-4">
-              <div className="rounded-xl p-4" style={{ background: "#f0f4f8" }}>
-                <p className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: "#64748b" }}>Project</p>
-                <p className="font-bold" style={{ color: "#0d2a5e" }}>{project.title}</p>
-                <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>
-                  {project.implementing_unit || "—"} · PI: {personName(project.lead_detail)} · {project.start_date ?? "—"} – {project.target_end_date ?? "—"}
-                </p>
-              </div>
-              {existing && (
-                <div className="rounded-xl px-4 py-3 text-xs" style={{ background: "#fef3c7", border: "1px solid #fcd34d", color: "#92400e" }}>
-                  Items will be added to the existing draft LIB v{existing.version_number} ({existing.line_items.length} item(s), {peso(existing.total_amount)}).
-                </div>
-              )}
-              {periods ? (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Budget Quarters</p>
-                  <div className="flex flex-wrap gap-2">
-                    {periods.map((p) => (
-                      <span key={p} className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "#e0f2fe", color: "#0369a1" }}>
-                        {periodLabel(p)}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>
-                    From the project's start and target end dates. Each item can be split across these; the split must add up to the item's total.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <Field label="Default Fiscal Year">
-                    <input type="number" className={INPUT_CLS} style={INPUT_STYLE} value={defaults.fiscalYear} onChange={(e) => setDefaults({ ...defaults, fiscalYear: e.target.value })} />
-                  </Field>
-                  <p className="text-xs" style={{ color: "#94a3b8" }}>New items start with this fiscal year; each item can override it.</p>
-                </>
-              )}
-            </div>
-          )}
-          {step === 1 && editor("ps")}
-          {step === 2 && editor("mooe")}
-          {step === 3 && editor("co")}
-          {step === 4 && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                {CATEGORIES.map((c) => {
-                  const cm = CATEGORY_META[c];
-                  return (
-                    <div key={c} className="rounded-2xl p-4" style={{ background: cm.bg }}>
-                      <p className="text-xs font-bold" style={{ color: cm.color }}>{cm.icon} {cm.label}</p>
-                      <p className="text-lg font-black font-mono mt-1" style={{ color: cm.color }}>{peso(catSum(c))}</p>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: "#0d2a5e" }}>
-                <span className="text-white font-black">New Items Total</span>
-                <span className="text-2xl font-black font-mono text-white">{peso(grand)}</span>
-              </div>
-              {dryWarning && <DryCapWarning />}
-              {periods && count > 0 && (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Quarterly Allocations</p>
-                  <div className="rounded-2xl overflow-x-auto" style={{ border: "1px solid #e2e8f0" }}>
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr style={{ background: "#f0f4f8" }}>
-                          <th className="px-3 py-2 text-left text-xs font-bold" style={{ color: "#64748b" }}>Category</th>
-                          {periods.map((p) => (
-                            <th key={p} className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{periodLabel(p)}</th>
-                          ))}
-                          {CATEGORIES.some((c) => unsplitSum(c) > 0) && (
-                            <th className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>Not split</th>
-                          )}
-                          <th className="px-3 py-2 text-right text-xs font-bold" style={{ color: "#64748b" }}>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {CATEGORIES.map((c) => {
-                          const cm = CATEGORY_META[c];
-                          return (
-                            <tr key={c} className="border-t" style={{ borderColor: "#f1f5f9" }}>
-                              <td className="px-3 py-2.5">
-                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ background: cm.bg, color: cm.color }}>{cm.icon} {cm.label}</span>
-                              </td>
-                              {periods.map((p) => (
-                                <td key={p} className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#334155" }}>{peso(periodSum(c, p))}</td>
-                              ))}
-                              {CATEGORIES.some((x) => unsplitSum(x) > 0) && (
-                                <td className="px-3 py-2.5 text-right text-xs font-mono" style={{ color: "#334155" }}>{peso(unsplitSum(c))}</td>
-                              )}
-                              <td className="px-3 py-2.5 text-right text-xs font-mono font-black" style={{ color: cm.color }}>{peso(catSum(c))}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Validation Checklist</p>
-                <div className="space-y-1.5">
-                  {checks.map((c) => (
-                    <div key={c.label} className="flex items-center gap-2.5 px-3 py-2 rounded-xl" style={{ background: c.ok ? "#f0fdf4" : "#fff7ed" }}>
-                      <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: c.ok ? "#059669" : "#f59e0b" }}>
-                        <span className="text-white font-black" style={{ fontSize: "9px" }}>{c.ok ? <Check size={10} strokeWidth={3} aria-label="Done" /> : <X size={10} strokeWidth={3} aria-label="Missing" />}</span>
-                      </div>
-                      <p className="text-xs font-semibold" style={{ color: c.ok ? "#166534" : "#92400e" }}>{c.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="px-6 py-4 border-t flex items-center justify-between gap-3 shrink-0" style={{ borderColor: "#e2e8f0" }}>
-          <div className="text-xs font-mono" style={{ color: "#94a3b8" }}>Step {step + 1} of {STEPS.length}</div>
-          <div className="flex gap-2">
-            {step > 0 && (
-              <button onClick={() => setStep(step - 1)} className="px-4 py-2 rounded-xl text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>Back</button>
-            )}
-            {step < STEPS.length - 1 ? (
-              <button onClick={() => setStep(step + 1)} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: "#0d2a5e" }}>Continue</button>
-            ) : (
-              <button onClick={save} disabled={!allValid || saving} className="px-5 py-2 rounded-xl text-sm font-bold text-white" style={{ background: allValid && !saving ? "#059669" : "#94a3b8" }}>
-                {saving ? "Saving…" : "Save LIB"}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 const isPendingRealignment = (r: BudgetRealignment) => r.status === "pending_approval" || r.status === "pending_bor";
 
 const canReviewRealignmentTier = (roleCode: string, t: RealignmentTier) =>
@@ -901,7 +549,6 @@ function LIBDetail({
   const certifiedId = current?.status === "certified" ? current.id : 0;
   const summaryQ = useQuery({ ...budgetSummaryQuery(certifiedId), enabled: certifiedId > 0 });
   const summary: BudgetSummary | null = certifiedId > 0 ? (summaryQ.data ?? null) : null;
-  const [showWizard, setShowWizard] = useState(false);
   const [reviewing, setReviewing] = useState<LibAction | null>(null);
   const [tab, setTab] = useState<LIBTab>("overview");
   const [rows, setRows] = useState<Record<LineItemCategory, NewRow>>({ ps: EMPTY_ROW, mooe: EMPTY_ROW, co: EMPTY_ROW });
@@ -983,15 +630,7 @@ function LIBDetail({
         <div className="rounded-2xl p-8 text-center" style={{ background: "white", border: "1px solid #e2e8f0" }}>
           <ClipboardList className="mx-auto mb-2 h-7 w-7 text-slate-400" aria-hidden="true" />
           <p className="text-sm font-semibold" style={{ color: "#64748b" }}>This project has no Line-Item Budget yet.</p>
-          {canManage && (
-            <button
-              onClick={() => setShowWizard(true)}
-              className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white"
-              style={{ background: "#0d2a5e" }}
-            >
-              + Prepare LIB
-            </button>
-          )}
+          <p className="mt-1 text-xs" style={{ color: "#94a3b8" }}>The LIB is prepared in Register Approved Project → Step 4: Budget (LIB).</p>
         </div>
       ) : (
         <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
@@ -1338,17 +977,6 @@ function LIBDetail({
           onSubmit={(remarks) => take(reviewing, remarks)}
         />
       )}
-      {showWizard && (
-        <LIBWizard
-          project={project}
-          existing={budget && isDraft ? budget : null}
-          onClose={() => setShowWizard(false)}
-          onDone={() => {
-            setShowWizard(false);
-            reload();
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -1488,7 +1116,6 @@ function BudgetContent() {
   const failed = projectsQ.isError || budgetsQ.isError;
   const projects: Project[] | null = failed ? [] : projectsQ.data && budgetsQ.data ? projectsQ.data : null;
   const budgets = budgetsQ.data ?? [];
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | LineItemBudget["status"]>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -1561,35 +1188,6 @@ function BudgetContent() {
       <div>
         <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <p className="font-black text-lg" style={{ color: "#0d2a5e" }}>Line-Item Budgets</p>
-          {canManage && (
-            <div className="relative">
-              <button
-                onClick={() => setPickerOpen((v) => !v)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-                style={{ background: "#0d2a5e" }}
-              >
-                <Plus size={12} strokeWidth={2.5} aria-hidden="true" />
-                Prepare New LIB
-              </button>
-              {pickerOpen && (
-                <div className="absolute right-0 mt-1 w-72 rounded-2xl shadow-2xl z-10 overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
-                  <p className="px-4 pt-3 pb-1 text-xs font-black uppercase tracking-wide" style={{ color: "#94a3b8" }}>Select Project</p>
-                  {withoutLib.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setParams({ project: String(p.id) })}
-                      className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-50 transition-colors"
-                      style={{ color: "#334155" }}
-                    >
-                      <span className="font-bold font-mono" style={{ color: "#0891b2" }}>{p.project_code}</span> · {p.title.slice(0, 40)}
-                      {p.title.length > 40 ? "…" : ""}
-                    </button>
-                  ))}
-                  {withoutLib.length === 0 && <p className="px-4 py-3 text-xs" style={{ color: "#94a3b8" }}>All projects already have LIBs.</p>}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {withLib.length > 0 && (
@@ -1624,7 +1222,7 @@ function BudgetContent() {
           {projects === null ? (
             <SkeletonRows rows={2} />
           ) : withLib.length === 0 ? (
-            <NoActualData hint={canManage ? 'Click "Prepare New LIB" to get started.' : "No LIBs in your access scope yet."} />
+            <NoActualData hint={canManage ? "LIBs are prepared in Register Approved Project → Step 4: Budget (LIB)." : "No LIBs in your access scope yet."} />
           ) : filtered.length === 0 ? (
             <p className="rounded-2xl p-6 text-center text-xs" style={{ background: "white", border: "1px solid #e2e8f0", color: "#94a3b8" }}>No LIBs match your search or filter.</p>
           ) : (
