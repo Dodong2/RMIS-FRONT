@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_PROFILE, fieldErrors, loginBlock, profilePayload, profileProblems } from "./registration";
+import { EMPTY_PROFILE, fieldErrors, loginBlock, orderRequestableRoles, profilePayload, profileProblems } from "./registration";
 
 const complete = {
   gender: "female" as const, campus: "Siniloan", college_unit: "CCS - College of Computer Studies",
@@ -53,5 +53,21 @@ describe("loginBlock", () => {
 
   it("is null for a plain wrong password", () => {
     expect(loginBlock({ response: { status: 400, data: { non_field_errors: ["Unable to log in."] } } })).toBeNull();
+  });
+});
+
+describe("orderRequestableRoles", () => {
+  it("follows the client's role order whatever order the API sends", () => {
+    const api = ["project_staff", "riuh", "project_leader", "vprei", "crc_chair", "finance_budget", "university_admin", "procurement_officer_lib"]
+      .map((code, id) => ({ id, code }));
+    expect(orderRequestableRoles(api).map((r) => r.code)).toEqual([
+      "vprei", "university_admin", "crc_chair", "riuh", "finance_budget", "procurement_officer_lib", "project_leader", "project_staff",
+    ]);
+  });
+
+  it("puts an unknown role last and does not change the input", () => {
+    const api = [{ code: "new_role" }, { code: "project_staff" }, { code: "vprei" }];
+    expect(orderRequestableRoles(api).map((r) => r.code)).toEqual(["vprei", "project_staff", "new_role"]);
+    expect(api[0].code).toBe("new_role");
   });
 });

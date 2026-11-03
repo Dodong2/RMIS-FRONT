@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authApi } from "../../lib/authApi";
 import { notify } from "../../lib/notify";
-import { MOBILE_HINT, STAFF_ID_HINT, type ProfileField, type RegistrationProfile } from "../../lib/registration";
+import { MOBILE_HINT, STAFF_ID_HINT, orderRequestableRoles, type ProfileField, type RegistrationProfile } from "../../lib/registration";
 import { AUTH_SELECT_TRIGGER, AuthHint, AuthInput, AuthLabel } from "./AuthFields";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -88,7 +88,7 @@ export function RegistrationProfileFields({
       {select(
         "requested_role",
         "Role You Are Requesting",
-        (options?.roles ?? []).map((role) => ({ value: String(role.id), label: role.name })),
+        orderRequestableRoles(options?.roles ?? []).map((role) => ({ value: String(role.id), label: role.name })),
         "Choose a role",
       )}
       {!errors.requested_role && <AuthHint>An administrator can assign a different role than the one you request.</AuthHint>}

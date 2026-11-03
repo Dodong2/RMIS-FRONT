@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2201**
+**Latest version: 2026.11.03.2206**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2206
+
+- **Date and time:** 2026-11-03 22:06 (Asia/Manila)
+- **Category:** UI, frontend
+- **Summary:** The role options on Request Access and on One More Step (Google sign-up) now appear in the client's order: VP for REI, University Administration, CRC/CRD, RIUH, Finance/Accounting/Budget, Procurement Officer - LIB, Project Leader/Program Leader/Study Leader, Project Staff. System Admin still can't be requested.
+- **Affected modules:** User registration (Request Access, Google sign-up)
+- **Notes:** Client Task 35. Display order only. Role codes, labels, permissions and approval are unchanged.
 
 ### 2026.11.03.2201
 

@@ -1,4 +1,4 @@
-import type { AccountState, Gender, RegistrationProfilePayload } from "../types/auth";
+import type { AccountState, Gender, RegistrationProfilePayload, Role } from "../types/auth";
 
 // Same rules as the backend (rmis-backend accounts/models.py STAFF_ID_PATTERN, MOBILE_PATTERN); change both together.
 export const STAFF_ID_PATTERN = /^\d{6}$/;
@@ -72,4 +72,24 @@ export function loginBlock(err: unknown): { state: AccountState; message: string
   const detail = Array.isArray(data?.detail) ? data.detail[0] : data?.detail;
   if (typeof state !== "string" || typeof detail !== "string") return null;
   return { state: state as AccountState, message: detail };
+}
+
+const REQUEST_ROLE_ORDER = [
+  "system_admin",
+  "vprei",
+  "university_admin",
+  "crc_chair",
+  "riuh",
+  "finance_budget",
+  "procurement_officer_lib",
+  "project_leader",
+  "project_staff",
+];
+
+export function orderRequestableRoles<T extends Pick<Role, "code">>(roles: T[]): T[] {
+  const rank = (code: string) => {
+    const i = REQUEST_ROLE_ORDER.indexOf(code);
+    return i === -1 ? REQUEST_ROLE_ORDER.length : i;
+  };
+  return [...roles].sort((a, b) => rank(a.code) - rank(b.code));
 }
