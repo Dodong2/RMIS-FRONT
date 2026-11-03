@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2155**
+**Latest version: 2026.11.03.2201**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.03.2201
+
+- **Date and time:** 2026-11-03 22:01 (Asia/Manila)
+- **Category:** Backend, monitoring
+- **Summary:** Every e-mail that Brevo accepts is now written to the backend logs with the recipient, subject and Brevo messageId. Failures are still logged as errors. The hourly scheduled-reminder job logs the time it started, followed by its existing sent/failed counts.
+- **Affected modules:** E-mail notifications (task assignment, registration, LIB, procurement, reminders), scheduled reminders
+- **Notes:** Client Task 34, backend rmis-backend faea3ff. "Accepted by Brevo" does not mean delivered. Use the messageId to look the e-mail up in Brevo's Transactional logs.
 
 ### 2026.11.03.2155
 
