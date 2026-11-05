@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.03.2354**
+**Latest version: 2026.11.05.2044**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.05.2044
+
+- **Date and time:** 2026-11-05 20:44 (Asia/Manila)
+- **Category:** UI, frontend
+- **Summary:** Budget Management → Open LIB no longer shows Mark for checking (CRC/CRD), Start Certification or Certify LIB (Finance/Accounting/Budget). These steps are done only in Project Management → Open Review. Put on Hold stays on Open LIB, and the Project Leader's Submit/Resubmit buttons are unchanged.
+- **Affected modules:** Budget Management → Open LIB
+- **Notes:** Client Tasks 42-B and 43-A. Open Review buttons, the LIB workflow rules, permissions, audit trail and the backend are unchanged.
 
 ### 2026.11.03.2354
 

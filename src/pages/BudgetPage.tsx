@@ -13,7 +13,7 @@ import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { LIB_UNITS, libLineTotal, libUnitLabel, periodLabel, periodQuarter, periodYear } from "../lib/libUnits";
 import { MoneyInput } from "../components/common/MoneyInput";
-import type { BudgetReview, BudgetReviewAction, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
+import type { BudgetReview, BudgetReviewAction, BudgetStep, LineItem, LineItemBudget, LineItemCategory } from "../types/budget";
 import { LIB_STATUS_META, LIB_STATUS_ORDER, holdLabel, libActions, libToDo, type LibAction } from "../lib/libWorkflow";
 import type { BudgetRealignment, BudgetSummary, RealignmentTier } from "../types/financial";
 import type { Project } from "../types/research";
@@ -225,6 +225,8 @@ const REVIEW_META: Record<BudgetReviewAction, { icon: ReactNode; label: string; 
 };
 
 const HOLD_ACTIONS: BudgetReviewAction[] = ["held_crc", "held_budget", "returned"];
+// Client Tasks 42-B/43-A (2026-11-05): checking and certification happen only in Project Management → Open Review
+const OPEN_REVIEW_ONLY: BudgetStep[] = ["for-checking", "start-certification", "certify"];
 
 /** " — 3 line items, ₱120,000.00" for a submission's snapshot (client Q11). */
 function snapshotNote(r: BudgetReview) {
@@ -609,7 +611,7 @@ function LIBDetail({
   const isDraft = budget?.status === "draft" || budget?.status === "returned";
   const isOwnLeader = userId !== undefined && project.lead === userId;
   const lastHold = budget?.status === "returned" ? [...budget.reviews].reverse().find((r) => HOLD_ACTIONS.includes(r.action)) : undefined;
-  const actions = budget ? libActions(budget.status, { isOwnLeader, canEndorse, canCertify }) : [];
+  const actions = budget ? libActions(budget.status, { isOwnLeader, canEndorse, canCertify }).filter((a) => !OPEN_REVIEW_ONLY.includes(a.step)) : [];
   const take = (a: LibAction, remarks = "") => run(() => budgetApi.reviewBudget(budget!.id, a.step, remarks), a.done, () => setReviewing(null));
 
   return (
