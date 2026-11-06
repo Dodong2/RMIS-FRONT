@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.05.2044**
+**Latest version: 2026.11.06.1539**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.1539
+
+- **Date and time:** 2026-11-06 15:39 (Asia/Manila)
+- **Category:** Backend, database
+- **Summary:** New Event Logs Budget, a confidential database-only record of who did which LIB action on which project (created, line item added/edited/removed, submitted, resubmitted, marked for checking, certification started, certified, put on hold, review comment, Finance line-item update with reason). It keeps the actor's name, e-mail, Staff ID and role, the project's NTP/code and title, old and new values, remarks, amount, and the date and time.
+- **Affected modules:** Budget (LIB) workflow, backend only (rmis-backend `82059aa`, migration budget_lib 0015)
+- **Notes:** Client Task 46-A. No screen shows these logs. Logged roles: Project Leader, Procurement Officer - LIB, Finance/Accounting/Budget and System Admin. Procurement, realignment and disbursement events follow in Task 46-B.
 
 ### 2026.11.05.2044
 
