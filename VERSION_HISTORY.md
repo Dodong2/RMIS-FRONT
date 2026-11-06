@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.2322**
+**Latest version: 2026.11.06.2327**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.2327
+
+- **Date and time:** 2026-11-06 23:27 (Asia/Manila)
+- **Category:** UI, frontend
+- **Summary:** Procurement requests table (Procurement Officer - LIB dashboard; the same table on the Project Leader's and Finance's Procurement page): the Routing column is gone and a Particulars column is next to Project / Item. Columns: Ref, Project / Item, Particulars, Description, Amount, Year / Q, Status (Payment Status for Finance), Action. Project / Item now shows the project code and title; Particulars shows the LIB Item the request is charged to, with its Specification in small text below; "—" when the item can't be found. The routing itself is unchanged (still saved, and still shown as "Routed to" in New Procurement Request).
+- **Affected modules:** Procurement (requests table)
+- **Notes:** Client Task 48-C (Carl's Q1 = a: Particulars = the LIB Item name). Frontend only; no API change.
 
 ### 2026.11.06.2322
 

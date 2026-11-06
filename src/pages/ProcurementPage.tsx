@@ -943,7 +943,7 @@ function ProcurementContent() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: "#f0f4f8" }}>
-                      {["Ref", "Project / Item", "Description", "Amount", "Year / Q", "Routing", "Status", ...(showPayment ? ["Payment Status"] : []), "Action"].map((h) => (
+                      {["Ref", "Project / Item", "Particulars", "Description", "Amount", "Year / Q", "Status", ...(showPayment ? ["Payment Status"] : []), "Action"].map((h) => (
                         <th key={h} className="px-3 py-2.5 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{h}</th>
                       ))}
                     </tr>
@@ -965,7 +965,11 @@ function ProcurementContent() {
                           </td>
                           <td className="px-3 py-2.5 text-xs" style={{ maxWidth: "200px" }}>
                             <p className="font-mono font-bold" style={{ color: "#0891b2" }}>{projectOf(r.project)?.project_code ?? `#${r.project}`}</p>
-                            <p className="truncate" style={{ color: "#64748b" }}>{item?.description ?? `Line item #${r.line_item}`}</p>
+                            <p className="truncate" style={{ color: "#64748b" }} title={projectOf(r.project)?.title}>{projectOf(r.project)?.title ?? "—"}</p>
+                          </td>
+                          <td className="px-3 py-2.5 text-xs" style={{ maxWidth: "200px" }}>
+                            <p className="font-semibold" style={{ color: "#0d2a5e" }}>{item?.description ?? "—"}</p>
+                            {item?.specification?.trim() && <p className="truncate" style={{ color: "#94a3b8" }} title={item.specification}>{item.specification}</p>}
                           </td>
                           <td className="px-3 py-2.5 text-xs" style={{ color: "#0d2a5e", maxWidth: "220px" }}>
                             {r.description}
@@ -973,7 +977,6 @@ function ProcurementContent() {
                           </td>
                           <td className="px-3 py-2.5 text-xs font-mono font-black whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(r.amount)}</td>
                           <td className="px-3 py-2.5 text-xs font-mono whitespace-nowrap" style={{ color: "#64748b" }}>{r.project_year ? `Year ${r.project_year}` : r.fiscal_year ?? "—"}{r.quarter ? ` · Q${r.quarter}` : ""}</td>
-                          <td className="px-3 py-2.5 text-xs" style={{ color: r.routed_to === "university_president" ? "#6b21a8" : "#0369a1" }}>{ROUTING_LABELS[r.routed_to] ?? r.routed_to}</td>
                           <td className="px-3 py-2.5">
                             <div className="space-y-1">
                               <StatusBadge s={r.status} />
