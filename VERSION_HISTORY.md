@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.1559**
+**Latest version: 2026.11.06.1611**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.1611
+
+- **Date and time:** 2026-11-06 16:11 (Asia/Manila)
+- **Category:** Backend, validation
+- **Summary:** Upload via Excel has a review mode that reads the whole workbook without saving it and lists every issue, leaving values that are no longer valid blank instead of replacing them, so the next frontend task can show the review step by step. The Project Leader's Staff ID and each Project Team row's RMIS E-mail and Staff ID are now required. A Co-Project Leader account must be a Project Leader or Project Staff account, and a project has only one Co-Project Leader (Manual Entry and Edit Registration too).
+- **Affected modules:** Project Registration (Upload via Excel, Manual Entry, Edit Registration team rows); rmis-backend `0ddeea5`, no migration
+- **Notes:** Client Task 45-B. The screen doesn't use the review mode yet (Task 45-C). Older templates without Staff IDs are refused with a clear message.
 
 ### 2026.11.06.1559
 
