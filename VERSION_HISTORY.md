@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.1634**
+**Latest version: 2026.11.06.2240**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.2240
+
+- **Date and time:** 2026-11-06 22:40 (Asia/Manila)
+- **Category:** Backend, bug fix
+- **Summary:** Registering a project (Manual Entry, or Register from the Upload via Excel review) is now refused, as a Draft too, when the LIB Grand Total isn't equal to the Total Project/Study Cost, or when there are no LIB line items. Nothing is saved and the message is "The LIB Grand Total (…) must equal the Total Project/Study Cost (…)". Before, the project was saved as a Draft and only the submit to CRC/CRD failed, which left a Draft whose cost and LIB could no longer be edited.
+- **Affected modules:** Project Registration (backend POST projects/)
+- **Notes:** Client Task 47-A, backend-only (rmis-backend). Amounts are compared as decimals (centavos). The old direct Excel import (not used by the UI since 2026.11.06.1634) isn't checked.
 
 ### 2026.11.06.1634
 
