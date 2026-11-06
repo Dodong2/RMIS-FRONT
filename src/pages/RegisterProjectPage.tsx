@@ -31,6 +31,7 @@ import { LibAllocationGrid } from "../components/registration/LibAllocationGrid"
 import { RichTextEditor } from "../components/common/RichTextEditor";
 import { objectiveItems, objectivesHtml } from "../lib/richText";
 import { registrationDraft, type RegistrationPayload } from "../lib/registrationDraft";
+import { issueBlocks, issueOpen, issueStep, issueText, snapshotIssues, type ExcelReviewIssue, type ReviewValues } from "../lib/excelReview";
 import { useAuth } from "../context/AuthContext";
 import { useFundingTypes } from "../lib/fundingTypes";
 import {
@@ -67,8 +68,9 @@ const GENDERS = [
 ];
 
 // Add Member lists the registered accounts that fit the row (client 2026-10-09); a typed name still works for people or groups without one
+// Client Task 45 (Q1): a Co-Project Leader account is a Project Leader or Project Staff
 const TEAM_ROLE_CODES: Record<string, string[]> = {
-  co_leader: ["project_leader"],
+  co_leader: ["project_leader", "project_staff"],
   member: ["project_staff"],
 };
 
@@ -390,12 +392,10 @@ function WorkPlanTemplateButton() {
 
 function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
   const navigate = useNavigate();
-  const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState("");
   const [errors, setErrors] = useState<ProjectImportError[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
-  const [preview, setPreview] = useState<ProposalData | null>(null);
+  const [isReading, setIsReading] = useState(false);
 
   const handleTemplate = async () => {
     setIsDownloading(true);
@@ -408,76 +408,41 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
     }
   };
 
-  const showImportErrors = (err: unknown, fallback: string) => {
-    const data = (err as { response?: { data?: { errors?: ProjectImportError[] } } })?.response?.data;
-    if (data?.errors?.length) {
-      setErrors(data.errors);
-      notify.error(`Nothing was saved. Fix the ${data.errors.length} issue${data.errors.length !== 1 ? "s" : ""} below and upload again.`);
-    } else {
-      notify.error(errorMessage(err, fallback));
-    }
-  };
-
-  const handlePreview = async () => {
-    if (!file) return;
-    setIsPreviewing(true);
-    setErrors([]);
-    try {
-      setPreview((await researchApi.previewImport(file)).preview);
-    } catch (err) {
-      showImportErrors(err, "Could not read the workbook.");
-    } finally {
-      setIsPreviewing(false);
-    }
-  };
-
-  // Nothing is registered: the dry run rolls back, and Manual Entry's Register saves it after the review.
-  const handleReview = async () => {
-    if (!file) return;
-    setIsPreviewing(true);
-    setErrors([]);
-    try {
-      const { draft } = await researchApi.previewImport(file);
-      onReview({ draft: toRegisterDraft(draft, false), fileName: file.name });
-    } catch (err) {
-      showImportErrors(err, "Could not read the workbook.");
-      setIsPreviewing(false);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) {
-      notify.error("Choose the filled .xlsx template first.");
+  // Client Task 45: the workbook opens straight in the Manual Entry steps as a review; nothing is saved until Register
+  const handleFile = async (picked: File | null) => {
+    if (!picked) return;
+    if (picked.size > MAX_UPLOAD_BYTES) {
+      notify.error(`${picked.name} is over 25MB.`);
       return;
     }
-    setIsUploading(true);
+    setFileName(picked.name);
     setErrors([]);
+    setIsReading(true);
     try {
-      const project = await researchApi.importProject(file);
-      const formSaved = await documentApi.saveProposalForm(project.id).then(() => true, () => false);
-      notify.success(`Project ${project.project_code} registered from Excel as a Draft. Attach its Approve Proposal and Notice to Proceed in Edit Registration before submitting it.`);
-      if (!formSaved) notify.error("The Research Proposal Form could not be saved to Document Management.");
-      navigate(`/projects/${project.id}`);
+      const { draft, issues } = await researchApi.reviewImport(picked);
+      onReview({ draft: toRegisterDraft(draft, false), fileName: picked.name, issues });
     } catch (err) {
-      showImportErrors(err, "Could not import the workbook.");
-    } finally {
-      setIsUploading(false);
+      const data = (err as { response?: { data?: { errors?: ProjectImportError[] } } })?.response?.data;
+      if (data?.errors?.length) setErrors(data.errors);
+      notify.error(errorMessage(err, "Could not read the workbook."));
+      setIsReading(false);
     }
   };
 
   return (
     <div className="p-6 space-y-5">
       <StepNote>
-        Fill in the RMIS template, which follows the Research Proposal Form (LSPU-RDO-SF-018): project details, team, studies, III. Objectives,
-        the 17 SDGs, 6Ps expected outputs, target beneficiaries, X. Budget Requirements (with Specification and the quarters of each project year)
-        and XI. Work Plan. The whole workbook registers as one project. If any row has an error, nothing is saved and every error is listed.
+        Fill in the RMIS template, which follows the Research Proposal Form (LSPU-RDO-SF-018). Choose the filled workbook and it opens in the
+        same steps as Manual Entry, so you can check every value, fix what is missing or invalid, attach the documents and register it. Nothing
+        is saved until you register.
       </StepNote>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-xl p-5 space-y-3" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Step 1 · Get the template</p>
           <p className="text-xs" style={{ color: "#475569" }}>
-            One sheet per form section. Column C of the Project sheet and the header comments list the allowed values.
+            One sheet per form section. The dropdowns and the Lists sheet show the current choices, so download it again after the System Admin
+            changes a list.
           </p>
           <button
             onClick={handleTemplate}
@@ -492,22 +457,20 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Step 2 · Upload the filled workbook</p>
           <label
             className="rounded-xl p-5 border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors hover:border-[#0891b2]"
-            style={{ borderColor: "#cbd5e1", background: "white" }}
+            style={{ borderColor: "#cbd5e1", background: "white", opacity: isReading ? 0.6 : 1 }}
           >
             <FileSpreadsheet className="h-7 w-7 text-slate-400" aria-hidden="true" />
-            <p className="text-sm font-semibold text-center" style={{ color: "#475569" }}>{file ? file.name : "Click to choose the .xlsx file"}</p>
+            <p className="text-sm font-semibold text-center" style={{ color: "#475569" }} aria-live="polite">
+              {isReading ? `Reading ${fileName}…` : fileName || "Click to choose the .xlsx file"}
+            </p>
             <input
               type="file"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="hidden"
+              disabled={isReading}
               onChange={(e) => {
-                const picked = e.target.files?.[0] ?? null;
-                if (picked && picked.size > MAX_UPLOAD_BYTES) {
-                  notify.error(`${picked.name} is over 25MB.`);
-                  return;
-                }
-                setFile(picked);
-                setErrors([]);
+                void handleFile(e.target.files?.[0] ?? null);
+                e.target.value = "";
               }}
             />
           </label>
@@ -516,39 +479,11 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
 
       {errors.length > 0 && <ImportErrorTable errors={errors} outcome="nothing was saved" />}
 
-      <div className="flex items-center justify-between gap-3 pt-2">
+      <div className="flex items-center gap-3 pt-2">
         <button onClick={() => navigate("/projects")} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
           Cancel
         </button>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handlePreview}
-            disabled={isPreviewing || isUploading || !file}
-            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors hover:bg-[#c7d8ef] disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: "#e0eaf7", color: "#0d2a5e" }}
-          >
-            <Eye className={ICON} aria-hidden="true" /> {isPreviewing ? "Reading…" : "View as SF-018"}
-          </button>
-          <button
-            onClick={handleReview}
-            disabled={isPreviewing || isUploading || !file}
-            className="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors hover:bg-[#c7d8ef] disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: "#e0eaf7", color: "#0d2a5e" }}
-            title="Open the workbook in Manual Entry to check and edit it, then Register"
-          >
-            ✏️ Review &amp; edit before registering
-          </button>
-          <button
-            onClick={handleUpload}
-            disabled={isUploading || !file}
-            className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
-            style={{ background: file ? "#0d2a5e" : "#94a3b8" }}
-          >
-            {isUploading ? "Importing…" : "Upload & Register Project"}
-          </button>
-        </div>
       </div>
-      {preview && <ProposalPreview data={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
@@ -663,7 +598,7 @@ const toRegisterDraft = (src: RegistrationPayload, keepIds: boolean): RegisterDr
 };
 
 /** An uploaded workbook opened in Manual Entry to check and edit before registering (client 2026-10-23). */
-type ExcelDraft = { draft: RegisterDraft; fileName: string };
+type ExcelDraft = { draft: RegisterDraft; fileName: string; issues: ExcelReviewIssue[] };
 
 /** A registered project loaded into the wizard for Edit Registered Project (client request 2026-10-09). */
 type EditSource = {
@@ -719,7 +654,7 @@ function RegisterProjectContent({
   const [step, setStep] = useState(init.step);
   const [teamConfirmed, setTeamConfirmed] = useState(false);
   const [confirmTeamTo, setConfirmTeamTo] = useState<number | null>(null);
-  const [attempted, setAttempted] = useState(false);
+  const [attempted, setAttempted] = useState(!!fromExcel);
   const [triedSteps, setTriedSteps] = useState<number[]>([]);
   const [isCheckingCode, setIsCheckingCode] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -887,6 +822,18 @@ function RegisterProjectContent({
     ...(outputsComplete ? [] : ["V. 6Ps (at least one complete row)"]),
     ...(beneficiariesComplete ? [] : ["every Target Beneficiaries row"]),
   ];
+  // Client Task 45: the workbook's own issues (?review=1), each open until its field or row is changed. The leader of a
+  // Project Leader's registration is always their own account, so issues about the workbook's leader don't apply.
+  const reviewValues: ReviewValues = {
+    fields: { ...form, cooperating_agencies: agencies, objectives },
+    tables: { team, studies: studyTitles, outputs: outputRows, beneficiaries: beneficiaryRows, milestones: workPlanRows, line_items: libRows },
+  };
+  const [excelIssues] = useState(() => (fromExcel?.issues ?? []).filter((i) => !(isProjectLeader && i.key === "lead")));
+  const [issueSnapshots] = useState(() => snapshotIssues(excelIssues, reviewValues));
+  const openIssues = excelIssues.filter((issue, n) => issueOpen(issue, issueSnapshots[n], reviewValues));
+  const blockingIssues = openIssues.filter((issue) => issueBlocks(issue, reviewValues));
+  const [showBlocking, setShowBlocking] = useState(false);
+  const [confirmRegister, setConfirmRegister] = useState(false);
   const stepMissing = (i: number): string[] => {
     const missing: Record<number, string[]> = {
       0: detailsMissing,
@@ -913,6 +860,16 @@ function RegisterProjectContent({
     { label: "All document uploads finished", done: !uploadsPending, required: true, step: 4 },
     { label: "Registration certification checked", done: certified, required: true, step: 5 },
   ];
+  // Everything that still stops an Excel review from registering, by step: Manual Entry's own required items plus the
+  // workbook's blocking issues. Recomputed on every edit, so the count drops as each one is fixed.
+  const reviewProblems = fromExcel
+    ? [
+        ...[0, 1, 2, 3, 4].flatMap((i) => stepMissing(i).map((m) => ({ step: i, text: `Missing ${m}` }))),
+        ...blockingIssues.map((issue) => ({ step: issueStep(issue), text: issueText(issue) })),
+        ...(certified ? [] : [{ step: 5, text: "Missing the registration certification" }]),
+      ].sort((a, b) => a.step - b.step)
+    : [];
+  const stepHasProblem = (i: number) => reviewProblems.some((p) => p.step === i);
   const canReach = (i: number) => i <= step || Array.from({ length: i }, (_, j) => j).every((j) => stepMissing(j).length === 0);
   const showErrors = attempted || triedSteps.includes(step);
   const completed = checks.filter((c) => c.done).length;
@@ -959,7 +916,7 @@ function RegisterProjectContent({
   };
 
   const goToStep = (i: number) => {
-    if (!canReach(i)) {
+    if (!fromExcel && !canReach(i)) {
       notify.error("Finish the required fields of the earlier steps first.");
       return;
     }
@@ -1118,6 +1075,10 @@ function RegisterProjectContent({
 
   const requiredDone = () => {
     setAttempted(true);
+    if (fromExcel && reviewProblems.length) {
+      setShowBlocking(true);
+      return false;
+    }
     if (!missingRequired.length) return true;
     notify.error(`Complete the required items first: ${missingRequired.map((c) => c.label.toLowerCase()).join("; ")}.`);
     setStep(missingRequired[0].step);
@@ -1384,10 +1345,17 @@ function RegisterProjectContent({
           <>
             {fromExcel && (
               <div className="mx-5 mt-4 px-4 py-3 rounded-xl flex items-start gap-3 flex-wrap" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
-                <p className="text-xs flex-1 min-w-60" style={{ color: "#1e3a8a" }}>
-                  <span className="font-bold">Loaded from {fromExcel.fileName}.</span> Nothing is registered yet: check and edit every step, attach the
-                  documents, then Register on the last step.
-                </p>
+                <div className="flex-1 min-w-60 space-y-1" aria-live="polite">
+                  <p className="text-xs" style={{ color: "#1e3a8a" }}>
+                    <span className="font-bold">Loaded from {fromExcel.fileName}.</span> Check every step against your workbook, fix what is
+                    marked, attach the documents, then Upload &amp; Register Project on the last step.
+                  </p>
+                  <p className="text-xs font-bold" style={{ color: reviewProblems.length ? "#b91c1c" : "#047857" }}>
+                    {reviewProblems.length
+                      ? `${reviewProblems.length} issue${reviewProblems.length !== 1 ? "s" : ""} found · nothing was saved`
+                      : "No issues left · nothing was saved yet"}
+                  </p>
+                </div>
                 <button onClick={startOver} className="text-xs font-bold px-3 py-1.5 rounded-lg shrink-0" style={{ background: "white", color: "#1e3a8a", border: "1px solid #bfdbfe" }}>
                   Start over
                 </button>
@@ -1414,11 +1382,19 @@ function RegisterProjectContent({
                     >
                       <div
                         className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
-                        style={{ background: i < step ? "#059669" : i === step ? "#0d2a5e" : "#e2e8f0", color: i <= step ? "white" : "#94a3b8" }}
+                        style={
+                          fromExcel && stepHasProblem(i)
+                            ? { background: "#dc2626", color: "white", boxShadow: i === step ? "0 0 0 3px #fecaca" : undefined }
+                            : { background: i < step ? "#059669" : i === step ? "#0d2a5e" : "#e2e8f0", color: i <= step ? "white" : "#94a3b8" }
+                        }
+                        aria-label={fromExcel && stepHasProblem(i) ? `Step ${i + 1}: has missing or invalid information` : undefined}
                       >
-                        {i < step ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : i + 1}
+                        {fromExcel && stepHasProblem(i) ? "!" : i < step ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : i + 1}
                       </div>
-                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: i <= step ? "#0d2a5e" : "#94a3b8", fontSize: "9px" }}>
+                      <span
+                        className="text-xs font-semibold whitespace-nowrap"
+                        style={{ color: fromExcel && stepHasProblem(i) ? "#b91c1c" : i <= step ? "#0d2a5e" : "#94a3b8", fontSize: "9px" }}
+                      >
                         {s.label}
                       </span>
                     </button>
@@ -1429,6 +1405,25 @@ function RegisterProjectContent({
             </div>
 
             <div className="p-6">
+              {fromExcel && (reviewProblems.some((p) => p.step === step) || openIssues.some((i) => issueStep(i) === step && !blockingIssues.includes(i))) && (
+                <div className="mb-5 rounded-xl p-3 space-y-1" style={{ background: "#fef2f2", border: "1px solid #fecaca" }} role="alert">
+                  <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>
+                    <TriangleAlert className={ICON} aria-hidden="true" /> Fix these in this step before registering:
+                  </p>
+                  <ul className="text-xs list-disc pl-5 space-y-0.5" style={{ color: "#7f1d1d" }}>
+                    {reviewProblems.filter((p) => p.step === step).map((p, n) => (
+                      <li key={n}>{p.text}</li>
+                    ))}
+                    {openIssues
+                      .filter((i) => issueStep(i) === step && !blockingIssues.includes(i))
+                      .map((i, n) => (
+                        <li key={`w${n}`} style={{ color: "#92400e" }}>
+                          {issueText(i)} (optional: left blank, or pick a current value)
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
               {step === 0 && (
                 <div className="space-y-5">
                   <StepNote>Section I, the classification, the RDE Agenda, the study components, III. Objectives and the 6Ps and beneficiaries (V, VII) of the Research Proposal Form. Every field here is required (client 2026-10-29); the NTP number is the project's official code.</StepNote>
@@ -2108,12 +2103,12 @@ function RegisterProjectContent({
               ) : (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleCreate()}
+                    onClick={() => (fromExcel ? (reviewProblems.length ? setShowBlocking(true) : setConfirmRegister(true)) : handleCreate())}
                     disabled={isCreating}
                     className={`px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 disabled:opacity-60 ${canSubmitNow ? "" : "text-white"}`}
                     style={canSubmitNow ? { background: "#f1f5f9", color: "#0d2a5e", border: "1px solid #cbd5e1" } : { background: missingRequired.length === 0 ? "#0d2a5e" : "#94a3b8" }}
                   >
-                    {edit ? (isCreating ? "Saving…" : "Save Changes") : isCreating ? "Saving…" : "Save as a Draft"}
+                    {edit ? (isCreating ? "Saving…" : "Save Changes") : isCreating ? "Saving…" : fromExcel ? "Upload & Register Project" : "Save as a Draft"}
                   </button>
                   {canSubmitNow && (
                     <button
@@ -2132,6 +2127,60 @@ function RegisterProjectContent({
         )}
       </div>
       {showPreview && <ProposalPreview data={previewData()} onClose={() => setShowPreview(false)} />}
+      <Dialog open={showBlocking} onOpenChange={setShowBlocking}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle style={{ color: "#b91c1c" }}>You cannot submit this project because required information is missing or invalid.</DialogTitle>
+            <DialogDescription>Click an item to go to its step.</DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-80 overflow-y-auto space-y-1">
+            {reviewProblems.map((p, n) => (
+              <li key={n}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBlocking(false);
+                    setStep(p.step);
+                  }}
+                  className="w-full text-left text-sm px-3 py-2 rounded-lg transition-colors hover:bg-[#fef2f2]"
+                  style={{ color: "#7f1d1d" }}
+                >
+                  <span className="font-semibold">Step {p.step + 1} — {WIZARD_STEPS[p.step].label}:</span> {p.text}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <button onClick={() => setShowBlocking(false)} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
+              Close
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={confirmRegister} onOpenChange={(open) => !isCreating && setConfirmRegister(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle style={{ color: "#0d2a5e" }}>Are you sure you want to register this project?</DialogTitle>
+            <DialogDescription>It is saved as a Draft with the values shown in these steps.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button onClick={() => setConfirmRegister(false)} disabled={isCreating} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                await handleCreate();
+                setConfirmRegister(false);
+              }}
+              disabled={isCreating}
+              className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: "#0d2a5e" }}
+            >
+              {isCreating ? "Registering…" : "Submit"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={confirmSubmit} onOpenChange={(open) => !isCreating && setConfirmSubmit(open)}>
         <DialogContent>
           <DialogHeader>

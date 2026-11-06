@@ -28,7 +28,7 @@ export function registrationDraft(src: RegistrationPayload, keepIds: boolean) {
     form: {
       title: p.title,
       funding_type: p.funding_type as string,
-      lead: String(p.lead),
+      lead: p.lead == null ? "" : String(p.lead),
       lead_gender: p.lead_gender as string,
       contact_number: p.contact_number,
       ntp_number: p.ntp_number,

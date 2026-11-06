@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.1618**
+**Latest version: 2026.11.06.1634**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.1634
+
+- **Date and time:** 2026-11-06 16:34 (Asia/Manila)
+- **Category:** UI, frontend
+- **Summary:** Register Approved Project → Upload via Excel: choosing the filled workbook opens it straight in the Manual Entry steps as a review (the separate "View as SF-018" and "Review & edit before registering" buttons are gone). Missing required fields are outlined from the start, the workbook's invalid values are listed in their step, a step with a problem shows a red "!" circle, and the "N issues found · nothing was saved" count drops as each one is fixed. "Upload & Register Project" asks "Are you sure you want to register this project?" (Cancel / Submit), or lists every remaining problem by step and field, with a link to each step, and registers nothing. Registering uses the same request and checks as Manual Entry. A Co-Project Leader can now be picked from Project Leader or Project Staff accounts.
+- **Affected modules:** Project Registration (Upload via Excel review; the Co-Project Leader list also in Manual Entry and Edit Registration)
+- **Notes:** Client Task 45-C, using the backend review mode from 2026.11.06.1611.
 
 ### 2026.11.06.1618
 
