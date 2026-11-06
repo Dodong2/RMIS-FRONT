@@ -85,7 +85,7 @@ automatically — most pages needed zero code changes for this pass.
   says how to restore them from `1379772`. This conflicts with the CLAUDE.md "no endpoint → mock" rule, which hasn't been
   changed yet (see open questions).
 - Module 1 (Auth/RBAC pages): done, stable. **2026-11-03 (Tasks 30, 35, 39): version on login/sidebar, role order on Request Access, College Unit disabled for VP for REI/University Administration/CRC/CRD — see "Last thing done".** **2026-10-31: Request Access, One More Step and Request Received scroll inside the card, see "Last thing done".**
-- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-11-06 (Task 45-C): Upload via Excel opens as a step-by-step review in the wizard (red "!" steps, issue count, blocking/confirm modals); Co-Project Leader picker includes Project Staff — see "Last thing done".** **2026-11-03 (Tasks 29-A/B, 40, 41): Objectives in Tiptap, 6P Particulars/beneficiary Description optional, Work Plan cards refetch, CRC/CRD view-only — see "Last thing done".** **2026-10-31: Step 6 preview shows the Campus, see "Last thing done".** **2026-10-30 (Tasks 18-21): Open Review for CRC/CRD (By, View, Submitted Approved Proposal Information, Mark for checking confirm), Finance (Download LIB, comment, Update This LIB) and the leader (Attention icons); Step 5 PDF only; status refetch fallback — see "Last thing done".** **2026-10-30 (Tasks 15-17): Save as a Draft / Submit this proposal, row actions + confirm dialogs, new status labels, search + paging on Project Management — see "Last thing done".** **2026-10-29 (Tasks 13/14): Step 5 Supporting Documents (Approve Proposal + NTP required, View, Annex A and dates removed) and a Preview of the current fields only — see "Last thing done".** **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code (typed uppercase); later that day Priority Area and Proposal Content (except Objectives) left Step 1, Step 2 got a compact leader row, Step 3 a Work Plan template — see "Last thing done"; the notes below are history.** UI
+- Module 2 (Programs/Projects/Studies/Milestones pages): done, stable. **2026-11-06 (Tasks 47-B/C): Step 4 Grand Total counts only rows with an Item (red rows otherwise), cost vs Grand Total line in the Excel review, Excel upload progress bar — see "Last thing done".** **2026-11-06 (Task 45-C): Upload via Excel opens as a step-by-step review in the wizard (red "!" steps, issue count, blocking/confirm modals); Co-Project Leader picker includes Project Staff — see "Last thing done".** **2026-11-03 (Tasks 29-A/B, 40, 41): Objectives in Tiptap, 6P Particulars/beneficiary Description optional, Work Plan cards refetch, CRC/CRD view-only — see "Last thing done".** **2026-10-31: Step 6 preview shows the Campus, see "Last thing done".** **2026-10-30 (Tasks 18-21): Open Review for CRC/CRD (By, View, Submitted Approved Proposal Information, Mark for checking confirm), Finance (Download LIB, comment, Update This LIB) and the leader (Attention icons); Step 5 PDF only; status refetch fallback — see "Last thing done".** **2026-10-30 (Tasks 15-17): Save as a Draft / Submit this proposal, row actions + confirm dialogs, new status labels, search + paging on Project Management — see "Last thing done".** **2026-10-29 (Tasks 13/14): Step 5 Supporting Documents (Approve Proposal + NTP required, View, Annex A and dates removed) and a Preview of the current fields only — see "Last thing done".** **2026-10-29: Register Approved Project is a 6-step wizard with every Project Details field required and the NTP as the code (typed uppercase); later that day Priority Area and Proposal Content (except Objectives) left Step 1, Step 2 got a compact leader row, Step 3 a Work Plan template — see "Last thing done"; the notes below are history.** UI
   reworked 2026-09-22 per client request: ProjectsPage's two inline "Register
   a Program"/"Register a Project" forms (the project one had 20+ fields) were
   pulled out into dedicated pages (RegisterProgramPage at /programs/new,
@@ -119,7 +119,7 @@ automatically — most pages needed zero code changes for this pass.
   research, matching rmis-backend `ba9c9e4` which dropped the cap check
   (real LIB data like sheet P77, ₱120k, was getting 400'd). Deliberate
   deviation from the Manual — re-add both sides if the client/panel asks.
-- Module 5 (Disbursements/Realignments): **2026-10-30 (Tasks 22–23): Procurement New Request per project year, insufficient-budget modal, Manage status filter — see "Last thing done".** DisbursementsPage built against
+- Module 5 (Disbursements/Realignments): **2026-11-06 (Tasks 48-B/C): Link to LIB Item = `LibItemPicker` (Specification + Approved/Committed/Paid/Available, no balance = not selectable); procurement table Particulars instead of Routing — see "Last thing done".** **2026-10-30 (Tasks 22–23): Procurement New Request per project year, insufficient-budget modal, Manage status filter — see "Last thing done".** DisbursementsPage built against
   financial_monitoring — record disbursements against a certified budget's line
   items, request fund realignments (existing item or new BOR-tier item), and
   review pending ones inline (no BOR resolution no. since client 2026-10-10). Every
@@ -680,21 +680,32 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-06, client Tasks 45–46, on `main`, not pushed when this was written. Memory note: `tasks-45-46-2026-11-06`. Version **2026.11.06.1634**. rmis-backend `82059aa..e168ff2`; budget_lib 0015 migrated by Carl.
-- **T45-C** (`feec5a9`): Register Approved Project → Upload via Excel. Choosing the file calls `researchApi.reviewImport` (`POST projects/import/?review=1`) and opens the Manual Entry wizard with the draft as a step-by-step review. "View as SF-018", "Review & edit before registering" and the direct import are gone (`previewImport` and `importProject` removed).
-  - Review only (`fromExcel`): required blanks are outlined from the start, any step can be opened, a step with a problem shows a red "!" circle (with an aria-label), each step lists its problems at the top, and the banner shows "N issues found · nothing was saved", recomputed on every edit.
-  - `src/lib/excelReview.ts` (+ test): a workbook issue stays open while its field, or an equal table row, is unchanged. Optional fields left blank and issues the wizard can't place don't block. A Project Leader's own lead issues are dropped.
-  - "Upload & Register Project": if anything is left, a blocking modal lists "Step N — Step: item" with a jump to each step; otherwise "Are you sure you want to register this project?" (Cancel / Submit), then the same `createProject` as Manual Entry. `requiredDone()` gates Submit this proposal the same way.
-  - `registrationDraft`: a null lead becomes "".
-  - The Co-Project Leader picker lists project_leader and project_staff accounts (Q1). This also applies to Manual Entry and Edit Registration.
-- **Version-only commits** for backend tasks: `0d1f327` (T46-A Event Logs Budget, LIB), `e04b013` (T46-B procurement/realignment/disbursement/registration LIB), `695d6d5` (T45-A template dropdowns, Project Team without Name/Gender), `fb53dc2` (T45-B review mode, required Staff IDs, one Co-Project Leader), `8f19b48` (T46-fix cleanup command). Event Logs Budget has no UI by design.
-- Checks: `npx tsc -b`, eslint on the changed files, vitest 150/150. Backend full suite 693/693. Not browser-tested.
-- Test guide: 16U, 16U-B, 16V, 16W, 16X, 16Y, plus revised cases in sections 3, 4, 9, 13 and 14 and in 16T–16W.
+2026-11-06 (night), client Tasks 47–48, on `main`, **not pushed**. Memory note: `tasks-47-48-2026-11-06`. Version **2026.11.06.2327**. rmis-backend `def1f34` (T47-A) and `cde106f` (T48-A); no migration.
+- **T47-A** (`80a5f4c`, version only): the backend refuses a registration (Draft too) whose LIB Grand Total ≠ Total Project/Study Cost. The existing `errors` handler already shows "Budget (LIB): … Nothing was registered." (double period, existing handler) and goes to Step 4.
+- **T47-B** (`a52b9c7`): `savedLibTotal`/`libRowHasNoItem` in `src/lib/libUnits.ts` (+4 tests).
+  - The Step 4 Grand Total and subtotals count only rows with an Item (the rows that are saved).
+  - A row with an amount but no Item is outlined red, has a note, is listed as missing on Step 4, and blocks Next/Draft/Submit/Register.
+  - The Excel review banner shows "Total Project/Study Cost · LIB Grand Total · Difference · Match/Mismatch".
+  - The mismatch note offers "line items or the cost in Step 1" (Edit Registration keeps the Realignment note).
+- **T47-C** (`7d38b45`): `researchApi.reviewImport(file, onProgress)` (+2 tests in `researchApi.test.ts`). The upload box shows "Uploading <file>… N%" (real axios progress), then "Checking <file>…" until the review is read; it turns red on failure.
+- **T48-B** (`03db097`): `src/components/budget/LibItemPicker.tsx` (combobox/listbox, arrow keys).
+  - Each option shows "Item · ₱amount" and "Available ₱X" or "No available balance" (not selectable).
+  - The highlighted or chosen item shows its Specification ("No specification provided") and Approved / Committed (unpaid) / Paid / Available.
+  - Data: `financialApi.getProcurementBalances` (`?budget=`) via `useLibBalances`, read on every modal open (no cache). `itemTotals` (`src/lib/procurementBalance.ts`, +4 tests) only sums backend figures.
+  - The per-year check and the Insufficient modal are unchanged.
+- **T48-C** (`c6bfcc2`): the procurement table is Ref · Project / Item (code + title) · Particulars (LIB Item + Specification) · Description · Amount · Year / Q · Status · (Payment Status) · Action. Routing is display-removed; `routed_to` and the modal's "Routed to" stay.
+- Checks: `npx tsc -b`, eslint on changed files, vitest 160/160. Backend full suite 699/699 OK. Not browser-tested.
+- Test guide: 16Z, 16Z-B, 16Z-C, 16Z-D, 16Z-E, 16Z-F added; revised 16X, 16H and one case in section 14.
 
 ## Next thing to do in this repo
-1. Carl: push rmis-backend first (the review needs `?review=1`), redeploy, then push this repo, redeploy Netlify and hard refresh.
-2. Carl: browser-test 16X (Excel review: red circles, issue count, blocking and confirm modals, register from Excel, PL Submit) and 16V (template dropdowns in real Excel).
-3. Client: accounts with Staff IDs for the `real_10_data` people (`dss/real_10_data/template_2026-11-06/`, `conflict.md`), and which of the two Co-Project Leaders in "Conditions…" stays. Still open: T38 on hold, T43-B lifecycle meaning, may a rejected applicant re-apply.
-4. Possible follow-ups (no task): Payment Status for the Project Leader's procurement table; procurement events in `REALTIME_REFETCH`; PS/MOOE/CO icons in the Line Items table; SDG names on the template's Lists sheet.
-5. Still open from before: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
-6. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
+1. Carl: push rmis-backend first (`?budget=` and the registration check), redeploy, then push this repo, redeploy Netlify and hard refresh.
+2. Carl: browser-test 16Z-B (red rows, banner, ACCEPTABILITY 409k vs 709k), 16Z-C (progress with DevTools throttling), 16Z-E (picker layout/keyboard/phone width), 16Z-F (table).
+3. Client: the Available-vs-Paid rule (Available drops when filed, not when paid; Completed ≠ Paid); the 11 Item-less LIB rows in ACCEPTABILITY. Still open: Staff ID accounts for `real_10_data`, which of the two Co-Project Leaders in "Conditions…" stays, T38 on hold, T43-B lifecycle meaning, may a rejected applicant re-apply.
+4. Possible follow-ups (no task):
+   - Payment Status for the Project Leader's procurement table;
+   - procurement events in `REALTIME_REFETCH` (an open New Request modal doesn't refresh its amounts until reopened);
+   - PS/MOOE/CO icons in the Line Items table;
+   - SDG names on the template's Lists sheet.
+5. Note: CLAUDE.md says "no code comments", but the codebase has many and recent tasks followed that style. Ask Carl whether the rule is still current.
+6. Still open from before: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
+7. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
