@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.1549**
+**Latest version: 2026.11.06.1559**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.1559
+
+- **Date and time:** 2026-11-06 15:59 (Asia/Manila)
+- **Category:** Backend, Excel template
+- **Summary:** The Register Approved Project → Upload via Excel template has dropdowns for single-choice fields (Funding Type, Gender, Campus, College Unit, New or Continuing, Basic or Applied, Wet or Dry, RDE Thrust, RDE Priority Area, Team Role, 6Ps Item, Budget Category, Particulars, Unit). The options come from the current System Admin data at every download and are listed on a protected Lists sheet, together with the valid values of the typed multi-value fields (Sector, Typology, SDGs, Cooperating Agencies). The Project Team sheet no longer has Name and Gender: every row names an RMIS account (E-mail and Staff ID), and the name and gender come from that account.
+- **Affected modules:** Project Registration → Upload via Excel (rmis-backend `9ba5794`, no migration)
+- **Notes:** Client Task 45-A. Older templates still import, and their Name/Gender columns are ignored. Team members without an RMIS account are added in Edit Registration. Manual Entry is unchanged.
 
 ### 2026.11.06.1549
 
