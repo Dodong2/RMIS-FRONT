@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.2240**
+**Latest version: 2026.11.06.2252**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.2252
+
+- **Date and time:** 2026-11-06 22:52 (Asia/Manila)
+- **Category:** UI, frontend, bug fix
+- **Summary:** Register Approved Project, Step 4 Budget (LIB), in Manual Entry and in the Upload via Excel review: the Grand Total and the PS/MOOE/CO subtotals count only the rows that will be saved (rows with an Item). A row with an amount but no Item is outlined in red, a note gives how many rows and how much isn't counted, and it is listed as missing on Step 4, so Next, Save as a Draft, Submit this proposal and Upload & Register Project stay blocked until the Item is chosen or the row is removed. The Excel review banner shows "Total Project/Study Cost · LIB Grand Total · Difference · Match/Mismatch", recomputed on every edit of Step 1 or Step 4. The mismatch note now says to adjust the line items or the Total Project/Study Cost in Step 1 (Edit Registration keeps its Realignment note).
+- **Affected modules:** Project Registration (Manual Entry and Upload via Excel review, Step 4)
+- **Notes:** Client Task 47-B, with the backend check from 2026.11.06.2240. Before, rows without an Item were counted in the Grand Total but not saved, so the totals looked equal and the project became a Draft whose submit failed.
 
 ### 2026.11.06.2240
 

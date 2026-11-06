@@ -6,7 +6,7 @@ import { outputsApi } from "../lib/outputsApi";
 import type { SixPCategory } from "../types/outputs";
 import { DOCUMENT_ACCEPT, PDF_ACCEPT, documentApi, openDocument } from "../lib/documentApi";
 import { errorMessage } from "../lib/errorMessage";
-import { LIB_UNITS, allocationPeriods, groupLibRows, libLineTotal, libUnitLabel, periodYear, allocatedTotal } from "../lib/libUnits";
+import { LIB_UNITS, allocationPeriods, groupLibRows, libLineTotal, libRowHasNoItem, libUnitLabel, periodYear, allocatedTotal, savedLibTotal } from "../lib/libUnits";
 import { notify } from "../lib/notify";
 import { registrationOpen, workAllowed } from "../lib/projectReview";
 import { clearDraft, loadDraft, saveDraft } from "../lib/formDraft";
@@ -756,7 +756,9 @@ function RegisterProjectContent({
   const isContinuing = form.is_continuing === "true";
   const uploadsPending = stagedDocs.some((d) => d.file.status !== "done");
   const approvedBudget = Number(form.total_cost) || 0;
-  const libGrandTotal = libRows.reduce((sum, r) => sum + libRowTotal(r), 0);
+  const libGrandTotal = libRows.reduce((sum, r) => sum + savedLibTotal(r), 0);
+  const libRowsWithoutItem = isEdit ? [] : libRows.filter(libRowHasNoItem);
+  const libUncounted = libRowsWithoutItem.reduce((sum, r) => sum + libRowTotal(r), 0);
   const libDifference = Math.round((libGrandTotal - approvedBudget) * 100) / 100;
   const libMatchesBudget = isEdit || approvedBudget === 0 || libDifference === 0;
   // Client 2026-10-14/10-17: each item is split per quarter of each project year (yearly.png), adding up to its total
@@ -839,6 +841,7 @@ function RegisterProjectContent({
       0: detailsMissing,
       1: [...teamMissing(form.lead, team), ...(projectCampus ? [] : ["Campus"])],
       3: [
+        ...libRowsWithoutItem.map((r) => `the Item of a ${LIB_CATEGORIES.find((c) => c.key === r.category)?.label ?? r.category} row of ₱${peso(libRowTotal(r))}`),
         ...(libMatchesBudget ? [] : [`a Grand Total equal to the approved budget (₱${peso(approvedBudget)})`]),
         ...(libSplitsMatch ? [] : ["a quarterly allocation that adds up to every item's total"]),
       ],
@@ -854,6 +857,7 @@ function RegisterProjectContent({
     { label: "College Unit - Implementing Unit selected", done: !!form.implementing_unit, step: 1 },
     { label: "Work plan activities entered", done: filledWorkPlan.length > 0, step: 2 },
     { label: "LIB line items entered", done: filledLib.length > 0, step: 3 },
+    ...(libRowsWithoutItem.length ? [{ label: "Every LIB row with an amount has an Item", done: false, required: true, step: 3 }] : []),
     { label: "LIB Grand Total equals the approved budget", done: libMatchesBudget, required: true, step: 3 },
     ...(libPeriods ? [{ label: "Every LIB item's allocation adds up to its total", done: libSplitsMatch, required: true, step: 3 }] : []),
     ...APPROVAL_DOCS.filter((d) => d.required).map((d) => ({ label: `${d.label} attached`, done: approvalAttached(d.type), required: true, step: 4 })),
@@ -886,7 +890,7 @@ function RegisterProjectContent({
     if (missing.length) {
       setTriedSteps((t) => (t.includes(step) ? t : [...t, step]));
       notify.error(
-        step === 3 && !libMatchesBudget
+        step === 3 && !libMatchesBudget && !libRowsWithoutItem.length
           ? `Grand total must equal approved budget (₱${peso(approvedBudget)}). Difference: ₱${peso(libDifference)}.`
           : step === 1 && missing.some((m) => m.startsWith("the member of"))
             ? `Fill in ${missing.join(", ")}, or remove the empty team row with ✕, before going to the next step.`
@@ -1355,6 +1359,12 @@ function RegisterProjectContent({
                       ? `${reviewProblems.length} issue${reviewProblems.length !== 1 ? "s" : ""} found · nothing was saved`
                       : "No issues left · nothing was saved yet"}
                   </p>
+                  {approvedBudget > 0 && (
+                    <p className="text-xs font-semibold" style={{ color: libDifference === 0 ? "#047857" : "#b91c1c" }}>
+                      Total Project/Study Cost ₱{peso(approvedBudget)} · LIB Grand Total ₱{peso(libGrandTotal)} · Difference ₱{peso(Math.abs(libDifference))} ·{" "}
+                      {libDifference === 0 ? "Match" : "Mismatch"}
+                    </p>
+                  )}
                 </div>
                 <button onClick={startOver} className="text-xs font-bold px-3 py-1.5 rounded-lg shrink-0" style={{ background: "white", color: "#1e3a8a", border: "1px solid #bfdbfe" }}>
                   Start over
@@ -1876,7 +1886,7 @@ function RegisterProjectContent({
                       <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#0d2a5e" }}>Allocation per Quarter</p>
                       <LibAllocationGrid
                         periods={libPeriods}
-                        groups={groupLibRows(libRows, LIB_CATEGORIES, libRowTotal).map((g) => ({
+                        groups={groupLibRows(libRows, LIB_CATEGORIES, savedLibTotal).map((g) => ({
                           key: g.key,
                           label: g.label,
                           subtotal: g.subtotal,
@@ -1890,7 +1900,7 @@ function RegisterProjectContent({
                           const tableInput = "w-full px-2 py-1.5 rounded-md border text-xs outline-none focus:border-[#0891b2]";
                           const tableSt = { borderColor: "#94a3b8", background: "white", color: "#0f172a" };
                           return [
-                            <LibItemSelect ariaLabel="Item" category={r.category} className={tableInput} style={tableSt} value={r.description} onChange={(description) => updateLib(i, { description })} />,
+                            <LibItemSelect ariaLabel="Item" category={r.category} className={tableInput} style={libRowHasNoItem(r) ? { ...tableSt, borderColor: "#dc2626" } : tableSt} value={r.description} onChange={(description) => updateLib(i, { description })} />,
                             <input className={tableInput} style={tableSt} value={r.specification ?? ""} onChange={(e) => updateLib(i, { specification: e.target.value })} maxLength={300} placeholder="e.g. PAPER, 80 gsm (optional)" aria-label="Specification" />,
                             <select className={tableInput} style={tableSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
                               {LIB_UNITS.map(([code, label]) => (
@@ -1905,7 +1915,7 @@ function RegisterProjectContent({
                     </div>
                   ) : LIB_CATEGORIES.map((cat) => {
                     const rows = libRows.map((r, i) => ({ r, i })).filter(({ r }) => r.category === cat.key);
-                    const subtotal = rows.reduce((sum, { r }) => sum + libRowTotal(r), 0);
+                    const subtotal = rows.reduce((sum, { r }) => sum + savedLibTotal(r), 0);
                     return (
                       <div key={cat.key} className="rounded-xl overflow-hidden" style={{ border: "1px solid #e2e8f0" }}>
                         <div className="px-3 py-2 flex items-center justify-between" style={{ background: "#f8fafc" }}>
@@ -1927,7 +1937,7 @@ function RegisterProjectContent({
                             </div>
                             {rows.map(({ r, i }) => (
                               <div key={i} className="flex flex-wrap gap-2 items-start">
-                                <LibItemSelect ariaLabel="Item" category={r.category} className={inputCls + " md:flex-1 min-w-48"} style={inputSt} value={r.description} onChange={(description) => updateLib(i, { description })} />
+                                <LibItemSelect ariaLabel="Item" category={r.category} className={inputCls + " md:flex-1 min-w-48"} style={libRowHasNoItem(r) ? { ...inputSt, borderColor: "#dc2626" } : inputSt} value={r.description} onChange={(description) => updateLib(i, { description })} />
                                 <input className={inputCls + " md:w-48"} style={inputSt} value={r.specification ?? ""} onChange={(e) => updateLib(i, { specification: e.target.value })} maxLength={300} placeholder="Specification (optional)" aria-label="Specification" />
                                 <select className={inputCls + " md:w-28"} style={inputSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
                                   {LIB_UNITS.map(([code, label]) => (
@@ -1946,10 +1956,18 @@ function RegisterProjectContent({
                       </div>
                     );
                   })}
+                  {libRowsWithoutItem.length > 0 && (
+                    <div className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }} role="alert">
+                      {libRowsWithoutItem.length} row{libRowsWithoutItem.length !== 1 ? "s have" : " has"} an amount but no Item (₱{peso(libUncounted)} in all, outlined in red).
+                      They aren't counted in the Grand Total and aren't saved until you choose the Item, or remove the row.
+                    </div>
+                  )}
                   {approvedBudget > 0 && libDifference !== 0 && (
                     <div className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }}>
-                      Grand total must equal approved budget (₱{peso(approvedBudget)}). The approved budget can't be changed here; adjust the line items, or use a
-                      Realignment after the project is registered.
+                      Grand total must equal approved budget (₱{peso(approvedBudget)}).{" "}
+                      {isEdit
+                        ? "The approved budget can't be changed here; adjust the line items, or use a Realignment after the project is registered."
+                        : "Adjust the line items here, or the Total Project/Study Cost in Step 1, so they are equal. The project can't be saved or submitted until then."}
                     </div>
                   )}
                   <div className="rounded-xl px-4 py-3" style={{ background: approvedBudget > 0 && libDifference !== 0 ? "#991b1b" : "#1e3a8a" }}>

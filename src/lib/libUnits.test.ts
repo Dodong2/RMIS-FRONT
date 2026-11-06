@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allocatedTotal, allocationPeriods, groupLibRows, libLineTotal } from "./libUnits";
+import { allocatedTotal, allocationPeriods, groupLibRows, libLineTotal, libRowHasNoItem, savedLibTotal } from "./libUnits";
 
 const CATEGORIES = [
   { key: "ps", label: "Personal Services (PS)" },
@@ -53,5 +53,30 @@ describe("unchanged LIB math", () => {
     expect(libLineTotal("3", "1234.565")).toBe(3703.7);
     expect(allocationPeriods("2026-01-01", "2027-06-30")).toEqual(["Y1Q1", "Y1Q2", "Y1Q3", "Y1Q4", "Y2Q1", "Y2Q2"]);
     expect(allocatedTotal({ Y1Q1: "5000", Y2Q1: "2500.5", Y9Q1: "99" }, ["Y1Q1", "Y2Q1"])).toBe(7500.5);
+  });
+});
+
+describe("Grand Total of the rows that are saved (client Task 47)", () => {
+  // ACCEPTABILITY workbook shape: a row with an amount but a blank Item was counted (709,000) but not saved (409,000)
+  const rows = [row("mooe", "", "1", "300000"), row("co", "Technical and Scientific Equipment", "1", "409000"), row("mooe", "", "", "")];
+
+  it("counts only rows with an Item", () => {
+    expect(rows.reduce((sum, r) => sum + savedLibTotal(r), 0)).toBe(409000);
+    expect(groupLibRows(rows, CATEGORIES, savedLibTotal).map((g) => g.subtotal)).toEqual([0, 0, 409000]);
+  });
+
+  it("flags only a row with an amount and no Item; an empty row isn't a problem", () => {
+    expect(rows.map(libRowHasNoItem)).toEqual([true, false, false]);
+  });
+
+  it("choosing the Item counts the row again", () => {
+    const fixed = [{ ...rows[0], description: "Labor & Wages" }, rows[1]];
+    expect(fixed.reduce((sum, r) => sum + savedLibTotal(r), 0)).toBe(709000);
+    expect(fixed.some(libRowHasNoItem)).toBe(false);
+  });
+
+  it("a blank-spaced Item counts as no Item", () => {
+    expect(libRowHasNoItem(row("ps", "   ", "2", "0.15"))).toBe(true);
+    expect(savedLibTotal(row("ps", "   ", "2", "0.15"))).toBe(0);
   });
 });

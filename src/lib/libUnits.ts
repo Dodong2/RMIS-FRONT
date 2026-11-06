@@ -41,6 +41,14 @@ export const allocatedTotal = (allocations: Record<string, string> | undefined, 
 export const libLineTotal = (quantity: string | number, unitCost: string | number) =>
   Math.round((Number(quantity) || 0) * (Number(unitCost) || 0) * 100) / 100;
 
+type LibAmountRow = { description: string; quantity: string | number; unit_cost: string | number };
+
+/** Client Task 47: only a row with an Item is saved, so only those count in the Grand Total and the subtotals. */
+export const savedLibTotal = (row: LibAmountRow) => (row.description.trim() ? libLineTotal(row.quantity, row.unit_cost) : 0);
+
+/** A row with an amount but no Item: it would be dropped on save, so it blocks registering until fixed. */
+export const libRowHasNoItem = (row: LibAmountRow) => !row.description.trim() && libLineTotal(row.quantity, row.unit_cost) > 0;
+
 /** LIB rows per category in the given order (PS, MOOE, CO), each with its index in the LIB and the category subtotal,
  * for the Allocation per Quarter table that holds the entries (client 2026-10-23). Empty categories are kept. */
 export const groupLibRows = <R extends { category: string }>(
