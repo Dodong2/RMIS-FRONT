@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.1611**
+**Latest version: 2026.11.06.1618**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.1618
+
+- **Date and time:** 2026-11-06 16:18 (Asia/Manila)
+- **Category:** Backend, maintenance command
+- **Summary:** The fresh-start cleanup command (`cleanup_fresh_start`) now also empties the Event Logs Budget, together with the test data they describe, like the request audit log. Before this fix the command refused to run because the new table wasn't classified.
+- **Affected modules:** Maintenance only (rmis-backend, no migration); nothing changes for users
+- **Notes:** Client Task 46 follow-up (Carl's decision: CLEAR).
 
 ### 2026.11.06.1611
 
