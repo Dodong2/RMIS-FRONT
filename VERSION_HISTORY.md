@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.1539**
+**Latest version: 2026.11.06.1549**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.1549
+
+- **Date and time:** 2026-11-06 15:49 (Asia/Manila)
+- **Category:** Backend
+- **Summary:** Event Logs Budget now also records procurement requests (created, received, returned for revision, status updates, completed, resubmitted, payment confirmed), realignments (requested, approved, rejected), disbursements, and the LIB saved during project registration (Manual Entry, the LIB step and Upload via Excel).
+- **Affected modules:** Procurement, Realignment, Disbursements, Project Registration; backend only (rmis-backend `ecb8885`, no migration)
+- **Notes:** Client Task 46-B. Still database-only, with no screen. Same logged roles as 2026.11.06.1539.
 
 ### 2026.11.06.1539
 
