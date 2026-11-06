@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.2314**
+**Latest version: 2026.11.06.2322**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.2322
+
+- **Date and time:** 2026-11-06 23:22 (Asia/Manila)
+- **Category:** UI, frontend
+- **Summary:** Procurement → New Procurement Request → Link to LIB Item is now a searchable list instead of a plain dropdown. Each item shows its name, LIB amount and "Available ₱X" (or "No available balance", greyed out and not selectable). Highlighting an item (mouse or arrow keys) shows beside it (below it on a phone) its Specification ("No specification provided" when the LIB has none) and its Approved, Committed (unpaid), Paid and Available to request, all from the backend. The chosen item keeps the same details under the field. The amounts are read again every time the modal opens, so a request or payment made elsewhere shows the next time. Search covers the item name and the Specification.
+- **Affected modules:** Procurement (Project Leader's New Procurement Request)
+- **Notes:** Client Task 48-B, using procurement-balance/?budget= from 2026.11.06.2314. Available drops when a request is filed (reserved) and doesn't drop again when it is paid; the year's own check and the "Insufficient available budget" modal are unchanged.
 
 ### 2026.11.06.2314
 

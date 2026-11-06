@@ -1,5 +1,5 @@
 import { apiClient, idempotent } from "./apiClient";
-import type { BudgetRealignment, BudgetSummary, Disbursement, ProcurementBalance, ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
+import type { BudgetRealignment, BudgetSummary, Disbursement, ProcurementBalance, ProcurementBudgetBalances, ProcurementRequest, ProcurementStatus, ProcurementUpdateStatus } from "../types/financial";
 
 export const financialApi = {
   getDisbursements: async (
@@ -84,6 +84,10 @@ export const financialApi = {
   },
   getProcurementBalance: async (lineItem: number): Promise<ProcurementBalance> => {
     const { data } = await apiClient.get("/api/financial/procurement-balance/", { params: { line_item: lineItem } });
+    return data;
+  },
+  getProcurementBalances: async (budget: number): Promise<ProcurementBudgetBalances> => {
+    const { data } = await apiClient.get("/api/financial/procurement-balance/", { params: { budget } });
     return data;
   },
   resubmitProcurementRequest: async (

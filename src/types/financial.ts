@@ -106,6 +106,12 @@ export interface ProcurementBalance {
   years: ProcurementYearBalance[];
 }
 
+/** GET procurement-balance/?budget=<id> (client Task 48-A): every item of one LIB. */
+export interface ProcurementBudgetBalances {
+  budget: number;
+  items: ProcurementBalance[];
+}
+
 export interface InsufficientBudget {
   code: "insufficient_budget";
   detail: string;

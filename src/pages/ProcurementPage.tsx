@@ -20,6 +20,8 @@ import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { PROCUREMENT_EVENTS, useRealtime } from "../hooks/useRealtime";
 import { STATUS_META, paymentMeta } from "../lib/procurementStatus";
+import { itemTotals, type ItemTotals } from "../lib/procurementBalance";
+import { LibItemPicker } from "../components/budget/LibItemPicker";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
@@ -119,6 +121,23 @@ function Modal({ title, subtitle, onClose, children, footer }: { title: string; 
     </div>,
     document.body,
   );
+}
+
+/** Client Task 48: every item's figures of one LIB, read fresh each time the modal opens (no cache to go stale). */
+function useLibBalances(budget: number | null) {
+  const [loaded, setLoaded] = useState<{ key: number; totals: Map<number, ItemTotals> | null; failed: boolean } | null>(null);
+  useEffect(() => {
+    if (!budget) return;
+    let live = true;
+    financialApi
+      .getProcurementBalances(budget)
+      .then((data) => live && setLoaded({ key: budget, totals: new Map(data.items.map((i) => [i.line_item, itemTotals(i.years)])), failed: false }))
+      .catch(() => live && setLoaded({ key: budget, totals: null, failed: true }));
+    return () => {
+      live = false;
+    };
+  }, [budget]);
+  return budget && loaded?.key === budget ? loaded : null;
 }
 
 function useProcurementBalance(lineItem: number | null) {
@@ -284,9 +303,9 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
   const firstCategory = (b?: LineItemBudget) => CATEGORIES.find((c) => b?.line_items.some((li) => li.category === c)) ?? "mooe";
   const [cat, setCat] = useState<LineItemCategory>(() => firstCategory(lib));
   const catItems = (lib?.line_items ?? []).filter((li) => li.category === cat);
-  const selectedItem = catItems.find((li) => String(li.id) === form.line_item);
   const amount = parseFloat(form.amount) || 0;
   const balance = useProcurementBalance(form.line_item ? Number(form.line_item) : null);
+  const libBalances = useLibBalances(lib?.id ?? null);
   const yearBalance = balance?.years.find((y) => String(y.year) === form.project_year);
 
   const save = async () => {
@@ -370,22 +389,15 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
             </select>
           </Field>
           <Field label="Link to LIB Item" required>
-            <select
-              className={INPUT_CLS}
-              style={invalidStyle(attempted && !form.line_item)}
+            <LibItemPicker
+              items={catItems}
+              totals={libBalances?.totals ?? null}
+              failed={libBalances?.failed ?? false}
               value={form.line_item}
-              onChange={(e) => setForm((f) => ({ ...f, line_item: e.target.value, project_year: "", quarter: "" }))}
-            >
-              <option value="">{catItems.length ? "— Select LIB line item —" : `No ${CATEGORY_META[cat].label} items in this LIB`}</option>
-              {catItems.map((li) => (
-                <option key={li.id} value={li.id}>{li.description} · {peso(li.amount)}</option>
-              ))}
-            </select>
-            {selectedItem && (
-              <p className="mt-1.5 text-xs whitespace-pre-line" style={{ color: selectedItem.specification?.trim() ? "#334155" : "#94a3b8" }}>
-                <b>Specification:</b> {selectedItem.specification?.trim() || "No specification in the LIB"}
-              </p>
-            )}
+              onChange={(line_item) => setForm((f) => ({ ...f, line_item, project_year: "", quarter: "" }))}
+              invalid={attempted && !form.line_item}
+              emptyLabel={`No ${CATEGORY_META[cat].label} items in this LIB`}
+            />
           </Field>
           <YearBudgetFields
             balance={balance}
