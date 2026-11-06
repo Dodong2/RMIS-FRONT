@@ -396,6 +396,9 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
   const [errors, setErrors] = useState<ProjectImportError[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isReading, setIsReading] = useState(false);
+  // Client Task 47: real transfer % from the browser; the server's reading of the workbook has no % of its own
+  const [progress, setProgress] = useState<number | null>(null);
+  const [failed, setFailed] = useState(false);
 
   const handleTemplate = async () => {
     setIsDownloading(true);
@@ -417,14 +420,17 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
     }
     setFileName(picked.name);
     setErrors([]);
+    setFailed(false);
+    setProgress(null);
     setIsReading(true);
     try {
-      const { draft, issues } = await researchApi.reviewImport(picked);
+      const { draft, issues } = await researchApi.reviewImport(picked, setProgress);
       onReview({ draft: toRegisterDraft(draft, false), fileName: picked.name, issues });
     } catch (err) {
       const data = (err as { response?: { data?: { errors?: ProjectImportError[] } } })?.response?.data;
       if (data?.errors?.length) setErrors(data.errors);
       notify.error(errorMessage(err, "Could not read the workbook."));
+      setFailed(true);
       setIsReading(false);
     }
   };
@@ -461,8 +467,30 @@ function ExcelImport({ onReview }: { onReview: (excel: ExcelDraft) => void }) {
           >
             <FileSpreadsheet className="h-7 w-7 text-slate-400" aria-hidden="true" />
             <p className="text-sm font-semibold text-center" style={{ color: "#475569" }} aria-live="polite">
-              {isReading ? `Reading ${fileName}…` : fileName || "Click to choose the .xlsx file"}
+              {isReading
+                ? progress === 100
+                  ? `Checking ${fileName}…`
+                  : `Uploading ${fileName}…${progress !== null ? ` ${progress}%` : ""}`
+                : failed
+                  ? `${fileName} could not be read. Choose the file again.`
+                  : fileName || "Click to choose the .xlsx file"}
             </p>
+            {(isReading || failed) && (
+              <div
+                className="w-full mt-1.5 h-1.5 rounded-full overflow-hidden"
+                style={{ background: "#e2e8f0" }}
+                role="progressbar"
+                aria-label={progress === 100 ? "Checking the workbook" : "Uploading the workbook"}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={failed ? undefined : (progress ?? 0)}
+              >
+                <div
+                  className={`h-full rounded-full transition-all${isReading && progress === 100 ? " animate-pulse" : ""}`}
+                  style={{ width: `${failed ? 100 : (progress ?? 0)}%`, background: failed ? "#dc2626" : progress === 100 ? "#0d2a5e" : "#0891b2" }}
+                />
+              </div>
+            )}
             <input
               type="file"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

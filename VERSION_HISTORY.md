@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.2252**
+**Latest version: 2026.11.06.2257**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.2257
+
+- **Date and time:** 2026-11-06 22:57 (Asia/Manila)
+- **Category:** UI, frontend
+- **Summary:** Register Approved Project → Upload via Excel: a progress bar under the upload box, like Supporting Documents. While the file is sent it shows "Uploading <file>… N%" (the browser's real transfer %); at 100% it shows "Checking <file>…" with a full bar until the server has read the workbook, and only then the review opens. If the upload or the reading fails, the bar turns red with "<file> could not be read. Choose the file again." plus the existing toast and error table. The file box stays disabled while a file is being uploaded or checked.
+- **Affected modules:** Project Registration (Upload via Excel)
+- **Notes:** Client Task 47-C. No % is shown for the server's reading (it has none), and none when the browser doesn't know the file size.
 
 ### 2026.11.06.2252
 

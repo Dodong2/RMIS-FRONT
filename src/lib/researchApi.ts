@@ -128,10 +128,13 @@ export const researchApi = {
   downloadWorkPlanTemplate: () => downloadReport("/api/projects/work-plan-template/", {}, "rmis_work_plan_template.xlsx"),
   /** Upload via Excel review (client Task 45, ?review=1): the workbook as Manual Entry's draft plus its issues; nothing is
    * saved. A file that can't be read is a 400 {errors}. Registering then goes through createProject like Manual Entry. */
-  reviewImport: async (file: File): Promise<{ draft: RegistrationPayload; issues: ExcelReviewIssue[] }> => {
+  reviewImport: async (file: File, onProgress?: (percent: number) => void): Promise<{ draft: RegistrationPayload; issues: ExcelReviewIssue[] }> => {
     const form = new FormData();
     form.append("file", file);
-    const { data } = await apiClient.post("/api/projects/import/", form, { params: { review: 1 } });
+    const { data } = await apiClient.post("/api/projects/import/", form, {
+      params: { review: 1 },
+      onUploadProgress: (e) => e.total && onProgress?.(Math.round((e.loaded / e.total) * 100)),
+    });
     return data;
   },
   downloadLibTemplate: (startDate: string, targetEndDate: string) =>
