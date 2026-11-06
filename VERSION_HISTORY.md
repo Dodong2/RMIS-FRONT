@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.2327**
+**Latest version: 2026.11.07.0044**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.07.0044
+
+- **Date and time:** 2026-11-07 00:44 (Asia/Manila)
+- **Category:** UI, frontend, logic change
+- **Summary:** Upload via Excel review only: a LIB row with an amount but no Item no longer stops registering. It is outlined in amber, listed as an optional note ("won't be saved or counted in the Grand Total"), and left out of the saved LIB. So the client's case works: cost ₱709,000 vs LIB Grand Total ₱409,000 is a mismatch (blocking); changing the Total Project/Study Cost to ₱409,000 clears it and the proposal can be submitted when nothing required is missing. Step 1 now shows under the Total Project/Study Cost "LIB Grand Total · Difference · Match/Mismatch" (cost outlined red on a mismatch). Each step's list is split into "Fix these in this step before registering" (red) and "Optional, won't stop registering" (amber); the banner shows "N issues to fix · M optional notes".
+- **Affected modules:** Project Registration (Upload via Excel review, Steps 1 and 4)
+- **Notes:** Client Task 49. Manual Entry is unchanged (a row without an Item still blocks there). The cost and the LIB are never changed automatically; the totals must still be equal (also enforced by the backend since 2026.11.06.2240).
 
 ### 2026.11.06.2327
 

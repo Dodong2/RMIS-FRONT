@@ -787,6 +787,9 @@ function RegisterProjectContent({
   const libGrandTotal = libRows.reduce((sum, r) => sum + savedLibTotal(r), 0);
   const libRowsWithoutItem = isEdit ? [] : libRows.filter(libRowHasNoItem);
   const libUncounted = libRowsWithoutItem.reduce((sum, r) => sum + libRowTotal(r), 0);
+  // Client Task 49: in the Excel review a row without an Item is only left out (not saved, not counted); Manual Entry still blocks it
+  const itemlessBlocks = !fromExcel;
+  const blockingItemless = itemlessBlocks ? libRowsWithoutItem : [];
   const libDifference = Math.round((libGrandTotal - approvedBudget) * 100) / 100;
   const libMatchesBudget = isEdit || approvedBudget === 0 || libDifference === 0;
   // Client 2026-10-14/10-17: each item is split per quarter of each project year (yearly.png), adding up to its total
@@ -869,7 +872,7 @@ function RegisterProjectContent({
       0: detailsMissing,
       1: [...teamMissing(form.lead, team), ...(projectCampus ? [] : ["Campus"])],
       3: [
-        ...libRowsWithoutItem.map((r) => `the Item of a ${LIB_CATEGORIES.find((c) => c.key === r.category)?.label ?? r.category} row of ₱${peso(libRowTotal(r))}`),
+        ...blockingItemless.map((r) => `the Item of a ${LIB_CATEGORIES.find((c) => c.key === r.category)?.label ?? r.category} row of ₱${peso(libRowTotal(r))}`),
         ...(libMatchesBudget ? [] : [`a Grand Total equal to the approved budget (₱${peso(approvedBudget)})`]),
         ...(libSplitsMatch ? [] : ["a quarterly allocation that adds up to every item's total"]),
       ],
@@ -885,7 +888,7 @@ function RegisterProjectContent({
     { label: "College Unit - Implementing Unit selected", done: !!form.implementing_unit, step: 1 },
     { label: "Work plan activities entered", done: filledWorkPlan.length > 0, step: 2 },
     { label: "LIB line items entered", done: filledLib.length > 0, step: 3 },
-    ...(libRowsWithoutItem.length ? [{ label: "Every LIB row with an amount has an Item", done: false, required: true, step: 3 }] : []),
+    ...(blockingItemless.length ? [{ label: "Every LIB row with an amount has an Item", done: false, required: true, step: 3 }] : []),
     { label: "LIB Grand Total equals the approved budget", done: libMatchesBudget, required: true, step: 3 },
     ...(libPeriods ? [{ label: "Every LIB item's allocation adds up to its total", done: libSplitsMatch, required: true, step: 3 }] : []),
     ...APPROVAL_DOCS.filter((d) => d.required).map((d) => ({ label: `${d.label} attached`, done: approvalAttached(d.type), required: true, step: 4 })),
@@ -900,6 +903,13 @@ function RegisterProjectContent({
         ...blockingIssues.map((issue) => ({ step: issueStep(issue), text: issueText(issue) })),
         ...(certified ? [] : [{ step: 5, text: "Missing the registration certification" }]),
       ].sort((a, b) => a.step - b.step)
+    : [];
+  const itemlessNote = `${libRowsWithoutItem.length} LIB row${libRowsWithoutItem.length !== 1 ? "s" : ""} without an Item (₱${peso(libUncounted)} in all, outlined in amber) won't be saved or counted in the Grand Total. Choose the Item to include a row.`;
+  const reviewNotes = fromExcel
+    ? [
+        ...openIssues.filter((i) => !blockingIssues.includes(i)).map((i) => ({ step: issueStep(i), text: `${issueText(i)} (optional: left blank, or pick a current value)` })),
+        ...(libRowsWithoutItem.length ? [{ step: 3, text: itemlessNote }] : []),
+      ]
     : [];
   const stepHasProblem = (i: number) => reviewProblems.some((p) => p.step === i);
   const canReach = (i: number) => i <= step || Array.from({ length: i }, (_, j) => j).every((j) => stepMissing(j).length === 0);
@@ -918,7 +928,7 @@ function RegisterProjectContent({
     if (missing.length) {
       setTriedSteps((t) => (t.includes(step) ? t : [...t, step]));
       notify.error(
-        step === 3 && !libMatchesBudget && !libRowsWithoutItem.length
+        step === 3 && !libMatchesBudget && !blockingItemless.length
           ? `Grand total must equal approved budget (₱${peso(approvedBudget)}). Difference: ₱${peso(libDifference)}.`
           : step === 1 && missing.some((m) => m.startsWith("the member of"))
             ? `Fill in ${missing.join(", ")}, or remove the empty team row with ✕, before going to the next step.`
@@ -1384,8 +1394,8 @@ function RegisterProjectContent({
                   </p>
                   <p className="text-xs font-bold" style={{ color: reviewProblems.length ? "#b91c1c" : "#047857" }}>
                     {reviewProblems.length
-                      ? `${reviewProblems.length} issue${reviewProblems.length !== 1 ? "s" : ""} found · nothing was saved`
-                      : "No issues left · nothing was saved yet"}
+                      ? `${reviewProblems.length} issue${reviewProblems.length !== 1 ? "s" : ""} to fix${reviewNotes.length ? ` · ${reviewNotes.length} optional note${reviewNotes.length !== 1 ? "s" : ""}` : ""} · nothing was saved`
+                      : `No issues left${reviewNotes.length ? ` · ${reviewNotes.length} optional note${reviewNotes.length !== 1 ? "s" : ""} (won't stop registering)` : ""} · nothing was saved yet`}
                   </p>
                   {approvedBudget > 0 && (
                     <p className="text-xs font-semibold" style={{ color: libDifference === 0 ? "#047857" : "#b91c1c" }}>
@@ -1443,23 +1453,30 @@ function RegisterProjectContent({
             </div>
 
             <div className="p-6">
-              {fromExcel && (reviewProblems.some((p) => p.step === step) || openIssues.some((i) => issueStep(i) === step && !blockingIssues.includes(i))) && (
-                <div className="mb-5 rounded-xl p-3 space-y-1" style={{ background: "#fef2f2", border: "1px solid #fecaca" }} role="alert">
-                  <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>
-                    <TriangleAlert className={ICON} aria-hidden="true" /> Fix these in this step before registering:
-                  </p>
-                  <ul className="text-xs list-disc pl-5 space-y-0.5" style={{ color: "#7f1d1d" }}>
-                    {reviewProblems.filter((p) => p.step === step).map((p, n) => (
-                      <li key={n}>{p.text}</li>
-                    ))}
-                    {openIssues
-                      .filter((i) => issueStep(i) === step && !blockingIssues.includes(i))
-                      .map((i, n) => (
-                        <li key={`w${n}`} style={{ color: "#92400e" }}>
-                          {issueText(i)} (optional: left blank, or pick a current value)
-                        </li>
-                      ))}
-                  </ul>
+              {fromExcel && (reviewProblems.some((p) => p.step === step) || reviewNotes.some((n) => n.step === step)) && (
+                <div className="mb-5 space-y-2">
+                  {reviewProblems.some((p) => p.step === step) && (
+                    <div className="rounded-xl p-3 space-y-1" style={{ background: "#fef2f2", border: "1px solid #fecaca" }} role="alert">
+                      <p className="text-xs font-bold" style={{ color: "#b91c1c" }}>
+                        <TriangleAlert className={ICON} aria-hidden="true" /> Fix these in this step before registering:
+                      </p>
+                      <ul className="text-xs list-disc pl-5 space-y-0.5" style={{ color: "#7f1d1d" }}>
+                        {reviewProblems.filter((p) => p.step === step).map((p, n) => (
+                          <li key={n}>{p.text}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {reviewNotes.some((n) => n.step === step) && (
+                    <div className="rounded-xl p-3 space-y-1" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+                      <p className="text-xs font-bold" style={{ color: "#92400e" }}>Optional, won't stop registering:</p>
+                      <ul className="text-xs list-disc pl-5 space-y-0.5" style={{ color: "#92400e" }}>
+                        {reviewNotes.filter((n) => n.step === step).map((n, k) => (
+                          <li key={k}>{n.text}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
               {step === 0 && (
@@ -1526,7 +1543,17 @@ function RegisterProjectContent({
                       {isEdit ? (
                         <input readOnly className={inputCls + " opacity-70"} style={inputSt} value={form.total_cost ? `₱${peso(Number(form.total_cost))}` : "—"} title="Approved budget; changes go through Realignment" />
                       ) : (
-                        <MoneyInput className={inputCls} style={inputSt} value={form.total_cost} onChange={(v) => setForm((p) => ({ ...p, total_cost: v }))} />
+                        <MoneyInput
+                          className={inputCls}
+                          style={fromExcel && approvedBudget > 0 && libDifference !== 0 ? { ...inputSt, borderColor: "#dc2626" } : inputSt}
+                          value={form.total_cost}
+                          onChange={(v) => setForm((p) => ({ ...p, total_cost: v }))}
+                        />
+                      )}
+                      {fromExcel && approvedBudget > 0 && (
+                        <p className="mt-1 text-xs font-semibold" style={{ color: libDifference === 0 ? "#047857" : "#b91c1c" }} aria-live="polite">
+                          LIB Grand Total (Step 4) ₱{peso(libGrandTotal)} · Difference ₱{peso(Math.abs(libDifference))} · {libDifference === 0 ? "Match" : "Mismatch: change this cost or the LIB so they are equal"}
+                        </p>
                       )}
                     </Field>
                     <RdeAgendaPicker
@@ -1928,7 +1955,7 @@ function RegisterProjectContent({
                           const tableInput = "w-full px-2 py-1.5 rounded-md border text-xs outline-none focus:border-[#0891b2]";
                           const tableSt = { borderColor: "#94a3b8", background: "white", color: "#0f172a" };
                           return [
-                            <LibItemSelect ariaLabel="Item" category={r.category} className={tableInput} style={libRowHasNoItem(r) ? { ...tableSt, borderColor: "#dc2626" } : tableSt} value={r.description} onChange={(description) => updateLib(i, { description })} />,
+                            <LibItemSelect ariaLabel="Item" category={r.category} className={tableInput} style={libRowHasNoItem(r) ? { ...tableSt, borderColor: itemlessBlocks ? "#dc2626" : "#d97706" } : tableSt} value={r.description} onChange={(description) => updateLib(i, { description })} />,
                             <input className={tableInput} style={tableSt} value={r.specification ?? ""} onChange={(e) => updateLib(i, { specification: e.target.value })} maxLength={300} placeholder="e.g. PAPER, 80 gsm (optional)" aria-label="Specification" />,
                             <select className={tableInput} style={tableSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
                               {LIB_UNITS.map(([code, label]) => (
@@ -1965,7 +1992,7 @@ function RegisterProjectContent({
                             </div>
                             {rows.map(({ r, i }) => (
                               <div key={i} className="flex flex-wrap gap-2 items-start">
-                                <LibItemSelect ariaLabel="Item" category={r.category} className={inputCls + " md:flex-1 min-w-48"} style={libRowHasNoItem(r) ? { ...inputSt, borderColor: "#dc2626" } : inputSt} value={r.description} onChange={(description) => updateLib(i, { description })} />
+                                <LibItemSelect ariaLabel="Item" category={r.category} className={inputCls + " md:flex-1 min-w-48"} style={libRowHasNoItem(r) ? { ...inputSt, borderColor: itemlessBlocks ? "#dc2626" : "#d97706" } : inputSt} value={r.description} onChange={(description) => updateLib(i, { description })} />
                                 <input className={inputCls + " md:w-48"} style={inputSt} value={r.specification ?? ""} onChange={(e) => updateLib(i, { specification: e.target.value })} maxLength={300} placeholder="Specification (optional)" aria-label="Specification" />
                                 <select className={inputCls + " md:w-28"} style={inputSt} value={r.unit} onChange={(e) => updateLib(i, { unit: e.target.value })} aria-label="Unit">
                                   {LIB_UNITS.map(([code, label]) => (
@@ -1984,10 +2011,15 @@ function RegisterProjectContent({
                       </div>
                     );
                   })}
-                  {libRowsWithoutItem.length > 0 && (
+                  {libRowsWithoutItem.length > 0 && itemlessBlocks && (
                     <div className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }} role="alert">
                       {libRowsWithoutItem.length} row{libRowsWithoutItem.length !== 1 ? "s have" : " has"} an amount but no Item (₱{peso(libUncounted)} in all, outlined in red).
                       They aren't counted in the Grand Total and aren't saved until you choose the Item, or remove the row.
+                    </div>
+                  )}
+                  {libRowsWithoutItem.length > 0 && !itemlessBlocks && (
+                    <div className="rounded-lg px-3 py-2 text-xs font-semibold" style={{ background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e" }}>
+                      {itemlessNote} This doesn't stop registering.
                     </div>
                   )}
                   {approvedBudget > 0 && libDifference !== 0 && (
