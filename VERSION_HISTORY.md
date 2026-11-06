@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.06.2257**
+**Latest version: 2026.11.06.2314**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.06.2314
+
+- **Date and time:** 2026-11-06 23:14 (Asia/Manila)
+- **Category:** Backend, API
+- **Summary:** New `GET /api/financial/procurement-balance/?budget=<id>`: the procurement figures (Approved, Committed, Paid, Unpaid, Available per project year and quarter) of every item of one LIB in one call, for the Project Leader's New Procurement Request → Link to LIB Item. Same calculation and scope as the existing per-item `?line_item=` (unchanged). The shared calculation now reads its rows in a few queries when all items are asked for: the real Optimizing LIB (29 items) went from about 17 s to about 0.5 s.
+- **Affected modules:** Procurement (backend financial_monitoring)
+- **Notes:** Client Task 48-A, backend-only (rmis-backend). No visible change until 48-B. Available already drops when a request is filed (it is reserved) and doesn't drop again when it is paid; Completed isn't Paid.
 
 ### 2026.11.06.2257
 
