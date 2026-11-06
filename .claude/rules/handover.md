@@ -680,7 +680,7 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-07, client Task 49 (`2d45137`, version **2026.11.07.0044**, **not pushed**; backend `97f95b1` tests only). Memory note: `tasks-47-48-2026-11-06`.
+2026-11-07, client Task 49 (`2d45137`, version **2026.11.07.0044**, **pushed**; backend `97f95b1` tests only, pushed). Memory note: `tasks-47-48-2026-11-06`.
 - Upload via Excel review only (`itemlessBlocks = !fromExcel`): a LIB row with an amount but no Item is an amber, non-blocking note ("won't be saved or counted in the Grand Total") and is left out. Manual Entry still blocks it (T47-B). Carl Q1 = a.
 - Step 1 shows "LIB Grand Total (Step 4) · Difference · Match/Mismatch" under the Total Project/Study Cost (cost outlined red on a mismatch).
 - Each step's list is split: red "Fix these in this step before registering" (`reviewProblems`) and amber "Optional, won't stop registering" (`reviewNotes`: optional workbook issues + Item-less rows). The banner shows "N issues to fix · M optional notes".
@@ -706,7 +706,7 @@ Before that, 2026-11-06 (night), client Tasks 47–48 (**pushed** by Carl), vers
 - Test guide: 16Z, 16Z-B, 16Z-C, 16Z-D, 16Z-E, 16Z-F added; revised 16X, 16H and one case in section 14.
 
 ## Next thing to do in this repo
-1. Carl: push this repo (`dd007a8`, `2d45137` and this handover), redeploy Netlify and hard refresh. Backend `97f95b1` is tests only (no redeploy). No migration.
+1. Carl: push this handover commit; make sure Netlify redeployed `2d45137` (version 2026.11.07.0044 on the login page) and hard refresh. No migration.
 2. Carl: browser-test 16Z-G (Task 49: amber Item-less rows, Step 1 Match/Mismatch, cost → 409k then submit), 16Z-B (Manual Entry red rows), 16Z-C (progress with DevTools throttling), 16Z-E (picker layout/keyboard/phone width), 16Z-F (table).
 3. Client: the Available-vs-Paid rule (Available drops when filed, not when paid; Completed ≠ Paid); ACCEPTABILITY may now be submitted at ₱409,000 with the 11 Item-less rows (₱300,000) left out, so confirm that's intended. Still open: Staff ID accounts for `real_10_data`, which of the two Co-Project Leaders in "Conditions…" stays, T38 on hold, T43-B lifecycle meaning, may a rejected applicant re-apply.
 4. Possible follow-ups (no task):
