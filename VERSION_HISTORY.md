@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.07.0044**
+**Latest version: 2026.11.07.1520**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.07.1520
+
+- **Date and time:** 2026-11-07 15:20 (Asia/Manila)
+- **Category:** Backend, Excel template change
+- **Summary:** Register Approved Project → Manual Entry → Step 4 Budget (LIB) → Download LIB Template now gives the same layout as the Budget Requirements sheet of the Upload via Excel template: sheet "Budget Requirements", header in row 1 (Fiscal Year · Category · Particulars · Specification (optional) · Unit · Qty · Unit Cost · Total · Y1 Q1 … Y3 Q4), the same Legend sheet and the same Lists dropdowns (Category, Particulars, Unit). A one-year project fills Y1 Q1–Q4; the other Y/Q columns stay blank. A project longer than three years also gets Y4+ columns. Import from Excel on Step 4 reads this layout, a whole Upload via Excel workbook, and a LIB template filled before this change. Budget Management's Download LIB (Finance) uses the same layout.
+- **Affected modules:** Project Registration (Step 4 Budget (LIB) template and import), Budget Management (Download LIB)
+- **Notes:** Client Task 50, backend-only change (rmis-backend). "Particulars" now means the LIB Item in both Excel files (it was the PS/MOOE/CO class in the old LIB template; that is now "Category"). The Step 4 screen labels are unchanged. The Fiscal Year column is read but Step 4 still saves the Start Date's year. No migration.
 
 ### 2026.11.07.0044
 
