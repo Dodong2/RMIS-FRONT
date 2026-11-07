@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.07.1520**
+**Latest version: 2026.11.07.1624**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.07.1624
+
+- **Date and time:** 2026-11-07 16:24 (Asia/Manila)
+- **Category:** Backend, bug fix (Excel import)
+- **Summary:** Register Approved Project → Manual Entry → Step 4 Budget (LIB) → Import from Excel no longer refuses a Budget Requirements sheet that has fewer Y/Q columns than the project's periods (e.g. a 01/01/2025–01/31/2028 project needs Y4 Q1 but the sheet stops at Y3 Q4). A period without its column is read as 0.00, the same as Upload via Excel. Each row's filled periods must still add up to its Total, and an amount in a column outside the project's dates is still refused.
+- **Affected modules:** Project Registration (Step 4 Budget (LIB) import)
+- **Notes:** Client Task 51, backend-only change (rmis-backend a8961a9). A LIB template from before Task 50 (sheet "LIB") still needs every period column. No migration.
 
 ### 2026.11.07.1520
 
