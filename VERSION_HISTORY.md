@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.07.1624**
+**Latest version: 2026.11.07.1709**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.07.1709
+
+- **Date and time:** 2026-11-07 17:09 (Asia/Manila)
+- **Category:** Backend, bug fix (Excel import)
+- **Summary:** Register Approved Project → Manual Entry → Step 4 Budget (LIB) → Import from Excel now accepts a Budget Requirements row that gives only its Total (no Unit, Qty, Unit Cost): it comes in as Qty 1 × Unit Cost = Total, the same as Upload via Excel. Unit may be blank. A row with a blank Particulars comes in as a red row without an Item, to be picked in the table before submitting. Each row's periods must still add up to its Total, and the Grand Total vs Total Project Cost check is unchanged.
+- **Affected modules:** Project Registration (Step 4 Budget (LIB) import)
+- **Notes:** Client Task 52, backend-only change (rmis-backend 7a2ee65). Found with the Vetiver LIB (58 row errors before). A LIB template from before Task 50 (sheet "LIB") still needs Item, Unit, Qty and Unit Cost. No migration.
 
 ### 2026.11.07.1624
 
