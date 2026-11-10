@@ -111,7 +111,7 @@ automatically — most pages needed zero code changes for this pass.
   ProjectDetailPage's Registration tab shows the new fields, the form team and the beneficiary rows. The free-text
   `beneficiaries` is the fallback for old projects. Programs and the leader picker are fetched separately. If
   `users/by-role` 403s, a project_leader gets themself preselected and other roles get a "use Upload via Excel" hint.
-- Module 3 (Personnel/Roles/Task Coordination pages): done, stable. **2026-11-03 (Task 41): CRC/CRD has no task/staff/personnel-change actions — see "Last thing done".**
+- Module 3 (Personnel/Roles/Task Coordination pages): done, stable. **2026-11-10 (Task 54-B): Personnel Coordination group follows the client matrix (Project Leader = Leader Load only; Procurement no Personnel Changes; VP for REI/University Administration get Leader Load) — see "Last thing done".** **2026-11-03 (Task 41): CRC/CRD has no task/staff/personnel-change actions — see "Last thing done".**
 - Module 4 (Budget pages): **2026-11-05 (Tasks 42-B/43-A): Open LIB has no Mark for checking / Start Certification / Certify LIB (Open Review only) — see "Last thing done".** **2026-11-03 (Tasks 31-33, 36-37): Prepare New LIB + LIBWizard removed, Line Items tab and Update This LIB use the Step 4 table, Payment Status column, Specification in New Procurement Request — see "Last thing done".** **2026-10-31: larger Update This LIB modal, see "Last thing done".** **2026-10-30 (Task 23): Procurement Payments banner + view for Finance — see "Last thing done".** **2026-10-30 (Task 20): Finance review cards on Budget Management, Attention icons on the leader's Line Items tab — see "Last thing done".** **2026-10-29 (Task 12): registration Step 4 has a Specification column and a LIB-only Excel template/import — see "Last thing done".** BudgetPage built against budget_lib — project selector,
   line items, add-item form, certify, plus a Budget Summary section (Approved/
   Adjusted/Actual/Available) that lights up once a budget is certified.
@@ -680,24 +680,22 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-07, client Task 52 (`9ed692c`, version **2026.11.07.1709**, pushed; backend `7a2ee65` pushed). No migration. Memory note: `task-51-lib-missing-period-2026-11-07` (Task 52 section).
-- Backend change only: Step 4 Import from Excel (Budget Requirements sheet) accepts a row with only its Total (comes in as Qty 1 × Unit Cost = Total, Unit blank) and a row with a blank Particulars (comes in without an Item → red `LibItemSelect`, Manual Entry blocks submit until one is picked). Old "LIB" sheet still strict. Client: "kulang = zero pero mag-proceed; same validation budget vs approved".
-- Frontend: only `src/version.ts` + `VERSION_HISTORY.md`. Checked, no change needed: `libRowsFromImport` passes `description`/`unit` `""` through; `itemlessBlocks` (Manual Entry) shows the red rows and blocks; Import isn't offered in Edit Registration (`!isEdit`).
-- Checks: backend LibExcelTests 19/19, LibDownloadTests 4/4, ExcelImportTests + NestedRegistrationTests 57/57; Vetiver file in shell → 16 rows, 0 errors, 4,619,860.80, 10 without an Item. Not browser-tested. Guide 16Z-J added, 16Z-I revised.
+2026-11-10, client Task 54 (client document "Task 51"; 51-53 were already the LIB tasks), committed 8699c3c (backend c2356e3), not pushed. Version **2026.11.10.1702** (54-B; 54-A backend bump was 2026.11.10.1657), both entries in `VERSION_HISTORY.md`. Backend part in rmis-backend (uncommitted, migration accounts 0032 NOT migrated). Memory note: `task-54-personnel-access-2026-11-10`.
+- `src/lib/nav.ts` Personnel Coordination group: Personnel Coordination + Personnel Changes tabs = `OVERSIGHT` (system_admin, vprei, university_admin, crc_chair, riuh); Leader Load = `OVERSIGHT` + project_management. Group dropped `procurement`/`study_management`. One visible tab = plain item, so a Project Leader sees "Leader Load" alone.
+- `src/App.tsx` RoleGates: `/staff` without project_leader, `/personnel-changes` without procurement_officer_lib, `/leader-load` + vprei/university_admin. A denied direct URL renders an empty page (RoleGate's default `fallback`, unchanged).
+- `src/lib/nav.test.ts`: 3 new tests. Checks: nav tests 7/7 (baseline 4/4), `npx tsc -b` OK, eslint OK on the changed files. Not browser-tested.
+- Unchanged: Leader Load page, StaffPage/PersonnelChangesPage (writes still system_admin/riuh via `MANAGE_CODES`), Personnel & Tasks and every other menu.
+- Why the page looked broken: 0 staff levels/assignments/changes in the DB; the registration team isn't copied to assignments. Carl: RIUH assigns manually (System Admin for testing only).
 
-Before that, 2026-11-07, client Task 51 (`c3cb13b`, 2026.11.07.1624, pushed; backend `a8961a9`): a missing Y/Q column on Step 4 import = 0.00. Task 50 (`57febcd`): Step 4 LIB template = Budget Requirements layout.
+Before that, 2026-11-07, client Task 52 (`9ed692c`, 2026.11.07.1709, pushed): Step 4 LIB import accepts Total-only rows and blank Particulars. Task 53 (2026-11-10): client said AS IS, no code.
 
 
 ## Next thing to do in this repo
-1. Carl: check that Netlify shows version 2026.11.07.1709 on the login page (hard refresh).
-2. Carl: browser-test 16Z-J (Task 52: import `real_10_data/Veltiver_LIB.xlsx` on Step 4 for a 2025-01-01..2028-01-31 project → 16 rows, 10 red; pick Items; submit), then 16Z-I, 16Z-H, 16Z-G, 16Z-B, 16Z-C, 16Z-E, 16Z-F.
-3. Vetiver: LIB 4,619,860.80 vs printed Total Project Cost 4,650,000 → Step 4 shows Mismatch until the client decides (intended, Task 47).
-4. Client: Vetiver dates (Duration 3 YEARS vs Jan 2025-Jan 2028) and grand total (4,650,000 vs handwritten 4,619,860.80), client is checking. Task 50 "Particulars" vs "Item" label on Step 4; Available-vs-Paid rule; ACCEPTABILITY at 409,000. Still open: Staff ID accounts for `real_10_data`, which Co-Project Leader stays in "Conditions...", T38 on hold, T43-B lifecycle meaning, may a rejected applicant re-apply.
-5. Possible follow-ups (no task):
-   - save a per-row Fiscal Year from the LIB Excel (RegisterProjectPage submit uses the Start Date's year);
-   - Payment Status for the Project Leader's procurement table;
-   - procurement events in `REALTIME_REFETCH`;
-   - PS/MOOE/CO icons in the Line Items table; SDG names on the template's Lists sheet.
+1. Carl: push Task 54 (8699c3c + this handover; backend c2356e3); Netlify should show 2026.11.10.1702.
+2. Carl: `migrate accounts` (0032) on the backend first, then browser-test 16Z-L and 16Z-K per role (`dss/RMIS_Test_Guide_2026-10-28.docx`); RIUH adds staff levels + Assign to Project to fill Personnel Coordination.
+3. Small follow-up (no task): `PersonnelChangesPage.tsx` `CLEARANCE_CODES` still lists procurement_officer_lib (dead since Procurement can't open the page; backend refuses anyway).
+4. Still from before: browser-test 16Z-J, 16Z-I, 16Z-H, 16Z-G, 16Z-B, 16Z-C, 16Z-E, 16Z-F. Vetiver Total Project Cost/dates pending client; Task 50 "Particulars" vs "Item" label; Available-vs-Paid; ACCEPTABILITY 409,000; Staff ID accounts for `real_10_data`; Co-Project Leader in "Conditions..."; T38 on hold; T43-B lifecycle; rejected applicant re-apply.
+5. Possible follow-ups (no task): per-row Fiscal Year from the LIB Excel; Payment Status for the Project Leader's procurement table; procurement events in `REALTIME_REFETCH`; PS/MOOE/CO icons; SDG names on the Lists sheet; a real "not allowed" screen for RoleGate instead of an empty page (ask client).
 6. Note: CLAUDE.md says "no code comments", but the codebase has many and recent tasks followed that style. Ask Carl whether the rule is still current.
 7. Still open from before: client Step 2 screenshot; Q-B (TOE document?); repeated-activity error has no row number; NTP cursor jump; Topbar chip below `md`; 3 old eslint errors in `AuthContext.tsx`.
 8. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
