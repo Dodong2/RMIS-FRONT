@@ -203,7 +203,6 @@ export default function App() {
                 "university_admin",
                 "crc_chair",
                 "riuh",
-                "procurement_officer_lib",
               ]}
             >
               <PersonnelChangesPage />
@@ -241,7 +240,6 @@ export default function App() {
                 "university_admin",
                 "crc_chair",
                 "riuh",
-                "project_leader",
               ]}
             >
               <StaffPage />
@@ -256,6 +254,8 @@ export default function App() {
             <RoleGate
               allow={[
                 "system_admin",
+                "vprei",
+                "university_admin",
                 "crc_chair",
                 "riuh",
                 "project_leader",

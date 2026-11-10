@@ -220,28 +220,28 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Personnel Coordination",
         to: "/staff",
         icon: "team",
-        tiers: [...OVERSIGHT, "project_management", "study_management", "procurement"],
+        tiers: [...OVERSIGHT, "project_management"],
         ready: true,
         tabs: [
           {
             label: "Personnel Coordination",
             to: "/staff",
             icon: "team",
-            tiers: [...OVERSIGHT, "project_management", "study_management"],
+            tiers: OVERSIGHT,
             ready: true,
           },
           {
             label: "Leader Load",
             to: "/leader-load",
             icon: "activity",
-            tiers: ["system_admin", "campus_coordination", "college_oversight", "project_management"],
+            tiers: [...OVERSIGHT, "project_management"],
             ready: true,
           },
           {
             label: "Personnel Changes",
             to: "/personnel-changes",
             icon: "userCog",
-            tiers: [...OVERSIGHT, "procurement"],
+            tiers: OVERSIGHT,
             ready: true,
           },
         ],
@@ -275,7 +275,7 @@ export function visibleSections(tier: RoleTier | null, roleCode?: string): NavSe
     items: section.items.flatMap((item) => {
       if (!item.tabs) return canSee(item, tier, roleCode) ? [item] : [];
       const tabs = item.tabs.filter((tab) => canSee(tab, tier, roleCode));
-      // One visible tab is just that page under its own name (e.g. procurement → Personnel Changes).
+      // One visible tab is just that page under its own name (e.g. project leader → Leader Load).
       if (tabs.length <= 1) return tabs;
       return [{ ...item, to: tabs[0].to, tabs }];
     }),

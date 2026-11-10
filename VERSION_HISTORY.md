@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.07.1709**
+**Latest version: 2026.11.10.1702**
 
 ## How versioning works
 
@@ -15,6 +15,22 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.10.1702
+
+- **Date and time:** 2026-11-10 17:02 (Asia/Manila)
+- **Category:** Frontend, access control (sidebar and pages)
+- **Summary:** The Personnel Coordination group in the sidebar now follows the client's role list. System Admin, VP for REI, University Administration, CRC/CRD and RIUH see Personnel Coordination, Leader Load and Personnel Changes. The Project Leader sees only Leader Load. Finance/Accounting/Budget, Procurement Officer - LIB and Project Staff see none of them. Opening one of these pages by its address without access shows an empty page (the existing behavior for any page a role may not open), not the page's data.
+- **Affected modules:** Personnel Coordination, Leader Load, Personnel Changes (sidebar, page access)
+- **Notes:** Client Task 54 (client document "Task 51"), part B. Works together with 2026.11.10.1657 (backend permissions, migration accounts 0032). Leader Load itself is unchanged. Not committed per Carl.
+
+### 2026.11.10.1657
+
+- **Date and time:** 2026-11-10 16:57 (Asia/Manila)
+- **Category:** Backend, access control (permissions)
+- **Summary:** Personnel Coordination and Personnel Changes data can now be read only by System Admin, VP for REI, University Administration, CRC/CRD and RIUH; any other role gets "not allowed" from the API. Leader Load is now also open to VP for REI and University Administration (still System Admin, CRC/CRD, RIUH and Project Leader). Procurement Officer - LIB can no longer acknowledge property clearance (PAR) on a Personnel Change; System Admin and RIUH do it. Adding or changing staff levels, assignments and personnel changes stays with System Admin and RIUH; the others only view.
+- **Affected modules:** Personnel Coordination, Leader Load, Personnel Changes (backend permissions)
+- **Notes:** Client Task 54 (client document "Task 51"), part A, backend-only (rmis-backend, not committed per Carl). Needs migration accounts 0032 on the shared DB before it takes effect. The sidebar/page changes come in part B. Assignment lists used by Tasks, Work Plan, Project details and other pages are unchanged.
 
 ### 2026.11.07.1709
 

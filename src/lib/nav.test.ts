@@ -27,3 +27,38 @@ describe("Budget Forecasting in the sidebar (Task 27, 2026-10-30)", () => {
     expect(visibleTargets("campus_coordination", "crc_chair")).not.toContain("/budget/forecast");
   });
 });
+
+describe("Personnel Coordination group (client Task 54, 2026-11-10)", () => {
+  const OVERSIGHT_ROLES = [
+    ["system_admin", "system_admin"],
+    ["institution_oversight", "vprei"],
+    ["institution_oversight", "university_admin"],
+    ["campus_coordination", "crc_chair"],
+    ["college_oversight", "riuh"],
+  ] as const;
+
+  it("shows all three pages to the five oversight roles", () => {
+    for (const [tier, code] of OVERSIGHT_ROLES) {
+      const targets = visibleTargets(tier, code);
+      expect(targets, code).toEqual(expect.arrayContaining(["/staff", "/leader-load", "/personnel-changes"]));
+    }
+  });
+
+  it("shows only Leader Load to the Project Leader", () => {
+    const targets = visibleTargets("project_management", "project_leader");
+    expect(targets).toContain("/leader-load");
+    expect(targets).not.toContain("/staff");
+    expect(targets).not.toContain("/personnel-changes");
+  });
+
+  it("hides all three from the other roles", () => {
+    for (const [tier, code] of [
+      ["finance", "finance_budget"],
+      ["procurement", "procurement_officer_lib"],
+      ["execution", "project_staff"],
+    ] as const) {
+      const targets = visibleTargets(tier, code);
+      for (const path of ["/staff", "/leader-load", "/personnel-changes"]) expect(targets, `${code} ${path}`).not.toContain(path);
+    }
+  });
+});
