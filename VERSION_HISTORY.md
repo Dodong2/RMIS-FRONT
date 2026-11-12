@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.12.1836**
+**Latest version: 2026.11.12.2035**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.12.2035
+
+- **Date and time:** 2026-11-12 20:35 (Asia/Manila)
+- **Category:** Backend, rule change (Upload via Excel)
+- **Summary:** Upload via Excel now accepts the RMIS E-mail OR the Staff ID for the Project Leader (Project sheet) and for each Project Team row. Either one finds the account and fills the name and gender (for the leader, a blank Gender/Contact No.). When both are filled they must be the same account; an e-mail or Staff ID with no RMIS account is still an error. A Project Team row with neither (for example a Role only) is no longer read, so it is not counted as a member and gives no error. Replaces the 2026.11.06 rule that both were required.
+- **Affected modules:** Project Registration (Upload via Excel review, Step 2 Proponents & Team), Excel template hints
+- **Notes:** Client Task 57. Backend rmis-backend 5d4fdfe; no frontend code change, no migration.
 
 ### 2026.11.12.1836
 
