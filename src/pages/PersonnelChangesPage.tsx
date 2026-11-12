@@ -30,7 +30,7 @@ import { personName } from "../lib/roles";
 import { UserSelect } from "../components/common/UserPicker";
 
 const MANAGE_CODES = ["system_admin", "riuh"];
-const CLEARANCE_CODES = [...MANAGE_CODES, "procurement_officer_lib"];
+const CLEARANCE_CODES = MANAGE_CODES;
 
 const STATUS_LABELS: Record<ChangeStatus, string> = {
   initiated: "Initiated",

@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.10.1702**
+**Latest version: 2026.11.12.1836**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.12.1836
+
+- **Date and time:** 2026-11-12 18:36 (Asia/Manila)
+- **Category:** Frontend, code cleanup (access control)
+- **Summary:** The Personnel Changes page's list of roles that may fill in and sign off the property clearance (PAR) now matches the backend: System Admin and RIUH only. Procurement Officer - LIB was still in that list, but since 2026.11.10.1702 that role cannot open the page and the backend already refuses its clearance, so nothing changes for any user.
+- **Affected modules:** Personnel Changes (property clearance)
+- **Notes:** Client Task 54 follow-up (our Task 55). No backend change, no migration.
 
 ### 2026.11.10.1702
 
