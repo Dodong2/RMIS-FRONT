@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.13.2124**
+**Latest version: 2026.11.13.2132**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.13.2132
+
+- **Date and time:** 2026-11-13 21:32 (Asia/Manila)
+- **Category:** Frontend, UI responsiveness (Budget Management, Open LIB)
+- **Summary:** Put on Hold, Resubmit and Submit on the Open LIB view now use the LIB the backend returns right away, so the status and the action buttons change together with the success toast instead of after the lists reload. The lists still reload in the background. If the backend refuses the step, nothing changes.
+- **Affected modules:** Budget Management (Open LIB for CRC/CRD, Finance/Accounting/Budget, Project Leader)
+- **Notes:** Task 60, follow-up of Task 59 (same fix as Open Review). No backend change, no migration.
 
 ### 2026.11.13.2124
 

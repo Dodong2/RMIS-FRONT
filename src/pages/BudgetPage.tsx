@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { personName } from "../lib/roles";
 import { useSearchParams } from "react-router-dom";
 import { budgetApi } from "../lib/budgetApi";
+import { putLib } from "../lib/useReviewStep";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -612,7 +613,8 @@ function LIBDetail({
   const isOwnLeader = userId !== undefined && project.lead === userId;
   const lastHold = budget?.status === "returned" ? [...budget.reviews].reverse().find((r) => HOLD_ACTIONS.includes(r.action)) : undefined;
   const actions = budget ? libActions(budget.status, { isOwnLeader, canEndorse, canCertify }).filter((a) => !OPEN_REVIEW_ONLY.includes(a.step)) : [];
-  const take = (a: LibAction, remarks = "") => run(() => budgetApi.reviewBudget(budget!.id, a.step, remarks), a.done, () => setReviewing(null));
+  const take = (a: LibAction, remarks = "") =>
+    run(async () => putLib(queryClient, await budgetApi.reviewBudget(budget!.id, a.step, remarks)), a.done, () => setReviewing(null));
 
   return (
     <div className="space-y-4 animate-fade-in">
