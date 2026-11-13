@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.12.2035**
+**Latest version: 2026.11.13.2124**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.13.2124
+
+- **Date and time:** 2026-11-13 21:24 (Asia/Manila)
+- **Category:** Frontend, UI responsiveness (Open Review)
+- **Summary:** After a review step succeeds (Mark for checking, Return for Revision, Certify, Submit/Resubmit, comment), the LIB the backend returns goes straight into the page data, so the action buttons disappear or change together with the success toast instead of staying clickable until the project and LIB lists finish reloading. The lists still reload in the background. If the backend refuses the step, nothing changes and the buttons stay.
+- **Affected modules:** Project Management (Open Review for CRC/CRD, Finance/Accounting/Budget, Project Leader)
+- **Notes:** Client complaint 2026-11-13 (Task 59). No backend change, no migration. The backend already locks the LIB row and rejects a repeated step with an error, so double clicks never saved twice.
 
 ### 2026.11.12.2035
 
