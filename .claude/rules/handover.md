@@ -119,7 +119,7 @@ automatically — most pages needed zero code changes for this pass.
   research, matching rmis-backend `ba9c9e4` which dropped the cap check
   (real LIB data like sheet P77, ₱120k, was getting 400'd). Deliberate
   deviation from the Manual — re-add both sides if the client/panel asks.
-- Module 5 (Disbursements/Realignments): **2026-11-16 (Task 64-C): Specification column on Disbursement Ledger and Budget Utilization — see "Last thing done".** **2026-11-06 (Tasks 48-B/C): Link to LIB Item = `LibItemPicker` (Specification + Approved/Committed/Paid/Available, no balance = not selectable); procurement table Particulars instead of Routing — see "Last thing done".** **2026-10-30 (Tasks 22–23): Procurement New Request per project year, insufficient-budget modal, Manage status filter — see "Last thing done".** DisbursementsPage built against
+- Module 5 (Disbursements/Realignments): **2026-11-16 (Task 67): New Procurement Request Project field = `ProjectPicker` (NTP on top, title below, search + scroll) — see "Last thing done".** **2026-11-16 (Task 64-C): Specification column on Disbursement Ledger and Budget Utilization — see "Last thing done".** **2026-11-06 (Tasks 48-B/C): Link to LIB Item = `LibItemPicker` (Specification + Approved/Committed/Paid/Available, no balance = not selectable); procurement table Particulars instead of Routing — see "Last thing done".** **2026-10-30 (Tasks 22–23): Procurement New Request per project year, insufficient-budget modal, Manage status filter — see "Last thing done".** DisbursementsPage built against
   financial_monitoring — record disbursements against a certified budget's line
   items, request fund realignments (existing item or new BOR-tier item), and
   review pending ones inline (no BOR resolution no. since client 2026-10-10). Every
@@ -248,7 +248,7 @@ automatically — most pages needed zero code changes for this pass.
   shapes matched the new TS types exactly, one throwaway planning target
   deleted after (no DELETE endpoint exists, so it was removed via Django
   shell). Not yet browser-tested — dev servers left running for the client.
-- Module 11 (Budget Forecasting): **2026-11-16 (Tasks 64-A, 66-B): dropdown on top, "Title — NTP", from `forecasting/projects/` (Active only, any funding type); route/nav/Run for system_admin, project_leader, riuh, crc_chair, finance_budget (vprei/university_admin removed) — see "Last thing done".** **2026-10-30 (Task 27): open to `project_leader` with Run, Unpaid Commitments tile — see "Last thing done".** BudgetForecastPage built against the
+- Module 11 (Budget Forecasting): **2026-11-16 (Task 67): project dropdown = `ProjectPicker` (NTP on top, title below); pill still "Title — NTP" — see "Last thing done".** **2026-11-16 (Tasks 64-A, 66-B): dropdown on top, "Title — NTP", from `forecasting/projects/` (Active only, any funding type); route/nav/Run for system_admin, project_leader, riuh, crc_chair, finance_budget (vprei/university_admin removed) — see "Last thing done".** **2026-10-30 (Task 27): open to `project_leader` with Run, Unpaid Commitments tile — see "Last thing done".** BudgetForecastPage built against the
   forecasting app — project selector limited to institutional/externally-
   funded projects (Core-Funded is out of this module's scope), role-gated
   "Run New Forecast" button (system_admin/drd/vprei/finance_budget), a
@@ -680,22 +680,15 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-16, client Tasks 62-66 batch, on `main`, NOT pushed. Latest version **2026.11.16.1155**. Backend `011a7bb`, `6ec057f` (+ accounts 0033, NOT migrated), `179c31b`. Memory note: `tasks-62-66-2026-11-16`.
-- T63 `383b11d`: BudgetPage Finance card button = "View Information" when the LIB is certified (same read-only modal).
-- T62 `f093cb0`: `src/lib/projectStatus.ts` `FOR_APPROVAL_STATUSES` (for_budget_review, pending_research_review, pending_budget_review, returned_budget), `summaryGroup()`, `showsLifecycle()`. Dashboard Projects tab tiles For Approval/Ongoing/Completed/Closed, row and drill-down badges, "N ongoing" KPI; ProjectsPage tiles/filter/card badge. Ongoing = active + reviews_completed. Draft/Submitted/Returned - CRC/CRD listed but counted nowhere. Real data: 15 For Approval, 3 Ongoing.
-- T64-B `6ac7419`: nav Budget Office Sync without the `finance` tier (route unchanged).
-- T64-C `6effd4c`: DisbursementsPage `SpecCell` in Ledger and Utilization (from `budget.line_items`), footer colspans adjusted.
-- T64-D `2141fed`: OverviewTab "Budget Allocation by Funding Type" reading `budget_by_funding_type`.
-- T66-A `d204a72` (version-only) + T66-B `c7c7ac7`: BudgetForecastPage dropdown on top, `forecastProjectLabel` "Title — NTP", list from `forecastingApi.getProjects()`; `FORECAST_ROLE_CODES`, App RoleGate and nav tiers = system_admin, project_leader, riuh (college_oversight), crc_chair (campus_coordination), finance_budget.
-- T65-AB `5db1cbc`: ProjectDetailPage Approval Information = NTP only (11 cards incl. endorser rows removed); Impact without Anticipated Outcomes/Long-term Impacts; endorser/outcome fetches dropped.
-- T65-C `b00f5c4`: History tab from `researchApi.getProjectHistory()` (tags Workflow/LIB update/Comment, "Latest", actor · role).
-- T65-D `8bb67b3`: `milestoneProgress()` in `src/lib/workplan.ts`; Closure Deliverables "x/N milestones done · avg Y%", Terminal Report hint. Root cause was data (0 terminal reports, milestones pending).
-- T64-F: `dss/RMIS_DSS_Guide_2026-11-16.docx` (docs only).
-- Tests: new/updated projectStatus, nav, forecastingApi, researchApi, workplan tests all pass; `tsc -b` + eslint clean on touched files. Guide 16Z-Q..16Z-AA. Not browser-tested.
+2026-11-16 evening, client Task 67, on `main`, `bd65eb6` (v**2026.11.16.2104**), NOT pushed when this was written. Frontend only, no backend, no migration. Memory note: `tasks-62-66-2026-11-16` (T67 line).
+- New `src/components/common/ProjectPicker.tsx` (+ `ProjectPicker.test.tsx`): div combobox like `LibItemPicker`; button shows the chosen project as NTP (bold) on top, title below (small, wraps); popover has a search box (NTP or title), a scrolling `role="listbox"` (`max-h-64`), ↑/↓/Enter/Esc, click outside closes.
+- Used for the Project field of New Procurement Request (`ProcurementPage.tsx`, same reset of line item/year/quarter/category) and the Budget Forecast project picker (`BudgetForecastPage.tsx`, same reload). Carl chose NTP on top for both (replaces T66-B's "Title — NTP" in the dropdown). The Saved Forecasts pill still uses `forecastProjectLabel` ("Title — NTP"). The procurement list's "All projects" filter (NTP only) is unchanged.
+- Before T67 the Tasks 62-66 batch was pushed and accounts 0033 migrated (parity 0); see that batch in git log (`cfdc367` handover).
+- Tests before push: frontend vitest 178/178 (32 files), `tsc -b` clean; eslint has 3 old errors in `src/context/AuthContext.tsx` (untouched since 2026-10-13). Backend full suite 732/732 OK (local rmis-testdb). Guide: new 16Z-AB, 16Z-W and a 16A line revised. Carl checked the site and says the changes work; detailed browser check of 16Z-AB (phone width, list inside the modal) not reported.
 
 ## Next thing to do in this repo
-1. Carl: migrate accounts 0033 (backend), push both repos together, check Netlify shows 2026.11.16.1155, then browser-test 16Z-Q..16Z-Z per role (PL, CRC/CRD, RIUH, Finance, VP for REI, System Admin).
-2. Tell the client before a demo: Ongoing count drops to the certified projects (3 of 18); VP for REI/University Administration lose Budget Forecast; DSS has no data yet (DSS guide Section 9 questions).
-3. Follow-ups (no task): Analytics "Active Projects", Risk dashboard and Dashboard per-campus "active" count still use `Project.status`; Overview Physical Progress (done/total) vs Closure (avg %); Quarterly Reports Funding Agency blank (backend); DSS gaps in the guide.
+1. Carl: push rmis-frontend (`bd65eb6` + this handover commit), check Netlify shows 2026.11.16.2104.
+2. Carl: browser-test 16Z-AB, plus 16Z-Q..16Z-AA if not finished; backend prod deploy for Tasks 62-66 if not done yet (Analytics Overview, Budget Forecast dropdown and History tab need it).
+3. Follow-ups (no task, ask client): Analytics "Active Projects", Risk dashboard and Dashboard per-campus "active" count still use `Project.status`; Overview Physical Progress (done/total) vs Closure (avg %); Quarterly Reports Funding Agency blank (backend); DSS gaps in the DSS guide Section 9. Optional cleanup: the 3 eslint errors in AuthContext.tsx (ask first).
 4. Still from before: browser-test 16Z-P..16Z-H; Vetiver cost/dates; T38 on hold; T43-B lifecycle; real_8_data conflicts waiting for client; CLAUDE.md "no code comments" vs current style (ask Carl).
 5. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
