@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1125**
+**Latest version: 2026.11.16.1136**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1136
+
+- **Date and time:** 2026-11-16 11:36 (Asia/Manila)
+- **Category:** Frontend, Budget Forecast page and access
+- **Summary:** The Budget Forecast project dropdown now sits at the top of the page at full width and shows each project as **Project Title — NTP**. It lists only Active projects (LIB certified by Finance/Accounting/Budget) of any funding type that the user may forecast, taken from the backend. Saved runs show the project title and NTP. Budget Forecasting is now in the sidebar and opens for the Project Leader, RIUH, CRC/CRD, Finance/Accounting/Budget and System Admin; VP for REI and University Administration no longer have it.
+- **Affected modules:** Budget Forecast, Sidebar, Dashboard objective card link
+- **Notes:** Tasks 64-A and 66-B. Needs backend 6ec057f and accounts 0033 migrated. The ARIMA and quick-projection calculations are unchanged. No migration in this commit.
 
 ### 2026.11.16.1125
 

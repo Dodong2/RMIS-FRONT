@@ -1,14 +1,14 @@
 import { Brain, Check, Flame, Target, TrendingUp, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
-import { forecastingApi } from "../lib/forecastingApi";
+import { forecastProjectLabel, forecastingApi } from "../lib/forecastingApi";
 import { researchApi } from "../lib/researchApi";
 import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { INPUT_CLS, INPUT_STYLE } from "../lib/protoStyles";
-import type { ForecastRun, ForecastStatus } from "../types/forecasting";
+import type { ForecastProject, ForecastRun, ForecastStatus } from "../types/forecasting";
 import type { Project } from "../types/research";
 import type { BudgetSummary, Disbursement } from "../types/financial";
 import type { LineItemBudget } from "../types/budget";
@@ -20,8 +20,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
-const FORECAST_ROLE_CODES = ["system_admin", "vprei", "finance_budget", "project_leader"];
-const FORECASTABLE_FUNDING_TYPES = ["institutional", "externally_funded"];
+// Client Task 66 (2026-11-16): Project Leader, RIUH, CRC/CRD, Finance/Accounting/Budget (+ System Admin).
+const FORECAST_ROLE_CODES = ["system_admin", "project_leader", "riuh", "crc_chair", "finance_budget"];
 
 type Method = "arima" | "burn_rate" | "linear_trend" | "moving_average" | "percent_completion";
 type Scenario = "optimistic" | "base" | "conservative";
@@ -187,7 +187,8 @@ function Pill({ bg, color, children }: { bg: string; color: string; children: Re
 function ForecastContent() {
   const { user } = useAuth();
   const canRun = FORECAST_ROLE_CODES.includes(user?.role?.code ?? "");
-  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [projects, setProjects] = useState<ForecastProject[] | null>(null);
+  const [projectDetails, setProjectDetails] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<number | null>(null);
   const [budget, setBudget] = useState<LineItemBudget | null>(null);
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
@@ -206,11 +207,10 @@ function ForecastContent() {
 
   useEffect(() => {
     let active = true;
-    researchApi
+    forecastingApi
       .getProjects()
-      .then((all) => {
+      .then((list) => {
         if (!active) return;
-        const list = all.filter((p) => FORECASTABLE_FUNDING_TYPES.includes(p.funding_type));
         setProjects(list);
         if (list[0]) setProjectId(list[0].id);
       })
@@ -219,6 +219,7 @@ function ForecastContent() {
         setProjects([]);
         notify.error("Could not load projects. Check your connection and refresh.");
       });
+    researchApi.getProjects().then((all) => active && setProjectDetails(all)).catch(() => undefined);
     return () => {
       active = false;
     };
@@ -247,7 +248,8 @@ function ForecastContent() {
     };
   }, [projectId]);
 
-  const project = projects?.find((p) => p.id === projectId) ?? null;
+  const choice = projects?.find((p) => p.id === projectId) ?? null;
+  const project = projectDetails.find((p) => p.id === projectId) ?? null;
   const budgetTotal = summary ? summary.totals.adjusted : Number(budget?.total_amount ?? 0);
   const actual = (disbursements ?? []).reduce((s, d) => s + Number(d.amount), 0);
 
@@ -295,37 +297,40 @@ function ForecastContent() {
   };
 
   if (projects === null) return <div className="h-64 rounded-2xl animate-pulse" style={{ background: "white", border: "1px solid #e2e8f0" }} />;
-  if (projects.length === 0) return <NoActualData hint="Forecasting covers institutional and externally-funded projects only." />;
+  if (projects.length === 0) return <NoActualData hint="No Active project yet. A project can be forecast once Finance/Accounting/Budget certifies its LIB." />;
 
   const utilNow = budgetTotal > 0 ? Math.round((actual / budgetTotal) * 100) : 0;
   const showQuick = method !== "arima" && ranQuick && quick;
 
   return (
     <div className="space-y-5 animate-fade-in">
+      <div className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+        <label className="label-field" htmlFor="forecast-project">Project</label>
+        <select
+          id="forecast-project"
+          value={projectId ?? ""}
+          onChange={(e) => {
+            setProjectId(Number(e.target.value));
+            setRanQuick(false);
+            setDisbursements(null);
+          }}
+          className={INPUT_CLS + " w-full"}
+          style={INPUT_STYLE}
+          title={choice ? forecastProjectLabel(choice) : undefined}
+        >
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>{forecastProjectLabel(p)}</option>
+          ))}
+        </select>
+        <p className="text-xs mt-1.5" style={{ color: "#94a3b8" }}>Active projects only (LIB certified by Finance/Accounting/Budget), any funding type.</p>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="rounded-2xl overflow-hidden self-start" style={{ background: "white", border: "1px solid #e2e8f0" }}>
           <div className="px-5 py-4 border-b" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
             <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>Forecast Parameters</p>
-            <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>Institutional & externally-funded projects</p>
+            <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{choice?.project_code ?? "—"}</p>
           </div>
           <div className="p-5 space-y-4">
-            <div>
-              <label className="label-field">Project</label>
-              <select
-                value={projectId ?? ""}
-                onChange={(e) => {
-                  setProjectId(Number(e.target.value));
-                  setRanQuick(false);
-                  setDisbursements(null);
-                }}
-                className={INPUT_CLS}
-                style={INPUT_STYLE}
-              >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.project_code}</option>
-                ))}
-              </select>
-            </div>
             <div className="rounded-2xl p-3 space-y-2" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
               <p className="text-xs font-black uppercase tracking-wide" style={{ color: "#94a3b8" }}>Current Budget Status</p>
               <div className="grid grid-cols-2 gap-2">
@@ -643,7 +648,7 @@ function ForecastContent() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Pill bg="#e0eaf7" color="#0d2a5e">{project?.project_code}</Pill>
+                          <Pill bg="#e0eaf7" color="#0d2a5e">{choice ? forecastProjectLabel(choice) : ""}</Pill>
                           <Pill bg="#f1f5f9" color="#64748b"><Brain className={ICON} aria-hidden="true" /> ARIMA{r.arima_order ? ` ${r.arima_order}` : ""}</Pill>
                           <Pill bg={STATUS_META[r.status].bg} color={STATUS_META[r.status].color}>{STATUS_META[r.status].label}</Pill>
                           {r.is_overrun_risk && <Pill bg="#fee2e2" color="#991b1b"><TriangleAlert className={ICON} aria-hidden="true" /> Overrun risk</Pill>}

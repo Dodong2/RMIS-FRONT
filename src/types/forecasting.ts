@@ -27,3 +27,10 @@ export interface ForecastRun {
   unpaid_commitments: string;
   forecasts: MonthlyForecast[];
 }
+
+/** GET /api/forecasting/projects/ (Task 66): Active projects the user may forecast. */
+export interface ForecastProject {
+  id: number;
+  project_code: string;
+  title: string;
+}

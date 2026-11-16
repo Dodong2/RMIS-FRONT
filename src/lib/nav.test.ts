@@ -14,17 +14,20 @@ describe("Project Management in the sidebar (client 2026-10-20)", () => {
   });
 });
 
-describe("Budget Forecasting in the sidebar (Task 27, 2026-10-30)", () => {
-  it("shows for Project Leaders and keeps the existing roles", () => {
+describe("Budget Forecasting in the sidebar (Task 27; roles from client Task 66, 2026-11-16)", () => {
+  it("shows for Project Leader, RIUH, CRC/CRD, Finance and System Admin", () => {
     expect(visibleTargets("project_management", "project_leader")).toContain("/budget/forecast");
-    expect(visibleTargets("system_admin", "system_admin")).toContain("/budget/forecast");
+    expect(visibleTargets("college_oversight", "riuh")).toContain("/budget/forecast");
+    expect(visibleTargets("campus_coordination", "crc_chair")).toContain("/budget/forecast");
     expect(visibleTargets("finance", "finance_budget")).toContain("/budget/forecast");
+    expect(visibleTargets("system_admin", "system_admin")).toContain("/budget/forecast");
   });
 
-  it("stays hidden from Project Staff, Procurement and CRC/CRD", () => {
-    expect(visibleTargets("execution", "project_staff")).not.toContain("/budget/forecast");
+  it("is hidden from VP for REI, University Administration, Procurement and Project Staff", () => {
+    expect(visibleTargets("institution_oversight", "vprei")).not.toContain("/budget/forecast");
+    expect(visibleTargets("institution_oversight", "university_admin")).not.toContain("/budget/forecast");
     expect(visibleTargets("procurement", "procurement_officer_lib")).not.toContain("/budget/forecast");
-    expect(visibleTargets("campus_coordination", "crc_chair")).not.toContain("/budget/forecast");
+    expect(visibleTargets("execution", "project_staff")).not.toContain("/budget/forecast");
   });
 });
 
