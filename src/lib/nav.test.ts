@@ -62,3 +62,14 @@ describe("Personnel Coordination group (client Task 54, 2026-11-10)", () => {
     }
   });
 });
+
+describe("Budget Office Sync in the sidebar (Task 64-B, 2026-11-16)", () => {
+  it("is hidden from Finance/Accounting/Budget", () => {
+    expect(visibleTargets("finance", "finance_budget")).not.toContain("/budget-sync");
+  });
+
+  it("stays for System Admin and institution oversight", () => {
+    expect(visibleTargets("system_admin", "system_admin")).toContain("/budget-sync");
+    expect(visibleTargets("institution_oversight", "vprei")).toContain("/budget-sync");
+  });
+});

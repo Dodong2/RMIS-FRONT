@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1102**
+**Latest version: 2026.11.16.1109**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1109
+
+- **Date and time:** 2026-11-16 11:09 (Asia/Manila)
+- **Category:** Frontend, navigation (Finance/Accounting/Budget sidebar)
+- **Summary:** Budget Office Sync is hidden from the Finance/Accounting/Budget sidebar for now, because how it should work is not decided yet. System Admin, VP for REI and University Administration still see it. The page, its data and the API are unchanged, and the page still opens by its direct link for the same roles as before.
+- **Affected modules:** Sidebar (Finance/Accounting/Budget), Budget Office Sync
+- **Notes:** Task 64-B. Navigation only; no permission, route, backend or data change, no migration.
 
 ### 2026.11.16.1102
 
