@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1119**
+**Latest version: 2026.11.16.1125**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1125
+
+- **Date and time:** 2026-11-16 11:25 (Asia/Manila)
+- **Category:** Backend, access and data rules (Budget Forecast / ARIMA)
+- **Summary:** Budget Forecast (ARIMA) now works only on Active projects (the current LIB is certified by Finance/Accounting/Budget), of any funding type, so Core-Funded projects are no longer refused. It is for the Project Leader, RIUH, CRC/CRD and Finance/Accounting/Budget (and System Admin), each within their own projects or campus. VP for REI no longer has it. Saved forecasts of a project that is not Active are not shown, and asking for one by its id is refused.
+- **Affected modules:** Budget Forecast (API), User roles (forecast permission)
+- **Notes:** Task 66-A. Backend 6ec057f with new GET /api/forecasting/projects/ for the project dropdown. Needs accounts 0033 migrated (data only). The ARIMA calculation is unchanged. The page itself is updated in Task 66-B.
 
 ### 2026.11.16.1119
 
