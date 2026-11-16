@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1136**
+**Latest version: 2026.11.16.1143**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1143
+
+- **Date and time:** 2026-11-16 11:43 (Asia/Manila)
+- **Category:** Frontend, UI removal (Project Management, project detail)
+- **Summary:** In a project's Registration Info tab, Approval Information now shows only the NTP (Project Code); NTP Date, TOE Signed, Proposal Submitted/Reviewed/Approved, Reviewing / Approving Body and the endorser cards (Dean, RDS Director, Campus Director, VPRDE, President) were removed. In the Impact tab, the Anticipated Outcomes and Long-term Impacts cards were removed. Target Beneficiaries, SDGs and the other Impact cards stay.
+- **Affected modules:** Project Management (project detail: Registration Info, Impact); all roles that can open a project
+- **Notes:** Task 65-A/B (client remove.png, remove1.png). UI only; the saved data and database fields are kept. No backend change, no migration.
 
 ### 2026.11.16.1136
 

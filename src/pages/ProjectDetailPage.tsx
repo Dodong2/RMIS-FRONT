@@ -28,13 +28,12 @@ import type {
   ProjectTeamMember,
   RecordStatus,
   Study,
-  ProjectEndorser,
   TargetBeneficiary,
 } from "../types/research";
 import type { AdminUser } from "../types/auth";
 import type { ProjectAssignment } from "../types/personnel";
 import type { ProjectMonitoringStatus, TerminalReport } from "../types/monitoring";
-import type { ExpectedVsActual, ProjectOutcome } from "../types/outputs";
+import type { ExpectedVsActual } from "../types/outputs";
 import type { LineItemBudget } from "../types/budget";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
@@ -188,12 +187,10 @@ function ProjectDetailContent() {
   const [team, setTeam] = useState<ProjectAssignment[]>([]);
   const [formTeam, setFormTeam] = useState<ProjectTeamMember[]>([]);
   const [targetBeneficiaries, setTargetBeneficiaries] = useState<TargetBeneficiary[]>([]);
-  const [endorsers, setEndorsers] = useState<ProjectEndorser[]>([]);
   const [history, setHistory] = useState<ProjectStatusHistory[] | null | undefined>(undefined);
   const [status, setStatus] = useState<ProjectMonitoringStatus | null | undefined>(undefined);
   const [terminal, setTerminal] = useState<TerminalReport | null | undefined>(undefined);
   const [expected, setExpected] = useState<ExpectedVsActual | null>(null);
-  const [outcomes, setOutcomes] = useState<ProjectOutcome[]>([]);
   const [budgets, setBudgets] = useState<LineItemBudget[]>([]);
   const [studyLeaders, setStudyLeaders] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -245,9 +242,7 @@ function ProjectDetailContent() {
     personnelApi.getAssignments({ project: projectId, active: true }).then(guard(setTeam)).catch(() => undefined);
     researchApi.getTeamMembers(projectId).then(guard(setFormTeam)).catch(() => undefined);
     researchApi.getBeneficiaries(projectId).then(guard(setTargetBeneficiaries)).catch(() => undefined);
-    researchApi.getEndorsers(projectId).then(guard(setEndorsers)).catch(() => undefined);
     outputsApi.getExpectedVsActual(projectId).then(guard(setExpected)).catch(() => undefined);
-    outputsApi.getOutcomes({ project: projectId }).then(guard(setOutcomes)).catch(() => undefined);
     budgetApi.getBudgets(projectId).then(guard(setBudgets)).catch(() => undefined);
     return () => {
       active = false;
@@ -337,8 +332,6 @@ function ProjectDetailContent() {
   const teamSize = teamRows.length;
   const phys = status?.deliverables_pct ?? null;
   const fin = status?.budget_used_pct ?? null;
-  const recordedOutcomes = outcomes.filter((o) => o.kind === "outcome").map((o) => o.description);
-  const recordedImpacts = outcomes.filter((o) => o.kind === "impact").map((o) => o.description);
 
   const tabs: { key: DetailTab; label: string; icon: ReactNode }[] = [
     { key: "overview", label: "Overview", icon: <ClipboardList className={ICON} aria-hidden="true" /> },
@@ -560,28 +553,6 @@ function ProjectDetailContent() {
                 <SectionHeader>Approval Information (read-only reference)</SectionHeader>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <InfoCard label="NTP (Project Code)" value={project.ntp_number} />
-                  <InfoCard label="NTP Date" value={project.ntp_date ?? ""} />
-                  <InfoCard label="TOE Signed" value={project.toe_signed_date ?? ""} />
-                  <InfoCard label="Proposal Submitted" value={project.proposal_submitted_on ?? ""} />
-                  <InfoCard label="Proposal Reviewed" value={project.proposal_reviewed_on ?? ""} />
-                  <InfoCard label="Proposal Approved" value={project.proposal_approved_on ?? ""} />
-                  <InfoCard label="Reviewing / Approving Body" value={project.reviewing_body} />
-                  {endorsers.length > 0 ? (
-                    endorsers.map((e) => (
-                      <InfoCard key={e.id} label={e.designation || "Endorser"} value={[e.name, e.signed_on].filter(Boolean).join(" · ")} />
-                    ))
-                  ) : (
-                    <>
-                      <InfoCard label="Endorsed By (Dean)" value={[project.endorsed_by_dean, project.endorsed_by_dean_on].filter(Boolean).join(" · ")} />
-                      <InfoCard label="Noted By (RDS Director)" value={[project.noted_by_rds_director, project.noted_by_rds_director_on].filter(Boolean).join(" · ")} />
-                      <InfoCard
-                        label="Recommending (Campus Director)"
-                        value={[project.recommended_by_campus_director, project.recommended_by_campus_director_on].filter(Boolean).join(" · ")}
-                      />
-                      <InfoCard label="Recommending (VPRDE)" value={[project.recommended_by_vprde, project.recommended_by_vprde_on].filter(Boolean).join(" · ")} />
-                      <InfoCard label="Approved By (President)" value={project.approved_by_president} />
-                    </>
-                  )}
                 </div>
               </div>
               <div>
@@ -687,18 +658,6 @@ function ProjectDetailContent() {
                       .map((c) => `${c.label}: ${c.actual}/${c.target}${c.met ? " ✓" : ""}`),
                     color: "#0891b2",
                     bg: "#f0f9ff",
-                  },
-                  {
-                    title: "Anticipated Outcomes",
-                    items: [...lines(project.expected_outcomes), ...recordedOutcomes.map((o) => `Recorded: ${o}`)],
-                    color: "#059669",
-                    bg: "#f0fdf4",
-                  },
-                  {
-                    title: "Long-term Impacts",
-                    items: [...lines(project.expected_impacts), ...recordedImpacts.map((o) => `Recorded: ${o}`)],
-                    color: "#d97706",
-                    bg: "#fffbeb",
                   },
                 ].map((sec) => (
                   <div key={sec.title} className="rounded-xl p-4" style={{ background: sec.bg, border: `1px solid ${sec.color}20` }}>
