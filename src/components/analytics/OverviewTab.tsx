@@ -85,7 +85,7 @@ export function OverviewTab({
   const monthCount = months.reduce((a, m) => a + m.count, 0);
   const monthLabels = months.map((m) => monthLabel(m.month));
 
-  const byFunding = data.budget_by_funding_agency;
+  const byFunding = data.budget_by_funding_type;
   const maxFunding = Math.max(0, ...byFunding.map((f) => f.total));
 
   const pageBtn = (disabled: boolean) => ({ background: disabled ? "#f1f5f9" : "#0d2a5e", color: disabled ? "#94a3b8" : "white" });
@@ -149,13 +149,13 @@ export function OverviewTab({
           )}
         </ChartCard>
 
-        <ChartCard title="Budget Allocation by Funding Agency">
+        <ChartCard title="Budget Allocation by Funding Type">
           {byFunding.length === 0 ? (
             <Empty message="No budget data matches the selected filters." />
           ) : (
             <div className="space-y-2">
               {byFunding.map((f, i) => (
-                <HBar key={f.agency} label={f.agency} val={f.total} max={maxFunding} color={["#0d2a5e", "#0891b2", "#7c3aed", "#059669"][i % 4]} valLabel={peso(f.total)} />
+                <HBar key={f.funding_type} label={f.label} val={f.total} max={maxFunding} color={["#0d2a5e", "#0891b2", "#7c3aed", "#059669"][i % 4]} valLabel={peso(f.total)} />
               ))}
             </div>
           )}

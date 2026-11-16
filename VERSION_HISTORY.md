@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1114**
+**Latest version: 2026.11.16.1119**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1119
+
+- **Date and time:** 2026-11-16 11:19 (Asia/Manila)
+- **Category:** Backend and frontend, analytics (Analytics Overview)
+- **Summary:** "Budget Allocation by Funding Agency" is now **Budget Allocation by Funding Type**. The bars show the current LIB totals per project Funding Type (Institutional, Core-Funded, Externally-Funded, and any added in Funding Types), using the names from the Funding Types admin list. Before, it grouped by a LIB funding source that the LIB form no longer fills, so everything showed as "Unspecified". The overall budget total is unchanged.
+- **Affected modules:** Analytics (Overview tab), Dashboard API (performance)
+- **Notes:** Task 64-D. Backend 011a7bb (performance key budget_by_funding_agency renamed to budget_by_funding_type). No migration. Quarterly Reports' Funding Agency is not affected.
 
 ### 2026.11.16.1114
 
