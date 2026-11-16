@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1109**
+**Latest version: 2026.11.16.1114**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1114
+
+- **Date and time:** 2026-11-16 11:14 (Asia/Manila)
+- **Category:** Frontend, table column (Financial Monitoring)
+- **Summary:** The Disbursement Ledger and Budget Utilization tabs have a **Specification** column showing the saved LIB item's Specification, like the Procurement table. An item without a Specification shows "—". No Description column was added.
+- **Affected modules:** Procurement, Realignment & Financial Monitoring (Disbursement Ledger, Budget Utilization)
+- **Notes:** Task 64-C. Display only; totals, filters, sorting and the API are unchanged. No backend change, no migration.
 
 ### 2026.11.16.1109
 

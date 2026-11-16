@@ -258,6 +258,15 @@ function RecordModal({
   );
 }
 
+function SpecCell({ spec }: { spec?: string }) {
+  const text = spec?.trim();
+  return (
+    <td className="px-3 py-2.5 text-xs" style={{ maxWidth: "200px" }}>
+      <p className="truncate" style={{ color: text ? "#64748b" : "#cbd5e1" }} title={text || undefined}>{text || "—"}</p>
+    </td>
+  );
+}
+
 type RealignRow = { target: "existing" | "new"; from_line_item: string; to_line_item: string; new_item_category: string; new_item_description: string; amount: string; justification: string };
 const EMPTY_REALIGN_ROW: RealignRow = { target: "existing", from_line_item: "", to_line_item: "", new_item_category: "", new_item_description: "", amount: "", justification: "" };
 const realignRowOk = (r: RealignRow) =>
@@ -630,7 +639,7 @@ function ProjectBoard({
                     <table className="w-full text-sm">
                       <thead>
                         <tr style={{ background: "#f0f4f8" }}>
-                          {["Ref", "Date", "Description / Payee", "LIB Link", "Cat", "Source", "Amount", ""].map((h) => (
+                          {["Ref", "Date", "Description / Payee", "LIB Link", "Specification", "Cat", "Source", "Amount", ""].map((h) => (
                             <th key={h} className="px-3 py-2.5 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{h}</th>
                           ))}
                         </tr>
@@ -649,6 +658,7 @@ function ProjectBoard({
                                   <p className="text-xs truncate" style={{ color: "#94a3b8" }}>{d.payee || "—"}</p>
                                 </td>
                                 <td className="px-3 py-2.5"><p className="text-xs truncate max-w-xs" style={{ color: "#0369a1" }}>{it?.description ?? `#${d.line_item}`}</p></td>
+                                <SpecCell spec={it?.specification} />
                                 <td className="px-3 py-2.5">{it && <CatChip cat={it.category} />}</td>
                                 <td className="px-3 py-2.5 whitespace-nowrap">
                                   {d.procurement_request ? (
@@ -667,7 +677,7 @@ function ProjectBoard({
                       </tbody>
                       <tfoot>
                         <tr style={{ background: "#f0f4f8" }}>
-                          <td colSpan={6} className="px-3 py-2.5 text-xs font-black" style={{ color: "#0d2a5e" }}>Total ({filtered.length} txn{filtered.length !== 1 ? "s" : ""})</td>
+                          <td colSpan={7} className="px-3 py-2.5 text-xs font-black" style={{ color: "#0d2a5e" }}>Total ({filtered.length} txn{filtered.length !== 1 ? "s" : ""})</td>
                           <td className="px-3 py-2.5 text-xs font-mono font-black whitespace-nowrap" style={{ color: "#0d2a5e" }}>{peso(filtered.reduce((s, d) => s + Number(d.amount), 0))}</td>
                           <td />
                         </tr>
@@ -687,7 +697,7 @@ function ProjectBoard({
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ background: "#f0f4f8" }}>
-                        {["LIB Item", "Cat", "Adjusted", "Disbursed", "Balance", "Utilization", ""].map((h) => (
+                        {["LIB Item", "Specification", "Cat", "Adjusted", "Disbursed", "Balance", "Utilization", ""].map((h) => (
                           <th key={h} className="px-3 py-2.5 text-left text-xs font-bold whitespace-nowrap" style={{ color: "#64748b" }}>{h}</th>
                         ))}
                       </tr>
@@ -696,6 +706,7 @@ function ProjectBoard({
                       {util.map((r) => (
                         <tr key={r.line_item} className="border-t" style={{ borderColor: "#f1f5f9" }}>
                           <td className="px-3 py-3 text-xs font-semibold" style={{ color: "#0d2a5e", maxWidth: "220px" }}>{r.description}</td>
+                          <SpecCell spec={itemOf(r.line_item)?.specification} />
                           <td className="px-3 py-3"><CatChip cat={r.category} /></td>
                           <td className="px-3 py-3 text-xs font-mono whitespace-nowrap" style={{ color: "#334155" }}>{peso(r.adjusted)}</td>
                           <td className="px-3 py-3 text-xs font-mono font-bold whitespace-nowrap" style={{ color: "#0891b2" }}>{peso(r.actual)}</td>
@@ -715,7 +726,7 @@ function ProjectBoard({
                     </tbody>
                     <tfoot>
                       <tr style={{ background: "#f0f4f8" }}>
-                        <td colSpan={2} className="px-3 py-2.5 text-xs font-black" style={{ color: "#0d2a5e" }}>TOTAL (Adjusted)</td>
+                        <td colSpan={3} className="px-3 py-2.5 text-xs font-black" style={{ color: "#0d2a5e" }}>TOTAL (Adjusted)</td>
                         <td className="px-3 py-2.5 text-xs font-mono font-black" style={{ color: "#0d2a5e" }}>{peso(summary.totals.adjusted)}</td>
                         <td className="px-3 py-2.5 text-xs font-mono font-black" style={{ color: "#0891b2" }}>{peso(summary.totals.actual)}</td>
                         <td className="px-3 py-2.5 text-xs font-mono font-black" style={{ color: "#059669" }}>{peso(summary.totals.available)}</td>
