@@ -1278,7 +1278,7 @@ function BudgetContent() {
                         Open LIB
                       </button>
                       <button onClick={() => setReviewingId(project.id)} className="px-4 py-2 rounded-xl text-xs font-bold text-white hover:bg-[#1a3f7a]" style={{ background: "#0d2a5e" }}>
-                        Open Review
+                        {b.status === "certified" ? "View Information" : "Open Review"}
                       </button>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.13.2132**
+**Latest version: 2026.11.16.1054**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1054
+
+- **Date and time:** 2026-11-16 10:54 (Asia/Manila)
+- **Category:** Frontend, UI text (Budget Management, Project Review)
+- **Summary:** On the Finance/Accounting/Budget Project Review cards, a project whose LIB is already certified now shows **View Information** instead of **Open Review**. The button opens the same read-only review view as before. Projects not yet certified still show Open Review.
+- **Affected modules:** Budget Management (Finance/Accounting/Budget)
+- **Notes:** Task 63. Label only; no change to certification, statuses, permissions or the API. No backend change, no migration.
 
 ### 2026.11.13.2132
 
