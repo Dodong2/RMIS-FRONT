@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1054**
+**Latest version: 2026.11.16.1102**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1102
+
+- **Date and time:** 2026-11-16 11:02 (Asia/Manila)
+- **Category:** Frontend, status display (Dashboard, Project Management)
+- **Summary:** A project now shows **Ongoing** only after Finance/Accounting/Budget certified its LIB (review status Active). The Dashboard Projects tab and the Project Management list have a new **For Approval** summary (For Budget Review, Ongoing Review - CRC/CRD, Ongoing Review - Budget, Returned Review - Budget) next to Ongoing, Completed and Closed. Projects not yet certified show their review status instead of Ongoing. Draft, Submitted and Returned for Revision - CRC/CRD stay in the list but are counted in no summary. The Dashboard "N ongoing" figure follows the same rule.
+- **Affected modules:** Dashboard (Projects tab, Total Projects card, campus drill-down project rows), Project Management (summary filter, project cards); all roles
+- **Notes:** Task 62. Display only: no project status, data, permission or API change; no backend change, no migration. Analytics "Active Projects", the Risk dashboard and the per-campus counts on the Dashboard drill-down still use the project status (follow-up).
 
 ### 2026.11.16.1054
 

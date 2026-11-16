@@ -10,7 +10,7 @@ import { useReviewStep } from "../lib/useReviewStep";
 import { ProjectReviewWorkflow, ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
 import { SubmitConfirmDialog } from "../components/projects/SubmitConfirmDialog";
 import { RESEARCH_TYPE_LABELS, SDG_COLORS, SDG_LABELS } from "../lib/projectOptions";
-import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
+import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE, SUMMARY_GROUPS, SUMMARY_LABELS, SUMMARY_STYLE, showsLifecycle, summaryGroup, type SummaryGroup } from "../lib/projectStatus";
 import type { FundingType, Project, RecordStatus } from "../types/research";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
@@ -84,7 +84,7 @@ function ProjectsContent() {
   const statuses = Object.fromEntries(
     projects.map((p, i) => [p.id, statusResults[i]?.isError ? null : statusResults[i]?.data]),
   );
-  const [filterStatus, setFilterStatus] = useState<RecordStatus | "all">("all");
+  const [filterStatus, setFilterStatus] = useState<SummaryGroup | "all">("all");
   const [filterType, setFilterType] = useState<FundingType | "all">("all");
   const [filterSdg, setFilterSdg] = useState("all");
   const [search, setSearch] = useState("");
@@ -94,13 +94,14 @@ function ProjectsContent() {
   }, [projectsResult.isError]);
 
   const counts = projects.reduce<Record<string, number>>((acc, p) => {
-    acc[p.status] = (acc[p.status] ?? 0) + 1;
+    const g = summaryGroup(p);
+    if (g) acc[g] = (acc[g] ?? 0) + 1;
     return acc;
   }, {});
 
   const q = search.toLowerCase();
   const visible = newestFirst(projects).filter((p) => {
-    const matchStatus = filterStatus === "all" || p.status === filterStatus;
+    const matchStatus = filterStatus === "all" || summaryGroup(p) === filterStatus;
     const matchType = filterType === "all" || p.funding_type === filterType;
     const matchSdg = filterSdg === "all" || p.sdgs.includes(Number(filterSdg));
     const matchSearch =
@@ -147,12 +148,12 @@ function ProjectsContent() {
         onConfirm={confirmSubmit}
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {(["all", "active", "completed", "archived"] as const).map((s) => {
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {(["all", ...SUMMARY_GROUPS] as const).map((s) => {
           const isAll = s === "all";
           const count = isAll ? projects.length : counts[s] ?? 0;
           const active = filterStatus === s;
-          const c = isAll ? { bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" } : PROJECT_STATUS_STYLE[s];
+          const c = isAll ? { bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" } : SUMMARY_STYLE[s];
           return (
             <button
               key={s}
@@ -165,7 +166,7 @@ function ProjectsContent() {
             >
               <p className="text-lg font-black" style={{ color: active ? (isAll ? "white" : c.text) : "#0d2a5e" }}>{count}</p>
               <p className="text-xs font-semibold mt-0.5 leading-tight" style={{ color: active ? (isAll ? "rgba(255,255,255,0.7)" : c.text) : "#94a3b8" }}>
-                {isAll ? "All" : PROJECT_STATUS_LABELS[s]}
+                {isAll ? "All" : SUMMARY_LABELS[s]}
               </p>
             </button>
           );
@@ -237,7 +238,7 @@ function ProjectsContent() {
                       <span className="text-xs font-mono font-bold px-2 py-0.5 rounded" style={{ background: "#e0f2fe", color: "#0369a1" }}>
                         {proj.project_code}
                       </span>
-                      <StatusBadge status={proj.status} />
+                      {showsLifecycle(proj) && <StatusBadge status={proj.status} />}
                       <ReviewStatusBadge status={proj.review_status} />
                       {proj.research_type && (
                         <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>

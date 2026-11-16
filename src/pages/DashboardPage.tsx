@@ -14,7 +14,8 @@ import { useProjects } from "../lib/queries";
 import { personnelApi } from "../lib/personnelApi";
 import { riskApi } from "../lib/riskApi";
 import { visibleTargets } from "../lib/nav";
-import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
+import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE, SUMMARY_GROUPS, SUMMARY_LABELS, SUMMARY_STYLE, showsLifecycle, summaryGroup } from "../lib/projectStatus";
+import { ReviewStatusBadge } from "../components/projects/ProjectReviewWorkflow";
 import { resolveTier, type RoleTier, initialsFrom, personName } from "../lib/roles";
 import type {
   BudgetDashboard,
@@ -323,10 +324,10 @@ function ProjectsPanel({ data, scoped }: { data: DashData; scoped: Project[] }) 
   if (scoped.length === 0) return <NoActualData />;
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-2 mb-2">
-        {(["active", "completed", "archived"] as const).map((s) => {
-          const c = PROJECT_STATUS_STYLE[s];
-          return <CountTile key={s} label={PROJECT_STATUS_LABELS[s]} value={scoped.filter((p) => p.status === s).length} color={c.text} bg={c.bg} />;
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+        {SUMMARY_GROUPS.map((s) => {
+          const c = SUMMARY_STYLE[s];
+          return <CountTile key={s} label={SUMMARY_LABELS[s]} value={scoped.filter((p) => summaryGroup(p) === s).length} color={c.text} bg={c.bg} />;
         })}
       </div>
       {scoped.map((proj) => (
@@ -344,7 +345,7 @@ function ProjectsPanel({ data, scoped }: { data: DashData; scoped: Project[] }) 
               {proj.total_cost ? ` · ${peso(Number(proj.total_cost))}` : ""}
             </p>
           </div>
-          <StatusDot status={proj.status} />
+          {showsLifecycle(proj) ? <StatusDot status={proj.status} /> : <ReviewStatusBadge status={proj.review_status} />}
         </Link>
       ))}
     </div>
@@ -786,7 +787,7 @@ function DrillPanel({
                 <p className="text-xs font-mono font-bold" style={{ color: "#0891b2" }}>{proj.project_code}</p>
                 <p className="text-xs font-semibold leading-snug mt-0.5 line-clamp-2" style={{ color: "#0d2a5e" }}>{proj.title}</p>
               </div>
-              <StatusDot status={proj.status} />
+              {showsLifecycle(proj) ? <StatusDot status={proj.status} /> : <ReviewStatusBadge status={proj.review_status} />}
             </div>
             <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>{peso(libTotal([proj.id]))} LIB</p>
           </button>
@@ -995,7 +996,7 @@ function DashboardContent() {
           <KpiTile
             label="Total Projects"
             value={projectDash?.total_projects ? String(projectDash.total_projects) : "—"}
-            sub={projectDash?.total_projects ? `${projectDash.by_status.active ?? 0} ongoing` : "No actual data"}
+            sub={projectDash?.total_projects ? `${scoped.filter((p) => summaryGroup(p) === "active").length} ongoing` : "No actual data"}
             color="#0d2a5e"
             bg="#e0eaf7"
             icon={<Clipboard size={16} aria-hidden="true" />}
