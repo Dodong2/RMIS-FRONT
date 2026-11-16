@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activityTaskCompletion, ganttQuarters } from "./workplan";
+import { activityTaskCompletion, ganttQuarters, milestoneProgress } from "./workplan";
 import type { TaskStatus } from "../types/personnel";
 
 const task = (assignee: number, status: TaskStatus, milestone: number | null = 1) => ({ assignee, status, milestone });
@@ -54,5 +54,20 @@ describe("ganttQuarters", () => {
   it("is empty without a valid range", () => {
     expect(ganttQuarters("", "2026-12-31")).toEqual([]);
     expect(ganttQuarters("2026-12-31", "2026-01-01")).toEqual([]);
+  });
+});
+
+describe("milestoneProgress (Task 65-D, Closure Deliverables)", () => {
+  it("counts done milestones and averages their task-based %", () => {
+    expect(milestoneProgress([
+      { status: "done", progress_pct: 100 },
+      { status: "in_progress", progress_pct: 50 },
+      { status: "pending", progress_pct: 0 },
+      { status: "pending", progress_pct: 25 },
+    ])).toEqual({ done: 1, total: 4, avg: 44 });
+  });
+
+  it("is null when the project has no milestones", () => {
+    expect(milestoneProgress([])).toBeNull();
   });
 });

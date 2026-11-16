@@ -50,3 +50,14 @@ export function activityTaskCompletion(tasks: Pick<Task, "assignee" | "milestone
   const done = mine.filter((t) => t.status === "done").length;
   return { done, total: mine.length, pct: mine.length ? Math.round((done * 100) / mine.length) : 0 };
 }
+
+/** Closure "Deliverables" (client Task 65-D): done milestones out of all, and the average milestone % (each milestone's
+ * % is the average of its tasks), so partial task progress shows. Display only; the backend's deliverables_pct
+ * (done/total, used by renewal and risk) is unchanged. */
+export function milestoneProgress(milestones: Pick<Milestone, "status" | "progress_pct">[]) {
+  const total = milestones.length;
+  if (total === 0) return null;
+  const done = milestones.filter((m) => m.status === "done").length;
+  const avg = Math.round(milestones.reduce((s, m) => s + (m.progress_pct ?? 0), 0) / total);
+  return { done, total, avg };
+}

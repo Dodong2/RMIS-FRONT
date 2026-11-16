@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1151**
+**Latest version: 2026.11.16.1155**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1155
+
+- **Date and time:** 2026-11-16 11:55 (Asia/Manila)
+- **Category:** Frontend, Closure progress display
+- **Summary:** On a project's Closure tab, Deliverables now reads "x/N milestones done · avg Y%", so progress on tasks shows even before a milestone is fully done (before, it showed 0% until whole milestones were Done). When no terminal report exists yet, the Terminal Report card says where to submit it (Monitoring & Evaluation → Terminal Report).
+- **Affected modules:** Project Management (project detail, Closure tab)
+- **Notes:** Task 65-D. Display only. The backend deliverables % used by renewal eligibility, Risk and DSS is unchanged, and so are the terminal report workflow and the Overview Physical Progress. No backend change, no migration.
 
 ### 2026.11.16.1151
 

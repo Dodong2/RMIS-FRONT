@@ -9,6 +9,7 @@ import { budgetApi } from "../lib/budgetApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
 import { ActivityGantt } from "../components/workplan/ActivityGantt";
+import { milestoneProgress } from "../lib/workplan";
 import { PROJECT_EDIT_ROLE_CODES, REGISTRATION_ROLE_CODES, initialsFrom, personName } from "../lib/roles";
 import { PROJECT_STATUS_LABELS, PROJECT_STATUS_STYLE } from "../lib/projectStatus";
 import { registrationOpen } from "../lib/projectReview";
@@ -763,9 +764,22 @@ function ProjectDetailContent() {
                 <InfoCard label="Current Status" value={PROJECT_STATUS_LABELS[project.status]} />
                 <InfoCard
                   label="Terminal Report"
-                  value={terminal === undefined ? "…" : !terminal ? "Not submitted" : terminal.is_certified ? "Certified" : "Submitted, not certified"}
+                  value={
+                    terminal === undefined ? "…" : !terminal ? (
+                      <>
+                        Not submitted
+                        <span className="block text-xs font-normal mt-0.5" style={{ color: "#94a3b8" }}>Submit it in Monitoring &amp; Evaluation → Terminal Report.</span>
+                      </>
+                    ) : terminal.is_certified ? "Certified" : "Submitted, not certified"
+                  }
                 />
-                <InfoCard label="Deliverables" value={phys === null ? "—" : `${Math.round(phys)}%`} />
+                <InfoCard
+                  label="Deliverables"
+                  value={(() => {
+                    const mp = milestoneProgress(milestones);
+                    return mp ? `${mp.done}/${mp.total} milestones done · avg ${mp.avg}%` : "No milestones yet";
+                  })()}
+                />
                 <InfoCard label="Budget Utilization" value={fin === null ? "—" : `${Math.round(fin)}%`} />
               </div>
               {canEdit ? (
