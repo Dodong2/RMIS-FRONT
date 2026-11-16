@@ -22,6 +22,7 @@ import { PROCUREMENT_EVENTS, useRealtime } from "../hooks/useRealtime";
 import { STATUS_META, paymentMeta } from "../lib/procurementStatus";
 import { itemTotals, type ItemTotals } from "../lib/procurementBalance";
 import { LibItemPicker } from "../components/budget/LibItemPicker";
+import { ProjectPicker } from "../components/common/ProjectPicker";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
@@ -358,20 +359,14 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
       ) : (
         <>
           <Field label="Project" required>
-            <select
-              className={INPUT_CLS}
-              style={INPUT_STYLE}
+            <ProjectPicker
+              projects={eligible}
               value={form.project}
-              onChange={(e) => {
-                const project = e.target.value;
+              onChange={(project) => {
                 setForm((f) => ({ ...f, project, line_item: "", project_year: "", quarter: "" }));
                 setCat(firstCategory(certified.find((b) => String(b.project) === project)));
               }}
-            >
-              {eligible.map((p) => (
-                <option key={p.id} value={p.id}>{p.project_code} — {p.title}</option>
-              ))}
-            </select>
+            />
           </Field>
           <Field label="Expense Category" required>
             <select

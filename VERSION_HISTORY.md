@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1155**
+**Latest version: 2026.11.16.2104**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.2104
+
+- **Date and time:** 2026-11-16 21:04 (Asia/Manila)
+- **Category:** Frontend, UI fix
+- **Summary:** The Project dropdown in New Procurement Request and on Budget Forecast is now a searchable list that stays inside its box and scrolls. Each project shows the NTP on top and the title under it in smaller text, and the list can be searched by NTP or title. Before, the long titles stretched the dropdown past the modal.
+- **Affected modules:** Procurement (New Procurement Request), Analytics (Budget Forecast)
+- **Notes:** Task 67. Display only: the same projects are listed and choosing one resets the same fields as before. The Budget Forecast run badge still reads "Title — NTP". No backend change, no migration.
 
 ### 2026.11.16.1155
 

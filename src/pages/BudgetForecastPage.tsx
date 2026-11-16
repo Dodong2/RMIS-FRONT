@@ -7,7 +7,7 @@ import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { INPUT_CLS, INPUT_STYLE } from "../lib/protoStyles";
+import { ProjectPicker } from "../components/common/ProjectPicker";
 import type { ForecastProject, ForecastRun, ForecastStatus } from "../types/forecasting";
 import type { Project } from "../types/research";
 import type { BudgetSummary, Disbursement } from "../types/financial";
@@ -306,22 +306,16 @@ function ForecastContent() {
     <div className="space-y-5 animate-fade-in">
       <div className="rounded-2xl p-5" style={{ background: "white", border: "1px solid #e2e8f0" }}>
         <label className="label-field" htmlFor="forecast-project">Project</label>
-        <select
+        <ProjectPicker
           id="forecast-project"
-          value={projectId ?? ""}
-          onChange={(e) => {
-            setProjectId(Number(e.target.value));
+          projects={projects}
+          value={projectId == null ? "" : String(projectId)}
+          onChange={(id) => {
+            setProjectId(Number(id));
             setRanQuick(false);
             setDisbursements(null);
           }}
-          className={INPUT_CLS + " w-full"}
-          style={INPUT_STYLE}
-          title={choice ? forecastProjectLabel(choice) : undefined}
-        >
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{forecastProjectLabel(p)}</option>
-          ))}
-        </select>
+        />
         <p className="text-xs mt-1.5" style={{ color: "#94a3b8" }}>Active projects only (LIB certified by Finance/Accounting/Budget), any funding type.</p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
