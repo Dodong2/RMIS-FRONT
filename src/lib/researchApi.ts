@@ -2,7 +2,7 @@ import type { ExcelReviewIssue } from "./excelReview";
 import type { RegistrationPayload } from "./registrationDraft";
 import { apiClient, idempotent } from "./apiClient";
 import { downloadReport } from "./reportsApi";
-import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary, LibImportRow, WorkPlanImportRow } from "../types/research";
+import type { AdminChoice, AdminChoiceInput, AdminChoiceKind, Milestone, Program, Project, ProjectEndorser, ProjectHistoryEvent, ProjectStatusHistory, ProjectTeamMember, Study, TargetBeneficiary, LibImportRow, WorkPlanImportRow } from "../types/research";
 import type { AdminUser } from "../types/auth";
 import type { LibAllocation, LineItemBudget } from "../types/budget";
 
@@ -279,6 +279,10 @@ export const researchApi = {
   },
   updateProject: async (id: number, payload: Partial<Project> & { status_remarks?: string }): Promise<Project> => {
     const { data } = await apiClient.patch(`/api/projects/${id}/`, payload);
+    return data;
+  },
+  getProjectHistory: async (id: number): Promise<ProjectHistoryEvent[]> => {
+    const { data } = await apiClient.get(`/api/projects/${id}/history/`);
     return data;
   },
   getStatusHistory: async (id: number): Promise<ProjectStatusHistory[]> => {

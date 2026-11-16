@@ -197,6 +197,16 @@ export interface LibImportRow {
   allocations: { period: string; amount: string }[];
 }
 
+/** GET projects/<id>/history/ (Task 65-C): recorded workflow events, newest first. */
+export interface ProjectHistoryEvent {
+  at: string;
+  kind: "status" | "update" | "comment";
+  title: string;
+  actor_name: string;
+  actor_role: string;
+  remarks: string;
+}
+
 export interface ProjectStatusHistory {
   id: number;
   project: number;

@@ -24,6 +24,7 @@ import type {
   Milestone,
   Program,
   Project,
+  ProjectHistoryEvent,
   ProjectStatusHistory,
   ProjectTeamMember,
   RecordStatus,
@@ -56,6 +57,12 @@ const INPUT_STYLE = { borderColor: "#e2e8f0", background: "#f8fafc", color: "#33
 
 const peso = (n: number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(n);
+
+const HISTORY_KIND_LABELS: Record<ProjectHistoryEvent["kind"], { label: string; bg: string; color: string }> = {
+  status: { label: "Workflow", bg: "#e0f2fe", color: "#0369a1" },
+  update: { label: "LIB update", bg: "#fef3c7", color: "#92400e" },
+  comment: { label: "Comment", bg: "#f1f5f9", color: "#475569" },
+};
 
 const lines = (s: string) =>
   s
@@ -188,6 +195,7 @@ function ProjectDetailContent() {
   const [formTeam, setFormTeam] = useState<ProjectTeamMember[]>([]);
   const [targetBeneficiaries, setTargetBeneficiaries] = useState<TargetBeneficiary[]>([]);
   const [history, setHistory] = useState<ProjectStatusHistory[] | null | undefined>(undefined);
+  const [events, setEvents] = useState<ProjectHistoryEvent[] | null | undefined>(undefined);
   const [status, setStatus] = useState<ProjectMonitoringStatus | null | undefined>(undefined);
   const [terminal, setTerminal] = useState<TerminalReport | null | undefined>(undefined);
   const [expected, setExpected] = useState<ExpectedVsActual | null>(null);
@@ -234,6 +242,7 @@ function ProjectDetailContent() {
         if (active) setIsLoading(false);
       });
     researchApi.getStatusHistory(projectId).then(guard(setHistory)).catch(guard(() => setHistory(null)));
+    researchApi.getProjectHistory(projectId).then(guard(setEvents)).catch(guard(() => setEvents(null)));
     monitoringApi.getProjectStatus(projectId).then(guard(setStatus)).catch(guard(() => setStatus(null)));
     monitoringApi
       .getTerminalReports({ project: projectId })
@@ -683,60 +692,56 @@ function ProjectDetailContent() {
           {tab === "history" && (
             <div className="space-y-4">
               <SectionHeader>Registration & Project History</SectionHeader>
-              <div className="relative">
-                <div className="absolute left-3.5 top-0 bottom-0 w-px" style={{ background: "#e2e8f0" }} />
-                <ul className="space-y-4">
-                  {[
-                    ...(history ?? []).map((h) => ({
-                      id: `h${h.id}`,
-                      tag: `${PROJECT_STATUS_LABELS[h.from_status]} → ${PROJECT_STATUS_LABELS[h.to_status]}`,
-                      title: PROJECT_STATUS_LABELS[h.to_status],
-                      date: h.changed_at.slice(0, 10),
-                      remarks: h.remarks,
-                      actor: h.changed_by_name,
-                    })),
-                    {
-                      id: "created",
-                      tag: "Registered",
-                      title: "Project registered in RMIS",
-                      date: project.created_at.slice(0, 10),
-                      remarks: project.ntp_number ? `NTP ${project.ntp_number}` : "",
-                      actor: "",
-                    },
-                  ].map((entry, idx) => {
-                    const isFirst = idx === 0;
-                    return (
-                      <li key={entry.id} className="relative flex gap-4 pl-8">
-                        <div
-                          className="absolute left-0 w-7 h-7 rounded-full flex items-center justify-center border-2"
-                          style={{ background: isFirst ? "#0d2a5e" : "white", borderColor: isFirst ? "#0d2a5e" : "#e2e8f0" }}
-                        >
-                          <div className="w-2 h-2 rounded-full" style={{ background: isFirst ? "white" : "#cbd5e1" }} />
-                        </div>
-                        <div
-                          className="flex-1 rounded-xl p-4"
-                          style={{ background: isFirst ? "#f0f9ff" : "#f8fafc", border: `1px solid ${isFirst ? "#bae6fd" : "#e2e8f0"}` }}
-                        >
-                          <div className="flex items-start justify-between gap-2 flex-wrap">
-                            <div>
-                              <span
-                                className="inline-block text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded"
-                                style={{ background: isFirst ? "#0d2a5e" : "#e2e8f0", color: isFirst ? "white" : "#475569" }}
-                              >
-                                {entry.tag}
-                              </span>
-                              <p className="text-sm font-semibold mt-1" style={{ color: "#1e293b" }}>{entry.title}</p>
-                            </div>
-                            <p className="text-xs font-mono" style={{ color: "#94a3b8" }}>{entry.date}</p>
+              {events === undefined ? (
+                <div className="h-24 rounded-xl animate-pulse" style={{ background: "#f8fafc" }} />
+              ) : events === null ? (
+                <NoActualData message="Could not load this project's history." hint="Check your connection and refresh." />
+              ) : (
+                <div className="relative">
+                  <div className="absolute left-3.5 top-0 bottom-0 w-px" style={{ background: "#e2e8f0" }} />
+                  <ul className="space-y-4">
+                    {events.map((entry, idx) => {
+                      const isFirst = idx === 0;
+                      const tag = HISTORY_KIND_LABELS[entry.kind];
+                      return (
+                        <li key={`${entry.at}-${idx}`} className="relative flex gap-4 pl-8">
+                          <div
+                            className="absolute left-0 w-7 h-7 rounded-full flex items-center justify-center border-2"
+                            style={{ background: isFirst ? "#0d2a5e" : "white", borderColor: isFirst ? "#0d2a5e" : "#e2e8f0" }}
+                          >
+                            <div className="w-2 h-2 rounded-full" style={{ background: isFirst ? "white" : "#cbd5e1" }} />
                           </div>
-                          {entry.remarks && <p className="text-xs mt-2 leading-relaxed" style={{ color: "#64748b" }}>{entry.remarks}</p>}
-                          {entry.actor && <p className="text-xs mt-1 font-medium" style={{ color: "#0891b2" }}>by {entry.actor}</p>}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
+                          <div
+                            className="flex-1 rounded-xl p-4"
+                            style={{ background: isFirst ? "#f0f9ff" : "#f8fafc", border: `1px solid ${isFirst ? "#bae6fd" : "#e2e8f0"}` }}
+                          >
+                            <div className="flex items-start justify-between gap-2 flex-wrap">
+                              <div>
+                                <span
+                                  className="inline-block text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded"
+                                  style={{ background: isFirst ? "#0d2a5e" : tag.bg, color: isFirst ? "white" : tag.color }}
+                                >
+                                  {isFirst ? `Latest · ${tag.label}` : tag.label}
+                                </span>
+                                <p className="text-sm font-semibold mt-1" style={{ color: "#1e293b" }}>{entry.title}</p>
+                              </div>
+                              <p className="text-xs font-mono" style={{ color: "#94a3b8" }}>
+                                {new Date(entry.at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })}
+                              </p>
+                            </div>
+                            {entry.remarks && <p className="text-xs mt-2 leading-relaxed whitespace-pre-line" style={{ color: "#64748b" }}>{entry.remarks}</p>}
+                            {entry.actor_name && (
+                              <p className="text-xs mt-1 font-medium" style={{ color: "#0891b2" }}>
+                                by {entry.actor_name}{entry.actor_role ? ` · ${entry.actor_role}` : ""}
+                              </p>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 

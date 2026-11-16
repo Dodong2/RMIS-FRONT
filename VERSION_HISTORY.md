@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.1143**
+**Latest version: 2026.11.16.1151**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.16.1151
+
+- **Date and time:** 2026-11-16 11:51 (Asia/Manila)
+- **Category:** Backend and frontend, project History tab
+- **Summary:** A project's History tab now shows the process it actually went through, newest first: registration, submission by the Project Leader, CRC/CRD Mark for checking (forwarded to Finance/Accounting/Budget), returns for revision by CRC/CRD or Finance with their remarks, resubmissions, Finance review start, comments, certification (project Active), LIB line-item updates, and Ongoing/Completed/Closed changes. Each entry shows who did it, their role and the date and time; the latest is highlighted. Every role that can open the project sees the same history.
+- **Affected modules:** Project Management (project detail, History tab)
+- **Notes:** Task 65-C. Backend 179c31b (new GET /api/projects/<id>/history/). Built only from saved records; steps from before these records existed are not shown. No migration.
 
 ### 2026.11.16.1143
 
