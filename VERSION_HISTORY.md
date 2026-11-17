@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.2340**
+**Latest version: 2026.11.18.0124**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.0124
+
+- **Date and time:** 2026-11-18 01:24 (Asia/Manila)
+- **Category:** Bug fix (backend)
+- **Summary:** Decision Support scores no longer come out as 100 for everyone. Each indicator is now scored on a fixed 0-100 scale from its standard formula (e.g. 0% budget utilization = 0, no ethics review = 50) instead of being compared against the other projects in the run, where a tie gave every project 100. Each new run remembers the weights and formulas it used.
+- **Affected modules:** Decision Support System (Run DSS, Rankings & Scores, Sensitivity Analysis)
+- **Notes:** Task 76-A, rmis-backend 22123cc. Needs migration decision_support 0003 (Carl runs it). Runs made before this are kept as they were and labelled as using the old relative scale; run the DSS again to get the new scores. Output Volume is scored against the highest output count in the run.
 
 ### 2026.11.17.2340
 
