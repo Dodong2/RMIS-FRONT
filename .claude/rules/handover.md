@@ -680,18 +680,20 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-17, client Tasks 68 (slow updates) and 69 (Finance Supporting Document History), on `main`, NOT pushed, no migration. Memory note: `tasks-68-69-2026-11-17`.
+2026-11-17, client Tasks 68 (slow updates) and 69 (Finance Supporting Document History), plus 68-A2 and 70, on `main`, no migration. Pushed by Carl up to the first handover `4aadd5c`; `02383e9`, `efd1f39` and this handover NOT pushed. Memory note: `tasks-68-69-2026-11-17`.
 - Cause found: real-time events arrived, but every procurement action reloaded every list on the page (including all LIBs and projects) and the backend lists ran N+1 queries (LIB list 23 s). Backend fixed in rmis-backend 68-A/68-D (see its handover).
 - `bde2c63` v2026.11.17.1620: version bump for backend 68-A (N+1 fix).
 - `eb5d09d` v2026.11.17.1638 (68-B): `upsertProcurement` in `src/lib/procurementStatus.ts`; `ProcurementPage` (File Request, Receive, status, Resubmit) and `ProcurementPayments` (Confirm Payment) put the row the server returned into the loaded lists, then reload to confirm. Procurement actions no longer invalidate `projects`/`budgets`. Nothing shown before the server confirms.
 - `00be3b8` v2026.11.17.1642 (68-C): Budget Forecast picker resets LIB/summary/runs/selected run with the disbursements ("…" in Current Budget Status while loading); a finished run is added only if its project is still on screen.
 - `1dc5116` v2026.11.17.1651: version bump for backend 69 (Finance sees project supporting documents; same `ProjectReviewWorkflow` component, no UI change).
 - `a291281` v2026.11.17.1700: version bump for backend 68-D (procurement e-mails in a background thread).
-- Tests: vitest 182/182 (33 files), `tsc -b` and eslint clean on touched files. Browser and prod not tested. Guide: 16Z-AC..16Z-AG, T42-A marked superseded by Task 69.
+- `02383e9` v2026.11.17.1714: version bump for backend 68-A2 (Budget Summary 3.7 s -> 0.27 s, figures unchanged).
+- `efd1f39` v2026.11.17.1719: version bump for backend 70 (CRC/CRD, Finance, RIUH, Procurement see their own campus's documents only).
+- Tests: vitest 182/182 (33 files), `tsc -b` and eslint clean on touched files. Browser and prod not tested. Guide: 16Z-AC..16Z-AI, T42-A marked superseded by Task 69.
 
 ## Next thing to do in this repo
-1. Carl: push rmis-backend first (`82d5a87`, `cf2a937`, `40481a3`), then rmis-frontend (5 commits above + this handover), deploy both, check Netlify shows 2026.11.17.1700.
-2. Carl: browser-test 16Z-AC..16Z-AG per role (PL, Procurement Officer, Finance); the two-browser real-time check works only on prod. Plus 16Z-Q..16Z-AB if not finished.
-3. Open, needs Carl/client: 68-A2 Budget Summary (~4 s, backend); CRC/CRD documents not campus-scoped; Finance financial documents not campus-scoped. Older follow-ups (Analytics "Active Projects", Risk dashboard counts, Quarterly Reports Funding Agency, DSS gaps, AuthContext eslint errors) still open.
+1. Carl: push rmis-backend (`d640443`, `2e1f10f`) first, then rmis-frontend (`02383e9`, `efd1f39` + this handover); deploy both; check Netlify shows 2026.11.17.1719.
+2. Carl: browser-test 16Z-AC..16Z-AI per role (PL, Procurement Officer, Finance, CRC/CRD); the two-browser real-time check works only on prod. Plus 16Z-Q..16Z-AB if not finished. Before a demo: CRC/CRD no longer sees other campuses' documents.
+3. Open (no task): Draft projects' documents still visible to campus CRC/CRD/Finance on the Documents page; older follow-ups (Analytics "Active Projects", Risk dashboard counts, Quarterly Reports Funding Agency, DSS gaps, AuthContext eslint errors).
 4. Lesson: for "UI slow after toast" use the mutation response (putLib, upsertProcurement) and invalidate only what the write changed.
 5. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
