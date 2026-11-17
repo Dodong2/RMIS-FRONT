@@ -279,7 +279,7 @@ automatically — most pages needed zero code changes for this pass.
   yet browser-tested by the client — the real project currently has no
   disbursement history, so a first click-through will hit the
   insufficient-data path, not the chart, until real disbursements exist.
-- Module 12 (Decision Support System): **2026-11-18 (Task 76): EDIT checkbox for the scoring formula (DSS-01) + Edit Formula on cards, Assign Weights — DSS-02 panel (1-60%, sum 100), run weights from `weights_snapshot`, "Old relative scale" label, access = system_admin/vprei/university_admin/crc_chair (`DSS_VIEW_ROLE_CODES`) — see "Last thing done"; the AHP-only/min-max notes below are history.** DecisionSupportPage built against the
+- Module 12 (Decision Support System): **2026-11-18 (Task 77-A): formula box examples + clearer symbol rules.** **2026-11-18 (Task 76): EDIT checkbox for the scoring formula (DSS-01) + Edit Formula on cards, Assign Weights — DSS-02 panel (1-60%, sum 100), run weights from `weights_snapshot`, "Old relative scale" label, access = system_admin/vprei/university_admin/crc_chair (`DSS_VIEW_ROLE_CODES`) — see "Last thing done"; the AHP-only/min-max notes below are history.** DecisionSupportPage built against the
   decision_support app — 3 pill tabs: Criteria, AHP Weighting, and Funding
   Recommendations. This module has no Manual precedent (docx-spec only), so
   the default criteria set (output volume, compliance completeness, budget
@@ -680,14 +680,19 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-18, client Task 76 (Decision Support System, Figma DSS-01/DSS-02, "puro 100%", 4-role access), on `main`. PUSHED by Carl: `a94287c`, `d3c54b2`, `23273cf`, `74e9151` (version bumps for backend 76-A..D), `87f21f1` (76-E), `daa0872` (76-F); this handover is not pushed. Backend: rmis-backend `22123cc`..`ecdff89` (see its handover). Memory note: `task-76-dss-2026-11-18`.
+2026-11-18, client Task 77 (DSS formula "hindi nagana" + how-to guide), on `main`, PUSHED by Carl except this handover. Backend: rmis-backend `a3c481d`. Memory note: `task-76-dss-2026-11-18`.
+- `91a0cc0` v2026.11.18.0251 (77-A): formula box in `IndicatorModal` explains the allowed symbols (× ÷ also work; no words, %, = or ^) and has 4 clickable examples (`FORMULA_EXAMPLES`) above the variable buttons. Backend now accepts × ÷ − and names a bad symbol. Cause: two 400 "not valid arithmetic" saves in the audit log, and no DSS run since Task 76.
+- 77-B: user guide `dss/RMIS_DSS_Paano_Gamitin_2026-11-18.docx` (Taglish); supersedes `dss/RMIS_DSS_Guide_2026-11-16.docx`.
+- Tests: tsc, eslint, vitest 187/187. Browser not tested. Guide 16Z-AU.
+
+Earlier 2026-11-18, client Task 76 (Decision Support System, Figma DSS-01/DSS-02, "puro 100%", 4-role access), on `main`. PUSHED by Carl: `a94287c`, `d3c54b2`, `23273cf`, `74e9151` (version bumps for backend 76-A..D), `87f21f1` (76-E), `daa0872` (76-F). Backend: rmis-backend `22123cc`..`ecdff89` (see its handover). Memory note: `task-76-dss-2026-11-18`.
 - `87f21f1` v2026.11.18.0145 (76-E, `DecisionSupportPage.tsx`): `IndicatorModal` (create + Edit Formula) keeps "Measured From" and adds an EDIT checkbox beside "Scoring Formula / Method" (unchecked = standard formula shown/used; checked = textarea, clickable variables, server error under the box). `AssignWeightsPanel` under the model card (Figma assign-weights.png: sliders 1-60, "Sum: X / 100 ✓", Save only at 100). `PairwiseModal` is now the optional "AHP pairwise comparison" for draft models. Rankings/score detail use `runWeights` (run `weights_snapshot`, model weights as fallback); `minmax_v1` runs get an "Old relative scale" pill. `METRIC_META` formulas describe the 0-100 scale.
 - `daa0872` v2026.11.18.0151 (76-F): `DSS_VIEW_ROLE_CODES` in `src/lib/roles.ts`; `/decision-support` RoleGate; nav item tiers system_admin + institution_oversight + `roles: ["crc_chair"]` (finance removed); Analytics "Decision Support" tab and Dashboard card 5d only for those roles (Dashboard doesn't call funding-allocation for others); `DecisionTab` shows the run's `weights_snapshot`.
 - Tests: `npx tsc -b`, eslint, vitest 187/187 (2 new in `nav.test.ts`). Browser not tested (needs backend deploy + migrations). Guide 16Z-AN..16Z-AT.
 
 ## Next thing to do in this repo
-1. Carl: deploy frontend + backend together (both pushed), migrate (decision_support 0003-0005, accounts 0034), parity 0; Netlify should show 2026.11.18.0151.
-2. Carl: run the DSS again, browser-test 16Z-AO..16Z-AT (System Admin: EDIT formula, Edit Weights, Run; CRC/CRD view-only; Finance no DSS). Warn the client before a demo: Finance loses the DSS, CRC/CRD gains view, no active VP for REI / University Administration account.
-3. Open (no task): Output Volume score is relative to the highest count in the run; quick forecast zero-fill vs ARIMA months (Task 72 flag); draft-project documents for campus roles; older follow-ups (Analytics "Active Projects", Risk dashboard counts, Quarterly Reports Funding Agency, AuthContext eslint errors).
-4. Lesson: when the client says "follow Figma" for a calculation, read the Make source's compute function, not just the screenshot (Figma DSS = absolute 0-100 x weight %).
+1. Carl: deploy (Netlify should show 2026.11.18.0251) with backend `a3c481d`; Run DSS again and browser-test 16Z-AO..16Z-AU with the new guide.
+2. Warn the client before a demo: Finance loses the DSS, CRC/CRD view-only, only System Admin can run it now; a one-indicator model's weight is locked at 100% (by design).
+3. Open (no task): Output Volume relative to the highest count in the run; can't add indicators to an existing model; quick forecast zero-fill vs ARIMA (Task 72 flag); draft-project documents for campus roles; older follow-ups (Analytics "Active Projects", Risk dashboard counts, Quarterly Reports Funding Agency, AuthContext eslint errors).
+4. Lesson: say exactly which symbols a formula field accepts; "× ÷ as * /" was read as "× ÷ allowed".
 5. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
