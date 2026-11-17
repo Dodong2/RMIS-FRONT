@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.1651**
+**Latest version: 2026.11.17.1700**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.1700
+
+- **Date and time:** 2026-11-17 17:00 (Asia/Manila)
+- **Category:** Backend, faster response
+- **Summary:** Filing, receiving, returning and completing a procurement request no longer waits for the notification e-mails to be sent. The e-mails go out in the background right after the step is saved, so the success message appears sooner. Measured with a simulated 0.8 s e-mail service: File Request 0.88 s → 0.13 s of waiting, Completed (2 e-mails) 1.68 s → 0.10 s.
+- **Affected modules:** Procurement (e-mail notifications)
+- **Notes:** Task 68-D. Same e-mails, same recipients, still sent once and only after the step is saved. Known limit: an e-mail still being sent when the server restarts (a deploy) can be lost. No frontend change, no migration.
 
 ### 2026.11.17.1651
 
