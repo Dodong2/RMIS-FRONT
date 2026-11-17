@@ -201,7 +201,6 @@ function ForecastContent() {
   const [contingency, setContingency] = useState(15);
   const [scenario, setScenario] = useState<Scenario>("base");
   const [tab, setTab] = useState<Tab>("results");
-  const [ranQuick, setRanQuick] = useState(false);
   const [running, setRunning] = useState(false);
   const [now] = useState(() => new Date());
 
@@ -276,11 +275,6 @@ function ForecastContent() {
   const selectedRun = runs.find((r) => r.id === selectedRunId) ?? null;
 
   const run = async () => {
-    if (method !== "arima") {
-      setRanQuick(true);
-      setTab("results");
-      return;
-    }
     if (!projectId) return;
     setRunning(true);
     try {
@@ -304,7 +298,6 @@ function ForecastContent() {
   if (projects.length === 0) return <NoActualData hint="No Active project yet. A project can be forecast once Finance/Accounting/Budget certifies its LIB." />;
 
   const utilNow = budgetTotal > 0 ? Math.round((actual / budgetTotal) * 100) : 0;
-  const showQuick = method !== "arima" && ranQuick && quick;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -316,7 +309,6 @@ function ForecastContent() {
           value={projectId == null ? "" : String(projectId)}
           onChange={(id) => {
             setProjectId(Number(id));
-            setRanQuick(false);
             // Task 68-C: never show the previous project's figures while this one loads
             setDisbursements(null);
             setBudget(null);
@@ -367,7 +359,7 @@ function ForecastContent() {
                     key={k}
                     onClick={() => {
                       setMethod(k);
-                      setRanQuick(false);
+                      if (k !== "arima") setTab("results");
                     }}
                     className="w-full text-left rounded-xl px-3 py-2.5 transition-all"
                     style={{ background: method === k ? "#e0eaf7" : "#f8fafc", border: `1.5px solid ${method === k ? "#0d2a5e40" : "#e2e8f0"}` }}
@@ -400,16 +392,16 @@ function ForecastContent() {
                 </div>
               </>
             )}
-            {method === "arima" && !canRun ? (
+            {method !== "arima" ? null : !canRun ? (
               <p className="text-xs" style={{ color: "#94a3b8" }}>Only DRD, VPREI, the Budget Officer, or the System Admin can run the ARIMA model. Past runs are under "Saved Forecasts".</p>
             ) : (
               <button
                 onClick={run}
-                disabled={running || (method !== "arima" && history.length === 0)}
+                disabled={running}
                 className="w-full py-3 rounded-xl font-black text-white flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #0d2a5e, #0891b2)" }}
               >
-                ▶ {running ? "Running…" : method === "arima" ? "Run ARIMA Forecast" : "Run Forecast"}
+                ▶ {running ? "Running…" : "Run ARIMA Forecast"}
               </button>
             )}
           </div>
@@ -492,11 +484,6 @@ function ForecastContent() {
                 )
               ) : history.length === 0 ? (
                 <NoActualData hint="No disbursements recorded for this project yet." />
-              ) : !showQuick ? (
-                <div className="text-center py-10 rounded-2xl" style={{ background: "#f8fafc" }}>
-                  <p className="text-3xl mb-2">▶️</p>
-                  <p className="text-sm font-bold" style={{ color: "#64748b" }}>Configure parameters and click Run Forecast to generate projections.</p>
-                </div>
               ) : (
                 <div className="space-y-5">
                   <div className="flex gap-2">

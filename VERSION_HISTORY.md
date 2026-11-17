@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.2210**
+**Latest version: 2026.11.17.2221**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.2221
+
+- **Date and time:** 2026-11-17 22:21 (Asia/Manila)
+- **Category:** UI change
+- **Summary:** Budget Forecast: Average Burn Rate, Linear Trend, Moving Average and % Completion now show their projections as soon as the method is clicked, and update right away when the horizon, anchor or contingency slider moves. The Run Forecast button is shown for ARIMA only ("Run ARIMA Forecast"), since only ARIMA runs on the server and is saved.
+- **Affected modules:** Budget Forecasting (Forecast Parameters, Projections & Chart)
+- **Notes:** Task 72. The quick-method formulas, the ARIMA run and Saved Forecasts are unchanged. The "Configure parameters and click Run Forecast" message is gone; a project without disbursements still shows "No disbursements recorded". No migration.
 
 ### 2026.11.17.2210
 
