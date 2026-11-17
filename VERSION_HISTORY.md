@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.0124**
+**Latest version: 2026.11.18.0128**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.0128
+
+- **Date and time:** 2026-11-18 01:28 (Asia/Manila)
+- **Category:** Feature (backend)
+- **Summary:** Decision Support indicators can now use a custom scoring formula instead of the standard one. The formula is plain arithmetic (numbers, + - * /, parentheses, min, max) over `score` (the indicator's standard 0-100 score) and the raw values of the seven standard metrics; the result is kept between 0 and 100. Invalid formulas are refused with a message. When Edit is off, the standard formula is used, and a saved custom formula is kept but ignored.
+- **Affected modules:** Decision Support System (Define Indicator, Run DSS)
+- **Notes:** Task 76-B, rmis-backend (formula.py, PATCH criteria/<id>/). Needs migration decision_support 0004 (Carl runs it). The Edit checkbox in the Define Indicator modal comes in Task 76-E. Dividing by zero counts as 0.
 
 ### 2026.11.18.0124
 
