@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.2221**
+**Latest version: 2026.11.17.2314**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.2314
+
+- **Date and time:** 2026-11-17 23:14 (Asia/Manila)
+- **Category:** Bug fix
+- **Summary:** Error toasts now show the server's real reason when a request sends several rows at once (e.g. Request Realignment). Before, the toast only said "Could not submit the realignment." and hid the reason, such as "Realignment requests must be submitted at least 60 days before the project's target end date."
+- **Affected modules:** Budget Realignment (Request Realignment), every page that shows a server error toast
+- **Notes:** Task 73. Only the error-message reader changed; messages that already showed are unchanged. The realignment rules (incl. the 60-day rule) are unchanged. No migration.
 
 ### 2026.11.17.2221
 

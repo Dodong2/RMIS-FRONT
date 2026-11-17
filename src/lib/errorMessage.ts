@@ -11,9 +11,19 @@ export function throttledMessage(err: unknown): string | null {
 export function errorMessage(err: unknown, fallback: string): string {
   const throttled = throttledMessage(err);
   if (throttled) return throttled;
-  const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
-  if (!data) return fallback;
-  if (typeof data.detail === "string") return data.detail;
-  const first = Object.values(data).flat()[0];
-  return typeof first === "string" ? first : fallback;
+  const data = (err as { response?: { data?: unknown } })?.response?.data;
+  if (!data || typeof data !== "object") return fallback;
+  return firstString(data) ?? fallback;
+}
+
+function firstString(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.detail === "string") return record.detail;
+  for (const item of Object.values(record)) {
+    const found = firstString(item);
+    if (found) return found;
+  }
+  return null;
 }

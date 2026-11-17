@@ -45,4 +45,21 @@ describe("errorMessage", () => {
   it("keeps the backend detail for other errors", () => {
     expect(errorMessage({ response: { status: 400, data: { detail: "Bad." } } }, "Failed.")).toBe("Bad.");
   });
+
+  it("reads the first field message", () => {
+    expect(errorMessage({ response: { status: 400, data: { amount: ["Too high."] } } }, "Failed.")).toBe("Too high.");
+  });
+
+  it("reads the message of a bulk (list) request", () => {
+    const data = [{}, { non_field_errors: ["Realignment requests must be submitted at least 60 days before the project's target end date."] }];
+    expect(errorMessage({ response: { status: 400, data } }, "Failed.")).toBe(
+      "Realignment requests must be submitted at least 60 days before the project's target end date.",
+    );
+  });
+
+  it("falls back when there is no message", () => {
+    expect(errorMessage({ response: { status: 500, data: "<html>Server Error</html>" } }, "Failed.")).toBe("Failed.");
+    expect(errorMessage({ response: { status: 400, data: [{}] } }, "Failed.")).toBe("Failed.");
+    expect(errorMessage(new Error("Network Error"), "Failed.")).toBe("Failed.");
+  });
 });
