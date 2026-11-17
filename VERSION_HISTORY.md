@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.1700**
+**Latest version: 2026.11.17.1714**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.1714
+
+- **Date and time:** 2026-11-17 17:14 (Asia/Manila)
+- **Category:** Backend, performance fix
+- **Summary:** The Budget Summary (Approved, Adjusted, Actual, Available per LIB item) loads much faster. It used to ask the database three separate questions for every line item; now it reads the whole LIB in one go. Measured on the shared database: a 17-item LIB 3.7 s → 0.27 s (51 → 3 queries); all 18 LIBs together 33.9 s → 5.3 s.
+- **Affected modules:** Budget Management (Budget Summary), Financial Monitoring (Disbursement Ledger, Budget Utilization), Analytics (Budget Forecast "Adjusted Budget")
+- **Notes:** Task 68-A2. The figures are unchanged: all 18 LIB summaries were compared byte for byte before and after, and a test with approved, implemented, pending and rejected realignments checks every figure against the old calculation. Spending and realignment checks still read fresh figures under their locks. No migration.
 
 ### 2026.11.17.1700
 
