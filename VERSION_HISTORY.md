@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.0151**
+**Latest version: 2026.11.18.0251**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.0251
+
+- **Date and time:** 2026-11-18 02:51 (Asia/Manila)
+- **Category:** Bug fix
+- **Summary:** Custom scoring formulas in Decision Support no longer fail when typed with × ÷ − (they are read as * / -). A symbol that can't be used (e.g. %, =, ^, an apostrophe) is now named in the error instead of the general "not valid arithmetic" message. The formula box shows clickable example formulas and clearer instructions.
+- **Affected modules:** Decision Support System (Define Indicator / Edit Formula — Scoring Formula / Method)
+- **Notes:** Task 77-A, rmis-backend a3c481d. No migration. Saved formulas are stored with + - * /.
 
 ### 2026.11.18.0151
 

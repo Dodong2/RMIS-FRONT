@@ -62,6 +62,13 @@ const FORMULA_VARIABLES: [string, string][] = [
   ["risk_score_inverse", "25 − risk score (0–25)"],
 ];
 
+const FORMULA_EXAMPLES: [string, string][] = [
+  ["score / 2", "half of the standard score"],
+  ["score * renewal_eligible", "standard score only if renewal-eligible, else 0"],
+  ["min(budget_utilization_pct, 80) * 1.25", "full marks at 80% utilization"],
+  ["(score + monitoring_health * 100) / 2", "average with monitoring health"],
+];
+
 const WEIGHT_MIN = 1;
 const WEIGHT_MAX = 60;
 
@@ -237,7 +244,18 @@ function IndicatorModal({
             />
             {formulaError && <p className="text-xs font-semibold" style={{ color: "#dc2626" }}>{formulaError}</p>}
             {metricKey && <p className="text-xs" style={{ color: "#94a3b8" }}>Standard formula (used when Edit is unchecked): {METRIC_META[metricKey].formula}</p>}
-            <p className="text-xs" style={{ color: "#64748b" }}>Use numbers, + − × ÷ as + - * /, parentheses, min(a, b) and max(a, b). The result is kept between 0 and 100; dividing by 0 gives 0. Click a variable to add it:</p>
+            <p className="text-xs" style={{ color: "#64748b" }}>
+              Type the formula with numbers, the variables below, <span className="font-mono">+ - * /</span> (× and ÷ also work), parentheses, <span className="font-mono">min(a, b)</span> and <span className="font-mono">max(a, b)</span>. No words, %, = or ^. The result is kept between 0 and 100; dividing by 0 gives 0.
+            </p>
+            <p className="text-xs font-semibold" style={{ color: "#64748b" }}>Examples (click to use):</p>
+            <div className="flex flex-wrap gap-1.5">
+              {FORMULA_EXAMPLES.map(([f, hint]) => (
+                <button key={f} type="button" title={hint} onClick={() => { setFormula(f); setFormulaError(""); }} className="px-2 py-0.5 rounded-lg text-xs font-mono" style={{ background: "#f1f5f9", color: "#334155", border: "1px solid #e2e8f0" }}>
+                  {f}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs font-semibold" style={{ color: "#64748b" }}>Variables (click to add):</p>
             <div className="flex flex-wrap gap-1.5">
               {FORMULA_VARIABLES.map(([v, hint]) => (
                 <button key={v} type="button" title={hint} onClick={() => setFormula((f) => (f.trim() ? `${f.trimEnd()} ${v}` : v))} className="px-2 py-0.5 rounded-lg text-xs font-mono" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
