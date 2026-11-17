@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.1719**
+**Latest version: 2026.11.17.2210**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.2210
+
+- **Date and time:** 2026-11-17 22:10 (Asia/Manila)
+- **Category:** UI fix
+- **Summary:** Budget Forecast → Saved Forecasts: the project title no longer runs past the card. Each saved run now shows the NTP on top and the full title under it, wrapping inside the card, and "Projected at horizon" stays visible on the right.
+- **Affected modules:** Budget Forecasting (Saved Forecasts tab)
+- **Notes:** Task 71. Display only; the forecast figures, Load button and backend are unchanged. No migration.
 
 ### 2026.11.17.1719
 

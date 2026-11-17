@@ -1,7 +1,7 @@
 import { Brain, Check, Flame, Target, TrendingUp, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
-import { forecastProjectLabel, forecastingApi } from "../lib/forecastingApi";
+import { forecastingApi } from "../lib/forecastingApi";
 import { researchApi } from "../lib/researchApi";
 import { budgetApi } from "../lib/budgetApi";
 import { financialApi } from "../lib/financialApi";
@@ -649,9 +649,14 @@ function ForecastContent() {
                 {runs.map((r) => (
                   <div key={r.id} className="rounded-2xl p-4" style={{ background: r.id === selectedRunId ? "#f0f9ff" : "#f8fafc", border: `1px solid ${r.id === selectedRunId ? "#bae6fd" : "#e2e8f0"}` }}>
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0 flex-1">
+                        {choice && (
+                          <div className="mb-1.5">
+                            <p className="text-xs font-bold font-mono" style={{ color: "#0d2a5e" }}>{choice.project_code}</p>
+                            <p className="text-xs font-bold leading-snug break-words" style={{ color: "#475569" }}>{choice.title}</p>
+                          </div>
+                        )}
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Pill bg="#e0eaf7" color="#0d2a5e">{choice ? forecastProjectLabel(choice) : ""}</Pill>
                           <Pill bg="#f1f5f9" color="#64748b"><Brain className={ICON} aria-hidden="true" /> ARIMA{r.arima_order ? ` ${r.arima_order}` : ""}</Pill>
                           <Pill bg={STATUS_META[r.status].bg} color={STATUS_META[r.status].color}>{STATUS_META[r.status].label}</Pill>
                           {r.is_overrun_risk && <Pill bg="#fee2e2" color="#991b1b"><TriangleAlert className={ICON} aria-hidden="true" /> Overrun risk</Pill>}
@@ -660,7 +665,7 @@ function ForecastContent() {
                           Run {new Date(r.run_at).toLocaleString()} · {r.months_of_history} months of history
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <p className="text-xs" style={{ color: "#94a3b8" }}>Projected at horizon</p>
                         <p className="text-lg font-black font-mono" style={{ color: r.is_overrun_risk ? "#dc2626" : "#059669" }}>{r.projected_total_at_horizon ? peso(r.projected_total_at_horizon) : "—"}</p>
                       </div>
