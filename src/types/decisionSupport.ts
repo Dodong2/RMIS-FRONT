@@ -12,9 +12,13 @@ export interface DecisionCriterion {
   name: string;
   metric_key: CriterionMetricKey;
   description: string;
+  formula_mode: FormulaMode;
+  custom_formula: string;
   is_active: boolean;
   created_at: string;
 }
+
+export type FormulaMode = "standard" | "custom";
 
 export interface AHPPairwiseComparison {
   id: number;
@@ -34,6 +38,7 @@ export interface AHPMatrixRun {
   created_at: string;
   status: AHPRunStatus;
   weights: Record<string, number>;
+  weight_source: "ahp" | "manual";
   consistency_ratio: number | null;
   is_consistent: boolean | null;
   comparisons: AHPPairwiseComparison[];
@@ -57,6 +62,9 @@ export interface FundingRecommendationRun {
   campus_filter: string;
   created_by: number;
   created_at: string;
+  method: "minmax_v1" | "absolute_v2";
+  weights_snapshot: Record<string, number>;
+  formulas_snapshot: Record<string, { metric_key: CriterionMetricKey; mode: FormulaMode; formula?: string }>;
   scores: ProjectScore[];
 }
 

@@ -42,14 +42,28 @@ const DOMAIN_META: Record<IndicatorDomain, { label: string; color: string; bg: s
 };
 
 const METRIC_META: Record<CriterionMetricKey, { label: string; domain: IndicatorDomain; formula: string }> = {
-  output_score: { label: "Research Output Volume", domain: "outputs", formula: "publications + IP records + creative works" },
-  compliance_score: { label: "Compliance Completeness", domain: "compliance", formula: "approved ethics reviews / all ethics reviews (0.5 if none)" },
-  budget_utilization_pct: { label: "Budget Utilization %", domain: "budget", formula: "disbursed / current budget's line-item total × 100" },
-  monitoring_health: { label: "Monitoring/Reporting Health", domain: "performance", formula: "on track = 1, notify Dean/RIUH = 0.5, terminate recommended = 0" },
-  renewal_eligible: { label: "Renewal Eligibility", domain: "performance", formula: "1 if renewal-eligible, else 0" },
-  overrun_risk_inverse: { label: "Forecast Overrun-Risk (inverse)", domain: "budget", formula: "latest forecast: overrun risk = 0, none = 1 (0.5 if no forecast)" },
-  risk_score_inverse: { label: "Project Risk Score (inverse)", domain: "risk", formula: "25 − project risk score (5×5 likelihood × impact)" },
+  output_score: { label: "Research Output Volume", domain: "outputs", formula: "(publications + IP records + creative works) ÷ highest count in the run × 100" },
+  compliance_score: { label: "Compliance Completeness", domain: "compliance", formula: "approved ethics reviews ÷ all ethics reviews × 100 (50 if none)" },
+  budget_utilization_pct: { label: "Budget Utilization %", domain: "budget", formula: "disbursed ÷ current budget's line-item total × 100 (max 100)" },
+  monitoring_health: { label: "Monitoring/Reporting Health", domain: "performance", formula: "on track = 100, notify Dean/RIUH = 50, terminate recommended = 0" },
+  renewal_eligible: { label: "Renewal Eligibility", domain: "performance", formula: "100 if renewal-eligible, else 0" },
+  overrun_risk_inverse: { label: "Forecast Overrun-Risk (inverse)", domain: "budget", formula: "latest forecast: no overrun risk = 100, overrun risk = 0 (50 if no forecast)" },
+  risk_score_inverse: { label: "Project Risk Score (inverse)", domain: "risk", formula: "(25 − project risk score) × 4 (5×5 likelihood × impact)" },
 };
+
+const FORMULA_VARIABLES: [string, string][] = [
+  ["score", "this indicator's standard score (0–100)"],
+  ["output_score", "outputs count"],
+  ["compliance_score", "ethics clearance rate (0–1)"],
+  ["budget_utilization_pct", "budget utilization %"],
+  ["monitoring_health", "monitoring health (0–1)"],
+  ["renewal_eligible", "renewal eligible (0 or 1)"],
+  ["overrun_risk_inverse", "no overrun risk (0–1)"],
+  ["risk_score_inverse", "25 − risk score (0–25)"],
+];
+
+const WEIGHT_MIN = 1;
+const WEIGHT_MAX = 60;
 
 const GRADE_META: Record<ScoreGrade, { label: string; color: string; bg: string }> = {
   excellent: { label: "Excellent", color: "#059669", bg: "#d1fae5" },
@@ -85,6 +99,8 @@ const peso = (n: string | number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(Number(n));
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 
+const isUsable = (m: AHPMatrixRun) => m.status === "finalized" && (m.weight_source === "manual" || !!m.is_consistent);
+
 function scoreToGrade(score: number): ScoreGrade {
   if (score >= 80) return "excellent";
   if (score >= 65) return "good";
@@ -119,24 +135,47 @@ function DecisionPill({ decision }: { decision: FundingDecision }) {
   return <Pill bg={m.bg} color={m.color}>{m.label}</Pill>;
 }
 
-function DefineIndicatorModal({ onCreated, onClose }: { onCreated: (c: DecisionCriterion) => void; onClose: () => void }) {
-  const [name, setName] = useState("");
-  const [metricKey, setMetricKey] = useState<CriterionMetricKey | "">("");
-  const [description, setDescription] = useState("");
+function IndicatorModal({
+  existing,
+  onSaved,
+  onClose,
+}: {
+  existing?: DecisionCriterion;
+  onSaved: (c: DecisionCriterion) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(existing?.name ?? "");
+  const [metricKey, setMetricKey] = useState<CriterionMetricKey | "">(existing?.metric_key ?? "");
+  const [description, setDescription] = useState(existing?.description ?? "");
+  const [editFormula, setEditFormula] = useState(existing?.formula_mode === "custom");
+  const [formula, setFormula] = useState(existing?.custom_formula || "score");
+  const [formulaError, setFormulaError] = useState("");
   const [attempted, setAttempted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
     setAttempted(true);
+    setFormulaError("");
     if (!name.trim() || !metricKey) return;
+    if (editFormula && !formula.trim()) {
+      setFormulaError("Enter a formula, or uncheck Edit to use the standard formula.");
+      return;
+    }
+    const formulaFields = editFormula
+      ? { formula_mode: "custom" as const, custom_formula: formula.trim() }
+      : { formula_mode: "standard" as const };
     setIsSaving(true);
     try {
-      const created = await decisionSupportApi.createCriterion({ name: name.trim(), metric_key: metricKey, description: description.trim() });
-      onCreated(created);
-      notify.success("Indicator added.");
+      const saved = existing
+        ? await decisionSupportApi.updateCriterionFormula(existing.id, formulaFields)
+        : await decisionSupportApi.createCriterion({ name: name.trim(), metric_key: metricKey, description: description.trim(), ...formulaFields });
+      onSaved(saved);
+      notify.success(existing ? "Scoring formula saved." : "Indicator added.");
       onClose();
     } catch (err) {
-      notify.error(errorMessage(err, "Could not add this indicator."));
+      const message = errorMessage(err, existing ? "Could not save this formula." : "Could not add this indicator.");
+      if ((err as { response?: { data?: { custom_formula?: unknown } } })?.response?.data?.custom_formula) setFormulaError(message);
+      notify.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -144,37 +183,153 @@ function DefineIndicatorModal({ onCreated, onClose }: { onCreated: (c: DecisionC
 
   return (
     <ProtoModal
-      title="Define Decision Indicator — DSS-01"
-      subtitle="Add a new measurable criterion that AHP models can weigh"
+      title={existing ? "Scoring Formula — DSS-01" : "Define Decision Indicator — DSS-01"}
+      subtitle={existing ? existing.name : "Add a new measurable criterion that DSS models can weigh"}
       onClose={onClose}
       width="max-w-lg"
       footer={
         <>
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={BTN_GHOST_STYLE}>Cancel</button>
           <button onClick={handleSave} disabled={isSaving} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40" style={{ background: "#0d2a5e" }}>
-            {isSaving ? "Adding…" : "Add Indicator"}
+            {isSaving ? "Saving…" : existing ? "Save Formula" : "Add Indicator"}
           </button>
         </>
       }
     >
       <Field label="Indicator Name" required>
-        <input value={name} onChange={(e) => setName(e.target.value)} className={INPUT_CLS} style={invalidStyle(attempted && !name.trim())} placeholder="e.g. Output Volume" />
+        <input value={name} onChange={(e) => setName(e.target.value)} disabled={!!existing} className={INPUT_CLS + " disabled:opacity-60"} style={invalidStyle(attempted && !name.trim())} placeholder="e.g. Output Volume" />
       </Field>
       <Field label="Measured From" required>
-        <select value={metricKey} onChange={(e) => setMetricKey(e.target.value as CriterionMetricKey)} className={INPUT_CLS} style={invalidStyle(attempted && !metricKey)}>
+        <select value={metricKey} onChange={(e) => setMetricKey(e.target.value as CriterionMetricKey)} disabled={!!existing} className={INPUT_CLS + " disabled:opacity-60"} style={invalidStyle(attempted && !metricKey)}>
           <option value="">Select a metric</option>
           {(Object.keys(METRIC_META) as CriterionMetricKey[]).map((k) => (
             <option key={k} value={k}>{METRIC_META[k].label}</option>
           ))}
         </select>
       </Field>
-      {metricKey && (
-        <div className="rounded-lg px-3 py-2 text-xs font-mono" style={{ background: "#f1f5f9", color: "#64748b" }}>{METRIC_META[metricKey].formula}</div>
+      {!existing && (
+        <Field label="Description">
+          <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className={INPUT_CLS + " resize-none"} style={INPUT_STYLE} placeholder="What does this indicator measure?" />
+        </Field>
       )}
-      <Field label="Description">
-        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className={INPUT_CLS + " resize-none"} style={INPUT_STYLE} placeholder="What does this indicator measure?" />
-      </Field>
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <label className="label-field">Scoring Formula / Method</label>
+          <label className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-black cursor-pointer" style={{ background: editFormula ? "#0d2a5e" : "#fef3c7", color: editFormula ? "white" : "#b45309" }}>
+            <input type="checkbox" checked={editFormula} onChange={(e) => { setEditFormula(e.target.checked); setFormulaError(""); }} className="accent-[#0d2a5e]" />
+            EDIT
+          </label>
+        </div>
+        {!editFormula ? (
+          <div className="rounded-lg px-3 py-2 text-xs font-mono" style={{ background: "#f1f5f9", color: "#64748b" }}>
+            {metricKey ? <>Standard formula: {METRIC_META[metricKey].formula}</> : "Select what it is measured from to see the standard formula."}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <textarea
+              rows={2}
+              value={formula}
+              onChange={(e) => { setFormula(e.target.value); setFormulaError(""); }}
+              className={INPUT_CLS + " resize-none font-mono"}
+              style={invalidStyle(!!formulaError)}
+              placeholder="e.g. score * 0.5 + min(budget_utilization_pct, 50)"
+              aria-invalid={!!formulaError}
+            />
+            {formulaError && <p className="text-xs font-semibold" style={{ color: "#dc2626" }}>{formulaError}</p>}
+            {metricKey && <p className="text-xs" style={{ color: "#94a3b8" }}>Standard formula (used when Edit is unchecked): {METRIC_META[metricKey].formula}</p>}
+            <p className="text-xs" style={{ color: "#64748b" }}>Use numbers, + − × ÷ as + - * /, parentheses, min(a, b) and max(a, b). The result is kept between 0 and 100; dividing by 0 gives 0. Click a variable to add it:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {FORMULA_VARIABLES.map(([v, hint]) => (
+                <button key={v} type="button" title={hint} onClick={() => setFormula((f) => (f.trim() ? `${f.trimEnd()} ${v}` : v))} className="px-2 py-0.5 rounded-lg text-xs font-mono" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </ProtoModal>
+  );
+}
+
+function AssignWeightsPanel({
+  run,
+  runCriteria,
+  onSaved,
+  onClose,
+}: {
+  run: AHPMatrixRun;
+  runCriteria: DecisionCriterion[];
+  onSaved: (r: AHPMatrixRun) => void;
+  onClose: () => void;
+}) {
+  const single = runCriteria.length === 1;
+  const [draft, setDraft] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    const even = Math.round(100 / Math.max(1, runCriteria.length));
+    for (const c of runCriteria) {
+      const saved = run.weights[String(c.id)];
+      init[String(c.id)] = single ? 100 : Math.min(WEIGHT_MAX, Math.max(WEIGHT_MIN, saved !== undefined ? Math.round(saved * 100) : even));
+    }
+    return init;
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const sum = Object.values(draft).reduce((a, b) => a + b, 0);
+  const ok = sum === 100;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      onSaved(await decisionSupportApi.setWeights(run.id, draft));
+      notify.success("Weights saved. The model is ready to run.");
+      onClose();
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not save these weights."));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid #e2e8f0" }}>
+      <div className="px-4 py-3 border-b" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
+        <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>Assign Weights — DSS-02</p>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="text-xs font-bold px-2 py-1.5 rounded-lg" style={{ background: ok ? "#d1fae5" : "#fee2e2", color: ok ? "#059669" : "#dc2626" }} aria-live="polite">
+          Sum: {sum} / 100 {ok ? "✓" : "⚠ must equal 100"}
+        </div>
+        {runCriteria.map((c) => {
+          const key = String(c.id);
+          return (
+            <div key={c.id}>
+              <label htmlFor={`weight-${c.id}`} className="text-xs font-semibold" style={{ color: "#334155" }}>{c.name}</label>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  id={`weight-${c.id}`}
+                  type="range"
+                  min={single ? 100 : WEIGHT_MIN}
+                  max={single ? 100 : WEIGHT_MAX}
+                  step={1}
+                  value={draft[key]}
+                  disabled={single}
+                  onChange={(e) => setDraft((d) => ({ ...d, [key]: Number(e.target.value) }))}
+                  className="flex-1"
+                />
+                <span className="text-xs font-black w-9 text-right" style={{ color: "#0d2a5e" }}>{draft[key]}%</span>
+              </div>
+            </div>
+          );
+        })}
+        {single && <p className="text-xs" style={{ color: "#94a3b8" }}>Only one indicator in this model, so it carries 100% of the weight.</p>}
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-xs font-medium" style={{ background: "#f1f5f9", color: "#64748b" }}>Cancel</button>
+          <button onClick={handleSave} disabled={!ok || isSaving} className="flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40" style={{ background: "#0d2a5e" }}>
+            {isSaving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -194,7 +349,7 @@ function NewModelModal({ criteria, onCreated, onClose }: { criteria: DecisionCri
     try {
       const run = await decisionSupportApi.createAHPRun({ label: label.trim(), criteria: ids });
       onCreated(run);
-      notify.success("Model created. Set its weights with the pairwise comparisons.");
+      notify.success("Model created. Set its weights with Edit Weights.");
       onClose();
     } catch (err) {
       notify.error(errorMessage(err, "Could not create this model."));
@@ -206,7 +361,7 @@ function NewModelModal({ criteria, onCreated, onClose }: { criteria: DecisionCri
   return (
     <ProtoModal
       title="New DSS Model"
-      subtitle="An AHP weighting run over a set of indicators"
+      subtitle="A set of indicators to weigh and score projects with"
       onClose={onClose}
       width="max-w-lg"
       footer={
@@ -302,8 +457,8 @@ function PairwiseModal({
 
   return (
     <ProtoModal
-      title="Assign Weights — DSS-02"
-      subtitle={`${run.label} · pairwise comparison, Saaty 1–9 scale`}
+      title="AHP Pairwise Comparison (optional)"
+      subtitle={`${run.label} · Saaty 1–9 scale · or use Edit Weights to set percents directly`}
       onClose={onClose}
       width="max-w-2xl"
       footer={
@@ -590,6 +745,8 @@ function DecisionSupportContent() {
   const [showDefineInd, setShowDefineInd] = useState(false);
   const [showNewModel, setShowNewModel] = useState(false);
   const [showWeights, setShowWeights] = useState(false);
+  const [showEditWeights, setShowEditWeights] = useState(false);
+  const [formulaFor, setFormulaFor] = useState<DecisionCriterion | null>(null);
   const [detailScore, setDetailScore] = useState<ProjectScore | null>(null);
   const [decideScore, setDecideScore] = useState<ProjectScore | null>(null);
 
@@ -606,7 +763,7 @@ function DecisionSupportContent() {
         setCriteria(c);
         setAhpRuns(a);
         setRecRuns(r);
-        const firstUsable = a.find((x) => x.status === "finalized" && x.is_consistent) ?? a[0];
+        const firstUsable = a.find(isUsable) ?? a[0];
         if (firstUsable) {
           setActiveModelId(firstUsable.id);
           setActiveRecId(r.find((x) => x.ahp_run === firstUsable.id)?.id ?? null);
@@ -640,7 +797,7 @@ function DecisionSupportContent() {
   const campuses = useMemo(() => [...new Set(projects.map((p) => p.campus).filter(Boolean))].sort(), [projects]);
 
   const activeModel = ahpRuns.find((r) => r.id === activeModelId) ?? null;
-  const modelUsable = !!activeModel && activeModel.status === "finalized" && !!activeModel.is_consistent;
+  const modelUsable = !!activeModel && isUsable(activeModel);
   const weights = useMemo(() => activeModel?.weights ?? {}, [activeModel]);
   const runCriteria = useMemo(() => {
     if (!activeModel) return [];
@@ -650,6 +807,7 @@ function DecisionSupportContent() {
 
   const modelRecRuns = recRuns.filter((r) => r.ahp_run === activeModelId);
   const activeRec = recRuns.find((r) => r.id === activeRecId) ?? null;
+  const runWeights = activeRec && Object.keys(activeRec.weights_snapshot ?? {}).length ? activeRec.weights_snapshot : weights;
   const scores = activeRec ? [...activeRec.scores].sort((a, b) => a.rank - b.rank) : [];
   const decisions = useMemo(() => (decisionState.runId === activeRecId ? decisionState.list : []), [decisionState, activeRecId]);
   const decisionByProject = useMemo(() => new Map(decisions.map((d) => [d.project, d])), [decisions]);
@@ -657,6 +815,7 @@ function DecisionSupportContent() {
 
   const selectModel = (id: number) => {
     setActiveModelId(id);
+    setShowEditWeights(false);
     setActiveRecId(recRuns.find((r) => r.ahp_run === id)?.id ?? null);
     setSensResult(null);
     setSensCriterion("");
@@ -666,6 +825,10 @@ function DecisionSupportContent() {
     setActiveRecId(id);
     setSensResult(null);
   };
+
+  const replaceModel = (r: AHPMatrixRun) => setAhpRuns((prev) => prev.map((x) => (x.id === r.id ? r : x)));
+  const replaceCriterion = (c: DecisionCriterion) =>
+    setCriteria((prev) => (prev.some((x) => x.id === c.id) ? prev.map((x) => (x.id === c.id ? c : x)) : [...prev, c]));
 
   const handleRun = async () => {
     if (!activeModel) return;
@@ -744,7 +907,7 @@ function DecisionSupportContent() {
             <div className="px-5 py-4 border-b shrink-0 flex items-start justify-between gap-2" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
               <div>
                 <p className="font-bold text-sm" style={{ color: "#0d2a5e" }}>DSS Models</p>
-                <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>AHP-weighted indicator sets</p>
+                <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>Weighted indicator sets</p>
               </div>
               {canManage && (
                 <button onClick={() => setShowNewModel(true)} className="text-xs px-2.5 py-1 rounded-lg font-bold shrink-0" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
@@ -776,7 +939,9 @@ function DecisionSupportContent() {
                     <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
                       {m.criteria.length} indicators ·{" "}
                       {m.status === "draft" ? (
-                        <span style={{ color: "#b45309" }}>draft</span>
+                        <span style={{ color: "#b45309" }}>weights not set</span>
+                      ) : m.weight_source === "manual" ? (
+                        <span>weights set</span>
                       ) : m.is_consistent ? (
                         <span>CR {m.consistency_ratio?.toFixed(3)}</span>
                       ) : (
@@ -814,19 +979,26 @@ function DecisionSupportContent() {
                     </button>
                   </>
                 )}
+                <button onClick={() => setShowEditWeights(true)} className="w-full py-2 rounded-xl text-xs font-bold" style={activeModel.status === "draft" ? { background: "#fef3c7", color: "#b45309" } : { background: "#f1f5f9", color: "#64748b" }}>
+                  <Scale className={ICON} aria-hidden="true" /> Edit Weights — DSS-02
+                </button>
                 {activeModel.status === "draft" && (
-                  <button onClick={() => setShowWeights(true)} className="w-full py-2 rounded-xl text-xs font-bold" style={{ background: "#fef3c7", color: "#b45309" }}>
-                    <Scale className={ICON} aria-hidden="true" /> Set Weights — DSS-02
+                  <button onClick={() => setShowWeights(true)} className="w-full py-1.5 rounded-xl text-xs font-semibold" style={{ color: "#64748b" }}>
+                    or use AHP pairwise comparison
                   </button>
                 )}
-                {activeModel.status === "finalized" && !activeModel.is_consistent && (
+                {!modelUsable && activeModel.status === "finalized" && (
                   <p className="text-xs px-2 py-1.5 rounded-lg" style={{ background: "#fee2e2", color: "#dc2626" }}>
-                    CR above 0.10. Create a new model with more consistent comparisons to run the DSS.
+                    AHP consistency ratio is above 0.10. Use Edit Weights to set the weights directly before running the DSS.
                   </p>
                 )}
               </div>
             )}
           </div>
+
+          {canManage && activeModel && showEditWeights && (
+            <AssignWeightsPanel key={activeModel.id} run={activeModel} runCriteria={runCriteria} onSaved={replaceModel} onClose={() => setShowEditWeights(false)} />
+          )}
         </div>
 
         <div className="lg:col-span-3 space-y-4">
@@ -856,6 +1028,9 @@ function DecisionSupportContent() {
                       </option>
                     ))}
                   </select>
+                  {activeRec?.method === "minmax_v1" && (
+                    <Pill bg="#fef3c7" color="#b45309">Old relative scale (before 2026-11-18) · run the DSS again for 0–100 scores</Pill>
+                  )}
                   {activeRec && (
                     <span className="text-xs" style={{ color: "#94a3b8" }}>
                       Filters: {[activeRec.funding_type_filter && fundingTypes.label(activeRec.funding_type_filter), activeRec.campus_filter].filter(Boolean).join(" · ") || "none"}
@@ -946,7 +1121,7 @@ function DecisionSupportContent() {
                                   <th key={c.id} className="px-2 py-2.5 text-center font-bold" style={{ color: DOMAIN_META[METRIC_META[c.metric_key].domain].color, fontSize: "9px", minWidth: "60px" }}>
                                     {c.name}
                                     <br />
-                                    <span className="font-normal text-slate-400">{((weights[String(c.id)] ?? 0) * 100).toFixed(1)}%</span>
+                                    <span className="font-normal text-slate-400">{((runWeights[String(c.id)] ?? 0) * 100).toFixed(1)}%</span>
                                   </th>
                                 ))}
                                 <th className="px-3 py-2.5 text-center font-bold uppercase tracking-wide" style={{ color: "#0d2a5e" }}>Total</th>
@@ -1055,7 +1230,7 @@ function DecisionSupportContent() {
 
                   {activeModel?.status === "draft" && (
                     <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: "#fef3c7", color: "#b45309" }}>
-                      <TriangleAlert className={ICON} aria-hidden="true" /> This model's weights aren't finalized yet — {canManage ? "use “Set Weights” in the model panel." : "DRD, VPREI, or System Admin must finalize them."}
+                      <TriangleAlert className={ICON} aria-hidden="true" /> This model's weights aren't set yet — {canManage ? "use “Edit Weights” in the model panel." : "VP for REI or System Admin must set them."}
                     </div>
                   )}
 
@@ -1063,9 +1238,13 @@ function DecisionSupportContent() {
                     <div className="rounded-2xl p-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                         <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Weight Distribution — DSS-02</p>
-                        <Pill bg={activeModel.is_consistent ? "#d1fae5" : "#fee2e2"} color={activeModel.is_consistent ? "#059669" : "#dc2626"}>
-                          CR {activeModel.consistency_ratio?.toFixed(4)} · {activeModel.is_consistent ? "consistent" : "inconsistent"}
-                        </Pill>
+                        {activeModel.weight_source === "manual" ? (
+                          <Pill bg="#d1fae5" color="#059669">Set with Edit Weights</Pill>
+                        ) : (
+                          <Pill bg={activeModel.is_consistent ? "#d1fae5" : "#fee2e2"} color={activeModel.is_consistent ? "#059669" : "#dc2626"}>
+                            AHP · CR {activeModel.consistency_ratio?.toFixed(4)} · {activeModel.is_consistent ? "consistent" : "inconsistent"}
+                          </Pill>
+                        )}
                       </div>
                       <div className="flex h-6 rounded-full overflow-hidden gap-px">
                         {runCriteria.map((c) => (
@@ -1097,6 +1276,7 @@ function DecisionSupportContent() {
                                 <DomainChip domain={meta.domain} />
                                 <p className="text-sm font-bold" style={{ color: "#0d2a5e" }}>{c.name}</p>
                                 {!c.is_active && <Pill>Inactive</Pill>}
+                                {c.formula_mode === "custom" && <Pill bg="#ede9fe" color="#7c3aed">Custom formula</Pill>}
                               </div>
                               {activeModel?.status === "finalized" && w !== undefined && (
                                 <div className="shrink-0 text-right">
@@ -1107,9 +1287,16 @@ function DecisionSupportContent() {
                             </div>
                             {c.description && <p className="text-xs mb-2" style={{ color: "#64748b" }}>{c.description}</p>}
                             <div className="rounded-lg px-3 py-2 text-xs font-mono" style={{ background: "#f1f5f9", color: "#64748b" }}>
-                              {meta.label}: {meta.formula}
+                              Measured from {meta.label}: {c.formula_mode === "custom" ? c.custom_formula : meta.formula}
                             </div>
-                            <p className="text-xs mt-2" style={{ color: "#94a3b8" }}>↑ Higher value = better score (min-max normalized across the scored projects)</p>
+                            <div className="flex items-center justify-between gap-2 mt-2">
+                              <p className="text-xs" style={{ color: "#94a3b8" }}>↑ Higher value = better score · 0–100 per indicator</p>
+                              {canManage && (
+                                <button onClick={() => setFormulaFor(c)} className="text-xs px-2.5 py-1 rounded-lg font-bold shrink-0" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
+                                  Edit Formula
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -1189,7 +1376,8 @@ function DecisionSupportContent() {
         </div>
       </div>
 
-      {showDefineInd && <DefineIndicatorModal onCreated={(c) => setCriteria((prev) => [...prev, c])} onClose={() => setShowDefineInd(false)} />}
+      {showDefineInd && <IndicatorModal onSaved={replaceCriterion} onClose={() => setShowDefineInd(false)} />}
+      {formulaFor && <IndicatorModal existing={formulaFor} onSaved={replaceCriterion} onClose={() => setFormulaFor(null)} />}
 
       {showNewModel && (
         <NewModelModal
@@ -1206,7 +1394,7 @@ function DecisionSupportContent() {
         <PairwiseModal
           run={activeModel}
           runCriteria={runCriteria}
-          onFinalized={(r) => setAhpRuns((prev) => prev.map((x) => (x.id === r.id ? r : x)))}
+          onFinalized={replaceModel}
           onClose={() => setShowWeights(false)}
         />
       )}
@@ -1216,7 +1404,7 @@ function DecisionSupportContent() {
           score={detailScore}
           project={projectsById.get(detailScore.project)}
           runCriteria={runCriteria}
-          weights={weights}
+          weights={runWeights}
           modelLabel={activeModel?.label ?? ""}
           decision={decisionByProject.get(detailScore.project)}
           canDecide={canDecide}

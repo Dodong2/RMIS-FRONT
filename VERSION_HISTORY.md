@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.0137**
+**Latest version: 2026.11.18.0145**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.0145
+
+- **Date and time:** 2026-11-18 01:45 (Asia/Manila)
+- **Category:** Feature
+- **Summary:** Decision Support System follows the Figma DSS screens. Define Indicator (DSS-01) keeps "Measured From" and has an EDIT checkbox beside "Scoring Formula / Method": unchecked shows and uses the standard formula, checked lets you type a custom formula (with clickable variables and the server's error if it is invalid). Each indicator card has "Edit Formula". "Edit Weights — DSS-02" opens the Assign Weights panel (sliders 1-60%, "Sum: X / 100 ✓", Save only at 100). AHP pairwise comparison stays as an option for models without weights. Rankings use the weights saved with each run, and runs made before 2026-11-18 are labelled "Old relative scale".
+- **Affected modules:** Decision Support System (Indicators & Weights, model panel, Rankings & Scores, score detail)
+- **Notes:** Task 76-E. Needs backend 22123cc..ecdff89 and migrations decision_support 0003-0005 + accounts 0034. Standard formula descriptions now show the 0-100 scale from Task 76-A.
 
 ### 2026.11.18.0137
 

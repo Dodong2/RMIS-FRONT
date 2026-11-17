@@ -4,6 +4,7 @@ import type {
   AHPPairwiseComparison,
   DecisionCriterion,
   DecisionRecord,
+  FormulaMode,
   FundingDecision,
   FundingRecommendationRun,
   SensitivityAnalysisResult,
@@ -18,8 +19,21 @@ export const decisionSupportApi = {
     name: string;
     metric_key: string;
     description?: string;
+    formula_mode?: FormulaMode;
+    custom_formula?: string;
   }): Promise<DecisionCriterion> => {
     const { data } = await apiClient.post("/api/decision-support/criteria/", payload);
+    return data;
+  },
+  updateCriterionFormula: async (
+    id: number,
+    payload: { formula_mode: FormulaMode; custom_formula?: string },
+  ): Promise<DecisionCriterion> => {
+    const { data } = await apiClient.patch(`/api/decision-support/criteria/${id}/`, payload);
+    return data;
+  },
+  setWeights: async (runId: number, weights: Record<string, number>): Promise<AHPMatrixRun> => {
+    const { data } = await apiClient.post(`/api/decision-support/ahp-runs/${runId}/weights/`, { weights });
     return data;
   },
   getAHPRuns: async (): Promise<AHPMatrixRun[]> => {
