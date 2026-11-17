@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.1714**
+**Latest version: 2026.11.17.1719**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.1719
+
+- **Date and time:** 2026-11-17 17:19 (Asia/Manila)
+- **Category:** Backend, access fix
+- **Summary:** CRC/CRD, Finance/Accounting/Budget, RIUH and Procurement now see only the documents of projects on their own campus (and college, when their account is limited to one), following the campus scope the client set on 2026-10-27. Before, CRC/CRD could open every campus's NTP, Approve Proposal and Research Proposal Form on the Document and Records Management page.
+- **Affected modules:** Document and Records Management, Project Review (Supporting Document History)
+- **Notes:** Task 70. Current data: CRC/CRD Los Baños 54 → 3 documents, CRC/CRD Siniloan 54 → 51; every other account unchanged. An account without a campus, System Admin, VP for REI, University Administration, Project Leaders and staff are unchanged; a document explicitly shared with a user still opens. No migration.
 
 ### 2026.11.17.1714
 
