@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.0128**
+**Latest version: 2026.11.18.0133**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.0133
+
+- **Date and time:** 2026-11-18 01:33 (Asia/Manila)
+- **Category:** Feature (backend)
+- **Summary:** Decision Support models can get their weights directly (Edit Weights — DSS-02): a whole percent per indicator, each from 1% to 60%, adding up to exactly 100% (a one-indicator model is 100%). Saving makes the model ready to run, with no consistency ratio needed. Models weighted with AHP pairwise comparison still need a consistency ratio of 0.10 or less. Runs made earlier keep the weights they used.
+- **Affected modules:** Decision Support System (models, Run DSS)
+- **Notes:** Task 76-C, rmis-backend. Needs migration decision_support 0005 (Carl runs it). The Edit Weights panel comes in Task 76-E. Only System Admin and VP for REI can edit weights.
 
 ### 2026.11.18.0128
 
