@@ -9,7 +9,7 @@ import { notify } from "../lib/notify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { financialApi } from "../lib/financialApi";
 import { budgetSummaryQuery, financialRecordsQuery, queryKeys, realignmentsQuery, useBudgets, useProjects } from "../lib/queries";
-import { REALIGNMENT_STATUS_META, realignmentClosedReason } from "../lib/realignment";
+import { REALIGNMENT_STATUS_META } from "../lib/realignment";
 import { RealignModal } from "./DisbursementsPage";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
 import { LIB_UNITS, libLineTotal, libUnitLabel, periodLabel, periodQuarter, periodYear } from "../lib/libUnits";
@@ -385,7 +385,7 @@ function useRealignmentReview(onChanged: () => void) {
   return { review, reviewing };
 }
 
-function RealignmentTab({ budget, project, roleCode, onChanged }: { budget: LineItemBudget; project: Project; roleCode: string; onChanged: () => void }) {
+function RealignmentTab({ budget, roleCode, onChanged }: { budget: LineItemBudget; roleCode: string; onChanged: () => void }) {
   const certified = budget.status === "certified";
   const recordsQ = useQuery({ ...financialRecordsQuery(budget.id), enabled: certified });
   const realignments = recordsQ.data?.realignments ?? [];
@@ -394,7 +394,6 @@ function RealignmentTab({ budget, project, roleCode, onChanged }: { budget: Line
   const canRequest = certified && REALIGNMENT_REQUEST_ROLE_CODES.includes(roleCode);
   // Client 2026-10-10: only one open request per project (the server enforces it too).
   const hasPending = realignments.some(isPendingRealignment);
-  const realignClosed = realignmentClosedReason(project.target_end_date);
   const canReviewTier = (t: RealignmentTier) => canReviewRealignmentTier(roleCode, t);
   const itemName = (id: number | null) => budget.line_items.find((i) => i.id === id);
 
@@ -408,12 +407,10 @@ function RealignmentTab({ budget, project, roleCode, onChanged }: { budget: Line
         <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Budget Realignment Requests</p>
         {canRequest && (
           <div className="flex items-center gap-3">
-            {realignClosed ? (
-              <span className="text-xs" style={{ color: "#92400e" }}>{realignClosed}</span>
-            ) : hasPending && <span className="text-xs" style={{ color: "#92400e" }}>A request is still pending review.</span>}
+            {hasPending && <span className="text-xs" style={{ color: "#92400e" }}>A request is still pending review.</span>}
             <button
               onClick={() => setShowRequest(true)}
-              disabled={hasPending || !!realignClosed}
+              disabled={hasPending}
               className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: "#2563eb" }}
             >
@@ -807,7 +804,7 @@ function LIBDetail({
               <UtilizationTab budget={budget} summary={summary} />
             )}
 
-            {tab === "realignment" && <RealignmentTab budget={budget} project={project} roleCode={roleCode} onChanged={reload} />}
+            {tab === "realignment" && <RealignmentTab budget={budget} roleCode={roleCode} onChanged={reload} />}
 
             {tab === "history" && <HistoryTab versions={versions} />}
 

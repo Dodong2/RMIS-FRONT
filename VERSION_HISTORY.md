@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.2327**
+**Latest version: 2026.11.17.2340**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.2340
+
+- **Date and time:** 2026-11-17 23:40 (Asia/Manila)
+- **Category:** Revert
+- **Summary:** Reverted 2026.11.17.2327 (Task 74) at the client's request ("huwag muna galawin realignment"). Request Realignment is clickable again for projects past the 60-day deadline; the server still refuses those requests, and the toast shows its reason (Task 73, kept).
+- **Affected modules:** Budget Management (LIB Realignment tab), Procurement, Realignment & Financial Monitoring (project header and Adjustments tab)
+- **Notes:** Task 75. Code returns to how it was before Task 74. Backend unchanged. No migration.
 
 ### 2026.11.17.2327
 
