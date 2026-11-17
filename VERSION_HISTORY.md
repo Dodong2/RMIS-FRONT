@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.16.2104**
+**Latest version: 2026.11.17.1620**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.1620
+
+- **Date and time:** 2026-11-17 16:20 (Asia/Manila)
+- **Category:** Backend, performance fix
+- **Summary:** The lists that refresh after every procurement and LIB action load much faster. The server used to look up the requester, the reviewers, each line item's edits and each project's current LIB one row at a time (up to 260 database round trips for the LIB list). Now each list reads them in a few queries. Measured on the shared database: LIB list 23.1 s → 1.2 s, procurement requests 5.0 s → 0.4 s, projects 4.8 s → 0.75 s, APP-flagged line items 3.4 s → 0.45 s (Procurement Officer account).
+- **Affected modules:** Procurement, Budget Management (LIB list, line items), Project Management (project list), Budget Forecast (saved runs), and every dashboard that reads these lists
+- **Notes:** Task 68-A. Responses are unchanged: the same 40 role/endpoint responses were compared byte for byte before and after. No change to any calculation, permission or workflow. The Budget Summary (per line item Approved/Adjusted/Actual/Available) is still slow (~4 s) and is left for a separate task. No migration.
 
 ### 2026.11.16.2104
 
