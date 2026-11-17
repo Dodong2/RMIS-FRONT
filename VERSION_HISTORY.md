@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.0133**
+**Latest version: 2026.11.18.0137**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.0137
+
+- **Date and time:** 2026-11-18 01:37 (Asia/Manila)
+- **Category:** Access change (backend)
+- **Summary:** Only System Admin, VP for REI, University Administration and CRC/CRD can read Decision Support System data (indicators, models, runs, scores, sensitivity, decisions, and the Funding Allocation Decision dashboard). Every other role now gets "no permission" from these. Who can define indicators, edit formulas and weights, run the DSS (System Admin, VP for REI) and record decisions (plus University Administration) is unchanged, so CRC/CRD can view only.
+- **Affected modules:** Decision Support System; Analytics (Decision Support tab) and Dashboard (Funding Allocation Decision card) for roles outside the four
+- **Notes:** Task 76-D, rmis-backend. Needs migration accounts 0034 (Carl runs it, then `python scripts/permission_parity.py` must show 0 differences). Until Task 76-F hides them, Finance still sees the DSS menu item and RIUH/Finance still see the Analytics Decision Support tab, which will show an error.
 
 ### 2026.11.18.0133
 
