@@ -279,7 +279,7 @@ automatically — most pages needed zero code changes for this pass.
   yet browser-tested by the client — the real project currently has no
   disbursement history, so a first click-through will hit the
   insufficient-data path, not the chart, until real disbursements exist.
-- Module 12 (Decision Support System): DecisionSupportPage built against the
+- Module 12 (Decision Support System): **2026-11-18 (Task 76): EDIT checkbox for the scoring formula (DSS-01) + Edit Formula on cards, Assign Weights — DSS-02 panel (1-60%, sum 100), run weights from `weights_snapshot`, "Old relative scale" label, access = system_admin/vprei/university_admin/crc_chair (`DSS_VIEW_ROLE_CODES`) — see "Last thing done"; the AHP-only/min-max notes below are history.** DecisionSupportPage built against the
   decision_support app — 3 pill tabs: Criteria, AHP Weighting, and Funding
   Recommendations. This module has no Manual precedent (docx-spec only), so
   the default criteria set (output volume, compliance completeness, budget
@@ -680,16 +680,14 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-17 late night, client Tasks 73-75 (realignment error toast), on `main`, frontend only, no migration. ALL PUSHED (main = origin/main at `8d2ebb3`), except this handover commit. Memory note: `tasks-68-69-2026-11-17`.
-- `f0b3b8b` v2026.11.17.2314 (Task 73): `errorMessage()` in `src/lib/errorMessage.ts` now finds the first string anywhere in a nested error body (bulk requests return lists of per-row errors). Before, Request Realignment only toasted "Could not submit the realignment."; now it shows the server's reason, e.g. the 60-day rule. vitest `errorMessage` 9/9. Guide 16Z-AL.
-- `a56f33c` v2026.11.17.2327 (Task 74): Request Realignment disabled with a note past the 60-day deadline (BudgetPage, DisbursementsPage, `src/lib/realignment.ts`).
-- `8d2ebb3` v2026.11.17.2340 (Task 75): reverts Task 74 (0 diff vs before T74), client: leave realignment as is. The button stays clickable; the server rejects late requests and the T73 toast says why. Guide 16Z-AM marked REVERTED.
-- Before that (same night): Task 71 `39c72f7` Saved Forecasts card title, Task 72 `63a70a7` quick forecast methods show results on click (guide 16Z-AJ/AK).
-- Tests: `npx tsc -b` + eslint OK; browser not tested for T71-75.
+2026-11-18, client Task 76 (Decision Support System, Figma DSS-01/DSS-02, "puro 100%", 4-role access), on `main`. NOT pushed: `a94287c`, `d3c54b2`, `23273cf`, `74e9151` (version bumps for backend 76-A..D), `87f21f1` (76-E), `daa0872` (76-F) and this handover. Backend: rmis-backend `22123cc`..`ecdff89` (see its handover). Memory note: `task-76-dss-2026-11-18`.
+- `87f21f1` v2026.11.18.0145 (76-E, `DecisionSupportPage.tsx`): `IndicatorModal` (create + Edit Formula) keeps "Measured From" and adds an EDIT checkbox beside "Scoring Formula / Method" (unchecked = standard formula shown/used; checked = textarea, clickable variables, server error under the box). `AssignWeightsPanel` under the model card (Figma assign-weights.png: sliders 1-60, "Sum: X / 100 ✓", Save only at 100). `PairwiseModal` is now the optional "AHP pairwise comparison" for draft models. Rankings/score detail use `runWeights` (run `weights_snapshot`, model weights as fallback); `minmax_v1` runs get an "Old relative scale" pill. `METRIC_META` formulas describe the 0-100 scale.
+- `daa0872` v2026.11.18.0151 (76-F): `DSS_VIEW_ROLE_CODES` in `src/lib/roles.ts`; `/decision-support` RoleGate; nav item tiers system_admin + institution_oversight + `roles: ["crc_chair"]` (finance removed); Analytics "Decision Support" tab and Dashboard card 5d only for those roles (Dashboard doesn't call funding-allocation for others); `DecisionTab` shows the run's `weights_snapshot`.
+- Tests: `npx tsc -b`, eslint, vitest 187/187 (2 new in `nav.test.ts`). Browser not tested (needs backend deploy + migrations). Guide 16Z-AN..16Z-AT.
 
 ## Next thing to do in this repo
-1. Carl: deploy; check Netlify shows 2026.11.17.2340. Backend `d640443`/`2e1f10f` deploy if not done.
-2. Carl: browser-test 16Z-AJ..16Z-AL (16Z-AM is reverted, skip), plus 16Z-AC..16Z-AI and 16Z-Q..16Z-AB if not finished.
-3. Open (no task): quick forecast methods fill months without a disbursement with ₱0 while ARIMA uses only months with disbursements (P173: ₱5,100 ÷ 15 months vs 5 points); ask Carl/client which rule. Draft projects' documents still visible to campus CRC/CRD/Finance; older follow-ups (Analytics "Active Projects", Risk dashboard counts, Quarterly Reports Funding Agency, DSS gaps, AuthContext eslint errors).
-4. Lesson: realignment rules are client-sensitive ("huwag galawin"); surface server errors instead of adding client-side locks without asking.
+1. Carl: push frontend + backend, deploy both together, migrate (decision_support 0003-0005, accounts 0034), parity 0; Netlify should show 2026.11.18.0151.
+2. Carl: run the DSS again, browser-test 16Z-AO..16Z-AT (System Admin: EDIT formula, Edit Weights, Run; CRC/CRD view-only; Finance no DSS). Warn the client before a demo: Finance loses the DSS, CRC/CRD gains view, no active VP for REI / University Administration account.
+3. Open (no task): Output Volume score is relative to the highest count in the run; quick forecast zero-fill vs ARIMA months (Task 72 flag); draft-project documents for campus roles; older follow-ups (Analytics "Active Projects", Risk dashboard counts, Quarterly Reports Funding Agency, AuthContext eslint errors).
+4. Lesson: when the client says "follow Figma" for a calculation, read the Make source's compute function, not just the screenshot (Figma DSS = absolute 0-100 x weight %).
 5. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
