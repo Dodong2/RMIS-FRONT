@@ -23,3 +23,15 @@ export const PAYMENT_META = {
 export function paymentMeta(status: ProcurementRequest["payment_status"]) {
   return status === "paid" ? PAYMENT_META.paid : PAYMENT_META.awaiting_payment;
 }
+
+/** Task 68-B: puts the request the server just saved into a loaded list right away (the refetch then confirms it).
+ *  Replaced in place when present, added on top when new, dropped when `keep` says it no longer belongs there. */
+export function upsertProcurement(
+  list: ProcurementRequest[] | null | undefined,
+  saved: ProcurementRequest,
+  keep: (r: ProcurementRequest) => boolean = () => true,
+): ProcurementRequest[] | null | undefined {
+  if (!list) return list;
+  if (!keep(saved)) return list.filter((r) => r.id !== saved.id);
+  return list.some((r) => r.id === saved.id) ? list.map((r) => (r.id === saved.id ? saved : r)) : [saved, ...list];
+}

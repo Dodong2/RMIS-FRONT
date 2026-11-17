@@ -19,7 +19,7 @@ import { Field, SkeletonRows } from "../components/common/proto";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
 import { PROCUREMENT_EVENTS, useRealtime } from "../hooks/useRealtime";
-import { STATUS_META, paymentMeta } from "../lib/procurementStatus";
+import { STATUS_META, paymentMeta, upsertProcurement } from "../lib/procurementStatus";
 import { itemTotals, type ItemTotals } from "../lib/procurementBalance";
 import { LibItemPicker } from "../components/budget/LibItemPicker";
 import { ProjectPicker } from "../components/common/ProjectPicker";
@@ -283,7 +283,7 @@ function InsufficientBudgetModal({ budget, onClose }: { budget: InsufficientBudg
   );
 }
 
-function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Project[]; budgets: LineItemBudget[]; onClose: () => void; onSaved: () => void }) {
+function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Project[]; budgets: LineItemBudget[]; onClose: () => void; onSaved: (saved: ProcurementRequest) => void }) {
   const certified = budgets.filter((b) => b.is_current && b.status === "certified");
   const eligible = projects.filter((p) => certified.some((b) => b.project === p.id));
   const [form, setForm] = useState({
@@ -321,7 +321,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
     }
     setSaving(true);
     try {
-      await financialApi.createProcurementRequest({
+      const saved = await financialApi.createProcurementRequest({
         line_item: Number(form.line_item),
         description: form.description.trim(),
         amount: amount.toFixed(2),
@@ -330,7 +330,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
         remarks: form.remarks.trim() || undefined,
       }, requestKey);
       notify.success("Procurement request filed.");
-      onSaved();
+      onSaved(saved);
     } catch (err) {
       const budget = insufficientBudget(err);
       if (budget) setShortfall(budget);
@@ -424,7 +424,7 @@ function NewRequestModal({ projects, budgets, onClose, onSaved }: { projects: Pr
   );
 }
 
-function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequest; onClose: () => void; onSaved: () => void }) {
+function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequest; onClose: () => void; onSaved: (saved: ProcurementRequest) => void }) {
   const [form, setForm] = useState({
     description: request.description,
     amount: request.amount,
@@ -445,7 +445,7 @@ function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequ
     }
     setSaving(true);
     try {
-      await financialApi.resubmitProcurementRequest(request.id, {
+      const saved = await financialApi.resubmitProcurementRequest(request.id, {
         description: form.description.trim(),
         amount: amount.toFixed(2),
         project_year: Number(form.project_year),
@@ -453,7 +453,7 @@ function ResubmitModal({ request, onClose, onSaved }: { request: ProcurementRequ
         remarks: form.remarks.trim() || undefined,
       });
       notify.success("Procurement request resubmitted.");
-      onSaved();
+      onSaved(saved);
     } catch (err) {
       const budget = insufficientBudget(err);
       if (budget) setShortfall(budget);
@@ -554,7 +554,7 @@ function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChan
   projectOf: (id: number | undefined) => Project | undefined;
   itemsById: Map<number, LineItem>;
   onBack: () => void;
-  onChanged: () => void;
+  onChanged: (saved: ProcurementRequest) => void;
 }) {
   const [busy, setBusy] = useState<number | null>(null);
   const [noting, setNoting] = useState<{ request: ProcurementRequest; status: ProcurementUpdateStatus } | null>(null);
@@ -564,9 +564,9 @@ function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChan
   const receive = async (r: ProcurementRequest) => {
     setBusy(r.id);
     try {
-      await financialApi.receiveProcurementRequest(r.id);
+      const saved = await financialApi.receiveProcurementRequest(r.id);
       notify.success(`${prNo(r)} marked received. ${r.requested_by_name} has been notified.`);
-      onChanged();
+      onChanged(saved);
     } catch (err) {
       notify.error(errorMessage(err, "Could not mark the request received."));
     } finally {
@@ -577,10 +577,10 @@ function PendingProcurementView({ requests, projectOf, itemsById, onBack, onChan
   const update = async (r: ProcurementRequest, status: ProcurementUpdateStatus, remarks?: string) => {
     setBusy(r.id);
     try {
-      await financialApi.updateProcurementStatus(r.id, status, remarks || undefined);
+      const saved = await financialApi.updateProcurementStatus(r.id, status, remarks || undefined);
       notify.success(`${prNo(r)} is now ${STATUS_META[status].label}.`);
       setNoting(null);
-      onChanged();
+      onChanged(saved);
     } catch (err) {
       notify.error(errorMessage(err, "Could not update the request."));
     } finally {
@@ -766,14 +766,19 @@ function ProcurementContent() {
     if (listsFailed) notify.error("Could not load projects or budgets.");
   }, [listsFailed]);
 
+  // Task 68-B: a procurement write changes only procurement rows, balances and summaries, never the LIBs or projects
   const reload = () => {
     setReloadKey((k) => k + 1);
-    queryClient.invalidateQueries({ queryKey: queryKeys.projects });
-    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
     queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
     queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
   };
   useRealtime(PROCUREMENT_EVENTS, reload);
+  // The server's saved row shows at once; reload() then confirms it (and the KPIs, delayed flags and other lists)
+  const applySaved = (saved: ProcurementRequest) => {
+    setRequests((list) => upsertProcurement(list, saved, (r) => !projectFilter || r.project === Number(projectFilter)) ?? null);
+    setPendingList((list) => upsertProcurement(list, saved, isOpen) ?? null);
+    reload();
+  };
 
   useEffect(() => {
     if (focusId) document.getElementById(`pr-${focusId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -822,7 +827,7 @@ function ProcurementContent() {
         projectOf={projectOf}
         itemsById={itemsById}
         onBack={() => setParams({})}
-        onChanged={reload}
+        onChanged={applySaved}
       />
     );
   }
@@ -1058,9 +1063,9 @@ function ProcurementContent() {
         <ResubmitModal
           request={resubmitting}
           onClose={() => setResubmitting(null)}
-          onSaved={() => {
+          onSaved={(saved) => {
             setResubmitting(null);
-            reload();
+            applySaved(saved);
           }}
         />
       )}
@@ -1070,9 +1075,9 @@ function ProcurementContent() {
           projects={projects}
           budgets={budgets}
           onClose={() => setShowNew(false)}
-          onSaved={() => {
+          onSaved={(saved) => {
             setShowNew(false);
-            reload();
+            applySaved(saved);
           }}
         />
       )}

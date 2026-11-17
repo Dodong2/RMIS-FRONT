@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { financialApi } from "../../lib/financialApi";
 import { errorMessage } from "../../lib/errorMessage";
 import { notify } from "../../lib/notify";
+import { upsertProcurement } from "../../lib/procurementStatus";
 import { queryKeys } from "../../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../../lib/protoStyles";
 import { PROCUREMENT_EVENTS, useRealtime } from "../../hooks/useRealtime";
@@ -68,8 +69,10 @@ export function ProcurementPayments({ projects, budgets, onBack }: { projects: P
   const rows = all.filter((r) => r.payment_status === filter);
   const count = (f: PaymentFilter) => all.filter((r) => r.payment_status === f).length;
 
-  const paid = () => {
+  const paid = (saved: ProcurementRequest) => {
     setPaying(null);
+    // Task 68-B: the saved (paid) row leaves Awaiting Payment at once; the invalidation below confirms it
+    queryClient.setQueryData<ProcurementRequest[]>(completedQuery().queryKey, (list) => upsertProcurement(list, saved) ?? undefined);
     queryClient.invalidateQueries({ queryKey: queryKeys.financialAll });
     queryClient.invalidateQueries({ queryKey: queryKeys.budgetSummaries });
   };
@@ -163,7 +166,7 @@ export function ProcurementPayments({ projects, budgets, onBack }: { projects: P
   );
 }
 
-function PayDialog({ request, projectCode, onClose, onPaid }: { request: ProcurementRequest; projectCode?: string; onClose: () => void; onPaid: () => void }) {
+function PayDialog({ request, projectCode, onClose, onPaid }: { request: ProcurementRequest; projectCode?: string; onClose: () => void; onPaid: (saved: ProcurementRequest) => void }) {
   const [paidOn, setPaidOn] = useState(today());
   const [reference, setReference] = useState("");
   const [attempted, setAttempted] = useState(false);
@@ -177,9 +180,9 @@ function PayDialog({ request, projectCode, onClose, onPaid }: { request: Procure
     }
     setSaving(true);
     try {
-      await financialApi.payProcurementRequest(request.id, { paid_on: paidOn, reference_number: reference.trim() });
+      const saved = await financialApi.payProcurementRequest(request.id, { paid_on: paidOn, reference_number: reference.trim() });
       notify.success(`${prNo(request)} marked as paid (${peso(request.amount)}).`);
-      onPaid();
+      onPaid(saved);
     } catch (err) {
       notify.error(errorMessage(err, "Could not record the payment."));
     } finally {

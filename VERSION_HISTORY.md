@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.1620**
+**Latest version: 2026.11.17.1638**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.1638
+
+- **Date and time:** 2026-11-17 16:38 (Asia/Manila)
+- **Category:** Frontend, faster updates
+- **Summary:** After File Request, Mark Received, a status change, Resubmit or Confirm Payment, the list now shows the saved request right away, using what the server returned. Before, the screen waited for every list on the page to reload (including all LIBs and projects) before showing the change. A paid request now leaves Awaiting Payment as soon as the server confirms the payment.
+- **Affected modules:** Procurement (Procurement Requests, Pending Procurement Requests), Budget Management (Procurement Payments)
+- **Notes:** Task 68-B. Nothing is shown before the server confirms the save: a rejected step changes nothing on screen. The lists, KPIs and delayed flags still reload right after to confirm. A procurement action no longer reloads the LIB and project lists (it does not change them). No backend change, no migration.
 
 ### 2026.11.17.1620
 
