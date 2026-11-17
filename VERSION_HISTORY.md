@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.2314**
+**Latest version: 2026.11.17.2327**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.2327
+
+- **Date and time:** 2026-11-17 23:27 (Asia/Manila)
+- **Category:** UI change
+- **Summary:** The Request Realignment button is disabled once a project is past its realignment deadline (60 days before the target end date), with the note "Realignment closed: requests must be filed at least 60 days before the target end date (date)." Past realignments and Finance approvals stay visible.
+- **Affected modules:** Budget Management (LIB Realignment tab), Procurement, Realignment & Financial Monitoring (project header and Adjustments tab)
+- **Notes:** Task 74. Same rule the server already enforced (unchanged). A project with no target end date stays open. No migration.
 
 ### 2026.11.17.2314
 

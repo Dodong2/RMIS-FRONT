@@ -8,7 +8,7 @@ import { notify } from "../lib/notify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { budgetSummaryQuery, documentsQuery, financialRecordsQuery, queryKeys, useBudgets, useProjects } from "../lib/queries";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
-import { REALIGNMENT_STATUS_META as STATUS_META } from "../lib/realignment";
+import { REALIGNMENT_STATUS_META as STATUS_META, realignmentClosedReason } from "../lib/realignment";
 import type { LineItemBudget, LineItemCategory } from "../types/budget";
 import type { BudgetRealignment, BudgetSummary, Disbursement, LineItemBalance, RealignmentStatus, RealignmentTier } from "../types/financial";
 import type { ProjectDocument } from "../types/document";
@@ -514,6 +514,7 @@ function ProjectBoard({
   const filtered = disbursements.filter((d) => catFilter === "all" || itemOf(d.line_item)?.category === catFilter);
   const util = summary?.line_items ?? [];
   const pendingCount = realignments.filter((r) => isPending(r.status)).length;
+  const realignClosed = realignmentClosedReason(project.target_end_date);
   const selected = disbursements.find((d) => d.id === selectedTxn);
 
   const monthly = useMemo(() => {
@@ -568,8 +569,8 @@ function ProjectBoard({
                 {canRequest && certified && (
                   <button
                     onClick={() => setShowRealign(true)}
-                    disabled={pendingCount > 0}
-                    title={pendingCount > 0 ? "Wait for the pending realignment request to be reviewed." : undefined}
+                    disabled={pendingCount > 0 || !!realignClosed}
+                    title={realignClosed ?? (pendingCount > 0 ? "Wait for the pending realignment request to be reviewed." : undefined)}
                     className="px-3 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ background: "rgba(124,58,237,0.6)" }}
                   >
@@ -805,15 +806,18 @@ function ProjectBoard({
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Post-Approval Budget Adjustments (Realignments)</p>
                   {canRequest && certified && (
-                    <button
-                      onClick={() => setShowRealign(true)}
-                      disabled={pendingCount > 0}
-                      title={pendingCount > 0 ? "Wait for the pending realignment request to be reviewed." : undefined}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ background: "#0d2a5e" }}
-                    >
-                      + Request Realignment
-                    </button>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {realignClosed && <span className="text-xs" style={{ color: "#92400e" }}>{realignClosed}</span>}
+                      <button
+                        onClick={() => setShowRealign(true)}
+                        disabled={pendingCount > 0 || !!realignClosed}
+                        title={realignClosed ?? (pendingCount > 0 ? "Wait for the pending realignment request to be reviewed." : undefined)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ background: "#0d2a5e" }}
+                      >
+                        + Request Realignment
+                      </button>
+                    </div>
                   )}
                 </div>
                 {summary && (
