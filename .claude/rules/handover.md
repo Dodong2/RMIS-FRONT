@@ -119,7 +119,7 @@ automatically — most pages needed zero code changes for this pass.
   research, matching rmis-backend `ba9c9e4` which dropped the cap check
   (real LIB data like sheet P77, ₱120k, was getting 400'd). Deliberate
   deviation from the Manual — re-add both sides if the client/panel asks.
-- Module 5 (Disbursements/Realignments): **2026-11-16 (Task 67): New Procurement Request Project field = `ProjectPicker` (NTP on top, title below, search + scroll) — see "Last thing done".** **2026-11-16 (Task 64-C): Specification column on Disbursement Ledger and Budget Utilization — see "Last thing done".** **2026-11-06 (Tasks 48-B/C): Link to LIB Item = `LibItemPicker` (Specification + Approved/Committed/Paid/Available, no balance = not selectable); procurement table Particulars instead of Routing — see "Last thing done".** **2026-10-30 (Tasks 22–23): Procurement New Request per project year, insufficient-budget modal, Manage status filter — see "Last thing done".** DisbursementsPage built against
+- Module 5 (Disbursements/Realignments): **2026-11-17 (Task 68-B): procurement lists and Procurement Payments show the server's saved row at once (`upsertProcurement`); no LIB/project reload on procurement actions — see "Last thing done".** **2026-11-16 (Task 67): New Procurement Request Project field = `ProjectPicker` (NTP on top, title below, search + scroll) — see "Last thing done".** **2026-11-16 (Task 64-C): Specification column on Disbursement Ledger and Budget Utilization — see "Last thing done".** **2026-11-06 (Tasks 48-B/C): Link to LIB Item = `LibItemPicker` (Specification + Approved/Committed/Paid/Available, no balance = not selectable); procurement table Particulars instead of Routing — see "Last thing done".** **2026-10-30 (Tasks 22–23): Procurement New Request per project year, insufficient-budget modal, Manage status filter — see "Last thing done".** DisbursementsPage built against
   financial_monitoring — record disbursements against a certified budget's line
   items, request fund realignments (existing item or new BOR-tier item), and
   review pending ones inline (no BOR resolution no. since client 2026-10-10). Every
@@ -248,7 +248,7 @@ automatically — most pages needed zero code changes for this pass.
   shapes matched the new TS types exactly, one throwaway planning target
   deleted after (no DELETE endpoint exists, so it was removed via Django
   shell). Not yet browser-tested — dev servers left running for the client.
-- Module 11 (Budget Forecasting): **2026-11-16 (Task 67): project dropdown = `ProjectPicker` (NTP on top, title below); pill still "Title — NTP" — see "Last thing done".** **2026-11-16 (Tasks 64-A, 66-B): dropdown on top, "Title — NTP", from `forecasting/projects/` (Active only, any funding type); route/nav/Run for system_admin, project_leader, riuh, crc_chair, finance_budget (vprei/university_admin removed) — see "Last thing done".** **2026-10-30 (Task 27): open to `project_leader` with Run, Unpaid Commitments tile — see "Last thing done".** BudgetForecastPage built against the
+- Module 11 (Budget Forecasting): **2026-11-17 (Task 68-C): switching project clears the previous project's figures at once — see "Last thing done".** **2026-11-16 (Task 67): project dropdown = `ProjectPicker` (NTP on top, title below); pill still "Title — NTP" — see "Last thing done".** **2026-11-16 (Tasks 64-A, 66-B): dropdown on top, "Title — NTP", from `forecasting/projects/` (Active only, any funding type); route/nav/Run for system_admin, project_leader, riuh, crc_chair, finance_budget (vprei/university_admin removed) — see "Last thing done".** **2026-10-30 (Task 27): open to `project_leader` with Run, Unpaid Commitments tile — see "Last thing done".** BudgetForecastPage built against the
   forecasting app — project selector limited to institutional/externally-
   funded projects (Core-Funded is out of this module's scope), role-gated
   "Run New Forecast" button (system_admin/drd/vprei/finance_budget), a
@@ -680,15 +680,18 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-16 evening, client Task 67, on `main`, `bd65eb6` (v**2026.11.16.2104**), NOT pushed when this was written. Frontend only, no backend, no migration. Memory note: `tasks-62-66-2026-11-16` (T67 line).
-- New `src/components/common/ProjectPicker.tsx` (+ `ProjectPicker.test.tsx`): div combobox like `LibItemPicker`; button shows the chosen project as NTP (bold) on top, title below (small, wraps); popover has a search box (NTP or title), a scrolling `role="listbox"` (`max-h-64`), ↑/↓/Enter/Esc, click outside closes.
-- Used for the Project field of New Procurement Request (`ProcurementPage.tsx`, same reset of line item/year/quarter/category) and the Budget Forecast project picker (`BudgetForecastPage.tsx`, same reload). Carl chose NTP on top for both (replaces T66-B's "Title — NTP" in the dropdown). The Saved Forecasts pill still uses `forecastProjectLabel` ("Title — NTP"). The procurement list's "All projects" filter (NTP only) is unchanged.
-- Before T67 the Tasks 62-66 batch was pushed and accounts 0033 migrated (parity 0); see that batch in git log (`cfdc367` handover).
-- Tests before push: frontend vitest 178/178 (32 files), `tsc -b` clean; eslint has 3 old errors in `src/context/AuthContext.tsx` (untouched since 2026-10-13). Backend full suite 732/732 OK (local rmis-testdb). Guide: new 16Z-AB, 16Z-W and a 16A line revised. Carl checked the site and says the changes work; detailed browser check of 16Z-AB (phone width, list inside the modal) not reported.
+2026-11-17, client Tasks 68 (slow updates) and 69 (Finance Supporting Document History), on `main`, NOT pushed, no migration. Memory note: `tasks-68-69-2026-11-17`.
+- Cause found: real-time events arrived, but every procurement action reloaded every list on the page (including all LIBs and projects) and the backend lists ran N+1 queries (LIB list 23 s). Backend fixed in rmis-backend 68-A/68-D (see its handover).
+- `bde2c63` v2026.11.17.1620: version bump for backend 68-A (N+1 fix).
+- `eb5d09d` v2026.11.17.1638 (68-B): `upsertProcurement` in `src/lib/procurementStatus.ts`; `ProcurementPage` (File Request, Receive, status, Resubmit) and `ProcurementPayments` (Confirm Payment) put the row the server returned into the loaded lists, then reload to confirm. Procurement actions no longer invalidate `projects`/`budgets`. Nothing shown before the server confirms.
+- `00be3b8` v2026.11.17.1642 (68-C): Budget Forecast picker resets LIB/summary/runs/selected run with the disbursements ("…" in Current Budget Status while loading); a finished run is added only if its project is still on screen.
+- `1dc5116` v2026.11.17.1651: version bump for backend 69 (Finance sees project supporting documents; same `ProjectReviewWorkflow` component, no UI change).
+- `a291281` v2026.11.17.1700: version bump for backend 68-D (procurement e-mails in a background thread).
+- Tests: vitest 182/182 (33 files), `tsc -b` and eslint clean on touched files. Browser and prod not tested. Guide: 16Z-AC..16Z-AG, T42-A marked superseded by Task 69.
 
 ## Next thing to do in this repo
-1. Carl: push rmis-frontend (`bd65eb6` + this handover commit), check Netlify shows 2026.11.16.2104.
-2. Carl: browser-test 16Z-AB, plus 16Z-Q..16Z-AA if not finished; backend prod deploy for Tasks 62-66 if not done yet (Analytics Overview, Budget Forecast dropdown and History tab need it).
-3. Follow-ups (no task, ask client): Analytics "Active Projects", Risk dashboard and Dashboard per-campus "active" count still use `Project.status`; Overview Physical Progress (done/total) vs Closure (avg %); Quarterly Reports Funding Agency blank (backend); DSS gaps in the DSS guide Section 9. Optional cleanup: the 3 eslint errors in AuthContext.tsx (ask first).
-4. Still from before: browser-test 16Z-P..16Z-H; Vetiver cost/dates; T38 on hold; T43-B lifecycle; real_8_data conflicts waiting for client; CLAUDE.md "no code comments" vs current style (ask Carl).
+1. Carl: push rmis-backend first (`82d5a87`, `cf2a937`, `40481a3`), then rmis-frontend (5 commits above + this handover), deploy both, check Netlify shows 2026.11.17.1700.
+2. Carl: browser-test 16Z-AC..16Z-AG per role (PL, Procurement Officer, Finance); the two-browser real-time check works only on prod. Plus 16Z-Q..16Z-AB if not finished.
+3. Open, needs Carl/client: 68-A2 Budget Summary (~4 s, backend); CRC/CRD documents not campus-scoped; Finance financial documents not campus-scoped. Older follow-ups (Analytics "Active Projects", Risk dashboard counts, Quarterly Reports Funding Agency, DSS gaps, AuthContext eslint errors) still open.
+4. Lesson: for "UI slow after toast" use the mutation response (putLib, upsertProcurement) and invalidate only what the write changed.
 5. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
