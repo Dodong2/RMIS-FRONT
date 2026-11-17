@@ -1,5 +1,5 @@
 import { Brain, Check, Flame, Target, TrendingUp, TriangleAlert } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import { forecastProjectLabel, forecastingApi } from "../lib/forecastingApi";
 import { researchApi } from "../lib/researchApi";
@@ -225,7 +225,9 @@ function ForecastContent() {
     };
   }, []);
 
+  const shownProject = useRef(projectId);
   useEffect(() => {
+    shownProject.current = projectId;
     if (projectId === null) return;
     let active = true;
     Promise.all([budgetApi.getBudgets(projectId), financialApi.getDisbursements({ project: projectId }), forecastingApi.getRuns({ project: projectId })])
@@ -283,9 +285,11 @@ function ForecastContent() {
     setRunning(true);
     try {
       const r = await forecastingApi.triggerRun(projectId);
-      setRuns((prev) => [r, ...prev]);
-      setSelectedRunId(r.id);
-      setTab("results");
+      if (shownProject.current === r.project) {
+        setRuns((prev) => [r, ...prev]);
+        setSelectedRunId(r.id);
+        setTab("results");
+      }
       if (r.status === "success") notify.success(r.is_overrun_risk ? "Forecast complete — overrun risk flagged." : "Forecast complete.");
       else if (r.status === "insufficient_data") notify.warning(r.error_message);
       else notify.error(r.error_message || "The forecast fit failed.");
@@ -313,7 +317,12 @@ function ForecastContent() {
           onChange={(id) => {
             setProjectId(Number(id));
             setRanQuick(false);
+            // Task 68-C: never show the previous project's figures while this one loads
             setDisbursements(null);
+            setBudget(null);
+            setSummary(null);
+            setRuns([]);
+            setSelectedRunId(null);
           }}
         />
         <p className="text-xs mt-1.5" style={{ color: "#94a3b8" }}>Active projects only (LIB certified by Finance/Accounting/Budget), any funding type.</p>
@@ -338,7 +347,7 @@ function ForecastContent() {
                 ).map(([l, v, c]) => (
                   <div key={l}>
                     <p className="text-xs" style={{ color: "#94a3b8" }}>{l}</p>
-                    <p className="text-sm font-black" style={{ color: c }}>{v}</p>
+                    <p className="text-sm font-black" style={{ color: c }}>{disbursements === null ? "…" : v}</p>
                   </div>
                 ))}
               </div>

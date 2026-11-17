@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.1638**
+**Latest version: 2026.11.17.1642**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.1642
+
+- **Date and time:** 2026-11-17 16:42 (Asia/Manila)
+- **Category:** Frontend, UI fix
+- **Summary:** Choosing another project on Budget Forecast now clears the previous project's figures at once. The Current Budget Status shows "…" and the history shows its loading box until the new project's data arrives, and Saved Forecasts starts empty. Before, the old project's budget, utilization and saved runs stayed on screen while the new project loaded. A forecast run that finishes after you switched projects no longer lands in the other project's list.
+- **Affected modules:** Analytics (Budget Forecast)
+- **Notes:** Task 68-C. Display only: the same data is loaded, the ARIMA calculation and access are unchanged. No backend change, no migration.
 
 ### 2026.11.17.1638
 
