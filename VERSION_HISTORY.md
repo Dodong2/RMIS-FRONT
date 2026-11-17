@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.17.1642**
+**Latest version: 2026.11.17.1651**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.17.1651
+
+- **Date and time:** 2026-11-17 16:51 (Asia/Manila)
+- **Category:** Backend, access fix
+- **Summary:** Finance/Accounting/Budget now sees a project's supporting documents (NTP, Approve Proposal, MOA and other files) in the Supporting Document History of Open Review / View Information, with a working View button, like CRC/CRD. Only for projects on their campus whose LIB has reached them (Ready for Certification, Certifying, Certified), the same projects they can review. The same files also show on their Document and Records Management page.
+- **Affected modules:** Budget Management (Project Review modal), Document and Records Management
+- **Notes:** Task 69. The Research Proposal Form stays hidden from Finance (client 2026-10-09). No change for Procurement, CRC/CRD or other roles. No frontend change (CRC/CRD and Finance share the same component), no migration.
 
 ### 2026.11.17.1642
 
