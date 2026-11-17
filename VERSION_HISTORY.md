@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.0145**
+**Latest version: 2026.11.18.0151**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.0151
+
+- **Date and time:** 2026-11-18 01:51 (Asia/Manila)
+- **Category:** Access change
+- **Summary:** The Decision Support System menu item and page are for System Admin, VP for REI, University Administration and CRC/CRD only (Finance loses it, CRC/CRD gains it). Typing /decision-support as another role shows the no-access page. The Analytics "Decision Support" tab and the Dashboard "Funding Allocation Decision" (5d) card are shown to the same four roles only. The Analytics Decision Support tab now shows the weights saved with the run instead of the model's current weights.
+- **Affected modules:** Sidebar, Decision Support System, Analytics (Decision Support tab), Dashboard (Objective Dashboards 5d)
+- **Notes:** Task 76-F. Matches backend dss.view (Task 76-D, accounts 0034). No migration of its own.
 
 ### 2026.11.18.0145
 

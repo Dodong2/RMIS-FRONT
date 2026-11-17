@@ -19,6 +19,7 @@ export function DecisionTab({ data }: { data: PerformanceDashboard | null }) {
   const [allocation, setAllocation] = useState<FundingAllocationDashboard | null | undefined>(undefined);
   const [ahpRun, setAhpRun] = useState<AHPMatrixRun | null>(null);
   const [criteria, setCriteria] = useState<DecisionCriterion[]>([]);
+  const [runWeights, setRunWeights] = useState<Record<string, number> | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -29,9 +30,14 @@ export function DecisionTab({ data }: { data: PerformanceDashboard | null }) {
         if (!alive) return;
         setAllocation(d);
         if (!d) return;
-        const [run, list] = await Promise.all([decisionSupportApi.getAHPRun(d.ahp_run), decisionSupportApi.getCriteria()]);
+        const [run, list, rec] = await Promise.all([
+          decisionSupportApi.getAHPRun(d.ahp_run),
+          decisionSupportApi.getCriteria(),
+          decisionSupportApi.getRecommendationRun(d.run),
+        ]);
         if (!alive) return;
         setAhpRun(run);
+        setRunWeights(Object.keys(rec.weights_snapshot ?? {}).length ? rec.weights_snapshot : null);
         setCriteria(list);
       })
       .catch(() => alive && setFailed(true));
@@ -46,7 +52,7 @@ export function DecisionTab({ data }: { data: PerformanceDashboard | null }) {
   const inScope = new Map(data.projects.map((r) => [r.project, r]));
   const ranking = (allocation?.ranking ?? []).filter((r) => inScope.has(r.project));
   const names = new Map(criteria.map((c) => [String(c.id), c.name]));
-  const weights = Object.entries(ahpRun?.weights ?? {}).sort((a, b) => b[1] - a[1]);
+  const weights = Object.entries(runWeights ?? ahpRun?.weights ?? {}).sort((a, b) => b[1] - a[1]);
 
   return (
     <div className="space-y-4">

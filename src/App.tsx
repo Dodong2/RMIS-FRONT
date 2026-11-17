@@ -37,7 +37,7 @@ import ProcurementPage from "./pages/ProcurementPage";
 import BudgetSyncPage from "./pages/BudgetSyncPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
-import { PROJECT_PAGE_ROLE_CODES, REGISTRATION_ROLE_CODES } from "./lib/roles";
+import { DSS_VIEW_ROLE_CODES, PROJECT_PAGE_ROLE_CODES, REGISTRATION_ROLE_CODES } from "./lib/roles";
 
 export default function App() {
   return (
@@ -148,7 +148,7 @@ export default function App() {
         path="/decision-support"
         element={
           <ProtectedRoute>
-            <RoleGate allow={["system_admin", "vprei", "university_admin", "finance_budget"]}>
+            <RoleGate allow={DSS_VIEW_ROLE_CODES}>
               <DecisionSupportPage />
             </RoleGate>
           </ProtectedRoute>

@@ -35,6 +35,7 @@ import { OverviewTab } from "../components/analytics/OverviewTab";
 import { ProjectsTab } from "../components/analytics/ProjectsTab";
 import { PortfolioTab } from "../components/analytics/PortfolioTab";
 import { ChartCard, CountBars, EmptyChart, HBar, KpiBox } from "../components/analytics/ProtoCharts";
+import { DSS_VIEW_ROLE_CODES } from "../lib/roles";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
@@ -105,6 +106,7 @@ function pctStatus(pct: number | null) {
 function AnalyticsContent() {
   const { user } = useAuth();
   const canManageTargets = MANAGE_TARGET_ROLE_CODES.includes(user?.role?.code ?? "");
+  const canSeeDss = DSS_VIEW_ROLE_CODES.includes(user?.role?.code ?? "");
 
   const [tab, setTab] = useState<Tab>("overview");
   const [campus, setCampus] = useState("");
@@ -361,7 +363,7 @@ function AnalyticsContent() {
           </button>
         </div>
         <div className="flex flex-wrap gap-1 rounded-xl border p-1" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
-          {TABS.map(([k, l]) => (
+          {TABS.filter(([k]) => k !== "decision" || canSeeDss).map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all" style={{ background: tab === k ? "#0d2a5e" : "transparent", color: tab === k ? "white" : "#64748b" }}>
               {l}
             </button>
@@ -381,7 +383,7 @@ function AnalyticsContent() {
 
       {tab === "forecast" && <ForecastTab data={performanceDash} forecast={forecastDash} />}
 
-      {tab === "decision" && <DecisionTab data={performanceDash} />}
+      {tab === "decision" && canSeeDss && <DecisionTab data={performanceDash} />}
 
       {tab === "compliance" &&
         (!complianceDash ? (

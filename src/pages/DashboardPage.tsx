@@ -276,7 +276,7 @@ function ObjectiveDashboards({ data, canOpen }: { data: DashData; canOpen: (to: 
     <div>
       <p className="text-xs font-black uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Objective Dashboards — 5a–5d</p>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-      {cards.map((c) => {
+      {cards.filter((c) => c.code !== "5d" || canOpen(c.to)).map((c) => {
         const body = (
           <>
             <div className="flex items-center justify-between mb-2">
@@ -888,6 +888,7 @@ function DashboardContent() {
   const canSeeWorkload = !!user?.role && TASK_ASSIGNER_CODES.includes(user.role.code);
   const navTargets = visibleTargets(tier, user?.role?.code);
   const canOpen = (to: string) => navTargets.includes(to);
+  const canSeeDss = navTargets.includes("/decision-support");
   // Client 2026-10-20: only university-wide roles see every project; everyone else's figures are their own projects.
   // Finance sees every project in its scope (all, or its assigned campus), not projects it owns (2026-10-22).
   const rootLabel = isWide ? "Institution" : tier === "finance" ? "Projects in Scope" : "My Projects";
@@ -910,7 +911,7 @@ function DashboardContent() {
     Promise.all([
       settle(dashboardApi.getComplianceDashboard()),
       settle(dashboardApi.getOutputDashboard()),
-      settle(dashboardApi.getFundingAllocationDashboard()),
+      canSeeDss ? settle(dashboardApi.getFundingAllocationDashboard()) : Promise.resolve(null),
       settle(dashboardApi.getTaskDashboard()),
     ]).then(([complianceDash, outputDash, fundingDash, taskDash]) => {
       if (!active) return;
@@ -922,7 +923,7 @@ function DashboardContent() {
     return () => {
       active = false;
     };
-  }, [hasRole, canSeeWorkload]);
+  }, [hasRole, canSeeWorkload, canSeeDss]);
 
   useEffect(() => {
     if (!hasRole) return;

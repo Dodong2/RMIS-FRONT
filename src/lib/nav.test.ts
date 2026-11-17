@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { visibleTargets } from "./nav";
+import { resolveTier } from "./roles";
 
 describe("Project Management in the sidebar (client 2026-10-20)", () => {
   it("is hidden from Project Staff, who keep Personnel & Tasks", () => {
@@ -74,5 +75,19 @@ describe("Budget Office Sync in the sidebar (Task 64-B, 2026-11-16)", () => {
   it("stays for System Admin and institution oversight", () => {
     expect(visibleTargets("system_admin", "system_admin")).toContain("/budget-sync");
     expect(visibleTargets("institution_oversight", "vprei")).toContain("/budget-sync");
+  });
+});
+
+describe("Decision Support System in the sidebar (client Task 76, 2026-11-18)", () => {
+  it("shows for System Admin, VP for REI, University Administration and CRC/CRD", () => {
+    for (const code of ["system_admin", "vprei", "university_admin", "crc_chair"]) {
+      expect(visibleTargets(resolveTier({ code }), code)).toContain("/decision-support");
+    }
+  });
+
+  it("is hidden from every other role", () => {
+    for (const code of ["riuh", "finance_budget", "procurement_officer_lib", "project_leader", "project_staff"]) {
+      expect(visibleTargets(resolveTier({ code }), code)).not.toContain("/decision-support");
+    }
   });
 });
