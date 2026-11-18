@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.2145**
+**Latest version: 2026.11.18.2201**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.2201
+
+- **Date and time:** 2026-11-18 22:01 (Asia/Manila)
+- **Category:** Bug fix (backend)
+- **Summary:** Personnel & Tasks no longer fails with a server error for an RIUH account that has no campus and no College Unit; such an account sees every task, as before Task 85-B.
+- **Affected modules:** Personnel & Tasks (RIUH)
+- **Notes:** Fix for client Task 85-B, rmis-backend b15f679. No migration.
 
 ### 2026.11.18.2145
 
