@@ -688,7 +688,7 @@ pattern is pre-clone.
 - Tests: tsc, eslint, vitest 193/193 (procurementDashboard.test.ts 15 with exact values; nav.test.ts Procurement Analytics 3 roles, Procurement Officer without general Analytics). Formulas run on the real 35 requests matched DB totals (34 completed = 413,150; 31 paid = 390,650). Browser not tested. Guide 16Z-BD (83-A), 16Z-BE (83-B), 16Z-BF (82-A), 16Z-BG (82-B).
 
 ## Next thing to do in this repo
-1. Carl: `./venv/bin/python manage.py migrate` in rmis-backend (accounts 0036) BEFORE deploying the backend (without it the Procurement Officer dashboard and Procurement Analytics 403), then `python scripts/permission_parity.py`; push and deploy both repos together; Netlify should show 2026.11.18.1721.
+1. accounts 0036 migrated + parity 0 + backend full suite 808/808 (2026-11-18). Carl: deploy backend and frontend together; Netlify should show 2026.11.18.1721.
 2. Browser-test 16Z-BD (upload on an Active project: 168, 169, 172, 173, 188; the 12 For Budget Review projects show the lock, by rule), 16Z-BG (expected numbers inside), sidebar for the 3 roles (no active University Administration account yet).
 3. Open: Monthly report files are type "Other" (a Monthly Report document type needs a backend choice); Document and Records Management upload still has no project scope (backend audit item); Procurement can still open /analytics by URL.
 4. Older open items: see the 2026-11-18 Tasks 78-79 notes in git history (`fa1e618`) — Compliance duty split, DocumentsPage Links tab 403, AuthContext eslint errors.
