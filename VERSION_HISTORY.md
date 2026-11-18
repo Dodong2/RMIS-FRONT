@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.2141**
+**Latest version: 2026.11.18.2145**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.2145
+
+- **Date and time:** 2026-11-18 21:45 (Asia/Manila)
+- **Category:** Access scope fix (backend)
+- **Summary:** RIUH's Personnel & Tasks list, task details and a task's Work Log now show only tasks of projects in its own campus and College Unit. Before, RIUH saw tasks of every campus. Project Staff (own tasks) and every other role are unchanged.
+- **Affected modules:** Personnel & Tasks (RIUH)
+- **Notes:** Client Task 85-B, rmis-backend 19b9ace. No migration.
 
 ### 2026.11.18.2141
 
