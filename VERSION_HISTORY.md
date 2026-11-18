@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.2035**
+**Latest version: 2026.11.18.2141**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.2141
+
+- **Date and time:** 2026-11-18 21:41 (Asia/Manila)
+- **Category:** Access scope change (backend)
+- **Summary:** RIUH now sees only the projects of its own campus AND its own College Unit (from Request Access / Profile), not every college of the campus. This applies everywhere the project scope is used: Project Management, Budget, Documents, Monitoring & Evaluation (incl. Quarterly Reports), Procurement, Dashboard, Analytics, Risk and Reports. An admin-set college scope (User & Access) still wins. CRC/CRD, Finance and Procurement stay campus-wide.
+- **Affected modules:** All project-scoped pages for RIUH
+- **Notes:** Client Task 85-A, rmis-backend c1a1905. No migration. Personnel & Tasks list follows in Task 85-B.
 
 ### 2026.11.18.2035
 
