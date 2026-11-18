@@ -13,8 +13,12 @@ export const forecastingApi = {
     const { data } = await apiClient.get("/api/forecasting/runs/", { params });
     return data;
   },
-  triggerRun: async (project: number): Promise<ForecastRun> => {
-    const { data } = await apiClient.post("/api/forecasting/runs/trigger/", { project });
+  triggerRun: async (project: number, horizon: number): Promise<ForecastRun> => {
+    const { data } = await apiClient.post("/api/forecasting/runs/trigger/", { project, horizon });
+    return data;
+  },
+  saveRun: async (id: number): Promise<ForecastRun> => {
+    const { data } = await apiClient.post(`/api/forecasting/runs/${id}/save/`);
     return data;
   },
 };

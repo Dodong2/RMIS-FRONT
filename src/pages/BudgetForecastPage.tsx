@@ -1,6 +1,5 @@
 import { Brain, Check, Flame, Target, TrendingUp, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import { forecastingApi } from "../lib/forecastingApi";
 import { researchApi } from "../lib/researchApi";
 import { budgetApi } from "../lib/budgetApi";
@@ -16,7 +15,6 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import { NoActualData } from "../components/common/NoActualData";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/layout/AppShell";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
@@ -28,7 +26,7 @@ type Scenario = "optimistic" | "base" | "conservative";
 type Tab = "results" | "comparison" | "saved";
 
 const METHOD_META: Record<Method, { label: string; icon: ReactNode; desc: string }> = {
-  arima: { label: "ARIMA (server model)", icon: <Brain className={ICON} aria-hidden="true" />, desc: "Statistical model fitted on 6+ months of history, with confidence band, backtest, and overrun flag. Saved as a run." },
+  arima: { label: "ARIMA (server model)", icon: <Brain className={ICON} aria-hidden="true" />, desc: "Statistical model fitted on 6+ months of history, with backtest and overrun flag. Run shows a preview; Save Forecast keeps it." },
   burn_rate: { label: "Average Burn Rate", icon: <Flame className={ICON} aria-hidden="true" />, desc: "Average monthly disbursement so far, carried forward." },
   linear_trend: { label: "Linear Trend", icon: <TrendingUp className={ICON} aria-hidden="true" />, desc: "Least-squares trend over the anchor period, extended forward." },
   moving_average: { label: "Moving Average", icon: "〰️", desc: "Average of the most recent anchor-period months." },
@@ -105,19 +103,20 @@ function computeQuick(
     const perMonth = remaining / Math.max(1, monthsLeft);
     base = Array.from({ length: horizon }, (_, i) => (i < monthsLeft ? perMonth : 0));
   }
+  const last = history[history.length - 1]?.key ?? monthKey(new Date());
+  const labels = Array.from({ length: horizon }, (_, i) => labelOf(addMonths(last, i + 1)));
+  return scenarios(base, labels, contingency, budget, actual);
+}
+
+// Figma BF-03: Optimistic = base x 0.85, Conservative = base x (1 + contingency buffer). Quick methods and ARIMA.
+function scenarios(base: number[], labels: string[], contingency: number, budget: number, actual: number): QuickResult {
   const build = (factor: number): ScenarioResult => {
     const monthly = base.map((v) => Math.round(v * factor));
     const total = monthly.reduce((a, b) => a + b, 0);
     const projectedFinal = actual + total;
     return { monthly, total, projectedFinal, utilizationPct: budget > 0 ? Math.round((projectedFinal / budget) * 100) : 0 };
   };
-  const last = history[history.length - 1]?.key ?? monthKey(new Date());
-  return {
-    labels: Array.from({ length: horizon }, (_, i) => labelOf(addMonths(last, i + 1))),
-    optimistic: build(0.85),
-    base: build(1),
-    conservative: build(1 + contingency / 100),
-  };
+  return { labels, optimistic: build(0.85), base: build(1), conservative: build(1 + contingency / 100) };
 }
 
 function QuickChart({ history, result, scenario }: { history: { key: string; amount: number }[]; result: QuickResult; scenario: Scenario }) {
@@ -156,35 +155,11 @@ function QuickChart({ history, result, scenario }: { history: { key: string; amo
   );
 }
 
-const arimaConfig: ChartConfig = { predicted: { label: "Predicted Disbursement", color: "#0891b2" } };
-
 const noBacktest = (run: ForecastRun) => (run.backtest_status === "failed" ? "Backtest failed" : "Not backtested");
 
 const backtestNote = (run: ForecastRun) =>
   run.backtest_note ||
   (!run.backtest_status && run.mae == null ? "This run was made before 2026-11-18 and didn't record why it wasn't backtested. Run a new forecast to see the reason." : "");
-
-function ArimaChart({ run }: { run: ForecastRun }) {
-  const rows = run.forecasts.map((f) => ({
-    period: new Date(f.period).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" }),
-    predicted: Number(f.predicted_amount),
-    lower: Number(f.lower_bound),
-    upper: Number(f.upper_bound),
-  }));
-  if (rows.length === 0) return <NoActualData message="No monthly forecast points" />;
-  return (
-    <ChartContainer config={arimaConfig} className="aspect-auto h-64 w-full">
-      <ComposedChart data={rows} margin={{ top: 24, right: 16, bottom: 4, left: 4 }}>
-        <CartesianGrid vertical={false} stroke="#e2e8f0" />
-        <XAxis dataKey="period" tickLine={false} axisLine={false} />
-        <YAxis tickLine={false} axisLine={false} tickFormatter={(v: number) => `₱${(v / 1000).toLocaleString()}K`} width={64} />
-        <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => (name === "predicted" ? peso(Number(value)) : undefined)} />} />
-        <Area dataKey={(d: { lower: number; upper: number }) => [d.lower, d.upper]} stroke="none" fill="var(--color-predicted)" fillOpacity={0.12} isAnimationActive={false} />
-        <Line dataKey="predicted" stroke="var(--color-predicted)" strokeWidth={2} dot={{ r: 4, fill: "var(--color-predicted)" }} isAnimationActive={false} />
-      </ComposedChart>
-    </ChartContainer>
-  );
-}
 
 function Pill({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) {
   return <span className="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: bg, color }}>{children}</span>;
@@ -208,6 +183,8 @@ function ForecastContent() {
   const [scenario, setScenario] = useState<Scenario>("base");
   const [tab, setTab] = useState<Tab>("results");
   const [running, setRunning] = useState(false);
+  const [preview, setPreview] = useState<ForecastRun | null>(null);
+  const [saving, setSaving] = useState(false);
   const [now] = useState(() => new Date());
 
   useEffect(() => {
@@ -278,16 +255,29 @@ function ForecastContent() {
     () => (method === "arima" || history.length === 0 ? null : computeQuick(method, history, horizon, Math.min(anchor, history.length), contingency, budgetTotal, actual, monthsLeft)),
     [method, history, horizon, anchor, contingency, budgetTotal, actual, monthsLeft],
   );
-  const selectedRun = runs.find((r) => r.id === selectedRunId) ?? null;
+  // Task 86-B (Figma BF-04): a Run is an unsaved preview until Save Forecast; it shows instead of the saved run picked.
+  const selectedRun = (preview?.project === projectId ? preview : null) ?? runs.find((r) => r.id === selectedRunId) ?? null;
+  const arimaResult = useMemo(
+    () =>
+      selectedRun?.status === "success"
+        ? scenarios(
+            selectedRun.forecasts.map((f) => Number(f.predicted_amount)),
+            selectedRun.forecasts.map((f) => labelOf(f.period.slice(0, 7))),
+            contingency,
+            budgetTotal,
+            actual,
+          )
+        : null,
+    [selectedRun, contingency, budgetTotal, actual],
+  );
 
   const run = async () => {
     if (!projectId) return;
     setRunning(true);
     try {
-      const r = await forecastingApi.triggerRun(projectId);
+      const r = await forecastingApi.triggerRun(projectId, horizon);
       if (shownProject.current === r.project) {
-        setRuns((prev) => [r, ...prev]);
-        setSelectedRunId(r.id);
+        setPreview(r);
         setTab("results");
       }
       if (r.status === "success") notify.success(r.is_overrun_risk ? "Forecast complete — overrun risk flagged." : "Forecast complete.");
@@ -299,6 +289,106 @@ function ForecastContent() {
       setRunning(false);
     }
   };
+
+  const scenarioBlock = (result: QuickResult, middle: ReactNode, footer: ReactNode) => (
+    <div className="space-y-5">
+      <div className="flex gap-2">
+        {(["optimistic", "base", "conservative"] as Scenario[]).map((s) => (
+          <button
+            key={s}
+            onClick={() => setScenario(s)}
+            className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+            style={{ background: scenario === s ? SCENARIO_META[s].bg : "#f8fafc", color: SCENARIO_META[s].color, border: `1.5px solid ${scenario === s ? SCENARIO_META[s].color + "40" : "#e2e8f0"}` }}
+          >
+            {SCENARIO_META[s].label}
+          </button>
+        ))}
+      </div>
+      <div className="rounded-2xl p-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+        <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>
+          Monthly Disbursement: Actual + {SCENARIO_META[scenario].label} Forecast ({METHOD_META[method].label})
+        </p>
+        <QuickChart history={history} result={result} scenario={scenario} />
+      </div>
+      {middle}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {(["optimistic", "base", "conservative"] as Scenario[]).map((s) => {
+          const m = SCENARIO_META[s];
+          const r = result[s];
+          const over = budgetTotal > 0 && r.projectedFinal > budgetTotal;
+          return (
+            <div key={s} className="rounded-2xl p-4" style={{ background: m.bg, border: `1.5px solid ${m.color}20` }}>
+              <p className="text-xs font-black uppercase tracking-wide mb-2" style={{ color: m.color }}>{m.label}</p>
+              <p className="text-lg font-black" style={{ color: m.color }}>{budgetTotal ? `${r.utilizationPct}%` : "—"}</p>
+              <p className="text-xs font-semibold mt-0.5" style={{ color: m.color }}>projected utilization</p>
+              <div className="mt-2 pt-2 border-t" style={{ borderColor: m.color + "20" }}>
+                <p className="text-xs" style={{ color: m.color }}>+ {peso(r.total)} forecast</p>
+                <p className="text-xs font-bold mt-0.5" style={{ color: over ? "#dc2626" : "#059669" }}>
+                  Final: {peso(r.projectedFinal)} {over ? <><TriangleAlert className={ICON} aria-hidden="true" /></> : <><Check className={ICON} aria-hidden="true" /></>}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="overflow-x-auto rounded-xl" style={{ border: "1px solid #e2e8f0" }}>
+        <table className="w-full text-xs">
+          <thead>
+            <tr style={{ background: "#f8fafc" }}>
+              <th className="px-3 py-2.5 text-left font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Month</th>
+              {(["optimistic", "base", "conservative"] as Scenario[]).map((s) => (
+                <th key={s} className="px-3 py-2.5 text-right font-bold uppercase tracking-wide" style={{ color: SCENARIO_META[s].color }}>{SCENARIO_META[s].label}</th>
+              ))}
+              <th className="px-3 py-2.5 text-right font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Base Cumul.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {result.labels.map((month, i) => {
+              const cumul = actual + result.base.monthly.slice(0, i + 1).reduce((s, a) => s + a, 0);
+              return (
+                <tr key={month} className="border-t" style={{ borderColor: "#f1f5f9" }}>
+                  <td className="px-3 py-2 font-mono font-semibold" style={{ color: "#0d2a5e" }}>{month}</td>
+                  {(["optimistic", "base", "conservative"] as Scenario[]).map((s) => (
+                    <td key={s} className="px-3 py-2 text-right font-mono" style={{ color: SCENARIO_META[s].color }}>{peso(result[s].monthly[i] ?? 0)}</td>
+                  ))}
+                  <td className="px-3 py-2 text-right font-mono font-bold" style={{ color: budgetTotal && cumul > budgetTotal ? "#dc2626" : "#059669" }}>{peso(cumul)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {footer}
+    </div>
+  );
+
+  const save = async () => {
+    if (!preview) return;
+    setSaving(true);
+    try {
+      const saved = await forecastingApi.saveRun(preview.id);
+      setPreview(null);
+      if (shownProject.current === saved.project) {
+        setRuns((prev) => [saved, ...prev.filter((r) => r.id !== saved.id)]);
+        setSelectedRunId(saved.id);
+      }
+      notify.success("Forecast saved to Saved Forecasts.");
+    } catch (err) {
+      notify.error(errorMessage(err, "Could not save this forecast."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveButton =
+    selectedRun && !selectedRun.is_saved ? (
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <p className="text-xs" style={{ color: "#94a3b8" }}>Preview only. Save it to keep it under Saved Forecasts.</p>
+        <button onClick={save} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-black text-white disabled:opacity-50" style={{ background: "#0d2a5e" }}>
+          {saving ? "Saving…" : "Save Forecast"}
+        </button>
+      </div>
+    ) : null;
 
   if (projects === null) return <div className="h-64 rounded-2xl animate-pulse" style={{ background: "white", border: "1px solid #e2e8f0" }} />;
   if (projects.length === 0) return <NoActualData hint="No Active project yet. A project can be forecast once Finance/Accounting/Budget certifies its LIB." />;
@@ -321,6 +411,7 @@ function ForecastContent() {
             setSummary(null);
             setRuns([]);
             setSelectedRunId(null);
+            setPreview(null);
           }}
         />
         <p className="text-xs mt-1.5" style={{ color: "#94a3b8" }}>Active projects only (LIB certified by Finance/Accounting/Budget), any funding type.</p>
@@ -380,8 +471,7 @@ function ForecastContent() {
                 ))}
               </div>
             </div>
-            {method !== "arima" && (
-              <>
+            <>
                 <div>
                   <label className="label-field">Forecast Horizon: <strong>{horizon} months</strong></label>
                   <input type="range" min={1} max={24} value={horizon} onChange={(e) => setHorizon(Number(e.target.value))} className="w-full mt-1" />
@@ -396,8 +486,8 @@ function ForecastContent() {
                   <label className="label-field">Contingency Buffer (Conservative): <strong>{contingency}%</strong></label>
                   <input type="range" min={5} max={40} step={5} value={contingency} onChange={(e) => setContingency(Number(e.target.value))} className="w-full mt-1" />
                 </div>
-              </>
-            )}
+            </>
+            {method === "arima" && <p className="text-xs" style={{ color: "#94a3b8" }}>ARIMA uses the horizon on the next Run. The buffer only changes the Conservative scenario.</p>}
             {method !== "arima" ? null : !canRun ? (
               <p className="text-xs" style={{ color: "#94a3b8" }}>Only DRD, VPREI, the Budget Officer, or the System Admin can run the ARIMA model. Past runs are under "Saved Forecasts".</p>
             ) : (
@@ -464,10 +554,9 @@ function ForecastContent() {
                       </div>
                     ) : (
                       <>
-                        <div className="rounded-2xl p-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                          <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Monthly Disbursement Forecast (with confidence band)</p>
-                          <ArimaChart run={selectedRun} />
-                        </div>
+                        {scenarioBlock(
+                          arimaResult!,
+                          <>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {[
                             ["Approved Budget", selectedRun.approved_budget_total ? peso(selectedRun.approved_budget_total) : "—", "#0d2a5e", "#e0eaf7"],
@@ -489,83 +578,24 @@ function ForecastContent() {
                             {backtestNote(selectedRun)}
                           </p>
                         )}
+                          </>,
+                          saveButton,
+                        )}
                       </>
                     )}
+                    {selectedRun.status !== "success" && saveButton}
                   </div>
                 )
               ) : history.length === 0 ? (
                 <NoActualData hint="No disbursements recorded for this project yet." />
               ) : (
-                <div className="space-y-5">
-                  <div className="flex gap-2">
-                    {(["optimistic", "base", "conservative"] as Scenario[]).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setScenario(s)}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
-                        style={{ background: scenario === s ? SCENARIO_META[s].bg : "#f8fafc", color: SCENARIO_META[s].color, border: `1.5px solid ${scenario === s ? SCENARIO_META[s].color + "40" : "#e2e8f0"}` }}
-                      >
-                        {SCENARIO_META[s].label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="rounded-2xl p-4" style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                    <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>
-                      Monthly Disbursement: Actual + {SCENARIO_META[scenario].label} Forecast ({METHOD_META[method].label})
-                    </p>
-                    <QuickChart history={history} result={quick!} scenario={scenario} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {(["optimistic", "base", "conservative"] as Scenario[]).map((s) => {
-                      const m = SCENARIO_META[s];
-                      const r = quick![s];
-                      const over = budgetTotal > 0 && r.projectedFinal > budgetTotal;
-                      return (
-                        <div key={s} className="rounded-2xl p-4" style={{ background: m.bg, border: `1.5px solid ${m.color}20` }}>
-                          <p className="text-xs font-black uppercase tracking-wide mb-2" style={{ color: m.color }}>{m.label}</p>
-                          <p className="text-lg font-black" style={{ color: m.color }}>{budgetTotal ? `${r.utilizationPct}%` : "—"}</p>
-                          <p className="text-xs font-semibold mt-0.5" style={{ color: m.color }}>projected utilization</p>
-                          <div className="mt-2 pt-2 border-t" style={{ borderColor: m.color + "20" }}>
-                            <p className="text-xs" style={{ color: m.color }}>+ {peso(r.total)} forecast</p>
-                            <p className="text-xs font-bold mt-0.5" style={{ color: over ? "#dc2626" : "#059669" }}>
-                              Final: {peso(r.projectedFinal)} {over ? <><TriangleAlert className={ICON} aria-hidden="true" /></> : <><Check className={ICON} aria-hidden="true" /></>}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="overflow-x-auto rounded-xl" style={{ border: "1px solid #e2e8f0" }}>
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr style={{ background: "#f8fafc" }}>
-                          <th className="px-3 py-2.5 text-left font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Month</th>
-                          {(["optimistic", "base", "conservative"] as Scenario[]).map((s) => (
-                            <th key={s} className="px-3 py-2.5 text-right font-bold uppercase tracking-wide" style={{ color: SCENARIO_META[s].color }}>{SCENARIO_META[s].label}</th>
-                          ))}
-                          <th className="px-3 py-2.5 text-right font-bold uppercase tracking-wide" style={{ color: "#64748b" }}>Base Cumul.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {quick!.labels.map((month, i) => {
-                          const cumul = actual + quick!.base.monthly.slice(0, i + 1).reduce((s, a) => s + a, 0);
-                          return (
-                            <tr key={month} className="border-t" style={{ borderColor: "#f1f5f9" }}>
-                              <td className="px-3 py-2 font-mono font-semibold" style={{ color: "#0d2a5e" }}>{month}</td>
-                              {(["optimistic", "base", "conservative"] as Scenario[]).map((s) => (
-                                <td key={s} className="px-3 py-2 text-right font-mono" style={{ color: SCENARIO_META[s].color }}>{peso(quick![s].monthly[i] ?? 0)}</td>
-                              ))}
-                              <td className="px-3 py-2 text-right font-mono font-bold" style={{ color: budgetTotal && cumul > budgetTotal ? "#dc2626" : "#059669" }}>{peso(cumul)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                scenarioBlock(
+                  quick!,
+                  null,
                   <p className="text-xs" style={{ color: "#94a3b8" }}>
                     Quick projections are computed in the browser from this project's recorded disbursements and are not saved. Use ARIMA for a stored, backtested run.
-                  </p>
-                </div>
+                  </p>,
+                )
               )
             ) : tab === "comparison" ? (
               !budgetTotal ? (
@@ -641,7 +671,7 @@ function ForecastContent() {
                 </div>
               )
             ) : runs.length === 0 ? (
-              <NoActualData message="No saved forecasts yet." hint={canRun ? "Run the ARIMA model to save a forecast." : undefined} />
+              <NoActualData message="No saved forecasts yet." hint={canRun ? "Run the ARIMA model, then Save Forecast." : undefined} />
             ) : (
               <div className="space-y-3">
                 {runs.map((r) => (
@@ -675,6 +705,7 @@ function ForecastContent() {
                       <button
                         onClick={() => {
                           setSelectedRunId(r.id);
+                          setPreview(null);
                           setMethod("arima");
                           setTab("results");
                         }}

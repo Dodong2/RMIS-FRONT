@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.2243**
+**Latest version: 2026.11.18.2250**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.2250
+
+- **Date and time:** 2026-11-18 22:50 (Asia/Manila)
+- **Category:** Feature (UI)
+- **Summary:** Budget Forecasting ARIMA now follows the client's Figma (BF-01..04). The Forecast Horizon (1 to 24 months) and Contingency Buffer sliders show for ARIMA too; Run ARIMA Forecast uses the chosen horizon. The ARIMA result uses the same view as the other methods: Optimistic / Base / Conservative toggle, bar chart of the actual last 12 months plus the forecast, the ARIMA figures (Approved Budget, Actual, Projected at Horizon, Unpaid Commitments, MAE, RMSE, MAPE), three scenario cards and the Monthly Projections table. A run is a preview until Save Forecast; then it appears under Saved Forecasts. The ARIMA confidence-band line chart was replaced by the Figma bar chart (the bounds stay in the API).
+- **Affected modules:** Budget Forecasting
+- **Notes:** Client Task 86-B. Needs rmis-backend 76fc9b5 with forecasting 0003 migrated (Task 86-A, version 2026.11.18.2243).
 
 ### 2026.11.18.2243
 
