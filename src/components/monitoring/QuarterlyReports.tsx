@@ -20,8 +20,8 @@ import type {
 import type { Project } from "../../types/research";
 
 const PREPARE_ROLE_CODES = ["project_leader"];
-const REVIEW_ROLE_CODES = ["riuh", "crc_chair", "vprei"];
-const APPROVE_ROLE_CODES = ["vprei"];
+const REVIEW_ROLE_CODES = ["riuh"];
+const APPROVE_ROLE_CODES = ["crc_chair"];
 const EDITABLE: QuarterlyReportStatus[] = ["draft", "returned_for_revision"];
 const QUARTERLY_EVENTS = ["monitoring.quarterly.changed"];
 
@@ -400,6 +400,7 @@ function ReportModal({ report, onClose, onChanged }: { report: QuarterlyReport; 
   const editable = isOwner && EDITABLE.includes(report.status);
   const reviewer = REVIEW_ROLE_CODES.includes(code);
   const approver = APPROVE_ROLE_CODES.includes(code);
+  const reviewing = (reviewer && report.status === "under_review") || (approver && report.status === "endorsed");
 
   const [draft, setDraft] = useState<Required<QuarterlyReportEdit>>({
     accomplishments: report.accomplishments,
@@ -464,7 +465,7 @@ function ReportModal({ report, onClose, onChanged }: { report: QuarterlyReport; 
   const btn = "rounded-lg px-4 py-2 text-xs font-bold disabled:opacity-40";
   const footer = (
     <div className="flex w-full flex-wrap items-end gap-2">
-      {(reviewer && ["submitted", "under_review", "endorsed"].includes(report.status)) && (
+      {((reviewer && report.status === "submitted") || reviewing) && (
         <label className="flex min-w-[240px] flex-1 flex-col gap-1 text-xs font-bold" style={{ color: "#475569" }}>
           Reviewer remarks
           <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} className={INPUT} style={INPUT_STYLE} />
@@ -486,19 +487,19 @@ function ReportModal({ report, onClose, onChanged }: { report: QuarterlyReport; 
             Start Review
           </button>
         )}
-        {reviewer && ["under_review", "endorsed"].includes(report.status) && (
+        {reviewing && (
           <button type="button" disabled={busy || !remarks.trim()} onClick={() => move("returned_for_revision", "Returned for revision.")} className={`${btn} border`} style={{ borderColor: "#d97706", color: "#b45309" }} title={remarks.trim() ? undefined : "Write what needs to be revised first"}>
             Return for Revision
           </button>
         )}
         {reviewer && report.status === "under_review" && (
-          <button type="button" disabled={busy} onClick={() => (approver ? move("approved", "Report approved.") : move("endorsed", "Report endorsed for final approval."))} className={`${btn} text-white`} style={{ background: "#059669" }}>
-            {approver ? "Approve" : "Endorse"}
+          <button type="button" disabled={busy} onClick={() => move("endorsed", "Report endorsed to CRC/CRD for approval.")} className={`${btn} text-white`} style={{ background: "#059669" }}>
+            Endorse
           </button>
         )}
         {approver && report.status === "endorsed" && (
           <button type="button" disabled={busy} onClick={() => move("approved", "Report approved.")} className={`${btn} text-white`} style={{ background: "#059669" }}>
-            Final Approval
+            Approve
           </button>
         )}
       </div>
