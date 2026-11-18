@@ -106,6 +106,14 @@ const peso = (n: string | number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 }).format(Number(n));
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 
+const weightTotal = (m: AHPMatrixRun) => Number((Object.values(m.weights).reduce((a, b) => a + b, 0) * 100).toFixed(1));
+
+const weightsChanged = (snapshot: Record<string, number> | undefined, current: Record<string, number>) => {
+  const a = snapshot ?? {};
+  const keys = new Set([...Object.keys(a), ...Object.keys(current)]);
+  return [...keys].some((k) => Math.abs((a[k] ?? 0) - (current[k] ?? 0)) > 1e-9);
+};
+
 const isUsable = (m: AHPMatrixRun) => m.status === "finalized" && (m.weight_source === "manual" || !!m.is_consistent);
 
 function scoreToGrade(score: number): ScoreGrade {
@@ -144,13 +152,28 @@ function DecisionPill({ decision }: { decision: FundingDecision }) {
 
 function IndicatorModal({
   existing,
+  model,
   onSaved,
+  onModelSaved,
   onClose,
 }: {
   existing?: DecisionCriterion;
+  model: AHPMatrixRun | null;
   onSaved: (c: DecisionCriterion) => void;
+  onModelSaved: (r: AHPMatrixRun) => void;
   onClose: () => void;
 }) {
+  const inModel = !!existing && !!model?.criteria.includes(existing.id);
+  const singleWeight = !!model && model.criteria.length + (inModel ? 0 : 1) === 1;
+  const savedWeight = existing && model ? model.weights[String(existing.id)] : undefined;
+  const initialWeight = singleWeight ? 100 : savedWeight !== undefined ? Math.round(savedWeight * 100) : 10;
+  const [weight, setWeight] = useState(String(initialWeight));
+  const otherTotal = model
+    ? Object.entries(model.weights).filter(([id]) => Number(id) !== existing?.id).reduce((a, [, w]) => a + w, 0) * 100
+    : 0;
+  const weightNum = Number(weight);
+  const weightOk = singleWeight ? weightNum === 100 : Number.isInteger(weightNum) && weightNum >= WEIGHT_MIN && weightNum <= WEIGHT_MAX;
+  const totalAfter = Number((otherTotal + (weightOk ? weightNum : 0)).toFixed(6));
   const [name, setName] = useState(existing?.name ?? "");
   const [metricKey, setMetricKey] = useState<CriterionMetricKey | "">(existing?.metric_key ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
@@ -164,6 +187,7 @@ function IndicatorModal({
     setAttempted(true);
     setFormulaError("");
     if (!name.trim() || !metricKey) return;
+    if (model && !weightOk) return;
     if (editFormula && !formula.trim()) {
       setFormulaError("Enter a formula, or uncheck Edit to use the standard formula.");
       return;
@@ -171,13 +195,26 @@ function IndicatorModal({
     const formulaFields = editFormula
       ? { formula_mode: "custom" as const, custom_formula: formula.trim() }
       : { formula_mode: "standard" as const };
+    const formulaChanged = !existing || formulaFields.formula_mode !== existing.formula_mode || (editFormula && formula.trim() !== existing.custom_formula);
+    const weightChanged = !!model && (!inModel || savedWeight === undefined || weightNum !== initialWeight);
     setIsSaving(true);
     try {
-      const saved = existing
-        ? await decisionSupportApi.updateCriterionFormula(existing.id, formulaFields)
-        : await decisionSupportApi.createCriterion({ name: name.trim(), metric_key: metricKey, description: description.trim(), ...formulaFields });
+      const saved = !existing
+        ? await decisionSupportApi.createCriterion({ name: name.trim(), metric_key: metricKey, description: description.trim(), ...formulaFields })
+        : formulaChanged
+          ? await decisionSupportApi.updateCriterionFormula(existing.id, formulaFields)
+          : existing;
       onSaved(saved);
-      notify.success(existing ? "Scoring formula saved." : "Indicator added.");
+      if (model && weightChanged) {
+        try {
+          onModelSaved(await decisionSupportApi.setIndicatorWeight(model.id, saved.id, weightNum));
+        } catch (err) {
+          notify.error(errorMessage(err, existing ? "Formula saved, but the weight was not saved." : "Indicator added, but its weight was not saved. Set it with Edit Weights."));
+          onClose();
+          return;
+        }
+      }
+      notify.success(existing ? "Indicator saved." : model ? `Indicator added to ${model.label} with ${weightNum}% weight.` : "Indicator added.");
       onClose();
     } catch (err) {
       const message = errorMessage(err, existing ? "Could not save this formula." : "Could not add this indicator.");
@@ -190,7 +227,7 @@ function IndicatorModal({
 
   return (
     <ProtoModal
-      title={existing ? "Scoring Formula — DSS-01" : "Define Decision Indicator — DSS-01"}
+      title={existing ? "Edit Indicator — DSS-01" : "Define Decision Indicator — DSS-01"}
       subtitle={existing ? existing.name : "Add a new measurable criterion that DSS models can weigh"}
       onClose={onClose}
       width="max-w-lg"
@@ -198,7 +235,7 @@ function IndicatorModal({
         <>
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={BTN_GHOST_STYLE}>Cancel</button>
           <button onClick={handleSave} disabled={isSaving} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40" style={{ background: "#0d2a5e" }}>
-            {isSaving ? "Saving…" : existing ? "Save Formula" : "Add Indicator"}
+            {isSaving ? "Saving…" : existing ? "Save" : "Add Indicator"}
           </button>
         </>
       }
@@ -214,6 +251,34 @@ function IndicatorModal({
           ))}
         </select>
       </Field>
+      <div>
+        <label htmlFor="indicator-weight" className="label-field">Weight (%) — DSS-02</label>
+        <input
+          id="indicator-weight"
+          type="number"
+          min={singleWeight ? 100 : WEIGHT_MIN}
+          max={singleWeight ? 100 : WEIGHT_MAX}
+          step={1}
+          value={weight}
+          onChange={(e) => setWeight(e.target.value)}
+          disabled={!model || singleWeight}
+          className={INPUT_CLS + " disabled:opacity-60"}
+          style={invalidStyle(attempted && !!model && !weightOk)}
+          aria-invalid={attempted && !!model && !weightOk}
+        />
+        {!model ? (
+          <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>Select or create a DSS model first to give this indicator a weight.</p>
+        ) : singleWeight ? (
+          <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>Only indicator in {model.label}, so it carries 100% of the weight.</p>
+        ) : (
+          <>
+            {attempted && !weightOk && <p className="text-xs font-semibold mt-1" style={{ color: "#dc2626" }}>Enter a whole number from {WEIGHT_MIN} to {WEIGHT_MAX}.</p>}
+            <p className="text-xs mt-1 font-semibold" style={{ color: totalAfter === 100 ? "#059669" : "#b45309" }}>
+              {model.label} total after saving: {Number(totalAfter.toFixed(1))} / 100 {totalAfter === 100 ? "✓" : "— Run DSS stays locked until the total is exactly 100 (fix it here or with Edit Weights)."}
+            </p>
+          </>
+        )}
+      </div>
       {!existing && (
         <Field label="Description">
           <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className={INPUT_CLS + " resize-none"} style={INPUT_STYLE} placeholder="What does this indicator measure?" />
@@ -957,7 +1022,7 @@ function DecisionSupportContent() {
                     <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
                       {m.criteria.length} indicators ·{" "}
                       {m.status === "draft" ? (
-                        <span style={{ color: "#b45309" }}>weights not set</span>
+                        <span style={{ color: "#b45309" }}>{Object.keys(m.weights).length ? `weights total ${weightTotal(m)}/100` : "weights not set"}</span>
                       ) : m.weight_source === "manual" ? (
                         <span>weights set</span>
                       ) : m.is_consistent ? (
@@ -1048,6 +1113,9 @@ function DecisionSupportContent() {
                   </select>
                   {activeRec?.method === "minmax_v1" && (
                     <Pill bg="#fef3c7" color="#b45309">Old relative scale (before 2026-11-18) · run the DSS again for 0–100 scores</Pill>
+                  )}
+                  {activeRec && activeModel && activeRec.method !== "minmax_v1" && weightsChanged(activeRec.weights_snapshot, activeModel.weights) && (
+                    <Pill bg="#fef3c7" color="#b45309">Weights changed since this run · {modelUsable ? "Run DSS again for current results" : "fix the weights, then Run DSS again"}</Pill>
                   )}
                   {activeRec && (
                     <span className="text-xs" style={{ color: "#94a3b8" }}>
@@ -1248,7 +1316,7 @@ function DecisionSupportContent() {
 
                   {activeModel?.status === "draft" && (
                     <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: "#fef3c7", color: "#b45309" }}>
-                      <TriangleAlert className={ICON} aria-hidden="true" /> This model's weights aren't set yet — {canManage ? "use “Edit Weights” in the model panel." : "VP for REI or System Admin must set them."}
+                      <TriangleAlert className={ICON} aria-hidden="true" /> {Object.keys(activeModel.weights).length ? `Weights add up to ${weightTotal(activeModel)}/100 — they must total exactly 100 before the DSS can run` : "This model's weights aren't set yet"} — {canManage ? "use “Edit Weights” in the model panel." : "VP for REI or System Admin must set them."}
                     </div>
                   )}
 
@@ -1296,7 +1364,7 @@ function DecisionSupportContent() {
                                 {!c.is_active && <Pill>Inactive</Pill>}
                                 {c.formula_mode === "custom" && <Pill bg="#ede9fe" color="#7c3aed">Custom formula</Pill>}
                               </div>
-                              {activeModel?.status === "finalized" && w !== undefined && (
+                              {activeModel && w !== undefined && (
                                 <div className="shrink-0 text-right">
                                   <p className="text-xl font-black" style={{ color: DOMAIN_META[meta.domain].color }}>{(w * 100).toFixed(1)}%</p>
                                   <p className="text-xs" style={{ color: "#94a3b8" }}>weight</p>
@@ -1311,7 +1379,7 @@ function DecisionSupportContent() {
                               <p className="text-xs" style={{ color: "#94a3b8" }}>↑ Higher value = better score · 0–100 per indicator</p>
                               {canManage && (
                                 <button onClick={() => setFormulaFor(c)} className="text-xs px-2.5 py-1 rounded-lg font-bold shrink-0" style={{ background: "#e0eaf7", color: "#0d2a5e" }}>
-                                  Edit Formula
+                                  {activeModel ? "Edit Weight / Formula" : "Edit Formula"}
                                 </button>
                               )}
                             </div>
@@ -1394,8 +1462,8 @@ function DecisionSupportContent() {
         </div>
       </div>
 
-      {showDefineInd && <IndicatorModal onSaved={replaceCriterion} onClose={() => setShowDefineInd(false)} />}
-      {formulaFor && <IndicatorModal existing={formulaFor} onSaved={replaceCriterion} onClose={() => setFormulaFor(null)} />}
+      {showDefineInd && <IndicatorModal model={activeModel} onSaved={replaceCriterion} onModelSaved={replaceModel} onClose={() => setShowDefineInd(false)} />}
+      {formulaFor && <IndicatorModal existing={formulaFor} model={activeModel} onSaved={replaceCriterion} onModelSaved={replaceModel} onClose={() => setFormulaFor(null)} />}
 
       {showNewModel && (
         <NewModelModal

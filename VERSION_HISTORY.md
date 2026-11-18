@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1146**
+**Latest version: 2026.11.18.1157**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1157
+
+- **Date and time:** 2026-11-18 11:57 (Asia/Manila)
+- **Category:** Feature
+- **Summary:** Define Decision Indicator (and Edit Weight / Formula) has a Weight (%) — DSS-02 field. The weight is saved into the selected DSS model, the same weights Edit Weights shows; a new indicator is added to that model. The modal shows the model's total after saving; the DSS can run only when the total is exactly 100. Rankings show "Weights changed since this run" when the model's weights differ from the selected run's.
+- **Affected modules:** Decision Support System (Define Decision Indicator, Indicators & Weights, model list, Rankings & Scores)
+- **Notes:** Client Task 78-A, rmis-backend cd6a7f8 (POST ahp-runs/<id>/indicators/). No migration. Weights are whole % from 1 to 60 (100 when the model has one indicator). Earlier runs keep their own weights.
 
 ### 2026.11.18.1146
 

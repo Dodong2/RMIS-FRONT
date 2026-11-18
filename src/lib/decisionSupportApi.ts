@@ -36,6 +36,10 @@ export const decisionSupportApi = {
     const { data } = await apiClient.post(`/api/decision-support/ahp-runs/${runId}/weights/`, { weights });
     return data;
   },
+  setIndicatorWeight: async (runId: number, criterion: number, weight: number): Promise<AHPMatrixRun> => {
+    const { data } = await apiClient.post(`/api/decision-support/ahp-runs/${runId}/indicators/`, { criterion, weight });
+    return data;
+  },
   getAHPRuns: async (): Promise<AHPMatrixRun[]> => {
     const { data } = await apiClient.get("/api/decision-support/ahp-runs/");
     return data;
