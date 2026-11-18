@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.2201**
+**Latest version: 2026.11.18.2243**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.2243
+
+- **Date and time:** 2026-11-18 22:43 (Asia/Manila)
+- **Category:** Feature (backend)
+- **Summary:** ARIMA Budget Forecast backend for the client's Figma (BF-01..04): the forecast horizon is chosen per run (1 to 24 months, was fixed at 3); a run is a preview until Save Forecast; Saved Forecasts lists saved runs only; Risk Management, Decision Support and the Forecasting dashboard use saved runs only. Existing runs count as saved.
+- **Affected modules:** Budget Forecasting, Risk Management (forecast overrun flag), Decision Support (overrun criterion), Analytics forecasting dashboard
+- **Notes:** Client Task 86-A, rmis-backend 76fc9b5. Needs forecasting 0003 migrated. The page (sliders, scenarios, Save Forecast button) follows in Task 86-B; until then the current page's Run creates a preview that does not appear under Saved Forecasts.
 
 ### 2026.11.18.2201
 
