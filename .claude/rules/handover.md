@@ -680,14 +680,14 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-18 evening, client Tasks 84 (quarterly report flow) and 85 (RIUH scope), on `main`, NOT pushed. Backend: rmis-backend 2c4c18a (84-A, accounts 0037 NOT migrated), c1a1905 (85-A), 19b9ace + b15f679 (85-B). Memory notes: `task-84-quarterly-flow-2026-11-18`, `task-85-riuh-college-scope-2026-11-18`.
+2026-11-18 evening, client Tasks 84 (quarterly report flow) and 85 (RIUH scope), on `main`, NOT pushed. Backend: rmis-backend 2c4c18a (84-A, accounts 0037 migrated, parity 0), c1a1905 (85-A), 19b9ace + b15f679 (85-B). Memory notes: `task-84-quarterly-flow-2026-11-18`, `task-85-riuh-college-scope-2026-11-18`.
 - `8ad04bd` v2026.11.18.2031: version only (84-A backend).
 - `4454ede` v2026.11.18.2035 (84-B, `src/components/monitoring/QuarterlyReports.tsx`): `REVIEW_ROLE_CODES = ["riuh"]`, `APPROVE_ROLE_CODES = ["crc_chair"]`. RIUH: Start Review (Submitted), Endorse / Return (Under Review). CRC/CRD: Approve (was "Endorse") / Return with the remarks box on Endorsed. VP for REI: no buttons ("Final Approval" removed), still views and exports. Toast "Report endorsed to CRC/CRD for approval."
 - `dacf621` v2026.11.18.2141, `90bb62b` v2026.11.18.2145, `b75fa06` v2026.11.18.2201: version only (85-A RIUH campus + College Unit scope, 85-B RIUH tasks scope, 85-B fix). No frontend code change: campus/college dropdowns are built from the scoped data.
 - Tests: tsc, eslint OK (no vitest covers QuarterlyReports). Backend full suite 818/818 OK at b15f679. Browser not tested. Guide 16Z-BH, 16Z-BI, 16Z-BJ, 16Z-BK.
 
 ## Next thing to do in this repo
-1. Carl: migrate accounts 0037 (+ parity 0), then deploy backend and frontend together; Netlify should show 2026.11.18.2201.
+1. DONE: accounts 0037 migrated, parity 0 (2026-11-18). Deploy backend and frontend together; Netlify should show 2026.11.18.2201.
 2. Browser-test 16Z-BI (CRC/CRD Siniloan approves quarterly report #5; RIUH 439 endorses #6) and 16Z-BJ/BK (RIUH 439 sees only Siniloan + CAS: 2 projects, 6 tasks).
 3. Before the demo: no RIUH account for other colleges/campuses (see backend handover).
 4. Open: client question on Documents "Pending Review" badge (waiting for their decision); older open items in git history (`b171372`).
