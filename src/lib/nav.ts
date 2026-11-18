@@ -147,7 +147,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Compliance Tracking",
         to: "/compliance",
         icon: "shield",
-        tiers: [...OVERSIGHT, "project_management", "study_management"],
+        tiers: ["system_admin", "institution_oversight"],
         ready: true,
       },
       { label: "Document and Records Management", to: "/documents", icon: "file", tiers: ALL_RESEARCH_BUT_STAFF, ready: true },

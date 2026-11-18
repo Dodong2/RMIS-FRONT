@@ -1,4 +1,5 @@
 import { apiClient } from "./apiClient";
+import type { AdminUser } from "../types/auth";
 import type {
   AIUseDeclaration,
   ComplianceRequirement,
@@ -120,6 +121,11 @@ export const complianceApi = {
     id: number,
   ): Promise<{ id: number; verified_by: number | null; verified_at: string | null }> => {
     const { data } = await apiClient.post(`/api/compliance/${kind}/${id}/verify/`);
+    return data;
+  },
+
+  getAssignableUsers: async (): Promise<AdminUser[]> => {
+    const { data } = await apiClient.get("/api/compliance/assignable-users/");
     return data;
   },
 

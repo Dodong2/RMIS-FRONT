@@ -131,4 +131,5 @@ export const PROJECT_EDIT_ROLE_CODES = REGISTRATION_ROLE_CODES;
 /** Client 2026-10-20: Project Management is not for Project Staff; they reach their work through Personnel & Tasks. */
 // Client Task 76: only these roles open the Decision Support System (backend dss.view).
 export const DSS_VIEW_ROLE_CODES = ["system_admin", "vprei", "university_admin", "crc_chair"];
+export const COMPLIANCE_ROLE_CODES = ["system_admin", "vprei", "university_admin"];
 export const PROJECT_PAGE_ROLE_CODES = Object.keys(ROLE_META).filter((code) => code !== "project_staff");

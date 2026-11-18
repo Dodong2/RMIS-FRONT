@@ -37,7 +37,7 @@ import ProcurementPage from "./pages/ProcurementPage";
 import BudgetSyncPage from "./pages/BudgetSyncPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
-import { DSS_VIEW_ROLE_CODES, PROJECT_PAGE_ROLE_CODES, REGISTRATION_ROLE_CODES } from "./lib/roles";
+import { COMPLIANCE_ROLE_CODES, DSS_VIEW_ROLE_CODES, PROJECT_PAGE_ROLE_CODES, REGISTRATION_ROLE_CODES } from "./lib/roles";
 
 export default function App() {
   return (
@@ -311,16 +311,7 @@ export default function App() {
         path="/compliance"
         element={
           <ProtectedRoute>
-            <RoleGate
-              allow={[
-                "system_admin",
-                "vprei",
-                "university_admin",
-                "crc_chair",
-                "riuh",
-                "project_leader",
-              ]}
-            >
+            <RoleGate allow={COMPLIANCE_ROLE_CODES}>
               <CompliancePage />
             </RoleGate>
           </ProtectedRoute>

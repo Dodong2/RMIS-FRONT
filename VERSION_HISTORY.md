@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1230**
+**Latest version: 2026.11.18.1250**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1250
+
+- **Date and time:** 2026-11-18 12:50 (Asia/Manila)
+- **Category:** Bug fix and access change
+- **Summary:** Compliance → Submit Evidence can now upload a supporting document directly (PDF, Word or Excel, up to 25MB); the file is saved in the project's Document and Records Management and attached to the requirement in one step (before, it could only pick a file already uploaded elsewhere). Compliance Tracking (sidebar, page, Analytics Compliance tab, Dashboard compliance figures) is shown only to System Admin, VP for REI and University Administration, and all three can define, submit, review and verify. "Assigned To" lists only those three roles' accounts.
+- **Affected modules:** Compliance Tracking (Requirements Tracker, Submit Evidence, Integrity Records), Sidebar, Analytics (Compliance tab), Dashboard (Compliance tile, domain tab, 5a card)
+- **Notes:** Client Task 79-B, rmis-backend c666d85 (GET compliance/assignable-users/). Needs the backend of Task 79-A (accounts 0035 migrated) deployed at the same time.
 
 ### 2026.11.18.1230
 

@@ -88,3 +88,12 @@ describe("Decision Support System in the sidebar (client Task 76, 2026-11-18)", 
     }
   });
 });
+
+describe("Compliance Tracking in the sidebar (client Task 79, 2026-11-18)", () => {
+  it("shows only for System Admin, VP for REI and University Administration", () => {
+    for (const code of ["system_admin", "vprei", "university_admin", "crc_chair", "riuh", "finance_budget", "procurement_officer_lib", "project_leader", "project_staff"]) {
+      const visible = visibleTargets(resolveTier({ code }), code).includes("/compliance");
+      expect(visible, code).toBe(["system_admin", "vprei", "university_admin"].includes(code));
+    }
+  });
+});

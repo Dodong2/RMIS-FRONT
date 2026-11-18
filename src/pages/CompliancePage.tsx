@@ -6,8 +6,9 @@ import { personnelApi } from "../lib/personnelApi";
 import { researchApi } from "../lib/researchApi";
 import { errorMessage } from "../lib/errorMessage";
 import { notify } from "../lib/notify";
-import { personName } from "../lib/roles";
+import { COMPLIANCE_ROLE_CODES, personName } from "../lib/roles";
 import { INPUT_CLS, INPUT_STYLE, invalidStyle } from "../lib/protoStyles";
+import type { AdminUser } from "../types/auth";
 import type { ComplianceRequirement } from "../types/compliance";
 import type { ProjectDocument } from "../types/document";
 import type { ProjectAssignment } from "../types/personnel";
@@ -21,8 +22,8 @@ import { AppShell } from "../components/layout/AppShell";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
-const ENCODE_ROLE_CODES = ["system_admin", "riuh", "project_leader"];
-const MANAGE_ROLE_CODES = ["system_admin", "riuh"];
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const UPLOAD_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx";
 const DUE_SOON_DAYS = 7;
 const DAY = 86400000;
 
@@ -75,30 +76,11 @@ function DaysLeft({ deadline, status, now }: { deadline: string; status: CompSta
   return <span className="text-xs font-mono" style={{ color: diff <= DUE_SOON_DAYS ? "#d97706" : "#94a3b8" }}>{diff}d left</span>;
 }
 
-function DefineModal({ projects, onClose, onSaved }: { projects: Project[]; onClose: () => void; onSaved: () => void }) {
+function DefineModal({ projects, people, onClose, onSaved }: { projects: Project[]; people: AdminUser[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({ project: projects[0] ? String(projects[0].id) : "", title: "", description: "", responsible: "", deadline: "" });
-  const [team, setTeam] = useState<ProjectAssignment[]>([]);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const project = projects.find((p) => String(p.id) === form.project);
-
-  useEffect(() => {
-    let active = true;
-    if (!form.project) return;
-    personnelApi
-      .getAssignments({ project: Number(form.project), active: true })
-      .then((a) => active && setTeam(a))
-      .catch(() => active && setTeam([]));
-    return () => {
-      active = false;
-    };
-  }, [form.project]);
-
-  const people = useMemo(() => {
-    const list = [...(project ? [project.lead_detail] : []), ...team.map((a) => a.user_detail)];
-    return list.filter((p, i) => list.findIndex((q) => q.id === p.id) === i);
-  }, [project, team]);
 
   const save = async () => {
     setAttempted(true);
@@ -139,7 +121,7 @@ function DefineModal({ projects, onClose, onSaved }: { projects: Project[]; onCl
       }
     >
       <Field label="Project" required>
-        <select className={INPUT_CLS} style={invalidStyle(attempted && !form.project)} value={form.project} onChange={(e) => setForm((f) => ({ ...f, project: e.target.value, responsible: "" }))}>
+        <select className={INPUT_CLS} style={invalidStyle(attempted && !form.project)} value={form.project} onChange={set("project")}>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>{p.project_code} — {p.title}</option>
           ))}
@@ -156,7 +138,7 @@ function DefineModal({ projects, onClose, onSaved }: { projects: Project[]; onCl
           <select className={INPUT_CLS} style={invalidStyle(attempted && !form.responsible)} value={form.responsible} onChange={set("responsible")}>
             <option value="">Select person</option>
             {people.map((p) => (
-              <option key={p.id} value={p.id}>{personName(p)}{personName(p) !== p.email ? ` (${p.email})` : ""}</option>
+              <option key={p.id} value={p.id}>{personName(p)}{personName(p) !== p.email ? ` (${p.email})` : ""}{p.role ? ` · ${p.role.name}` : ""}</option>
             ))}
           </select>
         </Field>
@@ -164,7 +146,7 @@ function DefineModal({ projects, onClose, onSaved }: { projects: Project[]; onCl
           <input type="date" className={INPUT_CLS} style={invalidStyle(attempted && !form.deadline)} value={form.deadline} onChange={set("deadline")} />
         </Field>
       </div>
-      <p className="text-xs" style={{ color: "#94a3b8" }}>Assignable people are the project leader and the project's active team members.</p>
+      <p className="text-xs" style={{ color: "#94a3b8" }}>Only System Admin, VP for REI and University Administration accounts can be assigned (they are the roles with Compliance).</p>
     </ProtoModal>
   );
 }
@@ -172,6 +154,8 @@ function DefineModal({ projects, onClose, onSaved }: { projects: Project[]; onCl
 function SubmitModal({ req, projectLabel, onClose, onSaved }: { req: ComplianceRequirement; projectLabel: string; onClose: () => void; onSaved: () => void }) {
   const [docs, setDocs] = useState<ProjectDocument[] | null>(null);
   const [document, setDocument] = useState(req.document ? String(req.document) : "");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploaded, setUploaded] = useState<ProjectDocument | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -186,10 +170,31 @@ function SubmitModal({ req, projectLabel, onClose, onSaved }: { req: ComplianceR
   }, [req.project]);
 
   const save = async () => {
+    if (file && file.size > MAX_UPLOAD_BYTES) {
+      notify.error("File exceeds the 25MB limit.");
+      return;
+    }
     setSaving(true);
     try {
-      await complianceApi.submitRequirement(req.id, document ? Number(document) : null);
-      notify.success("Requirement submitted for review.");
+      let documentId = document ? Number(document) : null;
+      if (file) {
+        let doc = uploaded;
+        if (!doc) {
+          let fresh: ProjectDocument;
+          try {
+            fresh = await documentApi.uploadDocument({ project: req.project, document_type: "other", file });
+          } catch (err) {
+            notify.error(errorMessage(err, "Could not upload this file."));
+            return;
+          }
+          setUploaded(fresh);
+          setDocs((prev) => [fresh, ...(prev ?? [])]);
+          doc = fresh;
+        }
+        documentId = doc.id;
+      }
+      await complianceApi.submitRequirement(req.id, documentId);
+      notify.success(file ? "File uploaded and requirement submitted for review." : "Requirement submitted for review.");
       onSaved();
     } catch (err) {
       notify.error(errorMessage(err, "Could not submit this requirement."));
@@ -217,8 +222,24 @@ function SubmitModal({ req, projectLabel, onClose, onSaved }: { req: ComplianceR
         <p className="text-sm font-bold mt-0.5" style={{ color: "#0d2a5e" }}>{req.title}</p>
         <p className="text-xs mt-0.5" style={{ color: "#94a3b8" }}>{projectLabel} · Due {req.deadline}</p>
       </div>
-      <Field label="Supporting Document (optional)">
-        <select className={INPUT_CLS} style={INPUT_STYLE} value={document} onChange={(e) => setDocument(e.target.value)} disabled={docs === null}>
+      <Field label="Upload Supporting Document (optional)">
+        <input
+          type="file"
+          accept={UPLOAD_ACCEPT}
+          disabled={saving}
+          onChange={(e) => {
+            const picked = e.target.files?.[0] ?? null;
+            if (picked && picked.size > MAX_UPLOAD_BYTES) notify.error("File exceeds the 25MB limit.");
+            setFile(picked);
+            setUploaded(null);
+          }}
+          className="block w-full text-xs"
+          style={{ color: "#334155" }}
+        />
+        {file && <p className="text-xs mt-1" style={{ color: "#64748b" }}>{uploaded ? `Uploaded: ${uploaded.file_name}` : `Will upload ${file.name} to this project's documents, then submit.`}</p>}
+      </Field>
+      <Field label="Or pick an existing document">
+        <select className={INPUT_CLS} style={INPUT_STYLE} value={document} onChange={(e) => setDocument(e.target.value)} disabled={docs === null || !!file}>
           <option value="">{docs === null ? "Loading documents…" : "No document attached"}</option>
           {(docs ?? []).map((d) => (
             <option key={d.id} value={d.id}>{d.file_name} (v{d.version_number})</option>
@@ -226,7 +247,7 @@ function SubmitModal({ req, projectLabel, onClose, onSaved }: { req: ComplianceR
         </select>
       </Field>
       <p className="text-xs" style={{ color: "#94a3b8" }}>
-        Pick from this project's current documents. Upload new files in Document and Records Management first.
+        PDF, Word or Excel, up to 25MB. An uploaded file is saved in this project's Document and Records Management (type "Other") and attached to this requirement.
       </p>
     </ProtoModal>
   );
@@ -496,13 +517,14 @@ function DetailModal({
 function ComplianceContent() {
   const { user } = useAuth();
   const code = user?.role?.code ?? "";
-  const canEncode = ENCODE_ROLE_CODES.includes(code);
-  const canManage = MANAGE_ROLE_CODES.includes(code);
+  const canEncode = COMPLIANCE_ROLE_CODES.includes(code);
+  const canManage = canEncode;
   const [now] = useState(() => Date.now());
 
   const [pageTab, setPageTab] = useState<PageTab>("tracker");
   const [projects, setProjects] = useState<Project[]>([]);
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
+  const [assignable, setAssignable] = useState<AdminUser[]>([]);
   const [reqs, setReqs] = useState<ComplianceRequirement[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -522,6 +544,10 @@ function ComplianceContent() {
       .getAssignments({ active: true })
       .then((a) => active && setAssignments(a))
       .catch(() => undefined);
+    complianceApi
+      .getAssignableUsers()
+      .then((u) => active && setAssignable(u))
+      .catch(() => active && notify.error("Could not load who requirements can be assigned to."));
     return () => {
       active = false;
     };
@@ -546,9 +572,10 @@ function ComplianceContent() {
     const m = new Map<number, string>();
     projects.forEach((p) => m.set(p.lead_detail.id, personName(p.lead_detail)));
     assignments.forEach((a) => m.set(a.user_detail.id, personName(a.user_detail)));
+    assignable.forEach((u) => m.set(u.id, personName(u)));
     if (user) m.set(user.pk, personName(user));
     return m;
-  }, [projects, assignments, user]);
+  }, [projects, assignments, assignable, user]);
   const nameOf = (id: number | null) => (id === null ? "—" : names.get(id) ?? `User #${id}`);
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
   const projectLabel = (id: number) => projectById.get(id)?.project_code ?? `Project #${id}`;
@@ -748,7 +775,7 @@ function ComplianceContent() {
       )}
       {selected && modal === "submit" && <SubmitModal req={selected} projectLabel={projectLabel(selected.project)} onClose={() => setModal(null)} onSaved={done} />}
       {selected && modal === "review" && <ReviewModal req={selected} responsible={nameOf(selected.responsible)} onClose={() => setModal(null)} onSaved={done} />}
-      {modal === "define" && <DefineModal projects={projects} onClose={() => setModal(null)} onSaved={done} />}
+      {modal === "define" && <DefineModal projects={projects} people={assignable} onClose={() => setModal(null)} onSaved={done} />}
     </div>
   );
 }

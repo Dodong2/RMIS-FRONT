@@ -35,7 +35,7 @@ import { OverviewTab } from "../components/analytics/OverviewTab";
 import { ProjectsTab } from "../components/analytics/ProjectsTab";
 import { PortfolioTab } from "../components/analytics/PortfolioTab";
 import { ChartCard, CountBars, EmptyChart, HBar, KpiBox } from "../components/analytics/ProtoCharts";
-import { DSS_VIEW_ROLE_CODES } from "../lib/roles";
+import { COMPLIANCE_ROLE_CODES, DSS_VIEW_ROLE_CODES } from "../lib/roles";
 
 const ICON = "inline-block h-[1em] w-[1em] align-[-0.125em]";
 
@@ -107,6 +107,7 @@ function AnalyticsContent() {
   const { user } = useAuth();
   const canManageTargets = MANAGE_TARGET_ROLE_CODES.includes(user?.role?.code ?? "");
   const canSeeDss = DSS_VIEW_ROLE_CODES.includes(user?.role?.code ?? "");
+  const canSeeCompliance = COMPLIANCE_ROLE_CODES.includes(user?.role?.code ?? "");
 
   const [tab, setTab] = useState<Tab>("overview");
   const [campus, setCampus] = useState("");
@@ -183,7 +184,7 @@ function AnalyticsContent() {
       .getForecastingDashboard(scope)
       .then((d) => alive && setForecastDash(d))
       .catch((err) => alive && notify.error(errorMessage(err, "Could not load the forecasting dashboard.")));
-    dashboardApi.getComplianceDashboard(scope).then((d) => alive && setComplianceDash(d)).catch(() => undefined);
+    if (canSeeCompliance) dashboardApi.getComplianceDashboard(scope).then((d) => alive && setComplianceDash(d)).catch(() => undefined);
     dashboardApi.getRdeThrustAlignment(scope).then((d) => alive && setRdeDash(d)).catch(() => undefined);
     dashboardApi
       .getPerformanceDashboard(scope)
@@ -192,7 +193,7 @@ function AnalyticsContent() {
     return () => {
       alive = false;
     };
-  }, [scope]);
+  }, [scope, canSeeCompliance]);
 
   useEffect(() => {
     let alive = true;
@@ -363,7 +364,7 @@ function AnalyticsContent() {
           </button>
         </div>
         <div className="flex flex-wrap gap-1 rounded-xl border p-1" style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}>
-          {TABS.filter(([k]) => k !== "decision" || canSeeDss).map(([k, l]) => (
+          {TABS.filter(([k]) => (k !== "decision" || canSeeDss) && (k !== "compliance" || canSeeCompliance)).map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all" style={{ background: tab === k ? "#0d2a5e" : "transparent", color: tab === k ? "white" : "#64748b" }}>
               {l}
             </button>
@@ -385,7 +386,7 @@ function AnalyticsContent() {
 
       {tab === "decision" && canSeeDss && <DecisionTab data={performanceDash} />}
 
-      {tab === "compliance" &&
+      {tab === "compliance" && canSeeCompliance &&
         (!complianceDash ? (
           <SkeletonRows />
         ) : (

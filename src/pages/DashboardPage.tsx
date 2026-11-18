@@ -177,7 +177,7 @@ function InstitutionWideNote() {
   );
 }
 
-function DomainSummary({ data }: { data: DashData }) {
+function DomainSummary({ data, showCompliance }: { data: DashData; showCompliance: boolean }) {
   const { projectDash, budgetDash, complianceDash, outputDash, riskDash } = data;
   const hasProjects = !!projectDash && projectDash.total_projects > 0;
   const hasBudget = !!budgetDash && budgetDash.project_count > 0;
@@ -205,7 +205,7 @@ function DomainSummary({ data }: { data: DashData }) {
     { label: "Outputs", val: outputs > 0 ? String(outputs) : "—", color: "#0d2a5e" },
     { label: "M&E", val: riskTotal > 0 ? `${onTrack}/${riskTotal}` : "—", color: "#166534" },
     { label: "Open Risks", val: riskTotal > 0 ? String(openRisks) : "—", color: highRisks > 0 ? "#dc2626" : "#f59e0b" },
-  ];
+  ].filter((t) => t.label !== "Compliance" || showCompliance);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
@@ -232,7 +232,7 @@ function ObjectiveDashboards({ data, canOpen }: { data: DashData; canOpen: (to: 
       to: "/compliance",
       empty: simTotal === 0 && (taskDash?.length ?? 0) === 0 && (complianceDash?.ai_use_declarations ?? 0) === 0,
       figures: [
-        ["Similarity checks", String(simTotal)],
+        ...(canOpen("/compliance") ? ([["Similarity checks", String(simTotal)]] as [string, string][]) : []),
         ["Open tasks", String(openTasks)],
         ["Overdue tasks", String(overdueTasks)],
       ],
@@ -889,6 +889,7 @@ function DashboardContent() {
   const navTargets = visibleTargets(tier, user?.role?.code);
   const canOpen = (to: string) => navTargets.includes(to);
   const canSeeDss = navTargets.includes("/decision-support");
+  const canSeeCompliance = navTargets.includes("/compliance");
   // Client 2026-10-20: only university-wide roles see every project; everyone else's figures are their own projects.
   // Finance sees every project in its scope (all, or its assigned campus), not projects it owns (2026-10-22).
   const rootLabel = isWide ? "Institution" : tier === "finance" ? "Projects in Scope" : "My Projects";
@@ -909,7 +910,7 @@ function DashboardContent() {
     if (!hasRole) return;
     let active = true;
     Promise.all([
-      settle(dashboardApi.getComplianceDashboard()),
+      canSeeCompliance ? settle(dashboardApi.getComplianceDashboard()) : Promise.resolve(null),
       settle(dashboardApi.getOutputDashboard()),
       canSeeDss ? settle(dashboardApi.getFundingAllocationDashboard()) : Promise.resolve(null),
       settle(dashboardApi.getTaskDashboard()),
@@ -923,7 +924,7 @@ function DashboardContent() {
     return () => {
       active = false;
     };
-  }, [hasRole, canSeeWorkload, canSeeDss]);
+  }, [hasRole, canSeeWorkload, canSeeDss, canSeeCompliance]);
 
   useEffect(() => {
     if (!hasRole) return;
@@ -980,15 +981,17 @@ function DashboardContent() {
   const highRisks = riskDash ? riskDash.by_risk_level.high + riskDash.by_risk_level.critical : 0;
   const scopedView = scope.level !== "institution";
 
-  const DOMAIN_TABS: { key: DomainTab; label: string }[] = [
-    { key: "projects", label: "Projects" },
-    { key: "budget", label: "Budget" },
-    { key: "compliance", label: "Compliance" },
-    { key: "outputs", label: "Outputs" },
-    { key: "me", label: "M&E" },
-    { key: "risk", label: "Risk" },
-    { key: "personnel", label: "Personnel" },
-  ];
+  const DOMAIN_TABS = (
+    [
+      { key: "projects", label: "Projects" },
+      { key: "budget", label: "Budget" },
+      { key: "compliance", label: "Compliance" },
+      { key: "outputs", label: "Outputs" },
+      { key: "me", label: "M&E" },
+      { key: "risk", label: "Risk" },
+      { key: "personnel", label: "Personnel" },
+    ] satisfies { key: DomainTab; label: string }[]
+  ).filter((t) => t.key !== "compliance" || canSeeCompliance);
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -1031,7 +1034,7 @@ function DashboardContent() {
         </div>
       )}
 
-      <DomainSummary data={data} />
+      <DomainSummary data={data} showCompliance={canSeeCompliance} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="rounded-2xl p-4 overflow-y-auto" style={{ background: "white", border: "1px solid #e2e8f0", maxHeight: "640px" }}>
@@ -1057,7 +1060,7 @@ function DashboardContent() {
           <div className="p-5 overflow-y-auto" style={{ maxHeight: "580px" }}>
             {domainTab === "projects" && <ProjectsPanel data={data} scoped={scoped} />}
             {domainTab === "budget" && <BudgetPanel data={data} ids={ids} />}
-            {domainTab === "compliance" && <CompliancePanel data={data} scopedView={scopedView} />}
+            {domainTab === "compliance" && canSeeCompliance && <CompliancePanel data={data} scopedView={scopedView} />}
             {domainTab === "outputs" && <OutputsPanel data={data} scopedView={scopedView} />}
             {domainTab === "me" && <MEPanel key={scope.projectId ?? scope.campus ?? "all"} data={data} scoped={scoped} initialId={scope.projectId} />}
             {domainTab === "risk" && <RiskPanel data={data} ids={ids} projectLevel={scope.level === "project"} />}
