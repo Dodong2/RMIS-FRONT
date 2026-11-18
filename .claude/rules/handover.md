@@ -693,5 +693,5 @@ pattern is pre-clone.
 2. Browser-test 16Z-AV..16Z-BA; VP for REI / University Administration need test accounts. Run DSS again; run new forecasts.
 3. Warn the client: Compliance only for System Admin, VP for REI, University Administration; requirements 8/9 need a new Assigned To; Budget Office Sync hidden for everyone; a weight change in the modal can hide Run DSS until the total is 100.
 4. Open: Compliance duty split between the 3 roles (client); DocumentsPage Links tab still calls compliance requirements for every role (403 caught, harmless); older follow-ups (Output Volume relative to the run's max, can't add indicators except through Define Indicator now, Analytics "Active Projects", Risk dashboard counts, AuthContext eslint errors).
-5. Audit 2026-11-18 findings live in the backend handover (all backend except nothing here); fix only through plan + GO.
+5. Audit 2026-11-18 findings are all backend; see the backend handover. Fix only through plan + GO.
 6. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
