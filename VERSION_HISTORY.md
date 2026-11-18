@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1250**
+**Latest version: 2026.11.18.1658**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1658
+
+- **Date and time:** 2026-11-18 16:58 (Asia/Manila)
+- **Category:** Bug fix
+- **Summary:** Monitoring & Evaluation → Progress Reports: the Submit Monthly Progress, Midterm and Terminal Report forms can now upload the report file directly (PDF, Word or Excel, up to 25MB). The file is saved in the project's Document and Records Management (Monthly as type "Other", Midterm as "Midterm Report", Terminal as "Terminal Report") and attached to the report in one step. Before, the form could only pick a file already uploaded in Document and Records Management, so it looked like uploading was impossible. Picking an existing document still works. A retry after a failed submit reuses the uploaded file. Older reports keep showing their file name after a newer version is uploaded.
+- **Affected modules:** Monitoring & Evaluation (Progress Reports: Monthly, Midterm, Terminal)
+- **Notes:** Client Task 83-A, frontend only, no backend change, no migration.
 
 ### 2026.11.18.1250
 

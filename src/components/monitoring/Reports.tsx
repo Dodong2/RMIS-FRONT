@@ -25,6 +25,10 @@ const objectiveRows = (objectives: string): ObjectiveRow[] => {
 };
 const badPercent = (v: string) => v.trim() !== "" && !(Number(v) >= 0 && Number(v) <= 100);
 
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const UPLOAD_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx";
+const UPLOAD_TYPE = { monthly: "other", midterm: "midterm_report", terminal: "terminal_report" } as const;
+
 const today = () => new Date().toLocaleDateString("en-CA");
 const td = "px-4 py-3 text-xs";
 
@@ -60,6 +64,8 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploaded, setUploaded] = useState<ProjectDocument | null>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   useEffect(() => {
@@ -74,7 +80,7 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
       })
       .catch(() => alive && setMonthly([]));
     documentApi
-      .getDocuments({ project, current_only: true })
+      .getDocuments({ project })
       .then((d) => alive && setDocs(d))
       .catch(() => alive && setDocs([]));
     return () => {
@@ -83,7 +89,11 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
   }, [project, reloadKey]);
 
   const docName = (id: number | null) => (id ? docs.find((d) => d.id === id)?.file_name ?? `Document #${id}` : "—");
-  const document = f.document ? Number(f.document) : null;
+  const closeForm = () => {
+    setShow(false);
+    setFile(null);
+    setUploaded(null);
+  };
 
   const save = async () => {
     setAttempted(true);
@@ -96,7 +106,27 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
       notify.error("% accomplishment must be from 0 to 100.");
       return;
     }
+    if (file && file.size > MAX_UPLOAD_BYTES) {
+      notify.error("File exceeds the 25MB limit.");
+      return;
+    }
     setSaving(true);
+    let document = f.document ? Number(f.document) : null;
+    if (file) {
+      let doc = uploaded;
+      if (!doc) {
+        try {
+          doc = await documentApi.uploadDocument({ project, document_type: UPLOAD_TYPE[kind], file });
+        } catch (err) {
+          notify.error(errorMessage(err, "Could not upload this file."));
+          setSaving(false);
+          return;
+        }
+        setUploaded(doc);
+        setDocs((prev) => [doc as ProjectDocument, ...prev]);
+      }
+      document = doc.id;
+    }
     try {
       if (kind === "monthly") await monitoringApi.createMonthlyReport({ project, period: `${f.period}-01`, narrative: f.narrative || undefined, document });
       if (kind === "midterm")
@@ -115,8 +145,8 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
           document,
         });
       if (kind === "terminal") await monitoringApi.createTerminalReport({ project, narrative: f.narrative || undefined, document });
-      notify.success("Report submitted.");
-      setShow(false);
+      notify.success(file ? "File uploaded and report submitted." : "Report submitted.");
+      closeForm();
       setAttempted(false);
       setF({ period: today().slice(0, 7), project_year: "1" });
       onChanged();
@@ -242,7 +272,7 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
       )}
 
       {show && (
-        <ProtoModal title={`Submit ${labels[kind]} Report`} onClose={() => setShow(false)} footer={<ModalFooter onClose={() => setShow(false)} onSave={save} saving={saving} label="Submit Report" />}>
+        <ProtoModal title={`Submit ${labels[kind]} Report`} onClose={closeForm} footer={<ModalFooter onClose={closeForm} onSave={save} saving={saving} label="Submit Report" />}>
           {kind === "monthly" && (
             <Field label="Reporting Month" required>
               <input type="month" className={INPUT_CLS} style={invalidStyle(attempted && !f.period)} value={f.period ?? ""} onChange={set("period")} />
@@ -316,15 +346,33 @@ export function ProgressReportsPanel({ project, objectives = "", canReport, canC
               <textarea rows={2} className={INPUT_CLS + " resize-none"} style={INPUT_STYLE} value={f.expenditure_summary ?? ""} onChange={set("expenditure_summary")} />
             </Field>
           )}
-          <Field label="Attached Document (optional)">
-            <select className={INPUT_CLS} style={INPUT_STYLE} value={f.document ?? ""} onChange={set("document")}>
+          <Field label="Upload Report File (optional)">
+            <input
+              type="file"
+              accept={UPLOAD_ACCEPT}
+              disabled={saving}
+              onChange={(e) => {
+                const picked = e.target.files?.[0] ?? null;
+                if (picked && picked.size > MAX_UPLOAD_BYTES) notify.error("File exceeds the 25MB limit.");
+                setFile(picked);
+                setUploaded(null);
+              }}
+              className="block w-full text-xs"
+              style={{ color: "#334155" }}
+            />
+            {file && <p className="text-xs mt-1" style={{ color: "#64748b" }}>{uploaded ? `Uploaded: ${uploaded.file_name}` : `Will upload ${file.name} to this project's documents, then submit.`}</p>}
+          </Field>
+          <Field label="Or pick an existing document">
+            <select className={INPUT_CLS} style={INPUT_STYLE} value={f.document ?? ""} onChange={set("document")} disabled={!!file}>
               <option value="">No document</option>
               {docs.map((d) => (
                 <option key={d.id} value={d.id}>{d.file_name} (v{d.version_number})</option>
               ))}
             </select>
           </Field>
-          <p className="text-xs" style={{ color: "#94a3b8" }}>Upload files in Document and Records Management first, then pick them here.</p>
+          <p className="text-xs" style={{ color: "#94a3b8" }}>
+            PDF, Word or Excel, up to 25MB. An uploaded file is saved in this project's Document and Records Management ({kind === "monthly" ? 'type "Other"' : labels[kind].split(" ")[0] + " Report"}) and attached to this report.
+          </p>
         </ProtoModal>
       )}
     </div>
