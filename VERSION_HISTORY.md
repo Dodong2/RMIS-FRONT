@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1707**
+**Latest version: 2026.11.18.1713**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1713
+
+- **Date and time:** 2026-11-18 17:13 (Asia/Manila)
+- **Category:** Access change
+- **Summary:** Backend: the procurement figures behind Procurement Analytics (and the Procurement Officer dashboard) are now open to System Admin, Procurement Officer - LIB and University Administration through a new permission, "Open Procurement Analytics". Every other role is refused. Each procurement request also carries its project's leader and the date and time the Procurement Office first decided on it (for the analytics page).
+- **Affected modules:** Procurement Analytics / Procurement Officer dashboard (API)
+- **Notes:** Client Task 82-A, rmis-backend fc4a991. Needs accounts 0036 migrated before the backend is deployed, or the Procurement Officer dashboard returns "no permission". The page itself comes in Task 82-B.
 
 ### 2026.11.18.1707
 
