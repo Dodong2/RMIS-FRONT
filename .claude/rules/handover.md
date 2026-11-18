@@ -680,7 +680,7 @@ pattern is pre-clone.
   pre-check, so the form just surfaces whatever error message the backend returns.
 
 ## Last thing done in this repo
-2026-11-18 night, client Tasks 84, 85 and 86, on `main`, NOT pushed. Backend: rmis-backend 2c4c18a (84-A, accounts 0037 migrated, parity 0), c1a1905 (85-A), 19b9ace + b15f679 (85-B), 76fc9b5 (86-A, forecasting 0003 NOT migrated). Memory notes: `task-84-quarterly-flow-2026-11-18`, `task-85-riuh-college-scope-2026-11-18`, `task-86-arima-figma-2026-11-18`.
+2026-11-18 night, client Tasks 84, 85 and 86, on `main`, NOT pushed. Backend: rmis-backend 2c4c18a (84-A, accounts 0037 migrated, parity 0), c1a1905 (85-A), 19b9ace + b15f679 (85-B), 76fc9b5 (86-A, forecasting 0003 migrated). Memory notes: `task-84-quarterly-flow-2026-11-18`, `task-85-riuh-college-scope-2026-11-18`, `task-86-arima-figma-2026-11-18`.
 - `4454ede` v2026.11.18.2035 (84-B, `QuarterlyReports.tsx`): RIUH Start Review / Endorse / Return; CRC/CRD Approve / Return on Endorsed; VP for REI no buttons.
 - `dacf621`, `90bb62b`, `b75fa06`: version only (85 RIUH scope, backend).
 - `a687779` v2026.11.18.2243: version only (86-A).
@@ -688,7 +688,7 @@ pattern is pre-clone.
 - Tests: tsc, eslint, vitest 193/193. Backend full suite 827/827 OK at 76fc9b5. Browser not tested. Guide 16Z-BH..16Z-BM.
 
 ## Next thing to do in this repo
-1. Carl: migrate forecasting 0003, then deploy backend and frontend together; Netlify should show 2026.11.18.2250.
+1. DONE: forecasting 0003 migrated (2026-11-18). Deploy backend and frontend together; Netlify should show 2026.11.18.2250.
 2. Browser-test 16Z-BI (quarterly), 16Z-BJ/BK (RIUH scope), 16Z-BM (ARIMA: Active project with >= 6 months of disbursements; Run, sliders, Save Forecast).
 3. Open: client question on Documents "Pending Review" badge; older open items in git history (`b171372`).
 4. Every task goes through `dss/CLAUDE.md`, bumps `src/version.ts` + `VERSION_HISTORY.md`, and updates `dss/RMIS_Test_Guide_2026-10-28.docx`.
