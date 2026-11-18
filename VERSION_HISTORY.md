@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1211**
+**Latest version: 2026.11.18.1230**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1230
+
+- **Date and time:** 2026-11-18 12:30 (Asia/Manila)
+- **Category:** Access change
+- **Summary:** Backend: Compliance Tracking (all its records, requirements, reviews, verification and the compliance dashboard figures) is now open only to System Admin, VP for REI and University Administration, and those three can encode, submit, review and verify. RIUH and Project Leader no longer have Compliance. A requirement can only be assigned to one of the three roles.
+- **Affected modules:** Compliance Tracking (API), Analytics/Dashboard compliance figures (API)
+- **Notes:** Client Task 79-A, rmis-backend 2515e23. Backend only; needs migration accounts 0035. The sidebar and pages follow in Task 79-B.
 
 ### 2026.11.18.1211
 
