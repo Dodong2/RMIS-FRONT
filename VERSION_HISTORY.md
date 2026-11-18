@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1713**
+**Latest version: 2026.11.18.1721**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1721
+
+- **Date and time:** 2026-11-18 17:21 (Asia/Manila)
+- **Category:** Feature and access change
+- **Summary:** New sidebar item and page "Procurement Analytics" (/procurement-analytics) for Procurement Officer - LIB, System Admin and University Administration only, following the client's Figma Analytics tab. Filters: Project, Department (College), LIB subcategory (LIB Item), Status, From, To and campus. Cards: Approved LIB Utilization (paid ÷ LIB), Pending Requests, Approval Rate (accepted ÷ decided), Average Approval Time (submission to first decision), Procurement Completion (completed ÷ accepted), Disbursement Completion (paid ÷ accepted) and Remaining Budget. Also: On track by college and by Project Leader (not still open after 12 days), Most requested LIB items, Monthly requests, Requested → Approved → Procured → Disbursed, Spending by project and PS/MOOE/CO, Status distribution, Processing time, Transaction table with Export, and Exception monitoring (over balance, open over 12 days, returned twice or more). The Procurement Officer dashboard's Analytics tab shows the same figures. The general Analytics item is no longer in the Procurement Officer's sidebar.
+- **Affected modules:** Procurement Analytics (new), Procurement Officer dashboard (Analytics tab, its flag count), Sidebar
+- **Notes:** Client Task 82-B. Needs rmis-backend fc4a991 with accounts 0036 migrated (Task 82-A). No migration in this change.
 
 ### 2026.11.18.1713
 

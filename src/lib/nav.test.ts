@@ -97,3 +97,23 @@ describe("Compliance Tracking in the sidebar (client Task 79, 2026-11-18)", () =
     }
   });
 });
+
+describe("Procurement Analytics in the sidebar (client Task 82, 2026-11-18)", () => {
+  const ALL = ["system_admin", "vprei", "university_admin", "crc_chair", "riuh", "finance_budget", "procurement_officer_lib", "project_leader", "project_staff"];
+
+  it("shows only for System Admin, Procurement Officer - LIB and University Administration", () => {
+    for (const code of ALL) {
+      const visible = visibleTargets(resolveTier({ code }), code).includes("/procurement-analytics");
+      expect(visible, code).toBe(["system_admin", "procurement_officer_lib", "university_admin"].includes(code));
+    }
+  });
+
+  it("replaces the general Analytics item for the Procurement Officer only", () => {
+    const analytics = (code: string) => visibleTargets(resolveTier({ code }), code).includes("/analytics");
+    expect(analytics("procurement_officer_lib")).toBe(false);
+    for (const code of ["system_admin", "vprei", "university_admin", "crc_chair", "riuh", "finance_budget", "project_leader"]) {
+      expect(analytics(code), code).toBe(true);
+    }
+    expect(analytics("project_staff")).toBe(false);
+  });
+});

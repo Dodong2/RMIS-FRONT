@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ProcurementDashRow } from "../types/dashboard";
 import {
   NO_FILTERS,
+  OVERDUE_DAYS,
   analytics,
   campusWorkload,
   dayBuckets,
@@ -9,9 +10,12 @@ import {
   filterRows,
   monthly,
   overview,
-  releasedByCategory,
-  releasedByProject,
+  onTrackBy,
+  spendingByCategory,
+  spendingByProject,
+  stageAmounts,
   toCsv,
+  topRequestedItems,
 } from "./procurementDashboard";
 
 const row = (over: Partial<ProcurementDashRow>): ProcurementDashRow =>
@@ -19,7 +23,7 @@ const row = (over: Partial<ProcurementDashRow>): ProcurementDashRow =>
     id: 1, request_no: "PR-0001", project: 1, project_code: "P-1", campus: "Siniloan", college: "CCS", line_item: 10,
     lib_item: "Office Supplies Expenses", category: "mooe", amount: "1000.00", status: "requested", requested_at: "2026-10-05T02:00:00Z",
     lib_adjusted: "10000.00", lib_uncommitted: "5000.00", available: "6000.00", exceeds_available: false, released: 0,
-    processing_days: 1, returned_count: 0, ...over,
+    processing_days: 1, returned_count: 0, project_leader: "Lea Lim", decided_at: null, ...over,
   }) as ProcurementDashRow;
 
 // Two requests on one 10,000 line item (one released), one on a 5,000 CO item at another campus, one cancelled.
@@ -42,35 +46,49 @@ describe("overview", () => {
   });
 });
 
-describe("analytics", () => {
-  it("counts each LIB line item once and leaves cancelled requests out", () => {
+describe("analytics (client Task 82, Figma Analytics tab)", () => {
+  it("computes the seven Figma cards and counts each LIB line item once", () => {
     const a = analytics(rows);
     expect(a.libTotal).toBe(15000); // 10,000 + 5,000, not 10,000 three times
+    expect([a.disbursed, a.utilizationPct]).toEqual([3000, 20]); // paid 3,000 / 15,000
+    expect(a.pending).toBe(1); // under_review
+    // approved = completed + ready_for_release; decided = those two + cancelled
+    expect([a.approvedCount, a.decidedCount, a.approvalRatePct]).toEqual([2, 3, 67]);
+    expect([a.completed, a.procurementCompletionPct]).toEqual([1, 50]); // 1 completed of 2 approved
+    expect([a.paidCount, a.disbursementCompletionPct]).toEqual([1, 50]); // 1 paid of 2 approved
     expect(a.remaining).toBe(6000); // 5,000 + 1,000
-    expect(a.released).toBe(3000);
-    expect(a.utilizationPct).toBe(20); // 3,000 / 15,000
-    expect(a.pending).toBe(1);
-    expect([a.completed, a.completionPct]).toEqual([1, 33]); // 1 of 3 non-cancelled
-    expect(a.avgProcessingDays).toBe(5); // completed requests only
-    expect(a.funnel).toEqual({ requested: 9000, received: 9000, released: 3000 });
+    expect(a.avgApprovalDays).toBeNull(); // no decision times recorded
+    expect(a.funnel).toEqual({ requested: 9500, approved: 7000, procured: 3000, disbursed: 3000 });
   });
 
-  it("has no average or percentages without data", () => {
+  it("averages submission-to-decision days over decided requests only", () => {
+    const a = analytics([
+      row({ id: 1, status: "for_procurement", requested_at: "2026-10-01T00:00:00Z", decided_at: "2026-10-04T00:00:00Z" }),
+      row({ id: 2, status: "returned_for_revision", requested_at: "2026-10-01T00:00:00Z", decided_at: "2026-10-02T00:00:00Z" }),
+      row({ id: 3, status: "under_review" }),
+    ]);
+    expect(a.avgApprovalDays).toBe(2); // (3 + 1) / 2
+    expect([a.approvedCount, a.decidedCount, a.approvalRatePct]).toEqual([1, 2, 50]); // returned = decided, not approved
+  });
+
+  it("has no average, percentages or negative balance without data", () => {
     const a = analytics([]);
-    expect([a.avgProcessingDays, a.utilizationPct, a.completionPct]).toEqual([null, 0, 0]);
+    expect([a.avgApprovalDays, a.utilizationPct, a.approvalRatePct, a.procurementCompletionPct, a.disbursementCompletionPct]).toEqual([null, 0, 0, 0, 0]);
+    expect(analytics([row({ lib_uncommitted: "-200.00" })]).remaining).toBe(0);
   });
 
-  it("leaves submitted and returned requests out of Received", () => {
-    const a = analytics([row({ amount: "100", status: "requested" }), row({ id: 2, amount: "200", status: "returned_for_revision" }), row({ id: 3, amount: "300", status: "order_placed" })]);
-    expect(a.funnel).toEqual({ requested: 600, received: 300, released: 0 });
+  it("gives each request its requested, approved, procured and disbursed amounts", () => {
+    expect(stageAmounts(rows[1])).toEqual({ requested: 2000, approved: 0, procured: 0, disbursed: 0 });
+    expect(stageAmounts(rows[2])).toEqual({ requested: 4000, approved: 4000, procured: 0, disbursed: 0 });
+    expect(stageAmounts(rows[0])).toEqual({ requested: 3000, approved: 3000, procured: 3000, disbursed: 3000 });
   });
 });
 
 describe("breakdowns", () => {
-  it("groups released value by project and by class", () => {
+  it("groups procured (completed) value by project and by class", () => {
     const withMore = [...rows, row({ id: 7, project_code: "P-2", released: "5000.00", status: "completed", category: "co" })];
-    expect(releasedByProject(withMore)).toEqual([{ project_code: "P-2", value: 5000 }, { project_code: "P-1", value: 3000 }]);
-    expect(releasedByCategory(withMore)).toEqual([{ category: "ps", value: 0 }, { category: "mooe", value: 3000 }, { category: "co", value: 5000 }]);
+    expect(spendingByProject(withMore)).toEqual([{ project_code: "P-1", value: 3000 }, { project_code: "P-2", value: 1000 }]);
+    expect(spendingByCategory(withMore)).toEqual([{ category: "ps", value: 0 }, { category: "mooe", value: 3000 }, { category: "co", value: 1000 }]);
   });
 
   it("buckets processing days and skips rows without any", () => {
@@ -87,18 +105,57 @@ describe("breakdowns", () => {
   });
 });
 
+describe("on track by college and Project Leader (client Task 82)", () => {
+  const sample = [
+    row({ id: 1, college: "CCS", project_leader: "Ana", status: "under_review", processing_days: OVERDUE_DAYS + 1 }), // overdue
+    row({ id: 2, college: "CCS", project_leader: "Ana", status: "completed", processing_days: 20 }), // closed: on track
+    row({ id: 3, college: "CA", project_leader: "Ben", status: "order_placed", processing_days: OVERDUE_DAYS }), // not over 12
+    row({ id: 4, college: "CA", project_leader: "Ben", status: "cancelled", processing_days: null }), // left out
+  ];
+
+  it("ranks colleges by the share of requests not overdue", () => {
+    expect(onTrackBy(sample, "college")).toEqual([
+      { name: "CA", total: 1, overdue: 0, completed: 0, onTrack: 1, onTrackPct: 100 },
+      { name: "CCS", total: 2, overdue: 1, completed: 1, onTrack: 1, onTrackPct: 50 },
+    ]);
+  });
+
+  it("does the same per Project Leader and names a missing leader", () => {
+    expect(onTrackBy([...sample, row({ id: 5, project_leader: "" })], "project_leader").map((g) => [g.name, g.total, g.onTrackPct])).toEqual([
+      ["Ben", 1, 100],
+      ["No leader", 1, 100],
+      ["Ana", 2, 50],
+    ]);
+  });
+});
+
+describe("most requested LIB items (client Task 82)", () => {
+  it("counts requests per exact LIB Item within its class and leaves cancelled out", () => {
+    const items = topRequestedItems([
+      row({ id: 1, project: 1, category: "mooe", lib_item: "Office Supplies Expenses", amount: "1000" }),
+      row({ id: 2, project: 2, category: "mooe", lib_item: "Office Supplies Expenses", amount: "500" }),
+      row({ id: 3, project: 1, category: "co", lib_item: "Office Supplies Expenses", amount: "200" }),
+      row({ id: 4, project: 1, category: "mooe", lib_item: "Office Supplies Expense", amount: "100" }), // similar name, not merged
+      row({ id: 5, project: 3, category: "mooe", lib_item: "Office Supplies Expenses", amount: "900", status: "cancelled" }),
+    ]);
+    expect(items).toEqual([
+      { category: "mooe", lib_item: "Office Supplies Expenses", count: 2, amount: 1500, projects: 2 },
+      { category: "co", lib_item: "Office Supplies Expenses", count: 1, amount: 200, projects: 1 },
+      { category: "mooe", lib_item: "Office Supplies Expense", count: 1, amount: 100, projects: 1 },
+    ]);
+  });
+});
+
 describe("exceptions", () => {
-  it("flags over-balance, overdue open and repeatedly returned requests", () => {
-    const flagged = exceptions(
-      [
-        row({ id: 1, exceeds_available: true }),
-        row({ id: 2, processing_days: 31 }),
-        row({ id: 3, processing_days: 31, status: "completed" }), // closed: not overdue
-        row({ id: 4, returned_count: 2 }),
-      ],
-      30,
-    );
-    expect(flagged.map((f) => [f.row.id, f.severity])).toEqual([[1, "critical"], [2, "warning"], [4, "warning"]]);
+  it("flags over-balance, open over 12 days (Figma) and repeatedly returned requests", () => {
+    const flagged = exceptions([
+      row({ id: 1, exceeds_available: true }),
+      row({ id: 2, processing_days: OVERDUE_DAYS + 1 }),
+      row({ id: 3, processing_days: OVERDUE_DAYS }), // exactly 12: not yet overdue
+      row({ id: 4, processing_days: 31, status: "completed" }), // closed: not overdue
+      row({ id: 5, returned_count: 2 }),
+    ]);
+    expect(flagged.map((f) => [f.row.id, f.severity])).toEqual([[1, "critical"], [2, "warning"], [5, "warning"]]);
   });
 });
 

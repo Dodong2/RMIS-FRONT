@@ -23,6 +23,7 @@ import LeaderLoadPage from "./pages/LeaderLoadPage";
 import BudgetPage from "./pages/BudgetPage";
 import DisbursementsPage from "./pages/DisbursementsPage";
 import CompliancePage from "./pages/CompliancePage";
+import ProcurementAnalyticsPage from "./pages/ProcurementAnalyticsPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import OutputsPage from "./pages/OutputsPage";
 import MonitoringPage from "./pages/MonitoringPage";
@@ -37,7 +38,7 @@ import ProcurementPage from "./pages/ProcurementPage";
 import BudgetSyncPage from "./pages/BudgetSyncPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleGate } from "./components/RoleGate";
-import { COMPLIANCE_ROLE_CODES, DSS_VIEW_ROLE_CODES, PROJECT_PAGE_ROLE_CODES, REGISTRATION_ROLE_CODES } from "./lib/roles";
+import { COMPLIANCE_ROLE_CODES, DSS_VIEW_ROLE_CODES, PROCUREMENT_ANALYTICS_ROLE_CODES, PROJECT_PAGE_ROLE_CODES, REGISTRATION_ROLE_CODES } from "./lib/roles";
 
 export default function App() {
   return (
@@ -303,6 +304,16 @@ export default function App() {
               ]}
             >
               <DisbursementsPage />
+            </RoleGate>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/procurement-analytics"
+        element={
+          <ProtectedRoute>
+            <RoleGate allow={PROCUREMENT_ANALYTICS_ROLE_CODES}>
+              <ProcurementAnalyticsPage />
             </RoleGate>
           </ProtectedRoute>
         }

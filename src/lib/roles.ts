@@ -132,4 +132,6 @@ export const PROJECT_EDIT_ROLE_CODES = REGISTRATION_ROLE_CODES;
 // Client Task 76: only these roles open the Decision Support System (backend dss.view).
 export const DSS_VIEW_ROLE_CODES = ["system_admin", "vprei", "university_admin", "crc_chair"];
 export const COMPLIANCE_ROLE_CODES = ["system_admin", "vprei", "university_admin"];
+// Client Task 82 (2026-11-18): Procurement Analytics; matches the backend's procurement.view_analytics.
+export const PROCUREMENT_ANALYTICS_ROLE_CODES = ["system_admin", "procurement_officer_lib", "university_admin"];
 export const PROJECT_PAGE_ROLE_CODES = Object.keys(ROLE_META).filter((code) => code !== "project_staff");

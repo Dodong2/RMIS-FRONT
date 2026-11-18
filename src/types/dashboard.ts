@@ -242,6 +242,8 @@ export interface ProcurementDashRow {
   released: string | number;
   processing_days: number | null;
   returned_count: number;
+  project_leader: string;
+  decided_at: string | null;
 }
 
 export interface ProcurementDashEvent {

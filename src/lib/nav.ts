@@ -172,7 +172,16 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/analytics",
         icon: "chart",
         tiers: [...OVERSIGHT, "finance"],
-        roles: ["procurement_officer_lib", "project_leader"],
+        roles: ["project_leader"],
+        ready: true,
+      },
+      {
+        // Client Task 82 (2026-11-18): Procurement Officer - LIB, System Admin and University Administration only
+        label: "Procurement Analytics",
+        to: "/procurement-analytics",
+        icon: "chart",
+        tiers: ["system_admin", "procurement"],
+        roles: ["university_admin"],
         ready: true,
       },
       {

@@ -13,19 +13,24 @@ import { INPUT_CLS, INPUT_STYLE } from "../../lib/protoStyles";
 import {
   NO_FILTERS,
   PENDING,
+  OVERDUE_DAYS,
   analytics,
   campusWorkload,
   dayBuckets,
   exceptions,
   filterRows,
   isOpen,
+  isOverdue,
   monthly,
   num,
   overview,
   pct,
-  releasedByCategory,
-  releasedByProject,
+  onTrackBy,
+  spendingByCategory,
+  spendingByProject,
+  stageAmounts,
   statusCounts,
+  topRequestedItems,
   toCsv,
   type ProcurementFilters,
 } from "../../lib/procurementDashboard";
@@ -204,67 +209,153 @@ function OverviewTab({ rows, setTab }: { rows: ProcurementDashRow[]; setTab: (t:
   );
 }
 
-function AnalyticsTab({ rows, delayDays, campus }: { rows: ProcurementDashRow[]; delayDays: number; campus: string }) {
+function analyticsCsv(rows: ProcurementDashRow[]) {
+  return [
+    ["Request Number", "Project", "Project Leader", "College", "LIB Item", "Requested Amount", "Approved Amount", "Procured Amount", "Disbursed Amount", "Current Status", "Processing Time"],
+    ...rows.map((r) => {
+      const a = stageAmounts(r);
+      return [r.request_no, r.project_code, r.project_leader, r.college, `${CATEGORY_LABEL[r.category]} ${r.lib_item}`, a.requested, a.approved, a.procured, a.disbursed, r.status_label, r.processing_days === null ? "" : `${r.processing_days} days`];
+    }),
+  ];
+}
+
+function OnTrackTable({ title, sub, groups }: { title: string; sub: string; groups: ReturnType<typeof onTrackBy> }) {
+  return (
+    <Card title={title} sub={sub}>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[420px] text-left">
+          <thead>
+            <tr>
+              {["Name", "Requests", "Completed", "Overdue", "On track"].map((h) => (
+                <th key={h} className="pb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: "#64748b" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g) => (
+              <tr key={g.name} style={{ borderTop: "1px solid #f1f5f9" }}>
+                <td className="py-2 pr-2 text-xs font-semibold" style={{ color: "#1e293b" }}>{g.name}</td>
+                <td className="py-2 font-mono text-xs" style={{ color: "#475569" }}>{g.total}</td>
+                <td className="py-2 font-mono text-xs" style={{ color: "#475569" }}>{g.completed}</td>
+                <td className="py-2 font-mono text-xs font-bold" style={{ color: g.overdue ? "#dc2626" : "#475569" }}>{g.overdue}</td>
+                <td className="py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-20 overflow-hidden rounded-full" style={{ background: "#f1f5f9" }}>
+                      <div className="h-full rounded-full" style={{ width: `${g.onTrackPct}%`, background: g.onTrackPct === 100 ? "#10b981" : "#f59e0b" }} />
+                    </div>
+                    <span className="font-mono text-xs font-bold" style={{ color: "#0d2a5e" }}>{g.onTrackPct}%</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!groups.length && <p className="text-xs" style={{ color: "#94a3b8" }}>No requests match the filters.</p>}
+      </div>
+    </Card>
+  );
+}
+
+/** Procurement Analytics (client Task 82): the Figma Analytics tab, on the Procurement Analytics page and the Procurement
+ * Officer dashboard. `rows` = every request in scope; `campus` = the header's campus pick ("" = all). */
+export function ProcurementAnalytics({ rows, campus }: { rows: ProcurementDashRow[]; campus: string }) {
   const [f, setF] = useState<ProcurementFilters>(NO_FILTERS);
   const set = (k: keyof ProcurementFilters) => (e: { target: { value: string } }) => setF((cur) => ({ ...cur, [k]: e.target.value }));
+  const inCampus = campus ? rows.filter((r) => r.campus === campus) : rows;
   const scoped = filterRows(rows, { ...f, campus });
   const a = analytics(scoped);
   const months = monthly(scoped);
   const maxMonth = Math.max(1, ...months.map((m) => m.count));
-  const byProject = releasedByProject(scoped);
+  const byProject = spendingByProject(scoped);
   const counts = statusCounts(scoped);
   const buckets = dayBuckets(scoped);
-  const flags = exceptions(scoped, delayDays);
-  const options = (pick: (r: ProcurementDashRow) => string) => [...new Set(rows.map(pick).filter(Boolean))].sort();
-  const projects = [...new Map(rows.map((r) => [String(r.project), r.project_code])).entries()].sort((x, y) => x[1].localeCompare(y[1]));
+  const flags = exceptions(scoped);
+  const items = topRequestedItems(scoped);
+  const options = (pick: (r: ProcurementDashRow) => string) => [...new Set(inCampus.map(pick).filter(Boolean))].sort();
+  const projects = [...new Map(inCampus.map((r) => [String(r.project), r.project_code])).entries()].sort((x, y) => x[1].localeCompare(y[1]));
   const sel = `${INPUT_CLS} !py-2 text-xs`;
+  const lbl = "text-[10px] font-bold uppercase";
 
   return (
     <div className="space-y-5">
       <Card
         title="Procurement analytics"
-        sub="LIB use and processing within the active campus scope"
+        sub="Financial performance and processing efficiency within the active campus scope"
         aside={<button onClick={() => setF(NO_FILTERS)} className={linkBtn} style={{ color: "#0891b2" }}>Reset filters</button>}
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <select aria-label="Project" value={f.project} onChange={set("project")} className={sel} style={INPUT_STYLE}>
-            <option value="">All projects</option>
-            {projects.map(([id, code]) => <option key={id} value={id}>{code}</option>)}
-          </select>
-          <select aria-label="College" value={f.college} onChange={set("college")} className={sel} style={INPUT_STYLE}>
-            <option value="">All colleges</option>
-            {options((r) => r.college).map((c) => <option key={c}>{c}</option>)}
-          </select>
-          <select aria-label="LIB item" value={f.libItem} onChange={set("libItem")} className={sel} style={INPUT_STYLE}>
-            <option value="">All LIB items</option>
-            {options((r) => r.lib_item).map((c) => <option key={c}>{c}</option>)}
-          </select>
-          <select aria-label="Status" value={f.status} onChange={set("status")} className={sel} style={INPUT_STYLE}>
-            <option value="">All statuses</option>
-            {(Object.keys(STATUS_META) as ProcurementStatus[]).map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
-          </select>
-          <label className="text-[10px] font-bold uppercase" style={{ color: "#64748b" }}>
+          <label className={lbl} style={{ color: "#64748b" }}>
+            Project
+            <select aria-label="Project" value={f.project} onChange={set("project")} className={sel} style={INPUT_STYLE}>
+              <option value="">All projects</option>
+              {projects.map(([id, code]) => <option key={id} value={id}>{code}</option>)}
+            </select>
+          </label>
+          <label className={lbl} style={{ color: "#64748b" }}>
+            Department (College)
+            <select aria-label="Department" value={f.college} onChange={set("college")} className={sel} style={INPUT_STYLE}>
+              <option value="">All departments</option>
+              {options((r) => r.college).map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </label>
+          <label className={lbl} style={{ color: "#64748b" }}>
+            LIB subcategory (LIB Item)
+            <select aria-label="LIB subcategory" value={f.libItem} onChange={set("libItem")} className={sel} style={INPUT_STYLE}>
+              <option value="">All subcategories</option>
+              {options((r) => r.lib_item).map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </label>
+          <label className={lbl} style={{ color: "#64748b" }}>
+            Status
+            <select aria-label="Status" value={f.status} onChange={set("status")} className={sel} style={INPUT_STYLE}>
+              <option value="">All statuses</option>
+              {(Object.keys(STATUS_META) as ProcurementStatus[]).map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+            </select>
+          </label>
+          <label className={lbl} style={{ color: "#64748b" }}>
             From
             <input type="date" value={f.from} onChange={set("from")} className={sel} style={INPUT_STYLE} />
           </label>
-          <label className="text-[10px] font-bold uppercase" style={{ color: "#64748b" }}>
+          <label className={lbl} style={{ color: "#64748b" }}>
             To
             <input type="date" value={f.to} onChange={set("to")} className={sel} style={INPUT_STYLE} />
           </label>
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-        <Metric label="Approved LIB utilization" value={`${a.utilizationPct}%`} detail={`${peso(a.released)} released of ${peso(a.libTotal)}`} color="#0e7490" bg="#ecfeff" border="#a5f3fc" />
-        <Metric label="Pending requests" value={a.pending} detail="Receive or review" color="#b45309" bg="#fffbeb" border="#fde68a" />
-        <Metric label="Avg processing time" value={a.avgProcessingDays === null ? "—" : `${a.avgProcessingDays}d`} detail="Filed to completed" color="#1d4ed8" bg="#eff6ff" border="#bfdbfe" />
-        <Metric label="Procurement completion" value={`${a.completionPct}%`} detail={`${a.completed} completed`} color="#6d28d9" bg="#f5f3ff" border="#ddd6fe" />
-        <Metric label="Released amount" value={peso(a.released)} detail="Posted as disbursements" color="#0f766e" bg="#f0fdfa" border="#99f6e4" />
-        <Metric label="Remaining LIB balance" value={peso(a.remaining)} detail="Uncommitted on these items" color="#0d2a5e" bg="#f8fafc" border="#e2e8f0" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
+        <Metric label="Approved LIB utilization" value={`${a.utilizationPct}%`} detail={`${peso(a.disbursed)} utilized of ${peso(a.libTotal)}`} color="#0e7490" bg="#ecfeff" border="#a5f3fc" />
+        <Metric label="Pending requests" value={a.pending} detail="Awaiting a decision" color="#b45309" bg="#fffbeb" border="#fde68a" />
+        <Metric label="Approval rate" value={`${a.approvalRatePct}%`} detail={`${a.approvedCount} approved of ${a.decidedCount} decided`} color="#047857" bg="#ecfdf5" border="#a7f3d0" />
+        <Metric label="Average approval time" value={a.avgApprovalDays === null ? "—" : `${a.avgApprovalDays}d`} detail="Submission to decision" color="#1d4ed8" bg="#eff6ff" border="#bfdbfe" />
+        <Metric label="Procurement completion" value={`${a.procurementCompletionPct}%`} detail={`${a.completed} of ${a.approvedCount} approved completed`} color="#6d28d9" bg="#f5f3ff" border="#ddd6fe" />
+        <Metric label="Disbursement completion" value={`${a.disbursementCompletionPct}%`} detail={`${a.paidCount} of ${a.approvedCount} approved paid`} color="#0f766e" bg="#f0fdfa" border="#99f6e4" />
+        <Metric label="Remaining budget" value={peso(a.remaining)} detail="Available LIB balance" color="#0d2a5e" bg="#f8fafc" border="#e2e8f0" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <Card title="Monthly procurement requests" sub="Request count by month filed (hover for value)">
+        <OnTrackTable title="On track by college" sub={`Requests not still open after ${OVERDUE_DAYS} days (cancelled left out)`} groups={onTrackBy(scoped, "college")} />
+        <OnTrackTable title="On track by Project Leader" sub={`Requests not still open after ${OVERDUE_DAYS} days (cancelled left out)`} groups={onTrackBy(scoped, "project_leader")} />
+      </div>
+
+      <Card title="Most requested LIB items" sub="Number of requests per LIB Item (cancelled left out)">
+        <div className="space-y-3">
+          {items.map((i) => (
+            <HBar
+              key={`${i.category}-${i.lib_item}`}
+              label={`${CATEGORY_LABEL[i.category]} · ${i.lib_item}`}
+              value={i.count}
+              display={`${i.count} request${i.count === 1 ? "" : "s"} · ${peso(i.amount)} · ${i.projects} project${i.projects === 1 ? "" : "s"}`}
+              max={items[0].count}
+              color="#0891b2"
+            />
+          ))}
+          {!items.length && <p className="text-xs" style={{ color: "#94a3b8" }}>No requests match the filters.</p>}
+        </div>
+      </Card>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Card title="Monthly procurement requests" sub="Request volume and requested value (hover a bar)">
           <div className="flex h-44 items-end gap-3">
             {months.map((m) => (
               <div key={m.month} className="flex flex-1 flex-col items-center justify-end gap-1">
@@ -276,20 +367,21 @@ function AnalyticsTab({ rows, delayDays, campus }: { rows: ProcurementDashRow[];
             {!months.length && <p className="text-xs" style={{ color: "#94a3b8" }}>No requests in range.</p>}
           </div>
         </Card>
-        <Card title="Requested to released amounts" sub="Value through the procurement lifecycle (cancelled excluded)">
+        <Card title="Requested to disbursed amounts" sub="Value conversion across the procurement lifecycle">
           <div className="space-y-4">
             <HBar label="Requested" value={a.funnel.requested} display={peso(a.funnel.requested)} max={a.funnel.requested} color="#0d2a5e" />
-            <HBar label="Received by Procurement" value={a.funnel.received} display={peso(a.funnel.received)} max={a.funnel.requested} color="#0891b2" />
-            <HBar label="Released (Completed)" value={a.funnel.released} display={peso(a.funnel.released)} max={a.funnel.requested} color="#10b981" />
+            <HBar label="Approved" value={a.funnel.approved} display={peso(a.funnel.approved)} max={a.funnel.requested} color="#0891b2" />
+            <HBar label="Procured" value={a.funnel.procured} display={peso(a.funnel.procured)} max={a.funnel.requested} color="#8b5cf6" />
+            <HBar label="Disbursed" value={a.funnel.disbursed} display={peso(a.funnel.disbursed)} max={a.funnel.requested} color="#10b981" />
           </div>
         </Card>
-        <Card title="Released by project and LIB class" sub="Top projects by released value">
+        <Card title="Spending by project and LIB category" sub="Procured value for the leading projects">
           <div className="space-y-3">
             {byProject.map((p) => <HBar key={p.project_code} label={p.project_code} value={p.value} display={peso(p.value)} max={byProject[0].value} color="#8b5cf6" />)}
-            {!byProject.length && <p className="text-xs" style={{ color: "#94a3b8" }}>Nothing released yet.</p>}
+            {!byProject.length && <p className="text-xs" style={{ color: "#94a3b8" }}>Nothing procured yet.</p>}
           </div>
           <div className="mt-5 grid grid-cols-3 gap-2">
-            {releasedByCategory(scoped).map((c) => (
+            {spendingByCategory(scoped).map((c) => (
               <div key={c.category} className="rounded-xl p-3 text-center" style={{ background: "#f8fafc" }}>
                 <p className="text-[10px] font-bold" style={{ color: "#64748b" }}>{CATEGORY_LABEL[c.category]}</p>
                 <p className="mt-1 font-mono text-xs font-black" style={{ color: "#0d2a5e" }}>{peso(c.value)}</p>
@@ -298,7 +390,7 @@ function AnalyticsTab({ rows, delayDays, campus }: { rows: ProcurementDashRow[];
           </div>
         </Card>
         <div className="grid gap-5">
-          <Card title="Request status distribution" sub="Current status of each request">
+          <Card title="Request status distribution" sub="Current transaction state">
             <div className="mb-4 flex h-3 overflow-hidden rounded-full" style={{ background: "#f1f5f9" }}>
               {[...counts.entries()].map(([s, n]) => (
                 <div key={s} style={{ width: `${pct(n, scoped.length)}%`, background: STATUS_META[s].dot }} title={`${STATUS_META[s].label}: ${n}`} />
@@ -310,7 +402,7 @@ function AnalyticsTab({ rows, delayDays, campus }: { rows: ProcurementDashRow[];
               ))}
             </div>
           </Card>
-          <Card title="Procurement processing time" sub="Days from filing to completion, or to today while open">
+          <Card title="Procurement processing time" sub="Transactions grouped by elapsed days (filing to completion, or to today while open)">
             <div className="space-y-3">
               {buckets.map((b) => (
                 <HBar key={b.label} label={b.label} value={b.count} display={String(b.count)} max={scoped.length} color={b.low >= 15 ? "#ef4444" : "#3b82f6"} />
@@ -322,32 +414,78 @@ function AnalyticsTab({ rows, delayDays, campus }: { rows: ProcurementDashRow[];
 
       <Card
         title="Transaction-level analytics"
-        sub={`${scoped.length} requests match the active filters`}
+        sub={`${scoped.length} transactions match the active filters`}
         aside={
-          <button disabled={!scoped.length} onClick={() => download(`procurement-analytics-${campus || "all"}.csv`, requestCsv(scoped))} className={exportBtn} style={{ background: "#0d2a5e", color: "white" }}>
+          <button disabled={!scoped.length} onClick={() => download(`procurement-analytics-${campus || "all"}.csv`, analyticsCsv(scoped))} className={exportBtn} style={{ background: "#0d2a5e", color: "white" }}>
             Export analytics
           </button>
         }
       >
-        <RequestTable rows={scoped} />
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px] text-left">
+            <thead style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+              <tr>
+                {["Request Number", "Project", "LIB Item", "Requested", "Approved", "Procured", "Disbursed", "Current Status", "Processing Time", ""].map((h) => (
+                  <th key={h} className="px-3 py-3 text-[10px] font-bold uppercase tracking-wider" style={{ color: "#64748b" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {scoped.map((r) => {
+                const amt = stageAmounts(r);
+                return (
+                  <tr key={r.id} className="hover:bg-slate-50" style={{ borderTop: "1px solid #f1f5f9" }}>
+                    <td className="px-3 py-3 font-mono text-xs font-bold" style={{ color: "#0d2a5e" }}>{r.request_no}</td>
+                    <td className="max-w-xs px-3 py-3">
+                      <p className="font-mono text-xs font-bold" style={{ color: "#0d2a5e" }}>{r.project_code}</p>
+                      <p className="truncate text-[10px]" style={{ color: "#64748b" }}>{r.project_title}</p>
+                    </td>
+                    <td className="max-w-xs px-3 py-3 text-xs" style={{ color: "#334155" }}>{CATEGORY_LABEL[r.category]} · {r.lib_item}</td>
+                    {[amt.requested, amt.approved, amt.procured, amt.disbursed].map((v, i) => (
+                      <td key={i} className="px-3 py-3 font-mono text-xs" style={{ color: "#1e293b" }}>{peso(v)}</td>
+                    ))}
+                    <td className="px-3 py-3"><StatusBadge status={r.status} /></td>
+                    <td className="px-3 py-3 text-xs font-semibold" style={{ color: isOverdue(r) ? "#dc2626" : "#475569" }}>
+                      {r.processing_days === null ? "—" : `${r.processing_days} days`}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <Link to={`/procurement?request=${r.id}`} className="rounded-lg border px-3 py-1.5 text-xs font-bold" style={{ borderColor: "#e2e8f0", color: "#0d2a5e" }}>
+                        Review
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!scoped.length && <div className="py-12 text-center text-sm" style={{ color: "#94a3b8" }}>No transactions match the selected analytics filters.</div>}
+        </div>
       </Card>
 
       <div className="rounded-2xl p-5" style={{ background: "#fef2f2", border: "1px solid #fecaca" }}>
-        <p className="font-black" style={{ color: "#7f1d1d" }}>Exception monitoring</p>
-        <p className="mb-4 text-xs" style={{ color: "#b91c1c" }}>Over-balance, open over {delayDays} days, or returned two or more times</p>
+        <div className="mb-4 flex items-start justify-between gap-2">
+          <div>
+            <p className="font-black" style={{ color: "#7f1d1d" }}>Exception monitoring</p>
+            <p className="text-xs" style={{ color: "#b91c1c" }}>Transactions requiring review: over the LIB balance, still open after {OVERDUE_DAYS} days, or returned two or more times</p>
+          </div>
+          <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "#fee2e2", color: "#b91c1c" }}>{flags.length} flags</span>
+        </div>
         <div className="space-y-2">
           {flags.map((x, i) => (
             <div key={`${x.row.id}-${i}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-3" style={{ background: "white" }}>
               <div>
                 <p className="font-mono text-xs font-bold" style={{ color: "#0d2a5e" }}>{x.row.request_no} · {x.row.project_code}</p>
-                <p className="text-xs" style={{ color: "#475569" }}>{x.row.description}</p>
+                <p className="text-xs" style={{ color: "#475569" }}>{x.row.lib_item} · {x.row.description}</p>
               </div>
-              <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={x.severity === "critical" ? { background: "#fee2e2", color: "#b91c1c" } : { background: "#fef3c7", color: "#b45309" }}>
-                {x.label}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={x.severity === "critical" ? { background: "#fee2e2", color: "#b91c1c" } : { background: "#fef3c7", color: "#b45309" }}>
+                  {x.label}
+                </span>
+                <span className="text-[10px]" style={{ color: "#64748b" }}>{peso(num(x.row.amount))}</span>
+              </div>
             </div>
           ))}
-          {!flags.length && <p className="text-xs" style={{ color: "#991b1b" }}>No exceptions.</p>}
+          {!flags.length && <p className="text-xs" style={{ color: "#991b1b" }}>No exceptions detected in the filtered transactions.</p>}
         </div>
       </div>
     </div>
@@ -475,7 +613,6 @@ export function ProcurementDashboard() {
   const campuses = useMemo(() => [...new Set(all.map((r) => r.campus).filter(Boolean))].sort(), [all]);
   const rows = useMemo(() => (campus ? all.filter((r) => r.campus === campus) : all), [all, campus]);
   const events = useMemo(() => (q.data?.events ?? []).filter((e) => !campus || e.campus === campus), [q.data, campus]);
-  const delayDays = q.data?.delay_days ?? 30;
 
   if (q.isPending) return <SkeletonRows rows={5} />;
   if (q.isError) return <NoActualData message="Could not load the procurement dashboard." hint="Check your connection and refresh." />;
@@ -485,7 +622,7 @@ export function ProcurementDashboard() {
   const release = rows.filter((r) => ["ready_for_release", "completed"].includes(r.status));
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "overview", label: "Overview" },
-    { id: "analytics", label: "Analytics", count: exceptions(rows, delayDays).length },
+    { id: "analytics", label: "Analytics", count: exceptions(rows).length },
     { id: "requests", label: "Requests", count: pending },
     { id: "release", label: "Release", count: rows.filter((r) => r.status === "ready_for_release").length },
     { id: "monitoring", label: "Monitoring" },
@@ -567,7 +704,7 @@ export function ProcurementDashboard() {
       ) : (
         <>
           {tab === "overview" && <OverviewTab rows={rows} setTab={setTab} />}
-          {tab === "analytics" && <AnalyticsTab rows={all} delayDays={delayDays} campus={campus} />}
+          {tab === "analytics" && <ProcurementAnalytics rows={all} campus={campus} />}
           {tab === "requests" && <RequestsTab rows={rows} title="All requests" campus={campus} />}
           {tab === "release" && <RequestsTab rows={release} title="Ready for release and completed" campus={campus} />}
           {tab === "monitoring" && <MonitoringTab rows={rows} />}
