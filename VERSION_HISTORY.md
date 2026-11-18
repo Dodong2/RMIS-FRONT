@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1157**
+**Latest version: 2026.11.18.1211**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1211
+
+- **Date and time:** 2026-11-18 12:11 (Asia/Manila)
+- **Category:** Bug fix
+- **Summary:** Budget Forecasting backtest follows the client's rules: MAE, RMSE and MAPE are computed only with at least 12 months of disbursement history, holding out the latest 3 months in order. A month without a disbursement now counts as ₱0 instead of being skipped. The page says why there are no metrics ("Not backtested: needs at least 12 months … has N"), shows "Backtest failed" with the error when the model fit fails, and shows MAPE "Unavailable" when every holdout month was ₱0.
+- **Affected modules:** Budget Forecasting (ARIMA forecast run, MAE/RMSE/MAPE tiles, saved runs list)
+- **Notes:** Client Task 78-C, rmis-backend 1180d13. Needs migration forecasting 0002. Old runs keep their figures; they show a note to run a new forecast. Forecast figures of projects with gap months change on the next run (gap months are now 0).
 
 ### 2026.11.18.1157
 

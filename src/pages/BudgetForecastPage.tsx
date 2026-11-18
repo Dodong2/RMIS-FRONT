@@ -158,6 +158,12 @@ function QuickChart({ history, result, scenario }: { history: { key: string; amo
 
 const arimaConfig: ChartConfig = { predicted: { label: "Predicted Disbursement", color: "#0891b2" } };
 
+const noBacktest = (run: ForecastRun) => (run.backtest_status === "failed" ? "Backtest failed" : "Not backtested");
+
+const backtestNote = (run: ForecastRun) =>
+  run.backtest_note ||
+  (!run.backtest_status && run.mae == null ? "This run was made before 2026-11-18 and didn't record why it wasn't backtested. Run a new forecast to see the reason." : "");
+
 function ArimaChart({ run }: { run: ForecastRun }) {
   const rows = run.forecasts.map((f) => ({
     period: new Date(f.period).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" }),
@@ -468,9 +474,9 @@ function ForecastContent() {
                             ["Actual to Date", selectedRun.actual_to_date ? peso(selectedRun.actual_to_date) : "—", "#0891b2", "#e0f2fe"],
                             ["Projected at Horizon", selectedRun.projected_total_at_horizon ? peso(selectedRun.projected_total_at_horizon) : "—", selectedRun.is_overrun_risk ? "#dc2626" : "#059669", selectedRun.is_overrun_risk ? "#fee2e2" : "#d1fae5"],
                             ["Unpaid Commitments (today)", peso(selectedRun.unpaid_commitments), "#b45309", "#fef3c7"],
-                            ["MAE", selectedRun.mae ? peso(selectedRun.mae) : "Not backtested", "#475569", "#f1f5f9"],
-                            ["RMSE", selectedRun.rmse ? peso(selectedRun.rmse) : "Not backtested", "#475569", "#f1f5f9"],
-                            ["MAPE", selectedRun.mape ? `${selectedRun.mape}%` : "Not backtested", "#475569", "#f1f5f9"],
+                            ["MAE", selectedRun.mae != null ? peso(selectedRun.mae) : noBacktest(selectedRun), "#475569", "#f1f5f9"],
+                            ["RMSE", selectedRun.rmse != null ? peso(selectedRun.rmse) : noBacktest(selectedRun), "#475569", "#f1f5f9"],
+                            ["MAPE", selectedRun.mape != null ? `${selectedRun.mape}%` : selectedRun.backtest_status === "completed" ? "Unavailable" : noBacktest(selectedRun), "#475569", "#f1f5f9"],
                           ].map(([l, v, c, bg]) => (
                             <div key={l} className="rounded-xl p-3" style={{ background: bg }}>
                               <p className="text-xs font-bold" style={{ color: c }}>{l}</p>
@@ -478,6 +484,11 @@ function ForecastContent() {
                             </div>
                           ))}
                         </div>
+                        {backtestNote(selectedRun) && (
+                          <p className="text-xs px-3 py-2 rounded-lg" style={{ background: selectedRun.backtest_status === "failed" ? "#fee2e2" : "#f1f5f9", color: selectedRun.backtest_status === "failed" ? "#dc2626" : "#64748b" }}>
+                            {backtestNote(selectedRun)}
+                          </p>
+                        )}
                       </>
                     )}
                   </div>
@@ -659,7 +670,7 @@ function ForecastContent() {
                     </div>
                     <div className="flex items-center justify-between mt-3 pt-2 border-t" style={{ borderColor: "#e2e8f0" }}>
                       <p className="text-xs" style={{ color: "#94a3b8" }}>
-                        Budget: {r.approved_budget_total ? peso(r.approved_budget_total) : "—"} · Actual: {r.actual_to_date ? peso(r.actual_to_date) : "—"} · MAPE {r.mape ? `${r.mape}%` : "n/a"}
+                        Budget: {r.approved_budget_total ? peso(r.approved_budget_total) : "—"} · Actual: {r.actual_to_date ? peso(r.actual_to_date) : "—"} · MAPE {r.mape != null ? `${r.mape}%` : "n/a"}
                       </p>
                       <button
                         onClick={() => {

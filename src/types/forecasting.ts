@@ -20,6 +20,8 @@ export interface ForecastRun {
   mae: string | null;
   rmse: string | null;
   mape: string | null;
+  backtest_status: "completed" | "insufficient_history" | "failed" | "";
+  backtest_note: string;
   approved_budget_total: string | null;
   actual_to_date: string | null;
   projected_total_at_horizon: string | null;
