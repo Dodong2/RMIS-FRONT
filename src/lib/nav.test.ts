@@ -67,14 +67,11 @@ describe("Personnel Coordination group (client Task 54, 2026-11-10)", () => {
   });
 });
 
-describe("Budget Office Sync in the sidebar (Task 64-B, 2026-11-16)", () => {
-  it("is hidden from Finance/Accounting/Budget", () => {
-    expect(visibleTargets("finance", "finance_budget")).not.toContain("/budget-sync");
-  });
-
-  it("stays for System Admin and institution oversight", () => {
-    expect(visibleTargets("system_admin", "system_admin")).toContain("/budget-sync");
-    expect(visibleTargets("institution_oversight", "vprei")).toContain("/budget-sync");
+describe("Budget Office Sync in the sidebar (client Task 78-B, 2026-11-18: hidden for every role)", () => {
+  it("is hidden from all 9 roles", () => {
+    for (const code of ["system_admin", "vprei", "university_admin", "crc_chair", "riuh", "finance_budget", "procurement_officer_lib", "project_leader", "project_staff"]) {
+      expect(visibleTargets(resolveTier({ code }), code), code).not.toContain("/budget-sync");
+    }
   });
 });
 

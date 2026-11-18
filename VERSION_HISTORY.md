@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.0251**
+**Latest version: 2026.11.18.1146**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1146
+
+- **Date and time:** 2026-11-18 11:46 (Asia/Manila)
+- **Category:** UI change
+- **Summary:** Budget Office Sync is hidden from the sidebar for every role until the client decides how it will be used.
+- **Affected modules:** Sidebar (Budget group: Budget Office Sync)
+- **Notes:** Client Task 78-B. Sidebar only: the /budget-sync page, its route access and the backend are unchanged, so the direct URL still opens for System Admin, VP for REI, University Administration and Finance. Restore by putting the tiers back in src/lib/nav.ts.
 
 ### 2026.11.18.0251
 

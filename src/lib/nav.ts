@@ -116,7 +116,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Budget Office Sync",
         to: "/budget-sync",
         icon: "sync",
-        tiers: ["system_admin", "institution_oversight"],
+        tiers: [],
         ready: true,
       },
     ],
