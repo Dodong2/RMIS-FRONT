@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1658**
+**Latest version: 2026.11.18.1707**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.1707
+
+- **Date and time:** 2026-11-18 17:07 (Asia/Manila)
+- **Category:** Security fix
+- **Summary:** Backend: a Monthly, Midterm or Terminal progress report can be submitted only for a project in the submitter's scope (Project Leader: projects they lead; Project Staff: projects they're assigned to; RIUH: their campus; System Admin: any), and an attached document must belong to that same project. Otherwise the server refuses it with a message and saves nothing.
+- **Affected modules:** Monitoring & Evaluation (Progress Reports API)
+- **Notes:** Client Task 83-B, rmis-backend 20e8593. No migration. No change to the page itself.
 
 ### 2026.11.18.1658
 
