@@ -1,6 +1,6 @@
 # RMIS Version History
 
-**Latest version: 2026.11.18.1721**
+**Latest version: 2026.11.18.2031**
 
 ## How versioning works
 
@@ -15,6 +15,14 @@
 - A backend-only change is shown on the site only after the frontend is redeployed with the new version.
 
 ## Versions
+
+### 2026.11.18.2031
+
+- **Date and time:** 2026-11-18 20:31 (Asia/Manila)
+- **Category:** Workflow and access change (backend)
+- **Summary:** R&D Quarterly Progress Reports now follow the client's flow: Project Leader Submit > RIUH Start Review and Endorse > CRC/CRD Approve (final). CRC/CRD no longer starts the review or endorses; VP for REI no longer approves and only views and exports. Approve is allowed only after RIUH endorses. CRC/CRD can return an endorsed report for revision; RIUH can return one that is under review.
+- **Affected modules:** Monitoring & Evaluation (R&D Quarterly Progress Reports)
+- **Notes:** Client Task 84-A, rmis-backend 2c4c18a. Needs accounts 0037 migrated. The modal's buttons follow in Task 84-B; until then RIUH/CRC/CRD buttons may not match what the server allows.
 
 ### 2026.11.18.1721
 
